@@ -9,11 +9,11 @@ Pathland is a **protocol-first** UI framework designed to enable retained-mode U
 ## Core Principles
 
 - **Protocol-first**: Standardized, open protocol for UI components, state, and events
-- **Retained-mode**: UI defined as a tree of components with state and lifecycle
+- **Command-based**: UI updates transmitted as **commands** (create, add, set, remove) rather than complete trees
+- **Stateless Renderers**: **Renderers maintain NO state** - they are pure functions that execute commands. Component IDs are the ONLY information retained (for event routing)
 - **Renderer-agnostic**: Supports server-owned, SSR, prerendered, and client-rendered apps
 - **Minimal runtime**: Lightweight with scoped state
 - **SwiftUI-inspired**: Syntax and concepts aligned with SwiftUI design
-- **🔥 Stateless Renderers**: **Renderers maintain NO state** - they are pure functions that transform component trees into rendered output. Component IDs are the ONLY information retained (for event routing)
 
 ## Documentation
 

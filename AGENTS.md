@@ -14,14 +14,23 @@ Pathland avoids React-like patterns (e.g., no `useSignal`, `useState`, or `new` 
 
 ## Core Principles
 
-### 1. Stateless Renderers ⭐
+### 1. Stateless Command-Based Renderers ⭐
 
-**CRITICAL**: Pathland renderers MUST be **completely stateless**. A renderer is a pure function that:
-- Takes a component tree as input
+**CRITICAL**: Pathland uses a **command-based protocol** where renderers execute commands rather than receiving complete trees.
+
+A renderer is a pure function that:
+- Takes **command batches** as input (not component trees)
+- Executes each command in order
 - Produces rendered output
 - The ONLY exception: maintains a temporary mapping of component IDs to rendered elements **solely for event routing**
 - Does NOT store, cache, or manage any application state
 - Does NOT maintain a virtual DOM or internal state representation
+
+**Key Architecture:**
+- Application manages state (signals) and generates commands
+- Commands describe changes: create, addChild, setModifier, setContent, remove, destroy
+- Renderer executes commands statelessly
+- Only actual changes are transmitted (efficient)
 
 All state (signals, computed values, etc.) is managed **externally** by the application or framework.
 

@@ -65,24 +65,32 @@ A conforming implementation MAY:
 
 ## 2. Core Concepts
 
-### 2.1 Component Tree
+### 2.1 Command-Based Protocol
 
-A Pathland UI is described as a **tree of components**. Each component:
+Pathland uses a **command-based** protocol where UI updates are described as a **list of commands** rather than a complete tree. This ensures only actual changes are transmitted.
 
-- Has a **type** that defines its behavior
-- May have **children** (for container components)
-- May have **modifiers** that affect its appearance and layout
-- May have **event handlers** for user interaction
-- May have **state** (via signals)
+**Command Types:**
+- `create` - Create a new component
+- `addChild` - Add a child to a parent component
+- `remove` - Remove a component
+- `setModifier` - Set or update a modifier on a component
+- `setContent` - Set content (e.g., text content)
+- `setEventHandler` - Set an event handler on a component
+- `destroy` - Destroy a component and its children
 
-### 2.2 Retained-Mode Rendering
+Each command is **stateless** - the renderer applies it without needing to understand the current state.
 
-Pathland uses **retained-mode** rendering:
+### 2.2 Stateless Command Execution
 
-1. The component tree is built and retained in memory
-2. The renderer traverses the tree to produce output
-3. State changes trigger updates to affected parts of the tree
-4. The tree structure is preserved between renders
+Pathland uses **stateless command execution**:
+
+1. The application generates commands based on state changes
+2. Commands are transmitted to the renderer
+3. The renderer executes each command in order
+4. The renderer does NOT maintain the component tree between command batches
+5. The renderer does NOT cache or remember any state
+
+**Key Insight**: The renderer is a pure function that transforms a stream of commands into rendered output. It has no memory of previous commands or the current UI state.
 
 ### 2.3 Protocol Representation
 
@@ -98,21 +106,21 @@ This specification uses a **pseudo-JSON** format for clarity, but implementation
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        PATHLAND ARCHITECTURE                              │
+│                    PATHLAND COMMAND ARCHITECTURE                        │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐  │
-│  │   APPLICATION    │────▶│   COMPONENT      │────▶│    RENDERER     │  │
-│  │   (State Mgmt)   │     │    TREE          │     │   (Stateless)   │  │
-│  └─────────────────┘     └─────────────────┘     └─────────────────┘  │
-│           │                    │                      │              │
-│           │ Rebuild Tree       │ Component Tree       │ Render Output  │
-│           │ with Current       │ (Pure Data)          │ (Pure Function)│
-│           │ State              │                      │              │
-│           ▼                    ▼                      ▼              │
+│  │   APPLICATION    │────▶│    COMMANDS      │────▶│    RENDERER     │  │
+│  │   (State Mgmt)   │     │   (Create, Add,   │     │   (Stateless)   │  │
+│  └─────────────────┘     │    Set, Remove)  │     └─────────────────┘  │
+│           │                └─────────────────┘              │              │
+│           │                       │                        │              │
+│           │ Generate Commands      │ Execute Commands       │              │
+│           │ from State Changes    │ (Pure Function)        │              │
+│           ▼                       ▼                        ▼              │
 │  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐  │
-│  │   SIGNALS        │     │   JSON/Protocol   │     │   PLATFORM      │  │
-│  │   (State)        │     │   Description     │     │   (DOM/Native/   │  │
+│  │   SIGNALS        │     │   COMMAND         │     │   PLATFORM      │  │
+│  │   (State)        │     │   STREAM          │     │   (DOM/Native/   │  │
 │  └─────────────────┘     └─────────────────┘     │   Graphics)      │  │
 │                              ┌────────────────────────┤                 │
 │                              │ EVENTS (with Component IDs)              │
@@ -122,23 +130,34 @@ This specification uses a **pseudo-JSON** format for clarity, but implementation
 
 KEY POINTS:
 - State lives ONLY in the Application (Signals)
-- Renderer is a PURE FUNCTION: Component Tree → Render Output
+- Application generates COMMANDS, not trees
+- Renderer executes commands as a PURE FUNCTION
+- Only actual changes are transmitted (efficient)
 - Events flow: Platform → Renderer → Application (via Component IDs)
 - Component IDs are the ONLY link between Renderer and Application
-- Renderer maintains NO state between renders
+- Renderer maintains NO state between command batches
 ```
 
 ### 2.5 Data Flow
 
-**Render Flow:**
+**Command Generation Flow (Application):**
 ```
-Application State (Signals) 
+State Change (Signals) 
     ↓
-Build Component Tree (Application) 
+Application Determines What Changed 
     ↓
-Pass Tree to Renderer 
+Generate Minimal Command List 
     ↓
-Renderer Produces Output + ID→Element Map 
+Send Commands to Renderer
+```
+
+**Command Execution Flow (Renderer):**
+```
+Receive Command Batch 
+    ↓
+Execute Each Command (Create, Add, Set, Remove, etc.) 
+    ↓
+Update Rendered Output + ID→Element Map 
     ↓
 Display to User
 ```
@@ -149,16 +168,192 @@ User Interaction
     ↓
 Platform Event 
     ↓
-Renderer Maps Event to Component ID 
+Renderer Maps Event to Component ID (using current ID→Element map) 
     ↓
 Application Receives Event with Component ID 
     ↓
 Application Updates State (Signals) 
     ↓
-(Back to Render Flow)
+(Back to Command Generation Flow)
 ```
 
-## 3. Data Types
+## 3. Command Protocol
+
+### 3.1 Command Structure
+
+All commands share a common structure:
+
+```json
+{
+  "type": <CommandType>,
+  "target": <string>,  // Component ID this command affects
+  "data": { ... }      // Command-specific data
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | The command type |
+| `target` | string | Yes | The ID of the component this command affects |
+| `data` | object | No | Command-specific data |
+
+### 3.2 Command Types
+
+#### 3.2.1 Create Command
+
+Creates a new component.
+
+```json
+{
+  "type": "create",
+  "target": "new-component-id",
+  "data": {
+    "componentType": "hstack" | "vstack" | "text" | <CustomType>,
+    "modifiers": { ... },
+    "events": { ... }
+  }
+}
+```
+
+**Fields:**
+- `componentType`: The type of component to create
+- `modifiers`: Initial modifiers for the component (optional)
+- `events`: Initial event handlers for the component (optional)
+
+#### 3.2.2 Add Child Command
+
+Adds a child to a parent component.
+
+```json
+{
+  "type": "addChild",
+  "target": "parent-component-id",
+  "data": {
+    "childId": "child-component-id",
+    "index": <number>  // Optional: index to insert at (defaults to end)
+  }
+}
+```
+
+**Fields:**
+- `childId`: The ID of the child component to add (must already exist)
+- `index`: The position to insert the child (optional, defaults to appending)
+
+#### 3.2.3 Remove Child Command
+
+Removes a child from a parent component.
+
+```json
+{
+  "type": "removeChild",
+  "target": "parent-component-id",
+  "data": {
+    "childId": "child-component-id"
+  }
+}
+```
+
+#### 3.2.4 Set Modifier Command
+
+Sets or updates a modifier on a component.
+
+```json
+{
+  "type": "setModifier",
+  "target": "component-id",
+  "data": {
+    "modifier": "gap" | "alignment" | "padding" | "background" | <AnyModifier>,
+    "value": <ModifierValue>
+  }
+}
+```
+
+#### 3.2.5 Set Content Command
+
+Sets the content of a component (primarily for `text` components).
+
+```json
+{
+  "type": "setContent",
+  "target": "component-id",
+  "data": {
+    "content": <string>
+  }
+}
+```
+
+#### 3.2.6 Set Event Handler Command
+
+Sets or updates an event handler on a component.
+
+```json
+{
+  "type": "setEventHandler",
+  "target": "component-id",
+  "data": {
+    "event": "onTap" | "onClick" | "onHover" | <AnyEvent>,
+    "handler": <HandlerReference>
+  }
+}
+```
+
+#### 3.2.7 Destroy Command
+
+Destroys a component and all its children.
+
+```json
+{
+  "type": "destroy",
+  "target": "component-id",
+  "data": {}
+}
+```
+
+**Behavior:**
+- Removes the component and all its descendants from the UI
+- Cleans up any resources associated with the component
+- Any future commands referencing destroyed components or their children are ignored
+
+### 3.3 Command Batching
+
+Commands are typically sent in **batches** to reduce overhead:
+
+```json
+{
+  "batchId": <string | number>,  // Optional batch identifier
+  "commands": [
+    { "type": "create", "target": "btn1", "data": { "componentType": "text", "content": "Click me" } },
+    { "type": "setModifier", "target": "btn1", "data": { "modifier": "background", "value": { "color": "#007AFF" } } },
+    { "type": "setEventHandler", "target": "btn1", "data": { "event": "onTap", "handler": "handleClick" } },
+    { "type": "addChild", "target": "root", "data": { "childId": "btn1" } }
+  ]
+}
+```
+
+**Batch Properties:**
+- Commands in a batch are executed in order
+- Batches are atomic: either all commands succeed or none do (implementation-defined)
+- Batch IDs can be used for debugging and acknowledgment
+
+### 3.4 Command Execution Semantics
+
+**Execution Rules:**
+1. Commands are executed in the order they are received
+2. Each command is **idempotent** - executing it multiple times produces the same result
+3. Commands against non-existent components are **ignored** (not errors)
+4. The renderer does NOT validate command sequences
+5. The renderer does NOT maintain command history
+
+**Example:**
+```json
+// These commands create and style a button:
+["create hstack with id=container"]
+["create text with id=label, content=Hello"]
+["setModifier on label: font={size: 24}"]
+["addChild: add label to container"]
+```
+
+## 4. Data Types
 
 ### 3.1 Primitive Types
 
@@ -269,41 +464,52 @@ Shorthand forms MAY be supported:
 
 ## 4. Component System
 
-### 4.1 Component Structure
+**Note**: In the command-based protocol, the "component tree" is a **logical concept** maintained by the **application**, not the renderer. The renderer only receives commands to create, modify, and destroy components.
 
-All components share a common structure:
+### 4.1 Component Definition
+
+When a component is created via the `create` command, it has the following structure:
 
 ```json
 {
-  "id": <string>,
-  "type": <string>,
+  "componentType": <string>,
   "modifiers": { ... },
-  "events": { ... },
-  "children": [ ... ]
+  "events": { ... }
 }
 ```
 
+**Note**: The `id` is specified in the `target` field of the create command, not in the component data itself.
+
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `id` | string | No | Unique identifier for the component |
-| `type` | string | Yes | Component type (e.g., "hstack", "vstack", "text") |
-| `modifiers` | object | No | Layout and style modifiers |
-| `events` | object | No | Event handlers |
-| `children` | array | No | Child components |
+| `componentType` | string | Yes | Component type (e.g., "hstack", "vstack", "text") |
+| `modifiers` | object | No | Initial layout and style modifiers |
+| `events` | object | No | Initial event handlers |
 
-### 4.2 Component Types
+### 4.2 Tree Structure (Application-Managed)
+
+The **application** maintains the logical tree structure and generates appropriate commands:
+
+- When a signal changes, the application determines which components need to be updated
+- The application generates commands to update only those components
+- The tree structure (parent-child relationships) is defined by `addChild` and `removeChild` commands
+- The renderer does NOT maintain or understand the tree structure - it just executes commands
+
+### 4.3 Component Types
 
 This specification defines the following core component types:
 
-| Type | Description | Children |
-|------|-------------|----------|
+| Type | Description | Can Have Children |
+|------|-------------|-------------------|
 | `hstack` | Horizontal stack container | Yes |
 | `vstack` | Vertical stack container | Yes |
 | `text` | Text display | No |
 
 Implementations MAY define additional component types.
 
-### 4.3 Component ID
+### 4.4 Component IDs
+
+Each component MUST have a unique `id` within its scope. The `id`:
 
 Each component SHOULD have a unique `id` within its scope. The `id`:
 
@@ -752,28 +958,29 @@ When a signal's value changes:
 
 A Pathland renderer MUST:
 
-1. Accept a component tree as input
-2. Render the tree to the target platform as a **pure function**
+1. Accept **command batches** as input
+2. Execute commands as a **pure function** to produce rendered output
 3. Handle events from the platform and dispatch them to the application via component IDs
 4. Clean up resources when done
 
-**Critical Constraint**: A renderer MUST NOT maintain any application state. The renderer is a stateless transformation from component tree to rendered output.
+**Critical Constraint**: A renderer MUST NOT maintain any application state. The renderer is a stateless executor of commands.
 
 ### 10.2 Statelessness Principle
 
-> **A Pathland renderer is a PURE FUNCTION: same input → same output**
+> **A Pathland renderer is a PURE FUNCTION: same commands → same output**
 
 The renderer:
-- ✅ Takes a complete component tree as input
-- ✅ Produces rendered output (DOM nodes, native views, graphics commands, etc.)
+- ✅ Takes command batches as input
+- ✅ Executes commands in order to produce rendered output
 - ✅ Dispatches events to the application using component IDs
 - ❌ Does NOT store application state
-- ❌ Does NOT modify the component tree
+- ❌ Does NOT maintain a component tree
 - ❌ Does NOT maintain a virtual DOM or similar internal representation
-- ❌ Does NOT cache or remember signal values between renders
+- ❌ Does NOT cache or remember signal values between command batches
+- ❌ Does NOT validate command sequences
 
 The ONLY exception is that a renderer MAY maintain a temporary mapping of component IDs to rendered elements **solely for the purpose of event routing**. This mapping must be:
-- Rebuilt on each render (not persisted across renders)
+- Rebuilt as commands are executed (not persisted across command batches)
 - Used only to route events back to the correct component ID
 - Not used to store any application state or data
 
@@ -782,8 +989,8 @@ The ONLY exception is that a renderer MAY maintain a temporary mapping of compon
 **All state is managed EXTERNALLY to the renderer.**
 
 - Signals and their values are managed by the application/framework
-- The application updates the component tree when state changes
-- The renderer receives the complete, current component tree on each render
+- The application generates commands based on state changes
+- The renderer receives and executes commands without understanding state
 - The renderer does not participate in state management
 
 ### 10.4 Renderer Capabilities
@@ -800,29 +1007,39 @@ A renderer SHOULD advertise its capabilities:
 }
 ```
 
-### 10.5 Rendering Process
+### 10.5 Command Execution Process
 
-The rendering process follows this stateless model:
+The command execution process follows this stateless model:
 
 1. **Application State Change**: Application updates signal values
-2. **Tree Update**: Application rebuilds the component tree with current state
-3. **Render Call**: Application passes complete component tree to renderer
-4. **Renderer Output**: Renderer produces output and builds ID→element mapping
-5. **Event Dispatch**: Platform events are mapped to component IDs and sent to application
-6. **Application Handling**: Application receives event with component ID, updates state
-7. **Repeat**: Back to step 1
+2. **Command Generation**: Application generates minimal command list based on changes
+3. **Command Transmission**: Application sends command batch to renderer
+4. **Command Execution**: Renderer executes each command in order
+5. **Renderer Output**: Renderer updates rendered output and ID→Element Map
+6. **Event Dispatch**: Platform events are mapped to component IDs and sent to application
+7. **Application Handling**: Application receives event with component ID, updates state
+8. **Repeat**: Back to step 1
 
-**Key Insight**: The renderer has no memory between steps 3 and 4. Each render is independent and receives the complete current state in the component tree.
+**Key Insight**: The renderer has no memory between command batches. Each batch is executed independently.
 
-### 10.6 Update Render Clarification
+### 10.6 Command Efficiency
 
-The protocol mentions "Update Render" in section 10.3 (now 10.5), which requires clarification:
+**Advantages of Command-Based Protocol:**
 
-- The **application** determines what needs to be re-rendered based on state changes
-- The **renderer** always receives a complete component tree, even for "update renders"
-- It is the **application's responsibility** to optimize which parts of the tree are rebuilt
-- The renderer MAY optimize its own output generation, but this is an implementation detail
-- The renderer does NOT maintain any information about previous renders to determine what changed
+- **Minimal Transmission**: Only actual changes are sent, not the entire tree
+- **Efficient Updates**: Commands describe exactly what changed
+- **Network-Friendly**: Small payloads, ideal for remote rendering
+- **Stateless**: Renderer doesn't need to maintain or understand tree structure
+- **Flexible**: Commands can be batched, prioritized, or reordered by the application
+
+**Example Efficiency Comparison:**
+```
+// Tree-based: Send entire tree (even if only one value changed)
+Tree: { id: "app", children: [{ id: "counter", content: "1" }, ...] }
+
+// Command-based: Send only what changed
+Command: { type: "setContent", target: "counter", data: { content: "1" } }
+```
 
 ### 10.4 Render Output
 
