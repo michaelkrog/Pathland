@@ -13,8 +13,20 @@ The Pathland state management system is designed to be:
 - **Predictable**: State changes follow clear, deterministic rules
 - **Efficient**: Minimizes unnecessary re-renders
 - **Scalable**: Works for both small and large applications
+- **Renderer-Agnostic**: State is managed **completely separately** from rendering
 
-### 1.2 Core Concepts
+### 1.2 Core Principles
+
+**State and Rendering are Completely Separate:**
+
+> **Renderers do not manage state. Period.**
+
+- All state (signals, computed values, effects) is managed by the **application or framework**
+- The renderer is a **stateless pure function** that only renders the current component tree
+- When state changes, the **application** rebuilds the component tree and passes it to the renderer
+- The renderer has **no knowledge** of signals, state updates, or dependencies
+
+### 1.3 Core Concepts
 
 Pathland uses a **signal-based** state management system:
 
@@ -22,6 +34,7 @@ Pathland uses a **signal-based** state management system:
 2. **Computed Signals**: Derived values that update automatically when their dependencies change
 3. **Effects**: Side effects that run in response to state changes
 4. **Scopes**: Isolated state contexts
+5. **Component Tree**: The output of state → UI transformation, passed to the renderer
 
 ### 1.3 State Flow
 

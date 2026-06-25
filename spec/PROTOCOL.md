@@ -26,6 +26,17 @@ This specification defines a standardized protocol for describing user interface
 3. **Predictability**: Deterministic behavior regardless of implementation
 4. **Extensibility**: Open for custom components and renderers
 5. **Performance**: Efficient serialization and rendering
+6. **Stateless Renderers**: Renderers are pure functions that do not maintain state
+
+### 1.3 Core Principles
+
+The following principles are **fundamental** to Pathland's design:
+
+1. **Stateless Renderers**: Renderers MUST NOT maintain any internal state. A renderer is a pure function that takes a component tree as input and produces render output. The renderer does not store, cache, or remember any application state between renders.
+
+2. **State Ownership**: All application state (signals, computed values, etc.) is managed **externally** by the application or framework, not by the renderer.
+
+3. **Component IDs for Event Routing**: The ONLY information a renderer retains between renders is the mapping of component IDs to their position in the rendered output, solely for the purpose of routing events back to the correct component in the application.
 
 ### 1.3 Non-Goals
 
@@ -82,6 +93,70 @@ The protocol can be represented in multiple formats:
 - **Native**: As native data structures in any language
 
 This specification uses a **pseudo-JSON** format for clarity, but implementations are free to use any internal representation.
+
+### 2.4 Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        PATHLAND ARCHITECTURE                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐  │
+│  │   APPLICATION    │────▶│   COMPONENT      │────▶│    RENDERER     │  │
+│  │   (State Mgmt)   │     │    TREE          │     │   (Stateless)   │  │
+│  └─────────────────┘     └─────────────────┘     └─────────────────┘  │
+│           │                    │                      │              │
+│           │ Rebuild Tree       │ Component Tree       │ Render Output  │
+│           │ with Current       │ (Pure Data)          │ (Pure Function)│
+│           │ State              │                      │              │
+│           ▼                    ▼                      ▼              │
+│  ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐  │
+│  │   SIGNALS        │     │   JSON/Protocol   │     │   PLATFORM      │  │
+│  │   (State)        │     │   Description     │     │   (DOM/Native/   │  │
+│  └─────────────────┘     └─────────────────┘     │   Graphics)      │  │
+│                              ┌────────────────────────┤                 │
+│                              │ EVENTS (with Component IDs)              │
+│                              └────────────────────────▶                 │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────┘
+
+KEY POINTS:
+- State lives ONLY in the Application (Signals)
+- Renderer is a PURE FUNCTION: Component Tree → Render Output
+- Events flow: Platform → Renderer → Application (via Component IDs)
+- Component IDs are the ONLY link between Renderer and Application
+- Renderer maintains NO state between renders
+```
+
+### 2.5 Data Flow
+
+**Render Flow:**
+```
+Application State (Signals) 
+    ↓
+Build Component Tree (Application) 
+    ↓
+Pass Tree to Renderer 
+    ↓
+Renderer Produces Output + ID→Element Map 
+    ↓
+Display to User
+```
+
+**Event Flow:**
+```
+User Interaction 
+    ↓
+Platform Event 
+    ↓
+Renderer Maps Event to Component ID 
+    ↓
+Application Receives Event with Component ID 
+    ↓
+Application Updates State (Signals) 
+    ↓
+(Back to Render Flow)
+```
 
 ## 3. Data Types
 
@@ -678,12 +753,40 @@ When a signal's value changes:
 A Pathland renderer MUST:
 
 1. Accept a component tree as input
-2. Render the tree to the target platform
-3. Handle events from the platform
-4. Manage state and trigger re-renders
-5. Clean up resources when done
+2. Render the tree to the target platform as a **pure function**
+3. Handle events from the platform and dispatch them to the application via component IDs
+4. Clean up resources when done
 
-### 10.2 Renderer Capabilities
+**Critical Constraint**: A renderer MUST NOT maintain any application state. The renderer is a stateless transformation from component tree to rendered output.
+
+### 10.2 Statelessness Principle
+
+> **A Pathland renderer is a PURE FUNCTION: same input → same output**
+
+The renderer:
+- ✅ Takes a complete component tree as input
+- ✅ Produces rendered output (DOM nodes, native views, graphics commands, etc.)
+- ✅ Dispatches events to the application using component IDs
+- ❌ Does NOT store application state
+- ❌ Does NOT modify the component tree
+- ❌ Does NOT maintain a virtual DOM or similar internal representation
+- ❌ Does NOT cache or remember signal values between renders
+
+The ONLY exception is that a renderer MAY maintain a temporary mapping of component IDs to rendered elements **solely for the purpose of event routing**. This mapping must be:
+- Rebuilt on each render (not persisted across renders)
+- Used only to route events back to the correct component ID
+- Not used to store any application state or data
+
+### 10.3 State Management Clarification
+
+**All state is managed EXTERNALLY to the renderer.**
+
+- Signals and their values are managed by the application/framework
+- The application updates the component tree when state changes
+- The renderer receives the complete, current component tree on each render
+- The renderer does not participate in state management
+
+### 10.4 Renderer Capabilities
 
 A renderer SHOULD advertise its capabilities:
 
@@ -697,12 +800,29 @@ A renderer SHOULD advertise its capabilities:
 }
 ```
 
-### 10.3 Rendering Process
+### 10.5 Rendering Process
 
-1. **Initial Render**: Render the entire component tree
-2. **Update Render**: Re-render only components affected by state changes
-3. **Event Handling**: Process events and call appropriate handlers
-4. **Cleanup**: Release resources when components are removed
+The rendering process follows this stateless model:
+
+1. **Application State Change**: Application updates signal values
+2. **Tree Update**: Application rebuilds the component tree with current state
+3. **Render Call**: Application passes complete component tree to renderer
+4. **Renderer Output**: Renderer produces output and builds ID→element mapping
+5. **Event Dispatch**: Platform events are mapped to component IDs and sent to application
+6. **Application Handling**: Application receives event with component ID, updates state
+7. **Repeat**: Back to step 1
+
+**Key Insight**: The renderer has no memory between steps 3 and 4. Each render is independent and receives the complete current state in the component tree.
+
+### 10.6 Update Render Clarification
+
+The protocol mentions "Update Render" in section 10.3 (now 10.5), which requires clarification:
+
+- The **application** determines what needs to be re-rendered based on state changes
+- The **renderer** always receives a complete component tree, even for "update renders"
+- It is the **application's responsibility** to optimize which parts of the tree are rebuilt
+- The renderer MAY optimize its own output generation, but this is an implementation detail
+- The renderer does NOT maintain any information about previous renders to determine what changed
 
 ### 10.4 Render Output
 
