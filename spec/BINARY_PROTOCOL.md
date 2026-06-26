@@ -828,6 +828,10 @@ Style properties can be applied to any component. Properties that accept COLOR c
 | `fontWeight` | 0x1008 | ENUM or DESIGN_TOKEN | Font weight (enum or typography token) |
 | `fontFamily` | 0x1009 | STRING or DESIGN_TOKEN | Font family name or typography token |
 | `color` | 0x100A | COLOR or DESIGN_TOKEN | Text color (sRGB, semantic token, or design token) |
+| `width` | 0x100B | F32 | Width in points (-1.0 = fill, -2.0 = hug content) |
+| `height` | 0x100C | F32 | Height in points (-1.0 = fill, -2.0 = hug content) |
+| `opacity` | 0x100D | F32 | Opacity value (0.0 = transparent, 1.0 = opaque) |
+| `visible` | 0x100E | U8 | Visibility (0 = hidden, 1 = visible) |
 
 ### Reserved Property IDs
 
@@ -836,7 +840,7 @@ Style properties can be applied to any component. Properties that accept COLOR c
 | 0x0000 | Reserved |
 | 0x000D-0x0FFF | Future HSTACK/VSTACK properties |
 | 0x0010-0x0FFF | Future TEXT properties |
-| 0x100B-0xFFFF | Future style properties |
+| 0x100F-0xFFFF | Future style properties |
 
 ---
 
@@ -1262,6 +1266,10 @@ FONT_SIZE = 0x1007
 FONT_WEIGHT = 0x1008
 FONT_FAMILY = 0x1009
 COLOR = 0x100A
+WIDTH = 0x100B
+HEIGHT = 0x100C
+OPACITY = 0x100D
+VISIBLE = 0x100E
 ```
 
 ### Semantic Properties
@@ -1480,6 +1488,11 @@ const PROPERTIES = {
   FONT_WEIGHT: 0x1008,
   FONT_FAMILY: 0x1009,
   COLOR: 0x100A,
+  // Frame/Size Control
+  WIDTH: 0x100B,
+  HEIGHT: 0x100C,
+  OPACITY: 0x100D,
+  VISIBLE: 0x100E,
   
   // Semantic Properties
   ROLE: 0x2001,
@@ -1994,7 +2007,7 @@ for (const inst of decoded) {
 | **Version** | 2 |
 | **Opcodes** | 6 defined, 126 reserved |
 | **Component Types** | 7 defined, 32,762 reserved |
-| **Properties** | 18 defined, 65,517 reserved |
+| **Properties** | 19 defined, 65,516 reserved |
 | **Value Types** | 8 defined, 119 reserved |
 | **Transport** | Transport-agnostic (ArrayBuffer) |
 
