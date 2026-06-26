@@ -1,6 +1,6 @@
 # Pathland Binary Protocol Specification
 
-**Version:** 1.0.0-beta  
+**Version:** 2.0.0-alpha  
 **Status:** Draft  
 **Format:** Custom Binary Instruction Protocol  
 **Last Updated:** June 26, 2026
@@ -124,12 +124,13 @@ The payload structure depends on the opcode.
 | 3 | 0x03 | `INSERT_CHILD` | Insert a child into a parent |
 | 4 | 0x04 | `REMOVE_CHILD` | Remove a child from a parent |
 | 5 | 0x05 | `SET_PROPERTY` | Set a property on a node |
+| 6 | 0x06 | `SET_DESIGN_TOKEN` | Set a design token value globally |
 
 ### Reserved Opcodes
 
 | Range | Purpose |
 |-------|---------|
-| 0x06-0x7F | Future opcodes |
+| 0x07-0x7F | Future opcodes |
 | 0x80-0xFF | Custom/extended opcodes |
 
 Implementations SHOULD ignore unknown opcodes to maintain forward compatibility.
@@ -292,12 +293,13 @@ Breakdown:
 | STRING | 0x05 | Length-prefixed UTF-8 string |
 | ENUM | 0x06 | `u8` (enum value) |
 | COLOR | 0x07 | Tagged union: [u8 colorKind][payload] |
+| DESIGN_TOKEN | 0x08 | Length-prefixed UTF-8 string (token path) |
 
 ### Reserved Value Types
 
 | Range | Purpose |
 |-------|---------|
-| 0x08-0x7F | Future value types |
+| 0x09-0x7F | Future value types |
 | 0x80-0xFF | Custom value types |
 
 ### Color Value Type
@@ -401,6 +403,86 @@ Example: Opaque red (0xFFFF0000)
 07 02 00 00 FF FF
 ```
 
+#### DESIGN_TOKEN Value Type
+
+The `DESIGN_TOKEN` value type (0x08) represents a reference to a design token by its path.
+
+**Encoding:**
+```
+[u8 valueType=0x08][u32 pathLength][utf8 path...]
+```
+
+**Token Path Format:**
+- Dot-separated path: `category.tokenName`
+- Examples: `color.primary`, `font.body`, `space.2`, `radius.medium`
+- Case-sensitive, lowercase recommended
+
+**DESIGN_TOKEN Encoding:**
+```
+08 [u32 pathLength][utf8 path...]
+```
+
+**Examples:**
+
+| Token Path | Bytes |
+|------------|-------|
+| `color.primary` | `08 0D 00 00 00 63 6F 6C 6F 72 2E 70 72 69 6D 61 72 79` |
+| `font.body` | `08 09 00 00 00 66 6F 6E 74 2E 62 6F 64 79` |
+| `space.2` | `08 07 00 00 00 73 70 61 63 65 2E 32` |
+
+---
+
+### 6. SET_DESIGN_TOKEN (0x06)
+
+Sets a design token value globally, overriding the renderer's default theme.
+
+**Payload:**
+```
+[u32 tokenId][u16 valueType][value...]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `tokenId` | u32 | Unique identifier for the token override |
+| `valueType` | u16 | Type of the token value (see Token Value Types) |
+| `value` | Variable | The token value, encoded according to valueType |
+
+**Binary Layout:**
+```
+06  TokenID(4B)  ValueType(2B)  Value(...)
+```
+
+**Token Value Types:**
+- `0x0001`: COLOR (uses COLOR value type encoding)
+- `0x0002`: F32 (for spacing, sizes, etc.)
+- `0x0003`: STRING (for font families, etc.)
+- `0x0004`: U32 (for discrete values)
+
+**Example:** Set color.primary token to a semantic token
+```
+06 01 00 00 00 00 01 07 01 06 00
+```
+Breakdown:
+- `06` - SET_DESIGN_TOKEN opcode
+- `01 00 00 00` - tokenId = 1
+- `00 01` - valueType = COLOR (0x0001)
+- `07` - COLOR value type
+- `01` - colorKind = SEMANTIC_TOKEN
+- `06 00` - tokenId = ACCENT (0x0006)
+
+**Example:** Set space.2 token to 8.0
+```
+06 02 00 00 00 00 02 04 00 00 00 40 41
+```
+Breakdown:
+- `06` - SET_DESIGN_TOKEN opcode
+- `02 00 00 00` - tokenId = 2
+- `00 02` - valueType = F32 (0x0002)
+- `04` - F32 value type
+- `00 00 00 40 41` - f32 value 8.0 (0x41000000 in LE)
+
+**Note:** Token IDs are assigned by the application and used for reference. The actual token path resolution is handled by the renderer's theme system.
+
 ---
 
 ## Renderer Expectations for Colors
@@ -421,6 +503,209 @@ Renderers MUST adhere to the following color handling requirements:
 
 ---
 
+## Design Token System
+
+### Overview
+
+The Pathland protocol implements a **design token system** as the foundation of all theming and visual styling. This system ensures a clean separation between:
+
+- **Application**: Defines structure, semantic state, and token overrides
+- **Renderer**: Defines visual appearance, interaction behaviors, and theme resolution
+
+**Core Principle:** The protocol defines structure and semantic state only. Visual appearance is fully derived from design tokens in the renderer.
+
+### Responsibilities
+
+#### Application (Worker)
+- Defines UI structure (tree mutations)
+- Defines semantic state (role, enabled, selected, etc.)
+- Optionally overrides design token values globally
+- Emits mutation stream to renderer
+
+#### Protocol
+- Carries structure + semantic state + token overrides only
+- Does NOT carry visual rules or interaction styling
+- Supports DESIGN_TOKEN value type for referencing tokens
+- Supports SET_DESIGN_TOKEN opcode for token overrides
+
+#### Renderer
+- Owns design token definitions and default values
+- Resolves tokens into concrete visual properties
+- Defines interaction state behaviors (hover, active, focus, etc.)
+- Applies theme logic based on component semantics
+- Renders components with appropriate styling
+
+### Token Categories
+
+Design tokens are organized into categories representing different visual primitives:
+
+#### 1. Color Tokens
+Tokens for color values used throughout the UI.
+
+| Token Path | Description |
+|------------|-------------|
+| `color.primary` | Primary brand/accent color |
+| `color.secondary` | Secondary color |
+| `color.background` | Primary background color |
+| `color.surface` | Surface/secondary background color |
+| `color.text.primary` | Primary text color |
+| `color.text.secondary` | Secondary text color |
+| `color.text.tertiary` | Tertiary text color |
+| `color.accent` | Accent color for interactive elements |
+| `color.danger` | Danger/error state color |
+| `color.success` | Success state color |
+| `color.warning` | Warning state color |
+| `color.info` | Informational state color |
+| `color.border` | Border color |
+| `color.separator` | Separator/divider color |
+
+#### 2. Typography Tokens
+Tokens for font styling.
+
+| Token Path | Description |
+|------------|-------------|
+| `font.body` | Body text font |
+| `font.heading.1` - `font.heading.6` | Heading fonts |
+| `font.mono` | Monospace font |
+| `font.size.body` | Body text size |
+| `font.size.heading.1` - `font.size.heading.6` | Heading sizes |
+| `font.weight.body` | Body text weight |
+| `font.weight.heading` | Heading weight |
+| `font.lineHeight.body` | Body text line height |
+
+#### 3. Spacing Tokens
+Tokens for spacing values.
+
+| Token Path | Description |
+|------------|-------------|
+| `space.0` | Zero spacing (0px) |
+| `space.1` - `space.12` | Incremental spacing values |
+| `space.xs` | Extra small spacing |
+| `space.sm` | Small spacing |
+| `space.md` | Medium spacing |
+| `space.lg` | Large spacing |
+| `space.xl` | Extra large spacing |
+
+#### 4. Shape Tokens
+Tokens for border radius and shape values.
+
+| Token Path | Description |
+|------------|-------------|
+| `radius.none` | No radius (0px) |
+| `radius.sm` | Small radius |
+| `radius.md` | Medium radius |
+| `radius.lg` | Large radius |
+| `radius.full` | Full radius (pill shape) |
+
+#### 5. Elevation Tokens
+Tokens for shadow/elevation values.
+
+| Token Path | Description |
+|------------|-------------|
+| `elevation.none` | No elevation |
+| `elevation.low` | Low elevation |
+| `elevation.medium` | Medium elevation |
+| `elevation.high` | High elevation |
+
+### Token Resolution
+
+#### Renderer-Owned Default Theme
+Each renderer MUST provide a default theme implementation that includes:
+- Default token values for all standard tokens
+- Mapping of tokens to platform-specific rendering primitives
+- Default interaction state behaviors
+
+Example default mappings:
+- `color.primary` → Platform accent color
+- `color.background` → Platform background color
+- `font.body` → Platform default font
+- `space.1` → Platform-standard spacing unit
+
+#### Application Token Overrides
+Applications can override token values globally using the SET_DESIGN_TOKEN opcode. These overrides apply to all components that reference the token.
+
+#### Token Inheritance and Derivation
+Renderers MAY derive additional token values from base tokens. For example:
+- `color.onPrimary` (text color on primary background) derived from `color.primary`
+- `color.primary.hover` (hover state color) derived from `color.primary`
+- `color.primary.active` (active state color) derived from `color.primary`
+
+### Interaction States (Renderer Responsibility)
+
+The following states are explicitly **renderer-owned** and MUST NOT be represented in the protocol as styling instructions:
+
+- **Hover**: Mouse pointer over component
+- **Active/Pressed**: Component is being pressed/activated
+- **Focus**: Component has keyboard focus
+- **Keyboard Focus Ring**: Visual indicator of focus state
+- **Pointer Down/Up Transitions**: Animation during press/release
+- **Disabled Visual Treatment**: Visual appearance when disabled
+
+These states are managed by the renderer's theme system, which maps them to appropriate token variations.
+
+#### Example: Button Interaction States
+
+**Protocol Input (Application):**
+```
+CREATE_NODE id=10 type=BUTTON
+SET_PROP id=10 role=PRIMARY
+SET_PROP id=10 enabled=true
+```
+
+**Renderer Interpretation:**
+- Normal: background = `color.primary`, text = `color.onPrimary`
+- Hover: background = derived(`color.primary`, hoverModifier)
+- Active: background = derived(`color.primary`, pressedModifier)
+- Disabled: background = `color.disabledSurface`, opacity = disabledOpacity
+
+No additional protocol communication is required for these state changes.
+
+### Design Token Value Encoding
+
+Design tokens are referenced by their path string using the DESIGN_TOKEN value type (0x08).
+
+**Token Path Format:**
+- Dot-separated: `category.tokenName`
+- Case-sensitive (lowercase recommended)
+- Examples: `color.primary`, `space.2`, `font.body`, `radius.medium`
+
+**Binary Encoding:**
+```
+[u8 valueType=0x08][u32 pathLength][utf8 path...]
+```
+
+### Component Rendering Model
+
+Components render based on:
+
+1. **Structural Definition**: Tree mutations (CREATE_NODE, INSERT_CHILD, etc.)
+2. **Semantic Properties**: Role, state, enabled, selected, etc.
+3. **Design Tokens**: Resolved by renderer based on component semantics
+
+### Protocol Constraints
+
+**The protocol MUST NEVER describe:**
+- How something looks in different interaction states
+- Visual transitions or animations
+- Conditional styling rules
+- Platform-specific rendering details
+
+**The protocol MAY describe:**
+- What the component is (type)
+- What semantic role it has (role)
+- What logical state it is in (enabled, disabled, selected)
+- Design token overrides (global values)
+
+### Forward Compatibility
+
+This token system allows:
+- New components to be introduced without protocol changes
+- New token categories to be added without breaking changes
+- Theme variations to be supported at renderer level
+- Platform-specific conventions to be respected
+
+---
+
 ## Component Type Definitions
 
 ### Component Type Table
@@ -430,15 +715,74 @@ Renderers MUST adhere to the following color handling requirements:
 | HSTACK | 0x0001 | Horizontal stack container |
 | VSTACK | 0x0002 | Vertical stack container |
 | TEXT | 0x0003 | Text display component |
+| BUTTON | 0x0004 | Button component |
+| IMAGE | 0x0005 | Image display component |
+| SWITCH | 0x0006 | Toggle switch component |
+| TEXT_FIELD | 0x0007 | Text input field component |
 
 ### Reserved Component Types
 
 | Range | Purpose |
 |-------|---------|
-| 0x0004-0x7FFF | Future core components |
+| 0x0008-0x7FFF | Future core components |
 | 0x8000-0xFFFF | Custom/experimental components |
 
 Implementations SHOULD ignore nodes with unknown component types.
+
+---
+
+## Semantic Properties
+
+Semantic properties describe the intent and state of components, allowing renderers to apply appropriate visual styling based on design tokens.
+
+### Global Semantic Properties (All Components)
+
+| Property | ID | Value Type | Description |
+|----------|----|------------|-------------|
+| `role` | 0x2001 | ENUM | Semantic role of the component |
+| `state` | 0x2002 | ENUM | Current state of the component |
+| `enabled` | 0x2003 | U8 | Whether the component is enabled (0=false, 1=true) |
+| `selected` | 0x2004 | U8 | Whether the component is selected (0=false, 1=true) |
+
+### Role Enum
+
+| Value | ID | Description | Applicable Components |
+|-------|----|-------------|---------------------|
+| DEFAULT | 0x00 | Default role | All |
+| PRIMARY | 0x01 | Primary action/importance | BUTTON, TEXT |
+| SECONDARY | 0x02 | Secondary action | BUTTON |
+| DESTRUCTIVE | 0x03 | Destructive action | BUTTON |
+| TERTIARY | 0x04 | Tertiary importance | TEXT |
+| HEADING | 0x05 | Heading text | TEXT |
+| BODY | 0x06 | Body text | TEXT |
+| CAPTION | 0x07 | Caption text | TEXT |
+| LABEL | 0x08 | Label text | TEXT |
+
+### State Enum
+
+| Value | ID | Description | Notes |
+|-------|----|-------------|-------|
+| NORMAL | 0x00 | Default state | |
+| HOVER | 0x01 | Hover state | Set by renderer, not application |
+| ACTIVE | 0x02 | Active/pressed state | Set by renderer, not application |
+| FOCUS | 0x03 | Focus state | Set by renderer, not application |
+| DISABLED | 0x04 | Disabled state | Can be set by application |
+| LOADING | 0x05 | Loading state | |
+
+**Important:** Interaction states (HOVER, ACTIVE, FOCUS) are managed by the renderer based on user input. The application should only set logical states (DISABLED, LOADING, etc.).
+
+### Button-Specific Properties
+
+| Property | ID | Value Type | Description |
+|----------|----|------------|-------------|
+| `icon` | 0x2101 | DESIGN_TOKEN | Icon token reference |
+
+### Text Field-Specific Properties
+
+| Property | ID | Value Type | Description |
+|----------|----|------------|-------------|
+| `placeholder` | 0x2201 | STRING | Placeholder text |
+| `value` | 0x2202 | STRING | Current text value |
 
 ---
 
@@ -470,20 +814,20 @@ Properties are organized by component type. Each component type has its own prop
 
 ### Style Properties
 
-Style properties can be applied to any component.
+Style properties can be applied to any component. Properties that accept COLOR can also accept DESIGN_TOKEN for token-based styling.
 
 | Property | ID | Value Type | Description |
 |----------|----|------------|-------------|
-| `backgroundColor` | 0x1001 | COLOR | Background color (sRGB or semantic token) |
+| `backgroundColor` | 0x1001 | COLOR or DESIGN_TOKEN | Background color (sRGB, semantic token, or design token) |
 | `backgroundOpacity` | 0x1002 | F32 | Opacity (0.0 to 1.0) |
-| `borderWidth` | 0x1003 | F32 | Border width in pixels |
-| `borderColor` | 0x1004 | COLOR | Border color (sRGB or semantic token) |
-| `borderRadius` | 0x1005 | F32 | Border radius in pixels |
-| `padding` | 0x1006 | F32 | Uniform padding in pixels |
-| `fontSize` | 0x1007 | F32 | Font size in points |
-| `fontWeight` | 0x1008 | ENUM | Font weight |
-| `fontFamily` | 0x1009 | STRING | Font family name |
-| `color` | 0x100A | COLOR | Text color (sRGB or semantic token) |
+| `borderWidth` | 0x1003 | F32 or DESIGN_TOKEN | Border width (pixels or spacing token) |
+| `borderColor` | 0x1004 | COLOR or DESIGN_TOKEN | Border color (sRGB, semantic token, or design token) |
+| `borderRadius` | 0x1005 | F32 or DESIGN_TOKEN | Border radius (pixels or shape token) |
+| `padding` | 0x1006 | F32 or DESIGN_TOKEN | Uniform padding (pixels or spacing token) |
+| `fontSize` | 0x1007 | F32 or DESIGN_TOKEN | Font size (points or typography token) |
+| `fontWeight` | 0x1008 | ENUM or DESIGN_TOKEN | Font weight (enum or typography token) |
+| `fontFamily` | 0x1009 | STRING or DESIGN_TOKEN | Font family name or typography token |
+| `color` | 0x100A | COLOR or DESIGN_TOKEN | Text color (sRGB, semantic token, or design token) |
 
 ### Reserved Property IDs
 
@@ -843,12 +1187,14 @@ Implementations SHOULD:
 A conforming Pathland implementation MUST:
 
 1. Support the binary format as defined in this specification
-2. Accept messages with version 1
-3. Handle all defined opcodes (1-5)
-4. Handle all defined component types (1-3)
+2. Accept messages with version 2
+3. Handle all defined opcodes (1-6)
+4. Handle all defined component types (1-7)
 5. Handle all defined property IDs
 6. Use little-endian byte order
 7. Use the specified encoding for all types
+8. Implement design token system as specified
+9. Provide default theme with token mappings
 
 A conforming implementation MAY:
 
@@ -858,6 +1204,8 @@ A conforming implementation MAY:
 4. Support additional value types
 5. Optimize encoding/decoding for their platform
 6. Support other transport mechanisms
+7. Provide custom design token categories
+8. Extend theme system with platform-specific behaviors
 
 ---
 
@@ -879,6 +1227,10 @@ SET_PROPERTY = 0x05
 HSTACK = 0x0001
 VSTACK = 0x0002
 TEXT = 0x0003
+BUTTON = 0x0004
+IMAGE = 0x0005
+SWITCH = 0x0006
+TEXT_FIELD = 0x0007
 ```
 
 ### HSTACK/VSTACK Properties
@@ -912,6 +1264,28 @@ FONT_FAMILY = 0x1009
 COLOR = 0x100A
 ```
 
+### Semantic Properties
+
+```
+ROLE = 0x2001
+STATE = 0x2002
+ENABLED = 0x2003
+SELECTED = 0x2004
+```
+
+### Button Properties
+
+```
+ICON = 0x2101
+```
+
+### Text Field Properties
+
+```
+PLACEHOLDER = 0x2201
+VALUE = 0x2202
+```
+
 ### Value Types
 
 ```
@@ -922,6 +1296,7 @@ F32 = 0x04
 STRING = 0x05
 ENUM = 0x06
 COLOR = 0x07
+DESIGN_TOKEN = 0x08
 ```
 
 ### Enums
@@ -953,6 +1328,31 @@ SEMIBOLD = 0x05
 BOLD = 0x06
 HEAVY = 0x07
 BLACK = 0x08
+
+// Role
+DEFAULT = 0x00
+PRIMARY = 0x01
+SECONDARY = 0x02
+DESTRUCTIVE = 0x03
+TERTIARY = 0x04
+HEADING = 0x05
+BODY = 0x06
+CAPTION = 0x07
+LABEL = 0x08
+
+// State
+NORMAL = 0x00
+HOVER = 0x01
+ACTIVE = 0x02
+FOCUS = 0x03
+DISABLED = 0x04
+LOADING = 0x05
+
+// Token Value Types
+TOKEN_VALUE_COLOR = 0x0001
+TOKEN_VALUE_F32 = 0x0002
+TOKEN_VALUE_STRING = 0x0003
+TOKEN_VALUE_U32 = 0x0004
 ```
 
 ### Color Constants
@@ -999,7 +1399,21 @@ const OPCODES = {
 const COMPONENT_TYPES = {
   HSTACK: 0x0001,
   VSTACK: 0x0002,
-  TEXT: 0x0003
+  TEXT: 0x0003,
+  BUTTON: 0x0004,
+  IMAGE: 0x0005,
+  SWITCH: 0x0006,
+  TEXT_FIELD: 0x0007
+};
+
+// Opcodes
+const OPCODES = {
+  CREATE_NODE: 0x01,
+  DELETE_NODE: 0x02,
+  INSERT_CHILD: 0x03,
+  REMOVE_CHILD: 0x04,
+  SET_PROPERTY: 0x05,
+  SET_DESIGN_TOKEN: 0x06
 };
 
 // Value Types
@@ -1010,7 +1424,8 @@ const VALUE_TYPES = {
   F32: 0x04,
   STRING: 0x05,
   ENUM: 0x06,
-  COLOR: 0x07
+  COLOR: 0x07,
+  DESIGN_TOKEN: 0x08
 };
 
 // Color Constants
@@ -1032,6 +1447,14 @@ const SEMANTIC_COLOR_TOKENS = {
   INFO: 0x000A,
   BORDER: 0x000B,
   SEPARATOR: 0x000C
+};
+
+// Token Value Types (for SET_DESIGN_TOKEN)
+const TOKEN_VALUE_TYPES = {
+  COLOR: 0x0001,
+  F32: 0x0002,
+  STRING: 0x0003,
+  U32: 0x0004
 };
 
 // Properties
@@ -1056,7 +1479,20 @@ const PROPERTIES = {
   FONT_SIZE: 0x1007,
   FONT_WEIGHT: 0x1008,
   FONT_FAMILY: 0x1009,
-  COLOR: 0x100A
+  COLOR: 0x100A,
+  
+  // Semantic Properties
+  ROLE: 0x2001,
+  STATE: 0x2002,
+  ENABLED: 0x2003,
+  SELECTED: 0x2004,
+  
+  // Button-specific
+  ICON: 0x2101,
+  
+  // Text Field-specific
+  PLACEHOLDER: 0x2201,
+  VALUE: 0x2202
 };
 
 // Enums
@@ -1080,6 +1516,29 @@ const TEXT_ALIGNMENT = {
   LEADING: 0x00,
   CENTER: 0x01,
   TRAILING: 0x02
+};
+
+// Role Enum
+const ROLE = {
+  DEFAULT: 0x00,
+  PRIMARY: 0x01,
+  SECONDARY: 0x02,
+  DESTRUCTIVE: 0x03,
+  TERTIARY: 0x04,
+  HEADING: 0x05,
+  BODY: 0x06,
+  CAPTION: 0x07,
+  LABEL: 0x08
+};
+
+// State Enum
+const STATE = {
+  NORMAL: 0x00,
+  HOVER: 0x01,
+  ACTIVE: 0x02,
+  FOCUS: 0x03,
+  DISABLED: 0x04,
+  LOADING: 0x05
 };
 
 // ============================================
@@ -1208,6 +1667,8 @@ class BinaryEncoder {
         return 1 + 4 + 4; // opcode + parentId + childId
       case 'SET_PROPERTY':
         return 1 + 4 + 2 + 1 + this.calculateValueSize(inst.valueType, inst.value);
+      case 'SET_DESIGN_TOKEN':
+        return 1 + 4 + 2 + this.calculateTokenValueSize(inst.tokenValueType, inst.value);
       default:
         return 1; // opcode only (minimum)
     }
@@ -1222,6 +1683,17 @@ class BinaryEncoder {
       case VALUE_TYPES.STRING: return 4 + value.length;
       case VALUE_TYPES.ENUM: return 1;
       case VALUE_TYPES.COLOR: return 1 + (value.tokenId !== undefined ? 2 : 4); // colorKind + (tokenId or rgba)
+      case VALUE_TYPES.DESIGN_TOKEN: return 1 + 4 + value.length; // valueType + pathLength + path
+      default: return 0;
+    }
+  }
+
+  calculateTokenValueSize(tokenValueType, value) {
+    switch (tokenValueType) {
+      case TOKEN_VALUE_TYPES.COLOR: return 1 + (value.tokenId !== undefined ? 2 : 4); // colorKind + (tokenId or rgba)
+      case TOKEN_VALUE_TYPES.F32: return 4;
+      case TOKEN_VALUE_TYPES.STRING: return 4 + value.length;
+      case TOKEN_VALUE_TYPES.U32: return 4;
       default: return 0;
     }
   }
@@ -1252,6 +1724,11 @@ class BinaryEncoder {
         this.writeU8(inst.valueType);
         this.writeValue(inst.valueType, inst.value);
         break;
+      case 'SET_DESIGN_TOKEN':
+        this.writeU32(inst.tokenId);
+        this.writeU16(inst.tokenValueType);
+        this.writeTokenValue(inst.tokenValueType, inst.value);
+        break;
     }
   }
 
@@ -1277,6 +1754,31 @@ class BinaryEncoder {
         break;
       case VALUE_TYPES.COLOR:
         this.writeColor(value);
+        break;
+      case VALUE_TYPES.DESIGN_TOKEN:
+        this.writeDesignToken(value);
+        break;
+    }
+  }
+
+  writeDesignToken(tokenPath) {
+    this.writeU8(VALUE_TYPES.DESIGN_TOKEN);
+    this.writeString(tokenPath);
+  }
+
+  writeTokenValue(tokenValueType, value) {
+    switch (tokenValueType) {
+      case TOKEN_VALUE_TYPES.COLOR:
+        this.writeColor(value);
+        break;
+      case TOKEN_VALUE_TYPES.F32:
+        this.writeF32(value);
+        break;
+      case TOKEN_VALUE_TYPES.STRING:
+        this.writeString(value);
+        break;
+      case TOKEN_VALUE_TYPES.U32:
+        this.writeU32(value);
         break;
     }
   }
@@ -1400,6 +1902,13 @@ class BinaryDecoder {
           valueType: this.readU8(),
           value: this.readValue(this.readU8())
         };
+      case OPCODES.SET_DESIGN_TOKEN:
+        return {
+          opcode: 'SET_DESIGN_TOKEN',
+          tokenId: this.readU32(),
+          tokenValueType: this.readU16(),
+          value: this.readTokenValue(this.readU16())
+        };
       default:
         // Unknown opcode - skip and continue
         return { opcode: 'UNKNOWN', opcodeValue: opcode };
@@ -1415,6 +1924,22 @@ class BinaryDecoder {
       case VALUE_TYPES.STRING: return this.readString();
       case VALUE_TYPES.ENUM: return this.readU8();
       case VALUE_TYPES.COLOR: return this.readColor();
+      case VALUE_TYPES.DESIGN_TOKEN: return this.readDesignToken();
+      default: return null;
+    }
+  }
+
+  readDesignToken() {
+    // Read the token path string (already read the DESIGN_TOKEN type byte)
+    return this.readString();
+  }
+
+  readTokenValue(tokenValueType) {
+    switch (tokenValueType) {
+      case TOKEN_VALUE_TYPES.COLOR: return this.readColor();
+      case TOKEN_VALUE_TYPES.F32: return this.readF32();
+      case TOKEN_VALUE_TYPES.STRING: return this.readString();
+      case TOKEN_VALUE_TYPES.U32: return this.readU32();
       default: return null;
     }
   }
@@ -1466,11 +1991,11 @@ for (const inst of decoded) {
 |--------|---------|
 | **Format** | Custom binary instruction protocol |
 | **Endianness** | Little-endian |
-| **Version** | 1 |
-| **Opcodes** | 5 defined, 127 reserved |
-| **Component Types** | 3 defined, 32,767 reserved |
-| **Properties** | 12 defined, 65,527 reserved |
-| **Value Types** | 7 defined, 120 reserved |
+| **Version** | 2 |
+| **Opcodes** | 6 defined, 126 reserved |
+| **Component Types** | 7 defined, 32,762 reserved |
+| **Properties** | 18 defined, 65,517 reserved |
+| **Value Types** | 8 defined, 119 reserved |
 | **Transport** | Transport-agnostic (ArrayBuffer) |
 
 ---
@@ -1481,3 +2006,4 @@ for (const inst of decoded) {
 |---------|------|---------|
 | 1.0.0-alpha | 2026-06-25 | Initial custom binary protocol specification |
 | 1.0.0-beta | 2026-06-26 | Added COLOR value type with semantic token and literal sRGB support, updated color properties to use COLOR type, added renderer expectations for colors |
+| 2.0.0-alpha | 2026-06-26 | Added Design Token System: DESIGN_TOKEN value type, SET_DESIGN_TOKEN opcode, semantic component types (BUTTON, IMAGE, SWITCH, TEXT_FIELD), semantic properties (role, state, enabled, selected), comprehensive token categories and resolution rules |
