@@ -12,6 +12,7 @@ export class CommandExecutor {
   private idToElement: Map<number, RenderElement> = new Map();
   private elementToId: WeakMap<HTMLElement, number> = new WeakMap();
   private rootContainer: HTMLElement;
+  private rootNodeIds: Set<number> = new Set();
 
   constructor(rootContainer: HTMLElement) {
     this.rootContainer = rootContainer;
@@ -23,11 +24,19 @@ export class CommandExecutor {
    * The only side effect is DOM manipulation.
    */
   executeCommands(commands: Command[]): void {
-    // Ensure rootContainer is referenced (stored for potential future use)
-    void this.rootContainer;
     for (const command of commands) {
       this.executeCommand(command);
     }
+    
+    // After processing all commands, add any root nodes to the rootContainer
+    // Root nodes are nodes that were created but never inserted as children
+    for (const nodeId of this.rootNodeIds) {
+      const renderElement = this.idToElement.get(nodeId);
+      if (renderElement && !renderElement.element.parentNode) {
+        this.rootContainer.appendChild(renderElement.element);
+      }
+    }
+    this.rootNodeIds.clear();
   }
 
   /**
@@ -76,10 +85,9 @@ export class CommandExecutor {
     this.idToElement.set(command.nodeId, renderElement);
     this.elementToId.set(element, command.nodeId);
     
-    // For POC: Add all nodes to rootContainer initially
-    // In a real implementation with proper tree hierarchy, root nodes would be
-    // inserted into the rootContainer via INSERT_CHILD commands
-    this.rootContainer.appendChild(element);
+    // Track this node as potentially a root node
+    // It will be removed from this set if it gets inserted as a child
+    this.rootNodeIds.add(command.nodeId);
   }
 
   private executeDeleteNode(command: Extract<Command, { opcode: 'DELETE_NODE' }>): void {
@@ -93,6 +101,7 @@ export class CommandExecutor {
       // Clean up maps
       this.idToElement.delete(command.nodeId);
       this.elementToId.delete(renderElement.element);
+      this.rootNodeIds.delete(command.nodeId);
       
       // Also clean up any children
       for (const childElement of renderElement.children) {
@@ -100,6 +109,7 @@ export class CommandExecutor {
         if (childId !== undefined) {
           this.idToElement.delete(childId);
           this.elementToId.delete(childElement);
+          this.rootNodeIds.delete(childId);
         }
       }
     }
@@ -112,6 +122,9 @@ export class CommandExecutor {
     if (parentRenderElement && childRenderElement) {
       const parentElement = parentRenderElement.element;
       const childElement = childRenderElement.element;
+      
+      // Remove child from rootNodeIds since it's being inserted as a child
+      this.rootNodeIds.delete(command.childId);
       
       // Handle index = UINT32_MAX (append)
       const index = command.index === 0xFFFFFFFF 
