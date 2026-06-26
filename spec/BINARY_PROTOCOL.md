@@ -1,9 +1,9 @@
 # Pathland Binary Protocol Specification
 
-**Version:** 1.0.0-alpha  
+**Version:** 1.0.0-beta  
 **Status:** Draft  
 **Format:** Custom Binary Instruction Protocol  
-**Last Updated:** June 25, 2026
+**Last Updated:** June 26, 2026
 
 ---
 
@@ -291,13 +291,133 @@ Breakdown:
 | F32 | 0x04 | `f32` |
 | STRING | 0x05 | Length-prefixed UTF-8 string |
 | ENUM | 0x06 | `u8` (enum value) |
+| COLOR | 0x07 | Tagged union: [u8 colorKind][payload] |
 
 ### Reserved Value Types
 
 | Range | Purpose |
 |-------|---------|
-| 0x07-0x7F | Future value types |
+| 0x08-0x7F | Future value types |
 | 0x80-0xFF | Custom value types |
+
+### Color Value Type
+
+The `COLOR` value type (0x07) is a **tagged union** that supports both semantic color tokens and literal sRGB colors.
+
+**Encoding:**
+```
+[u8 colorKind][payload]
+```
+
+#### Color Kind Table
+
+| Kind | Value | Payload | Description |
+|------|-------|---------|-------------|
+| SEMANTIC_TOKEN | 0x01 | u16 tokenId | Semantic color token |
+| LITERAL_SRGB | 0x02 | u32 rgba | Literal sRGB color |
+
+#### Semantic Color Tokens
+
+Semantic color tokens represent platform-agnostic color roles that adapt to the renderer's theme, accessibility settings, and platform conventions.
+
+**Token Table:**
+
+| Token | ID | Hex | Description |
+|-------|----|-----|-------------|
+| PRIMARY_TEXT | 0x0001 | 1 | Primary text color (adapts to light/dark mode) |
+| SECONDARY_TEXT | 0x0002 | 2 | Secondary text color |
+| TERTIARY_TEXT | 0x0003 | 3 | Tertiary text color |
+| BACKGROUND | 0x0004 | 4 | Primary background color |
+| SURFACE | 0x0005 | 5 | Surface/secondary background color |
+| ACCENT | 0x0006 | 6 | Accent color for interactive elements |
+| ERROR | 0x0007 | 7 | Error state color |
+| SUCCESS | 0x0008 | 8 | Success state color |
+| WARNING | 0x0009 | 9 | Warning state color |
+| INFO | 0x000A | 10 | Informational state color |
+| BORDER | 0x000B | 11 | Border color |
+| SEPARATOR | 0x000C | 12 | Separator/divider color |
+
+**Reserved Token IDs:**
+- 0x0000: Reserved
+- 0x000D-0xFFFF: Future semantic tokens
+
+**Semantic Token Encoding:**
+```
+07 01 [u16 tokenId]
+```
+
+Example: PRIMARY_TEXT token
+```
+07 01 01 00
+```
+
+#### Literal sRGB Colors
+
+Literal colors are encoded as **sRGB** with the following characteristics:
+
+- **Color Space**: sRGB (IEC 61966-2-1)
+- **White Point**: D65
+- **Transfer Function**: Standard sRGB gamma (IEC 61966-2-1)
+- **Encoding**: Packed RGBA (32-bit)
+
+**Important**: All literal colors in the Pathland protocol MUST be interpreted as sRGB. This ensures consistent color definition across all renderers, even though physical display characteristics may vary.
+
+**Protocol Guarantee**: The protocol guarantees consistent **color definition** (sRGB), not identical physical appearance across all displays.
+
+**Bit Layout:**
+```
+0xAARRGGBB
+```
+
+- **AA**: Alpha channel (0x00 = transparent, 0xFF = opaque)
+- **RR**: Red channel (0x00-0xFF)
+- **GG**: Green channel (0x00-0xFF)
+- **BB**: Blue channel (0x00-0xFF)
+
+**Byte Order**: The 32-bit RGBA value is stored in **little-endian** format:
+```
+[BB][GG][RR][AA]
+```
+
+**Literal sRGB Encoding:**
+```
+07 02 [u32 rgba]
+```
+
+**Examples:**
+
+| Color | RGBA Hex | Little-Endian Bytes |
+|-------|----------|---------------------|
+| Opaque Red | 0xFFFF0000 | `00 00 FF FF` |
+| Opaque Green | 0xFF00FF00 | `00 FF 00 FF` |
+| Opaque Blue | 0xFF0000FF | `FF 00 00 FF` |
+| Opaque White | 0xFFFFFFFF | `FF FF FF FF` |
+| Opaque Black | 0xFF000000 | `00 00 00 FF` |
+| 50% Transparent Red | 0x80FF0000 | `00 00 FF 80` |
+| 50% Transparent Blue | 0x800000FF | `FF 00 00 80` |
+
+Example: Opaque red (0xFFFF0000)
+```
+07 02 00 00 FF FF
+```
+
+---
+
+## Renderer Expectations for Colors
+
+Renderers MUST adhere to the following color handling requirements:
+
+1. **sRGB Interpretation**: All literal sRGB colors MUST be interpreted using the sRGB color space (IEC 61966-2-1) with D65 white point and standard sRGB transfer function.
+
+2. **Color Space Conversion**: When the target display or rendering API uses a different color space (e.g., Display P3), renderers SHOULD convert sRGB colors to the native color space using platform-appropriate conversion methods.
+
+3. **Semantic Token Resolution**: Semantic color tokens MUST be resolved according to the renderer's current theme, accessibility settings, and platform conventions. Token resolution may vary between light mode, dark mode, and high contrast modes.
+
+4. **Alpha Handling**: Alpha values (0x00-0xFF) MUST be interpreted as 8-bit unsigned integers where 0x00 represents fully transparent and 0xFF represents fully opaque. Intermediate values represent proportional transparency.
+
+5. **No Visual Guarantee**: The protocol guarantees consistent color **definition** but does NOT guarantee perceptually identical visual appearance across all physical displays due to differences in display gamuts, gamma, calibration, and viewing conditions.
+
+6. **Fallback for Unknown Tokens**: If a renderer encounters an unknown semantic color token ID, it SHOULD fall back to a sensible default (e.g., black for text tokens, transparent for surface tokens) and log a warning for debugging.
 
 ---
 
@@ -354,16 +474,16 @@ Style properties can be applied to any component.
 
 | Property | ID | Value Type | Description |
 |----------|----|------------|-------------|
-| `backgroundColor` | 0x1001 | U32 | RGB color (0xRRGGBB) |
+| `backgroundColor` | 0x1001 | COLOR | Background color (sRGB or semantic token) |
 | `backgroundOpacity` | 0x1002 | F32 | Opacity (0.0 to 1.0) |
 | `borderWidth` | 0x1003 | F32 | Border width in pixels |
-| `borderColor` | 0x1004 | U32 | RGB color (0xRRGGBB) |
+| `borderColor` | 0x1004 | COLOR | Border color (sRGB or semantic token) |
 | `borderRadius` | 0x1005 | F32 | Border radius in pixels |
 | `padding` | 0x1006 | F32 | Uniform padding in pixels |
 | `fontSize` | 0x1007 | F32 | Font size in points |
 | `fontWeight` | 0x1008 | ENUM | Font weight |
 | `fontFamily` | 0x1009 | STRING | Font family name |
-| `color` | 0x100A | U32 | Text color (0xRRGGBB) |
+| `color` | 0x100A | COLOR | Text color (sRGB or semantic token) |
 
 ### Reserved Property IDs
 
@@ -436,24 +556,6 @@ Used for `fontWeight` style property.
 | 0x80-0xFF | Custom font weights |
 
 ---
-
-## Color Encoding
-
-Colors are encoded as 32-bit values in RGB format:
-
-```
-0xAARRGGBB  (for colors with alpha)
-0x00RRGGBB  (for opaque colors, alpha = 1.0)
-```
-
-| Format | Encoding | Example |
-|--------|----------|---------|
-| Opaque Red | 0xFF0000 | 0xFF0000 |
-| Semi-transparent Red | 0x80FF0000 | 50% opacity red |
-| Opaque White | 0xFFFFFF | 0xFFFFFF |
-| Opaque Black | 0x000000 | 0x000000 |
-
-**Note:** Alpha is in the **most significant byte** (AA), followed by Red, Green, Blue.
 
 ---
 
@@ -819,6 +921,7 @@ I32 = 0x03
 F32 = 0x04
 STRING = 0x05
 ENUM = 0x06
+COLOR = 0x07
 ```
 
 ### Enums
@@ -850,6 +953,28 @@ SEMIBOLD = 0x05
 BOLD = 0x06
 HEAVY = 0x07
 BLACK = 0x08
+```
+
+### Color Constants
+
+```
+// Color Kind
+SEMANTIC_TOKEN = 0x01
+LITERAL_SRGB = 0x02
+
+// Semantic Color Tokens
+PRIMARY_TEXT = 0x0001
+SECONDARY_TEXT = 0x0002
+TERTIARY_TEXT = 0x0003
+BACKGROUND = 0x0004
+SURFACE = 0x0005
+ACCENT = 0x0006
+ERROR = 0x0007
+SUCCESS = 0x0008
+WARNING = 0x0009
+INFO = 0x000A
+BORDER = 0x000B
+SEPARATOR = 0x000C
 ```
 
 ---
@@ -884,7 +1009,29 @@ const VALUE_TYPES = {
   I32: 0x03,
   F32: 0x04,
   STRING: 0x05,
-  ENUM: 0x06
+  ENUM: 0x06,
+  COLOR: 0x07
+};
+
+// Color Constants
+const COLOR_KIND = {
+  SEMANTIC_TOKEN: 0x01,
+  LITERAL_SRGB: 0x02
+};
+
+const SEMANTIC_COLOR_TOKENS = {
+  PRIMARY_TEXT: 0x0001,
+  SECONDARY_TEXT: 0x0002,
+  TERTIARY_TEXT: 0x0003,
+  BACKGROUND: 0x0004,
+  SURFACE: 0x0005,
+  ACCENT: 0x0006,
+  ERROR: 0x0007,
+  SUCCESS: 0x0008,
+  WARNING: 0x0009,
+  INFO: 0x000A,
+  BORDER: 0x000B,
+  SEPARATOR: 0x000C
 };
 
 // Properties
@@ -994,9 +1141,35 @@ class BinaryEncoder {
     this.cursor += bytes.length;
   }
 
-  writeColor(r, g, b, a = 255) {
-    const color = (a << 24) | (r << 16) | (g << 8) | b;
-    this.writeU32(color);
+  writeColor(colorValue) {
+    // colorValue can be either a semantic token ID (number) or an rgba object/number
+    if (typeof colorValue === 'number') {
+      // For backward compatibility: assume it's a semantic token ID
+      this.writeU8(COLOR_KIND.SEMANTIC_TOKEN);
+      this.writeU16(colorValue);
+    } else if (colorValue && typeof colorValue === 'object' && 'tokenId' in colorValue) {
+      // Semantic token: { tokenId: number }
+      this.writeU8(COLOR_KIND.SEMANTIC_TOKEN);
+      this.writeU16(colorValue.tokenId);
+    } else {
+      // Literal sRGB: { r: number, g: number, b: number, a?: number } or packed rgba number
+      let r, g, b, a = 255;
+      if (colorValue && typeof colorValue === 'object') {
+        r = colorValue.r ?? 0;
+        g = colorValue.g ?? 0;
+        b = colorValue.b ?? 0;
+        a = colorValue.a ?? 255;
+      } else {
+        // Legacy: assume it's a packed RGBA number (0xAARRGGBB format)
+        a = (colorValue >> 24) & 0xFF;
+        r = (colorValue >> 16) & 0xFF;
+        g = (colorValue >> 8) & 0xFF;
+        b = colorValue & 0xFF;
+      }
+      this.writeU8(COLOR_KIND.LITERAL_SRGB);
+      const rgba = (a << 24) | (r << 16) | (g << 8) | b;
+      this.writeU32(rgba);
+    }
   }
 
   // Helper: Encode a message with instructions
@@ -1048,6 +1221,7 @@ class BinaryEncoder {
       case VALUE_TYPES.F32: return 4;
       case VALUE_TYPES.STRING: return 4 + value.length;
       case VALUE_TYPES.ENUM: return 1;
+      case VALUE_TYPES.COLOR: return 1 + (value.tokenId !== undefined ? 2 : 4); // colorKind + (tokenId or rgba)
       default: return 0;
     }
   }
@@ -1100,6 +1274,9 @@ class BinaryEncoder {
         break;
       case VALUE_TYPES.ENUM:
         this.writeU8(value);
+        break;
+      case VALUE_TYPES.COLOR:
+        this.writeColor(value);
         break;
     }
   }
@@ -1167,13 +1344,24 @@ class BinaryDecoder {
   }
 
   readColor() {
-    const color = this.readU32();
-    return {
-      a: (color >> 24) & 0xFF,
-      r: (color >> 16) & 0xFF,
-      g: (color >> 8) & 0xFF,
-      b: color & 0xFF
-    };
+    const colorKind = this.readU8();
+    
+    if (colorKind === COLOR_KIND.SEMANTIC_TOKEN) {
+      const tokenId = this.readU16();
+      return { tokenId, kind: 'semantic' };
+    } else if (colorKind === COLOR_KIND.LITERAL_SRGB) {
+      const rgba = this.readU32();
+      return {
+        kind: 'literal',
+        a: (rgba >> 24) & 0xFF,
+        r: (rgba >> 16) & 0xFF,
+        g: (rgba >> 8) & 0xFF,
+        b: rgba & 0xFF
+      };
+    }
+    
+    // Unknown color kind - return null or error
+    return null;
   }
 
   decodeInstruction() {
@@ -1226,6 +1414,7 @@ class BinaryDecoder {
       case VALUE_TYPES.F32: return this.readF32();
       case VALUE_TYPES.STRING: return this.readString();
       case VALUE_TYPES.ENUM: return this.readU8();
+      case VALUE_TYPES.COLOR: return this.readColor();
       default: return null;
     }
   }
@@ -1281,7 +1470,7 @@ for (const inst of decoded) {
 | **Opcodes** | 5 defined, 127 reserved |
 | **Component Types** | 3 defined, 32,767 reserved |
 | **Properties** | 12 defined, 65,527 reserved |
-| **Value Types** | 6 defined, 121 reserved |
+| **Value Types** | 7 defined, 120 reserved |
 | **Transport** | Transport-agnostic (ArrayBuffer) |
 
 ---
@@ -1291,3 +1480,4 @@ for (const inst of decoded) {
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0-alpha | 2026-06-25 | Initial custom binary protocol specification |
+| 1.0.0-beta | 2026-06-26 | Added COLOR value type with semantic token and literal sRGB support, updated color properties to use COLOR type, added renderer expectations for colors |
