@@ -1368,6 +1368,7 @@ Properties are organized by component type. Each component type has its own prop
 | `spacing` | 0x0001 | F32 | Space between children |
 | `alignment` | 0x0002 | ENUM | Cross-axis alignment |
 | `justification` | 0x0003 | ENUM | Main-axis distribution |
+| `padding` | 0x0004 | F32 or DESIGN_TOKEN | Uniform padding around the stack (pixels or spacing token) |
 | `contentMargins` | 0x0005 | F32 or DESIGN_TOKEN | Internal margins around children within the stack |
 
 ### TEXT Properties
@@ -1409,7 +1410,6 @@ Style properties can be applied to any component. Properties that accept COLOR c
 | Range | Purpose |
 |-------|---------|
 | 0x0000 | Reserved |
-| 0x0004 | Reserved (unused HSTACK/VSTACK slot) |
 | 0x0006-0x0009 | Future HSTACK/VSTACK properties |
 | 0x0010-0x0FFF | Future TEXT properties |
 | 0x1011-0xFFFF | Future style properties |
@@ -1939,6 +1939,7 @@ SPACER = 0x0008
 SPACING = 0x0001
 ALIGNMENT = 0x0002
 JUSTIFICATION = 0x0003
+PADDING = 0x0004
 CONTENT_MARGINS = 0x0005
 ```
 
@@ -2252,6 +2253,7 @@ const PROPERTIES = {
   SPACING: 0x0001,
   ALIGNMENT: 0x0002,
   JUSTIFICATION: 0x0003,
+  PADDING: 0x0004,
   CONTENT_MARGINS: 0x0005,
   
   // TEXT

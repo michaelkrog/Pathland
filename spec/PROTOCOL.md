@@ -407,6 +407,7 @@ Both `HSTACK` and `VSTACK` use a flexible stack-based layout system.
 | `spacing` | 0x0001 | F32 | 0 | Space between children |
 | `alignment` | 0x0002 | ENUM | CENTER | Alignment of children along the cross axis |
 | `justification` | 0x0003 | ENUM | START | Distribution of children along the main axis |
+| `padding` | 0x0004 | F32 or DESIGN_TOKEN | 0 | Uniform padding around the stack |
 | `contentMargins` | 0x0005 | F32 or DESIGN_TOKEN | 0 | Internal margins around children |
 
 **For complete property definitions**, see **[BINARY_PROTOCOL.md - Property ID Definitions](./BINARY_PROTOCOL.md#property-id-definitions)**.

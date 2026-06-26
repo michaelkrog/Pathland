@@ -45,6 +45,7 @@ CREATE_NODE (0x01)
 | `spacing` | 0x0001 | F32 (0x04) | Space between adjacent children | `[u16 propertyId=0x0001][u8 valueType=0x04][f32 value]` |
 | `alignment` | 0x0002 | ENUM (0x06) | Cross-axis (vertical) alignment of children | `[u16 propertyId=0x0002][u8 valueType=0x06][u8 enumValue]` |
 | `justification` | 0x0003 | ENUM (0x06) | Main-axis (horizontal) distribution of children | `[u16 propertyId=0x0003][u8 valueType=0x06][u8 enumValue]` |
+| `padding` | 0x0004 | F32 or DESIGN_TOKEN | Uniform padding around the stack | `[u16 propertyId=0x0004][u8 valueType][value...]` |
 | `contentMargins` | 0x0005 | F32 or DESIGN_TOKEN | Internal margins around children | `[u16 propertyId=0x0005][u8 valueType][value...]` |
 
 **Alignment Enum Values (Cross-axis):**
@@ -72,6 +73,9 @@ CREATE_NODE (0x01)
 - The `alignment` property controls alignment along this axis
 - All children are given the same height (maximum of their intrinsic heights)
 - Children are aligned according to the `alignment` value
+
+**Padding:**
+- The `padding` property adds uniform space around the entire stack (outside the content margins)
 
 **Sizing:**
 - **Width**: Sum of children's widths + gaps + padding (unless constrained by frame)
@@ -108,6 +112,7 @@ VSTACK supports the same properties as HSTACK, but with different axis semantics
 | `spacing` | 0x0001 | F32 (0x04) | Space between adjacent children | Vertical |
 | `alignment` | 0x0002 | ENUM (0x06) | Cross-axis (horizontal) alignment of children | Horizontal |
 | `justification` | 0x0003 | ENUM (0x06) | Main-axis (vertical) distribution of children | Vertical |
+| `padding` | 0x0004 | F32 or DESIGN_TOKEN | Uniform padding around the stack | Both |
 | `contentMargins` | 0x0005 | F32 or DESIGN_TOKEN | Internal margins around children | Both |
 
 **Alignment Enum Values (Cross-axis - Horizontal):**
@@ -135,6 +140,9 @@ VSTACK supports the same properties as HSTACK, but with different axis semantics
 - The `alignment` property controls alignment along this axis
 - All children are given the same width (maximum of their intrinsic widths)
 - Children are aligned according to the `alignment` value
+
+**Padding:**
+- The `padding` property adds uniform space around the entire stack (outside the content margins)
 
 **Sizing:**
 - **Width**: Maximum of children's widths + padding (unless constrained by frame)
@@ -395,7 +403,7 @@ See **[BINARY_PROTOCOL.md - Design Token System](../BINARY_PROTOCOL.md#design-to
 
 | Range | Category | Description |
 |-------|----------|-------------|
-| 0x0001-0x0003 | HSTACK/VSTACK Properties | spacing, alignment, justification |
+| 0x0001-0x0005 | HSTACK/VSTACK Properties | spacing, alignment, justification, padding, contentMargins |
 | 0x000A-0x000F | TEXT Properties | text, lineLimit, textAlignment, truncationMode, lineSpacing, baselineOffset |
 | 0x1000-0x10FF | Style Properties | backgroundColor, border, padding, font, opacity, etc. |
 | 0x2000-0x20FF | Semantic Properties | role, state, enabled, selected |
@@ -411,7 +419,7 @@ See **[BINARY_PROTOCOL.md - Property ID Definitions](../BINARY_PROTOCOL.md#prope
 | Range | Purpose |
 |-------|---------|
 | 0x0000 | Reserved (do not use) |
-| 0x0004, 0x0006-0x0009 | Future HSTACK/VSTACK properties |
+| 0x0006-0x0009 | Future HSTACK/VSTACK properties |
 | 0x0010-0x0FFF | Future TEXT properties |
 | 0x1011-0xFFFF | Future properties |
 | 0x0009-0x7FFF | Future core component types |
