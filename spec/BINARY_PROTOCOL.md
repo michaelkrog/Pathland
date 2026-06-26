@@ -141,26 +141,51 @@ Implementations SHOULD ignore unknown opcodes to maintain forward compatibility.
 
 ### 1. CREATE_NODE (0x01)
 
-Creates a new node in the UI tree.
+Creates a new node in the UI tree. **Optionally includes initial property values** to avoid separate SET_PROPERTY commands.
 
 **Payload:**
 ```
-[u32 nodeId][u16 componentType]
+[u32 nodeId][u16 componentType][u8 propertyCount][property entries...]
+```
+
+**Property Entry Format:**
+```
+[u16 propertyId][u8 valueType][value...]
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `nodeId` | u32 | Unique identifier for the new node |
 | `componentType` | u16 | Type of component (see Component Type Table) |
+| `propertyCount` | u8 | Number of initial properties (0-255) |
+| `propertyId` | u16 | ID of the property to set |
+| `valueType` | u8 | Type of the value (see Value Type Table) |
+| `value` | Variable | The property value, encoded according to valueType |
 
 **Binary Layout:**
 ```
-01  ID(4B)  Type(2B)
+01  ID(4B)  Type(2B)  PropCount(1B)  [PropID(2B)  ValueType(1B)  Value(...)]...
 ```
 
-**Example:** Create a Text node with ID 42
+**Example:** Create a Text node with ID 42 (no properties)
 ```
-01 2A 00 00 00 03 00
+01 2A 00 00 00 03 00 00
+```
+
+**Example:** Create a Text node with ID 42 and initial text
+```
+01 2A 00 00 00 03 00 01    # nodeId=42, type=TEXT, 1 property
+0A 00                 # propertyId=TEXT (0x000A)
+05                     # valueType=STRING (0x05)
+05 00 00 00            # string length=5
+48 65 6C 6C 6F         # "Hello"
+```
+
+**Example:** Create a Text node with ID 42, text, and color
+```
+01 2A 00 00 00 03 00 02    # nodeId=42, type=TEXT, 2 properties
+0A 00 05 05 00 00 00 48 65 6C 6C 6F  # text="Hello"
+10 0A 07 01 06 00        # color=PRIMARY_TEXT (SEMANTIC_TOKEN)
 ```
 
 ---
@@ -247,7 +272,9 @@ Removes a child from its parent.
 
 ### 5. SET_PROPERTY (0x05)
 
-Sets a property on a node.
+Sets or updates a property on an **existing node**. 
+
+**Note:** For setting initial properties when creating a node, use CREATE_NODE with inline properties instead. This command is primarily for updating properties after node creation.
 
 **Payload:**
 ```
@@ -719,12 +746,13 @@ This token system allows:
 | IMAGE | 0x0005 | Image display component |
 | SWITCH | 0x0006 | Toggle switch component |
 | TEXT_FIELD | 0x0007 | Text input field component |
+| SPACER | 0x0008 | Flexible space that expands to fill available space |
 
 ### Reserved Component Types
 
 | Range | Purpose |
 |-------|---------|
-| 0x0008-0x7FFF | Future core components |
+| 0x0009-0x7FFF | Future core components |
 | 0x8000-0xFFFF | Custom/experimental components |
 
 Implementations SHOULD ignore nodes with unknown component types.
@@ -803,6 +831,7 @@ Properties are organized by component type. Each component type has its own prop
 | `spacing` | 0x0001 | F32 | Space between children |
 | `alignment` | 0x0002 | ENUM | Cross-axis alignment |
 | `justification` | 0x0003 | ENUM | Main-axis distribution |
+| `contentMargins` | 0x0005 | F32 or DESIGN_TOKEN | Internal margins around children within the stack |
 
 ### TEXT Properties
 
@@ -835,15 +864,18 @@ Style properties can be applied to any component. Properties that accept COLOR c
 | `height` | 0x100C | F32 | Height in points (-1.0 = fill, -2.0 = hug content) |
 | `opacity` | 0x100D | F32 | Opacity value (0.0 = transparent, 1.0 = opaque) |
 | `visible` | 0x100E | U8 | Visibility (0 = hidden, 1 = visible) |
+| `zIndex` | 0x100F | F32 | Stacking order (higher values appear on top) |
+| `clipsToBounds` | 0x1010 | U8 | Clip content that overflows (0 = false, 1 = true) |
 
 ### Reserved Property IDs
 
 | Range | Purpose |
 |-------|---------|
 | 0x0000 | Reserved |
-| 0x000D-0x0FFF | Future HSTACK/VSTACK properties |
+| 0x0004 | Reserved (unused HSTACK/VSTACK slot) |
+| 0x0006-0x0009 | Future HSTACK/VSTACK properties |
 | 0x0010-0x0FFF | Future TEXT properties |
-| 0x100E-0xFFFF | Future style properties |
+| 0x1011-0xFFFF | Future style properties |
 
 ---
 
@@ -930,23 +962,22 @@ This creates a VStack with a Text child displaying "Hello":
 ```
 # Message Header
 01 00          # version = 1
-05 00 00 00    # instructionCount = 5
+03 00 00 00    # instructionCount = 3 (reduced from 5)
 
-# Instruction 1: CREATE_NODE (VSTACK with ID 1)
-01 01 00 00 00 02 00
+# Instruction 1: CREATE_NODE (VSTACK with ID 1, no properties)
+01 01 00 00 00 02 00 00    # nodeId=1, type=VSTACK, propertyCount=0
 
-# Instruction 2: CREATE_NODE (TEXT with ID 2)
-01 02 00 00 00 03 00
+# Instruction 2: CREATE_NODE (TEXT with ID 2, with inline properties)
+01 02 00 00 00 03 00 02    # nodeId=2, type=TEXT, propertyCount=2
+0A 00                 # propertyId=TEXT (0x000A)
+05                     # valueType=STRING (0x05)
+05 00 00 00            # string length=5
+48 65 6C 6C 6F         # "Hello"
+07 10                 # propertyId=FONT_SIZE (0x1007)
+04                     # valueType=F32 (0x04)
+00 00 80 41           # value=24.0 (f32: 0x41800000 in LE)
 
-# Instruction 3: SET_PROPERTY (text on node 2)
-05 02 00 00 00 0A 00 05 05 00 00 00 48 65 6C 6C 6F
-
-# Instruction 4: SET_PROPERTY (fontSize = 24 on node 2)
-05 02 00 00 00 07 10 04 00 00 80 41
-                    # valueType = F32 (0x04)
-                    # value = 24.0 (f32: 0x41800000 in LE)
-
-# Instruction 5: INSERT_CHILD (node 2 into node 1 at index 0)
+# Instruction 3: INSERT_CHILD (node 2 into node 1 at index 0)
 03 01 00 00 00 02 00 00 00 00 00 00 00
 ```
 
@@ -991,7 +1022,30 @@ function decodeMessage(buffer: Uint8Array): Instruction[] {
         cursor += 4;
         const componentType = view.getUint16(cursor, true);
         cursor += 2;
-        instructions.push({ opcode: 'CREATE_NODE', nodeId, componentType });
+        const propertyCount = view.getUint8(cursor);
+        cursor += 1;
+        const properties = [];
+        for (let i = 0; i < propertyCount; i++) {
+          const propertyId = view.getUint16(cursor, true);
+          cursor += 2;
+          const valueType = view.getUint8(cursor);
+          cursor += 1;
+          let value;
+          switch (valueType) {
+            case 0x01: value = view.getUint8(cursor); cursor += 1; break;
+            case 0x02: value = view.getUint32(cursor, true); cursor += 4; break;
+            case 0x03: value = view.getInt32(cursor, true); cursor += 4; break;
+            case 0x04: value = view.getFloat32(cursor, true); cursor += 4; break;
+            case 0x05: 
+              const strLen = view.getUint32(cursor, true); cursor += 4;
+              value = new TextDecoder().decode(buffer.subarray(cursor, cursor + strLen));
+              cursor += strLen; break;
+            case 0x06: value = view.getUint8(cursor); cursor += 1; break;
+            default: throw new Error(`Unknown value type: ${valueType}`);
+          }
+          properties.push({ propertyId, valueType, value });
+        }
+        instructions.push({ opcode: 'CREATE_NODE', nodeId, componentType, properties });
         break;
         
       case 0x02: // DELETE_NODE
@@ -1249,6 +1303,7 @@ BUTTON = 0x0004
 IMAGE = 0x0005
 SWITCH = 0x0006
 TEXT_FIELD = 0x0007
+SPACER = 0x0008
 ```
 
 ### HSTACK/VSTACK Properties
@@ -1257,6 +1312,7 @@ TEXT_FIELD = 0x0007
 SPACING = 0x0001
 ALIGNMENT = 0x0002
 JUSTIFICATION = 0x0003
+CONTENT_MARGINS = 0x0005
 ```
 
 ### TEXT Properties
@@ -1287,6 +1343,8 @@ WIDTH = 0x100B
 HEIGHT = 0x100C
 OPACITY = 0x100D
 VISIBLE = 0x100E
+Z_INDEX = 0x100F
+CLIPS_TO_BOUNDS = 0x1010
 ```
 
 ### Semantic Properties
@@ -1423,7 +1481,8 @@ const OPCODES = {
   DELETE_NODE: 0x02,
   INSERT_CHILD: 0x03,
   REMOVE_CHILD: 0x04,
-  SET_PROPERTY: 0x05
+  SET_PROPERTY: 0x05,
+  SET_DESIGN_TOKEN: 0x06
 };
 
 // Component Types
@@ -1434,17 +1493,8 @@ const COMPONENT_TYPES = {
   BUTTON: 0x0004,
   IMAGE: 0x0005,
   SWITCH: 0x0006,
-  TEXT_FIELD: 0x0007
-};
-
-// Opcodes
-const OPCODES = {
-  CREATE_NODE: 0x01,
-  DELETE_NODE: 0x02,
-  INSERT_CHILD: 0x03,
-  REMOVE_CHILD: 0x04,
-  SET_PROPERTY: 0x05,
-  SET_DESIGN_TOKEN: 0x06
+  TEXT_FIELD: 0x0007,
+  SPACER: 0x0008
 };
 
 // Value Types
@@ -1494,6 +1544,7 @@ const PROPERTIES = {
   SPACING: 0x0001,
   ALIGNMENT: 0x0002,
   JUSTIFICATION: 0x0003,
+  CONTENT_MARGINS: 0x0005,
   
   // TEXT
   TEXT: 0x000A,
@@ -1519,6 +1570,8 @@ const PROPERTIES = {
   HEIGHT: 0x100C,
   OPACITY: 0x100D,
   VISIBLE: 0x100E,
+  Z_INDEX: 0x100F,
+  CLIPS_TO_BOUNDS: 0x1010,
   
   // Semantic Properties
   ROLE: 0x2001,
@@ -1704,7 +1757,14 @@ class BinaryEncoder {
   calculateInstructionSize(inst) {
     switch (inst.opcode) {
       case 'CREATE_NODE':
-        return 1 + 4 + 2; // opcode + nodeId + componentType
+        // Base: opcode + nodeId + componentType + propertyCount
+        let size = 1 + 4 + 2 + 1;
+        if (inst.properties) {
+          for (const prop of inst.properties) {
+            size += 2 + 1 + this.calculateValueSize(prop.valueType, prop.value);
+          }
+        }
+        return size;
       case 'DELETE_NODE':
         return 1 + 4; // opcode + nodeId
       case 'INSERT_CHILD':
@@ -1751,6 +1811,14 @@ class BinaryEncoder {
       case 'CREATE_NODE':
         this.writeU32(inst.nodeId);
         this.writeU16(inst.componentType);
+        // Write property count and properties
+        const properties = inst.properties || [];
+        this.writeU8(properties.length);
+        for (const prop of properties) {
+          this.writeU16(prop.propertyId);
+          this.writeU8(prop.valueType);
+          this.writeValue(prop.valueType, prop.value);
+        }
         break;
       case 'DELETE_NODE':
         this.writeU32(inst.nodeId);
@@ -1916,12 +1984,24 @@ class BinaryDecoder {
     const opcode = this.readU8();
     
     switch (opcode) {
-      case OPCODES.CREATE_NODE:
+      case OPCODES.CREATE_NODE: {
+        const nodeId = this.readU32();
+        const componentType = this.readU16();
+        const propertyCount = this.readU8();
+        const properties = [];
+        for (let i = 0; i < propertyCount; i++) {
+          const propertyId = this.readU16();
+          const valueType = this.readU8();
+          const value = this.readValue(valueType);
+          properties.push({ propertyId, valueType, value });
+        }
         return {
           opcode: 'CREATE_NODE',
-          nodeId: this.readU32(),
-          componentType: this.readU16()
+          nodeId,
+          componentType,
+          properties
         };
+      }
       case OPCODES.DELETE_NODE:
         return {
           opcode: 'DELETE_NODE',
@@ -1999,8 +2079,13 @@ class BinaryDecoder {
 const encoder = new BinaryEncoder();
 const instructions = [
   { opcode: 'CREATE_NODE', nodeId: 1, componentType: COMPONENT_TYPES.VSTACK },
-  { opcode: 'CREATE_NODE', nodeId: 2, componentType: COMPONENT_TYPES.TEXT },
-  { opcode: 'SET_PROPERTY', nodeId: 2, propertyId: PROPERTIES.TEXT, valueType: VALUE_TYPES.STRING, value: "Hello World" },
+  { opcode: 'CREATE_NODE', 
+    nodeId: 2, 
+    componentType: COMPONENT_TYPES.TEXT,
+    properties: [
+      { propertyId: PROPERTIES.TEXT, valueType: VALUE_TYPES.STRING, value: "Hello World" }
+    ]
+  },
   { opcode: 'INSERT_CHILD', parentId: 1, childId: 2, index: 0 }
 ];
 
@@ -2017,6 +2102,12 @@ for (const inst of decoded) {
   switch (inst.opcode) {
     case 'CREATE_NODE':
       createNode(inst.nodeId, inst.componentType);
+      // Apply inline properties if present
+      if (inst.properties) {
+        for (const prop of inst.properties) {
+          setProperty(inst.nodeId, prop.propertyId, prop.valueType, prop.value);
+        }
+      }
       break;
     case 'SET_PROPERTY':
       setProperty(inst.nodeId, inst.propertyId, inst.valueType, inst.value);
@@ -2039,8 +2130,8 @@ for (const inst of decoded) {
 | **Endianness** | Little-endian |
 | **Version** | 2 |
 | **Opcodes** | 6 defined, 126 reserved |
-| **Component Types** | 7 defined, 32,762 reserved |
-| **Properties** | 22 defined, 65,513 reserved |
+| **Component Types** | 8 defined, 32,761 reserved |
+| **Properties** | 25 defined, 65,510 reserved |
 | **Value Types** | 8 defined, 119 reserved |
 | **Transport** | Transport-agnostic (ArrayBuffer) |
 
