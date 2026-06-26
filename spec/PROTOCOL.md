@@ -73,8 +73,8 @@ Pathland uses a **command-based** protocol where UI updates are described as a *
 - `create` - Create a new component
 - `addChild` - Add a child to a parent component
 - `removeChild` - Remove a child from a parent component
-- `setStyle` - Set or update a style modifier on a component
-- `setContent` - Set content (e.g., text content)
+- `setStyle` - Set or update a **visual style** property (background, border, color, font, padding, opacity)
+- `setProperty` - Set or update a **structural/layout** property (gap, alignment, justification, content, lineLimit, textAlignment, frame)
 - `setEventHandler` - Set an event handler on a component
 - `destroy` - Destroy a component and its children
 
@@ -255,32 +255,58 @@ Removes a child from a parent component.
 
 #### 3.2.4 Set Style Command
 
-Sets or updates a style property on a component.
+Sets or updates a **visual style** property on a component.
 
 ```json
 {
   "type": "setStyle",
   "target": "component-id",
   "data": {
-    "property": "gap" | "alignment" | "padding" | "background" | <AnyStyleProperty>,
+    "property": "background" | "border" | "color" | "font" | "padding" | "opacity",
     "value": <StyleValue>
   }
 }
 ```
 
-#### 3.2.5 Set Content Command
+**Style Properties** (visual appearance only):
+- `background`: Background styling (color, gradient, image, opacity)
+- `border`: Border styling (width, color, radius, style)
+- `color`: Text color
+- `font`: Font styling (family, size, weight, style, etc.)
+- `padding`: Inner padding
+- `opacity`: Overall opacity
 
-Sets the content of a component (primarily for `text` components).
+#### 3.2.5 Set Property Command
+
+Sets or updates a **structural/layout** property on a component.
 
 ```json
 {
-  "type": "setContent",
+  "type": "setProperty",
   "target": "component-id",
   "data": {
-    "content": <string>
+    "property": "gap" | "alignment" | "justification" | "content" | "lineLimit" | "textAlignment" | "frame",
+    "value": <PropertyValue>
   }
 }
 ```
+
+**Property Categories:**
+
+**Stack Properties (hstack, vstack):**
+- `gap`: Space between children
+- `alignment`: Cross-axis alignment (leading, center, trailing)
+- `justification`: Main-axis distribution (leading, center, trailing, spaceBetween, spaceAround, spaceEvenly)
+
+**Text Properties:**
+- `content`: The text to display
+- `lineLimit`: Maximum number of lines
+- `textAlignment`: Text alignment (leading, center, trailing)
+
+**Universal Properties:**
+- `frame`: Size constraints (width, height, min/max dimensions)
+
+**Note**: The `content` property for text components is set using `setProperty` with property `"content"`.
 
 #### 3.2.6 Set Event Handler Command
 
@@ -348,7 +374,8 @@ Commands are typically sent in **batches** to reduce overhead:
 ```json
 // These commands create and style a button:
 ["create hstack with id=container"]
-["create text with id=label, content=Hello"]
+["create text with id=label"]
+["setProperty on label: content=Hello"]
 ["setStyle on label: font={size: 24}"]
 ["addChild: add label to container"]
 ```
