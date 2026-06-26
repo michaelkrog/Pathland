@@ -6,6 +6,10 @@
 // ===== Endianness =====
 export const LITTLE_ENDIAN = true;
 
+// ===== Special Node IDs =====
+// 0 is reserved for the root container (not a real node, just a target for INSERT_CHILD)
+export const ROOT_CONTAINER_ID = 0;
+
 // ===== Message Header =====
 export const HEADER_SIZE = 6; // u16 version + u32 instructionCount
 

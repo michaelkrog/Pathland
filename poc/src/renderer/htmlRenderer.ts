@@ -1,7 +1,7 @@
 import { CommandExecutor } from './executor';
 import { decodeMessage } from './decoder';
 import { createCreateNodeCommand, createSetPropertyCommand, Command } from '../application/encoder';
-import { ComponentType } from '../protocol/constants';
+import { ComponentType, ROOT_CONTAINER_ID } from '../protocol/constants';
 
 /**
  * HTML Renderer
@@ -178,6 +178,7 @@ export class SimpleApplication {
 
   /**
    * Inserts a child into a parent at a specific index.
+   * Use ROOT_CONTAINER_ID (0) as parentId to insert into the root container.
    */
   insertChild(parentId: number, childId: number, index: number = 0xFFFFFFFF): void {
     this.commands.push({
@@ -186,6 +187,13 @@ export class SimpleApplication {
       childId,
       index
     });
+  }
+  
+  /**
+   * Inserts a child into the root container.
+   */
+  insertIntoRoot(childId: number, index: number = 0xFFFFFFFF): void {
+    this.insertChild(ROOT_CONTAINER_ID, childId, index);
   }
 
   /**
@@ -234,7 +242,10 @@ export class SimpleApplication {
       [0x000C]: 0x01,
     });
     
-    // Insert children
+    // Insert VSTACK into root container
+    this.insertIntoRoot(vstackId);
+    
+    // Insert children into VSTACK
     this.insertChild(vstackId, text1Id);
     this.insertChild(vstackId, text2Id);
     
@@ -266,7 +277,10 @@ export class SimpleApplication {
       [0x1007]: 16,
     });
     
-    // Insert children
+    // Insert HSTACK into root container
+    this.insertIntoRoot(hstackId);
+    
+    // Insert children into HSTACK
     this.insertChild(hstackId, text1Id);
     this.insertChild(hstackId, spacerId);
     this.insertChild(hstackId, text2Id);

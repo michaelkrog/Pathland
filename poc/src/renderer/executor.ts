@@ -1,4 +1,4 @@
-import { ComponentType, StackProperty, TextProperty, StyleProperty, Alignment, Justification, TextAlignment, SemanticColorToken } from '../protocol/constants';
+import { ComponentType, StackProperty, TextProperty, StyleProperty, Alignment, Justification, TextAlignment, SemanticColorToken, ROOT_CONTAINER_ID } from '../protocol/constants';
 import { Command, PropertyValue, RenderElement } from '../application/types';
 import { propertyValueToJS } from './decoder';
 
@@ -12,7 +12,6 @@ export class CommandExecutor {
   private idToElement: Map<number, RenderElement> = new Map();
   private elementToId: WeakMap<HTMLElement, number> = new WeakMap();
   private rootContainer: HTMLElement;
-  private rootNodeIds: Set<number> = new Set();
 
   constructor(rootContainer: HTMLElement) {
     this.rootContainer = rootContainer;
@@ -27,16 +26,6 @@ export class CommandExecutor {
     for (const command of commands) {
       this.executeCommand(command);
     }
-    
-    // After processing all commands, add any root nodes to the rootContainer
-    // Root nodes are nodes that were created but never inserted as children
-    for (const nodeId of this.rootNodeIds) {
-      const renderElement = this.idToElement.get(nodeId);
-      if (renderElement && !renderElement.element.parentNode) {
-        this.rootContainer.appendChild(renderElement.element);
-      }
-    }
-    this.rootNodeIds.clear();
   }
 
   /**
@@ -84,10 +73,6 @@ export class CommandExecutor {
     };
     this.idToElement.set(command.nodeId, renderElement);
     this.elementToId.set(element, command.nodeId);
-    
-    // Track this node as potentially a root node
-    // It will be removed from this set if it gets inserted as a child
-    this.rootNodeIds.add(command.nodeId);
   }
 
   private executeDeleteNode(command: Extract<Command, { opcode: 'DELETE_NODE' }>): void {
@@ -101,7 +86,6 @@ export class CommandExecutor {
       // Clean up maps
       this.idToElement.delete(command.nodeId);
       this.elementToId.delete(renderElement.element);
-      this.rootNodeIds.delete(command.nodeId);
       
       // Also clean up any children
       for (const childElement of renderElement.children) {
@@ -109,43 +93,51 @@ export class CommandExecutor {
         if (childId !== undefined) {
           this.idToElement.delete(childId);
           this.elementToId.delete(childElement);
-          this.rootNodeIds.delete(childId);
         }
       }
     }
   }
 
   private executeInsertChild(command: Extract<Command, { opcode: 'INSERT_CHILD' }>): void {
-    const parentRenderElement = this.idToElement.get(command.parentId);
     const childRenderElement = this.idToElement.get(command.childId);
     
-    if (parentRenderElement && childRenderElement) {
-      const parentElement = parentRenderElement.element;
+    if (childRenderElement) {
       const childElement = childRenderElement.element;
       
-      // Remove child from rootNodeIds since it's being inserted as a child
-      this.rootNodeIds.delete(command.childId);
-      
-      // Handle index = UINT32_MAX (append)
-      const index = command.index === 0xFFFFFFFF 
-        ? parentElement.children.length 
-        : command.index;
-      
-      // Insert at the specified index
-      if (index <= parentElement.children.length) {
-        if (index < parentElement.children.length) {
-          parentElement.insertBefore(childElement, parentElement.children[index]);
-        } else {
-          parentElement.appendChild(childElement);
-        }
-      } else {
-        console.warn(`Insert index ${index} out of bounds for parent ${command.parentId}`);
+      // Special case: parentId 0 means rootContainer
+      if (command.parentId === ROOT_CONTAINER_ID) {
+        this.rootContainer.appendChild(childElement);
+        return;
       }
       
-      // Update parent's children list
-      parentRenderElement.children.splice(index, 0, childElement);
+      const parentRenderElement = this.idToElement.get(command.parentId);
+      
+      if (parentRenderElement) {
+        const parentElement = parentRenderElement.element;
+        
+        // Handle index = UINT32_MAX (append)
+        const index = command.index === 0xFFFFFFFF 
+          ? parentElement.children.length 
+          : command.index;
+        
+        // Insert at the specified index
+        if (index <= parentElement.children.length) {
+          if (index < parentElement.children.length) {
+            parentElement.insertBefore(childElement, parentElement.children[index]);
+          } else {
+            parentElement.appendChild(childElement);
+          }
+        } else {
+          console.warn(`Insert index ${index} out of bounds for parent ${command.parentId}`);
+        }
+        
+        // Update parent's children list
+        parentRenderElement.children.splice(index, 0, childElement);
+      } else {
+        console.warn(`INSERT_CHILD: parent ${command.parentId} not found for child ${command.childId}`);
+      }
     } else {
-      console.warn(`INSERT_CHILD: parent ${command.parentId} or child ${command.childId} not found`);
+      console.warn(`INSERT_CHILD: child ${command.childId} not found`);
     }
   }
 
