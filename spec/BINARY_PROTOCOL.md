@@ -811,6 +811,9 @@ Properties are organized by component type. Each component type has its own prop
 | `text` | 0x000A | STRING | Text content |
 | `lineLimit` | 0x000B | U32 | Maximum number of lines (0 = unlimited) |
 | `textAlignment` | 0x000C | ENUM | Text alignment |
+| `truncationMode` | 0x000D | ENUM | Text truncation mode for overflow |
+| `lineSpacing` | 0x000E | F32 | Additional space between lines in points |
+| `baselineOffset` | 0x000F | F32 | Baseline offset in points (positive = down, negative = up) |
 
 ### Style Properties
 
@@ -840,7 +843,7 @@ Style properties can be applied to any component. Properties that accept COLOR c
 | 0x0000 | Reserved |
 | 0x000D-0x0FFF | Future HSTACK/VSTACK properties |
 | 0x0010-0x0FFF | Future TEXT properties |
-| 0x100F-0xFFFF | Future style properties |
+| 0x100E-0xFFFF | Future style properties |
 
 ---
 
@@ -879,6 +882,17 @@ Used for `textAlignment` property on TEXT.
 | LEADING | 0x00 | Align to leading edge |
 | CENTER | 0x01 | Center align |
 | TRAILING | 0x02 | Align to trailing edge |
+
+### TruncationMode Enum
+
+Used for `truncationMode` property on TEXT.
+
+| Value | ID | Description |
+|-------|----|-------------|
+| HEAD | 0x00 | Truncate at head (ellipsis at start): "...Hello" |
+| MIDDLE | 0x01 | Truncate in middle: "Hel...lo" |
+| TAIL | 0x02 | Truncate at tail: "Hello..." |
+| CLIP | 0x03 | Clip without ellipsis |
 
 ### FontWeight Enum
 
@@ -1251,6 +1265,9 @@ JUSTIFICATION = 0x0003
 TEXT = 0x000A
 LINE_LIMIT = 0x000B
 TEXT_ALIGNMENT = 0x000C
+TRUNCATION_MODE = 0x000D
+LINE_SPACING = 0x000E
+BASELINE_OFFSET = 0x000F
 ```
 
 ### Style Properties
@@ -1325,6 +1342,12 @@ SPACE_EVENLY = 0x05
 LEADING = 0x00
 CENTER = 0x01
 TRAILING = 0x02
+
+// TruncationMode
+HEAD = 0x00
+MIDDLE = 0x01
+TAIL = 0x02
+CLIP = 0x03
 
 // FontWeight
 ULTRA_LIGHT = 0x00
@@ -1476,6 +1499,9 @@ const PROPERTIES = {
   TEXT: 0x000A,
   LINE_LIMIT: 0x000B,
   TEXT_ALIGNMENT: 0x000C,
+  TRUNCATION_MODE: 0x000D,
+  LINE_SPACING: 0x000E,
+  BASELINE_OFFSET: 0x000F,
   
   // Style
   BACKGROUND_COLOR: 0x1001,
@@ -1529,6 +1555,13 @@ const TEXT_ALIGNMENT = {
   LEADING: 0x00,
   CENTER: 0x01,
   TRAILING: 0x02
+};
+
+const TRUNCATION_MODE = {
+  HEAD: 0x00,
+  MIDDLE: 0x01,
+  TAIL: 0x02,
+  CLIP: 0x03
 };
 
 // Role Enum
@@ -2007,7 +2040,7 @@ for (const inst of decoded) {
 | **Version** | 2 |
 | **Opcodes** | 6 defined, 126 reserved |
 | **Component Types** | 7 defined, 32,762 reserved |
-| **Properties** | 19 defined, 65,516 reserved |
+| **Properties** | 22 defined, 65,513 reserved |
 | **Value Types** | 8 defined, 119 reserved |
 | **Transport** | Transport-agnostic (ArrayBuffer) |
 
