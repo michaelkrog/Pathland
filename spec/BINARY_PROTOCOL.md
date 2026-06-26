@@ -127,12 +127,15 @@ The payload structure depends on the opcode.
 | 6 | 0x06 | `SET_DESIGN_TOKEN` | Set a design token value globally |
 | 7 | 0x07 | `DISPATCH_EVENT` | Dispatch an event to a component |
 | 8 | 0x08 | `REGISTER_EVENT_HANDLER` | Register an event handler on a component |
+| 9 | 0x09 | `GESTURE_UPDATE` | Dispatch a gesture state update |
+| 10 | 0x0A | `ATTACH_GESTURE` | Attach a gesture recognizer to a component |
+| 11 | 0x0B | `COMBINE_GESTURES` | Combine two gestures |
 
 ### Reserved Opcodes
 
 | Range | Purpose |
 |-------|---------|
-| 0x09-0x7F | Future opcodes |
+| 0x0C-0x7F | Future opcodes |
 | 0x80-0xFF | Custom/extended opcodes |
 
 Implementations SHOULD ignore unknown opcodes to maintain forward compatibility.
@@ -712,6 +715,337 @@ Lifecycle events with no additional data payload.
 00 00 00 00  // contentOffsetX = 0.0
 00 00 80 42  // contentOffsetY = 100.0
 ```
+
+---
+
+## Gesture System
+
+### Overview
+
+The Pathland gesture system provides a **stateful, composable** approach to handling user interactions, inspired by SwiftUI's gesture model. Unlike traditional event systems that dispatch discrete events, gestures maintain state through a lifecycle (began, changed, ended, cancelled) and can be combined in powerful ways.
+
+**Core Principles:**
+- **Stateful**: Gestures have a lifecycle with distinct states
+- **Composable**: Multiple gestures can be combined (simultaneous, sequenced, exclusive)
+- **Declarative**: Gestures are attached to components, not imperative event handlers
+- **Renderer-agnostic**: Works across all platforms (touch, mouse, stylus)
+
+**Relationship to Events:**
+- Events are low-level input notifications (tap, click, scroll)
+- Gestures are high-level interaction patterns built on top of events
+- Both can coexist: use events for simple interactions, gestures for complex ones
+
+---
+
+### Gesture Type Table
+
+| Gesture | ID | Description | States | Data Payload |
+|---------|----|-------------|--------|--------------|
+| TAP | 0x10 | Single tap gesture | began, ended | `[f32 startX][f32 startY][f32 locationX][f32 locationY][u8 tapCount]` |
+| LONG_PRESS | 0x11 | Long press gesture | began, changed, ended, cancelled | `[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 duration][f32 pressure]` |
+| DRAG | 0x12 | Drag/panning gesture | began, changed, ended, cancelled | `[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 translationX][f32 translationY][f32 velocityX][f32 velocityY]` |
+| SWIPE | 0x13 | Swipe gesture | began, changed, ended, cancelled | `[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 translationX][f32 translationY][f32 velocity][u8 direction]` |
+| PINCH | 0x14 | Pinch/zoom gesture | began, changed, ended, cancelled | `[f32 startScale][f32 scale][f32 velocity][f32 startLocationX][f32 startLocationY]` |
+| ROTATE | 0x15 | Rotation gesture | began, changed, ended, cancelled | `[f32 startRotation][f32 rotation][f32 velocity][f32 startLocationX][f32 startLocationY]` |
+
+**Gesture State Enum:**
+| State | Value | Description |
+|-------|-------|-------------|
+| BEGAN | 0x00 | Gesture recognition has started |
+| CHANGED | 0x01 | Gesture is actively changing |
+| ENDED | 0x02 | Gesture completed successfully |
+| CANCELLED | 0x03 | Gesture was interrupted/cancelled |
+
+---
+
+### Gesture Binary Encoding
+
+#### Opcode: GESTURE_UPDATE (0x09)
+
+Dispatches a gesture state update to a component.
+
+**Payload:**
+```
+[u32 targetId][u8 gestureType][u8 gestureState][u32 timestamp][u32 gestureId][gesture-specific data...]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `targetId` | u32 | ID of the component receiving the gesture |
+| `gestureType` | u8 | Type of gesture (0x10-0x15) |
+| `gestureState` | u8 | Current state of the gesture (0x00-0x03) |
+| `timestamp` | u32 | Milliseconds since epoch |
+| `gestureId` | u32 | Unique identifier for this gesture instance |
+
+**Binary Layout:**
+```
+09  TargetID(4B)  GestureType(1B)  GestureState(1B)  Timestamp(4B)  GestureID(4B)  [Data...]
+```
+
+**Example:** Drag gesture began on node 42
+```
+09 2A 00 00 00 12 00 60 6E 9A 01 01 00 00 00 00 80 3F 00 00 00 00
+```
+Breakdown:
+- `09` - GESTURE_UPDATE opcode
+- `2A 00 00 00` - targetId = 42
+- `12` - gestureType = DRAG (0x12)
+- `00` - gestureState = BEGAN (0x00)
+- `60 6E 9A 01` - timestamp
+- `01 00 00 00` - gestureId = 1
+- `00 00 80 3F` - startX = 1.0
+- `00 00 00 00` - startY = 0.0
+
+---
+
+#### Opcode: ATTACH_GESTURE (0x0A)
+
+Attaches a gesture recognizer to a component.
+
+**Payload:**
+```
+[u32 nodeId][u8 gestureType][u32 gestureRecognizerId][u8 handlerPhase][u32 onBeganHandler][u32 onChangedHandler][u32 onEndedHandler][u32 onCancelledHandler]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nodeId` | u32 | ID of the component to attach gesture to |
+| `gestureType` | u8 | Type of gesture (0x10-0x15) |
+| `gestureRecognizerId` | u32 | Unique ID for this gesture recognizer |
+| `handlerPhase` | u8 | Event phase (0x00=capture, 0x01=target, 0x02=bubble, 0xFF=any) |
+| `onBeganHandler` | u32 | Handler ID for began state (0 = no handler) |
+| `onChangedHandler` | u32 | Handler ID for changed state (0 = no handler) |
+| `onEndedHandler` | u32 | Handler ID for ended state (0 = no handler) |
+| `onCancelledHandler` | u32 | Handler ID for cancelled state (0 = no handler) |
+
+**Binary Layout:**
+```
+0A  NodeID(4B)  GestureType(1B)  RecognizerID(4B)  Phase(1B)  OnBegan(4B)  OnChanged(4B)  OnEnded(4B)  OnCancelled(4B)
+```
+
+**Example:** Attach drag gesture to node 42
+```
+0A 2A 00 00 00 12 01 00 00 00 01 05 00 00 00 06 00 00 00 07 00 00 00
+```
+Breakdown:
+- `0A` - ATTACH_GESTURE opcode
+- `2A 00 00 00` - nodeId = 42
+- `12` - gestureType = DRAG (0x12)
+- `01 00 00 00` - gestureRecognizerId = 1
+- `01` - handlerPhase = TARGET (0x01)
+- `05 00 00 00` - onBeganHandler = 5
+- `06 00 00 00` - onChangedHandler = 6
+- `07 00 00 00` - onEndedHandler = 7
+- `00 00 00 00` - onCancelledHandler = 0 (none)
+
+---
+
+### Gesture Combination
+
+Multiple gestures can be combined to create complex interactions. The combination type determines how gestures interact.
+
+**Combination Types:**
+| Type | Value | Description |
+|------|-------|-------------|
+| SIMULTANEOUS | 0x00 | Both gestures must succeed simultaneously |
+| SEQUENCED | 0x01 | First gesture must fail for second to start |
+| EXCLUSIVE | 0x02 | First gesture to start wins, others are cancelled |
+
+**Combination Format:**
+```
+[u8 combinationType][u32 firstGestureId][u32 secondGestureId][u32 combinedGestureId]
+```
+
+This allows creating complex gestures like:
+- **Simultaneous**: Pinch + Rotate for image manipulation
+- **Sequenced**: Long press then drag for reordering
+- **Exclusive**: Tap or long press (whichever happens first)
+
+**Opcode: COMBINE_GESTURES (0x0B)**
+
+**Payload:**
+```
+[u8 combinationType][u32 firstGestureId][u32 secondGestureId][u32 combinedGestureId]
+```
+
+**Binary Layout:**
+```
+0B  CombinationType(1B)  FirstID(4B)  SecondID(4B)  CombinedID(4B)
+```
+
+**Example:** Combine pinch and rotate simultaneously
+```
+0B 00 01 00 00 00 02 00 00 00 03 00 00 00
+```
+Breakdown:
+- `0B` - COMBINE_GESTURES opcode
+- `00` - combinationType = SIMULTANEOUS
+- `01 00 00 00` - firstGestureId = 1 (pinch)
+- `02 00 00 00` - secondGestureId = 2 (rotate)
+- `03 00 00 00` - combinedGestureId = 3
+
+---
+
+### Gesture Payload Details
+
+#### TAP Gesture
+
+**States:** BEGAN, ENDED
+
+**Payload (BEGAN):**
+```
+[f32 startX][f32 startY]
+```
+
+**Payload (ENDED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][u8 tapCount]
+```
+
+**Example:** Tap began at (100, 200)
+```
+10 00 00 C8 42 00 00 34 43
+```
+- gestureType = TAP (0x10)
+- gestureState = BEGAN (0x00)
+- startX = 100.0
+- startY = 200.0
+
+**Example:** Tap ended at (105, 205) with tapCount=1
+```
+10 02 00 00 C8 42 00 00 34 43 00 00 CD 42 00 00 39 43 01
+```
+- gestureType = TAP (0x10)
+- gestureState = ENDED (0x02)
+- startX = 100.0
+- startY = 200.0
+- locationX = 105.0
+- locationY = 205.0
+- tapCount = 1
+
+---
+
+#### LONG_PRESS Gesture
+
+**States:** BEGAN, CHANGED, ENDED, CANCELLED
+
+**Payload (BEGAN):**
+```
+[f32 startX][f32 startY]
+```
+
+**Payload (CHANGED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 duration]
+```
+
+**Payload (ENDED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 duration][f32 pressure]
+```
+
+**Payload (CANCELLED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 duration]
+```
+
+---
+
+#### DRAG Gesture
+
+**States:** BEGAN, CHANGED, ENDED, CANCELLED
+
+**Payload (BEGAN):**
+```
+[f32 startX][f32 startY]
+```
+
+**Payload (CHANGED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 translationX][f32 translationY][f32 velocityX][f32 velocityY]
+```
+
+**Payload (ENDED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 translationX][f32 translationY][f32 velocityX][f32 velocityY]
+```
+
+**Payload (CANCELLED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 translationX][f32 translationY]
+```
+
+**Fields:**
+- `startX`, `startY`: Initial touch/mouse position
+- `locationX`, `locationY`: Current position
+- `translationX`, `translationY`: Distance from start (current - start)
+- `velocityX`, `velocityY`: Current velocity in points per second
+
+---
+
+#### SWIPE Gesture
+
+**States:** BEGAN, CHANGED, ENDED, CANCELLED
+
+**Payload (BEGAN):**
+```
+[f32 startX][f32 startY]
+```
+
+**Payload (CHANGED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 translationX][f32 translationY][f32 velocity]
+```
+
+**Payload (ENDED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 translationX][f32 translationY][f32 velocity][u8 direction]
+```
+
+**Payload (CANCELLED):**
+```
+[f32 startX][f32 startY][f32 locationX][f32 locationY][f32 translationX][f32 translationY]
+```
+
+**Direction Enum:**
+- 0x00 = LEFT
+- 0x01 = RIGHT
+- 0x02 = UP
+- 0x03 = DOWN
+
+---
+
+#### PINCH Gesture
+
+**States:** BEGAN, CHANGED, ENDED, CANCELLED
+
+**Payload:**
+```
+[f32 startScale][f32 scale][f32 velocity][f32 startLocationX][f32 startLocationY]
+```
+
+**Fields:**
+- `startScale`: Scale when gesture began (typically 1.0)
+- `scale`: Current scale relative to start (1.0 = no change, 2.0 = doubled)
+- `velocity`: Current scale velocity
+- `startLocationX`, `startLocationY`: Midpoint of the pinch when it began
+
+---
+
+#### ROTATE Gesture
+
+**States:** BEGAN, CHANGED, ENDED, CANCELLED
+
+**Payload:**
+```
+[f32 startRotation][f32 rotation][f32 velocity][f32 startLocationX][f32 startLocationY]
+```
+
+**Fields:**
+- `startRotation`: Rotation in radians when gesture began
+- `rotation`: Current rotation in radians relative to start
+- `velocity`: Current rotation velocity in radians per second
+- `startLocationX`, `startLocationY`: Center point of rotation when it began
 
 ---
 
@@ -1497,6 +1831,9 @@ SET_PROPERTY = 0x05
 SET_DESIGN_TOKEN = 0x06
 DISPATCH_EVENT = 0x07
 REGISTER_EVENT_HANDLER = 0x08
+GESTURE_UPDATE = 0x09
+ATTACH_GESTURE = 0x0A
+COMBINE_GESTURES = 0x0B
 ```
 
 ### Event Types
@@ -1553,6 +1890,34 @@ LEFT = 0x00
 RIGHT = 0x01
 UP = 0x02
 DOWN = 0x03
+```
+
+### Gesture Types
+
+```
+TAP_GESTURE = 0x10
+LONG_PRESS_GESTURE = 0x11
+DRAG_GESTURE = 0x12
+SWIPE_GESTURE = 0x13
+PINCH_GESTURE = 0x14
+ROTATE_GESTURE = 0x15
+```
+
+### Gesture States
+
+```
+GESTURE_BEGAN = 0x00
+GESTURE_CHANGED = 0x01
+GESTURE_ENDED = 0x02
+GESTURE_CANCELLED = 0x03
+```
+
+### Gesture Combination Types
+
+```
+SIMULTANEOUS = 0x00
+SEQUENCED = 0x01
+EXCLUSIVE = 0x02
 ```
 
 ### Component Types
@@ -1746,7 +2111,10 @@ const OPCODES = {
   SET_PROPERTY: 0x05,
   SET_DESIGN_TOKEN: 0x06,
   DISPATCH_EVENT: 0x07,
-  REGISTER_EVENT_HANDLER: 0x08
+  REGISTER_EVENT_HANDLER: 0x08,
+  GESTURE_UPDATE: 0x09,
+  ATTACH_GESTURE: 0x0A,
+  COMBINE_GESTURES: 0x0B
 };
 
 // Component Types
@@ -1810,6 +2178,31 @@ const SWIPE_DIRECTIONS = {
   RIGHT: 0x01,
   UP: 0x02,
   DOWN: 0x03
+};
+
+// Gesture Types
+const GESTURE_TYPES = {
+  TAP: 0x10,
+  LONG_PRESS: 0x11,
+  DRAG: 0x12,
+  SWIPE: 0x13,
+  PINCH: 0x14,
+  ROTATE: 0x15
+};
+
+// Gesture States
+const GESTURE_STATES = {
+  BEGAN: 0x00,
+  CHANGED: 0x01,
+  ENDED: 0x02,
+  CANCELLED: 0x03
+};
+
+// Gesture Combination Types
+const GESTURE_COMBINATIONS = {
+  SIMULTANEOUS: 0x00,
+  SEQUENCED: 0x01,
+  EXCLUSIVE: 0x02
 };
 
 // Value Types
@@ -2095,8 +2488,56 @@ class BinaryEncoder {
         return 1 + 4 + 1 + 4 + 1 + this.calculateEventDataSize(inst.eventType, inst.data);
       case 'REGISTER_EVENT_HANDLER':
         return 1 + 4 + 1 + 1 + 4; // opcode + nodeId + eventType + handlerPhase + handlerId
+      case 'GESTURE_UPDATE':
+        // opcode + targetId + gestureType + gestureState + timestamp + gestureId + gestureData
+        return 1 + 4 + 1 + 1 + 4 + 4 + this.calculateGestureDataSize(inst.gestureType, inst.gestureState, inst.data);
+      case 'ATTACH_GESTURE':
+        // opcode + nodeId + gestureType + recognizerId + phase + 4 handler IDs
+        return 1 + 4 + 1 + 4 + 1 + 4 + 4 + 4 + 4;
+      case 'COMBINE_GESTURES':
+        // opcode + combinationType + firstId + secondId + combinedId
+        return 1 + 1 + 4 + 4 + 4;
       default:
         return 1; // opcode only (minimum)
+    }
+  }
+
+  calculateGestureDataSize(gestureType, gestureState, data) {
+    // Calculate size based on gesture type and state
+    switch (gestureType) {
+      case GESTURE_TYPES.TAP:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          return 4 + 4; // startX, startY
+        } else if (gestureState === GESTURE_STATES.ENDED) {
+          return 4 + 4 + 4 + 4 + 1; // startX, startY, locationX, locationY, tapCount
+        }
+        return 0;
+      case GESTURE_TYPES.LONG_PRESS:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          return 4 + 4; // startX, startY
+        } else if (gestureState === GESTURE_STATES.CHANGED) {
+          return 4 + 4 + 4 + 4 + 4; // startX, startY, locationX, locationY, duration
+        } else if (gestureState === GESTURE_STATES.ENDED) {
+          return 4 + 4 + 4 + 4 + 4 + 4; // startX, startY, locationX, locationY, duration, pressure
+        } else if (gestureState === GESTURE_STATES.CANCELLED) {
+          return 4 + 4 + 4 + 4 + 4; // startX, startY, locationX, locationY, duration
+        }
+        return 0;
+      case GESTURE_TYPES.DRAG:
+      case GESTURE_TYPES.SWIPE:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          return 4 + 4; // startX, startY
+        } else if (gestureState === GESTURE_STATES.CHANGED || gestureState === GESTURE_STATES.ENDED) {
+          return 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4; // startX, startY, locationX, locationY, translationX, translationY, velocityX, velocityY
+        } else if (gestureState === GESTURE_STATES.CANCELLED) {
+          return 4 + 4 + 4 + 4 + 4 + 4; // startX, startY, locationX, locationY, translationX, translationY
+        }
+        return 0;
+      case GESTURE_TYPES.PINCH:
+      case GESTURE_TYPES.ROTATE:
+        return 4 + 4 + 4 + 4 + 4; // startScale/rotation, scale/rotation, velocity, startLocationX, startLocationY
+      default:
+        return 0;
     }
   }
 
@@ -2212,6 +2653,126 @@ class BinaryEncoder {
         this.writeU8(inst.eventType);
         this.writeU8(inst.handlerPhase ?? EVENT_PHASES.TARGET);
         this.writeU32(inst.handlerId);
+        break;
+      case 'GESTURE_UPDATE':
+        this.writeU32(inst.targetId);
+        this.writeU8(inst.gestureType);
+        this.writeU8(inst.gestureState);
+        this.writeU32(inst.timestamp ?? Date.now());
+        this.writeU32(inst.gestureId);
+        this.writeGestureData(inst.gestureType, inst.gestureState, inst.data);
+        break;
+      case 'ATTACH_GESTURE':
+        this.writeU32(inst.nodeId);
+        this.writeU8(inst.gestureType);
+        this.writeU32(inst.gestureRecognizerId);
+        this.writeU8(inst.handlerPhase ?? EVENT_PHASES.TARGET);
+        this.writeU32(inst.onBeganHandler ?? 0);
+        this.writeU32(inst.onChangedHandler ?? 0);
+        this.writeU32(inst.onEndedHandler ?? 0);
+        this.writeU32(inst.onCancelledHandler ?? 0);
+        break;
+      case 'COMBINE_GESTURES':
+        this.writeU8(inst.combinationType);
+        this.writeU32(inst.firstGestureId);
+        this.writeU32(inst.secondGestureId);
+        this.writeU32(inst.combinedGestureId);
+        break;
+    }
+  }
+
+  writeGestureData(gestureType, gestureState, data) {
+    data = data || {};
+    switch (gestureType) {
+      case GESTURE_TYPES.TAP:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+        } else if (gestureState === GESTURE_STATES.ENDED) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+          this.writeF32(data.locationX ?? 0);
+          this.writeF32(data.locationY ?? 0);
+          this.writeU8(data.tapCount ?? 1);
+        }
+        break;
+      case GESTURE_TYPES.LONG_PRESS:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+        } else if (gestureState === GESTURE_STATES.CHANGED || gestureState === GESTURE_STATES.CANCELLED) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+          this.writeF32(data.locationX ?? 0);
+          this.writeF32(data.locationY ?? 0);
+          this.writeF32(data.duration ?? 0);
+        } else if (gestureState === GESTURE_STATES.ENDED) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+          this.writeF32(data.locationX ?? 0);
+          this.writeF32(data.locationY ?? 0);
+          this.writeF32(data.duration ?? 0);
+          this.writeF32(data.pressure ?? 0);
+        }
+        break;
+      case GESTURE_TYPES.DRAG:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+        } else if (gestureState === GESTURE_STATES.CHANGED || gestureState === GESTURE_STATES.ENDED) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+          this.writeF32(data.locationX ?? 0);
+          this.writeF32(data.locationY ?? 0);
+          this.writeF32(data.translationX ?? 0);
+          this.writeF32(data.translationY ?? 0);
+          this.writeF32(data.velocityX ?? 0);
+          this.writeF32(data.velocityY ?? 0);
+        } else if (gestureState === GESTURE_STATES.CANCELLED) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+          this.writeF32(data.locationX ?? 0);
+          this.writeF32(data.locationY ?? 0);
+          this.writeF32(data.translationX ?? 0);
+          this.writeF32(data.translationY ?? 0);
+        }
+        break;
+      case GESTURE_TYPES.SWIPE:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+        } else if (gestureState === GESTURE_STATES.CHANGED || gestureState === GESTURE_STATES.CANCELLED) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+          this.writeF32(data.locationX ?? 0);
+          this.writeF32(data.locationY ?? 0);
+          this.writeF32(data.translationX ?? 0);
+          this.writeF32(data.translationY ?? 0);
+          this.writeF32(data.velocity ?? 0);
+        } else if (gestureState === GESTURE_STATES.ENDED) {
+          this.writeF32(data.startX ?? 0);
+          this.writeF32(data.startY ?? 0);
+          this.writeF32(data.locationX ?? 0);
+          this.writeF32(data.locationY ?? 0);
+          this.writeF32(data.translationX ?? 0);
+          this.writeF32(data.translationY ?? 0);
+          this.writeF32(data.velocity ?? 0);
+          this.writeU8(data.direction ?? SWIPE_DIRECTIONS.LEFT);
+        }
+        break;
+      case GESTURE_TYPES.PINCH:
+        this.writeF32(data.startScale ?? 1);
+        this.writeF32(data.scale ?? 1);
+        this.writeF32(data.velocity ?? 0);
+        this.writeF32(data.startLocationX ?? 0);
+        this.writeF32(data.startLocationY ?? 0);
+        break;
+      case GESTURE_TYPES.ROTATE:
+        this.writeF32(data.startRotation ?? 0);
+        this.writeF32(data.rotation ?? 0);
+        this.writeF32(data.velocity ?? 0);
+        this.writeF32(data.startLocationX ?? 0);
+        this.writeF32(data.startLocationY ?? 0);
         break;
     }
   }
@@ -2501,9 +3062,167 @@ class BinaryDecoder {
           handlerPhase: this.readU8(),
           handlerId: this.readU32()
         };
+      case OPCODES.GESTURE_UPDATE: {
+        const targetId = this.readU32();
+        const gestureType = this.readU8();
+        const gestureState = this.readU8();
+        const timestamp = this.readU32();
+        const gestureId = this.readU32();
+        const data = this.readGestureData(gestureType, gestureState);
+        return {
+          opcode: 'GESTURE_UPDATE',
+          targetId,
+          gestureType,
+          gestureState,
+          timestamp,
+          gestureId,
+          data
+        };
+      }
+      case OPCODES.ATTACH_GESTURE:
+        return {
+          opcode: 'ATTACH_GESTURE',
+          nodeId: this.readU32(),
+          gestureType: this.readU8(),
+          gestureRecognizerId: this.readU32(),
+          handlerPhase: this.readU8(),
+          onBeganHandler: this.readU32(),
+          onChangedHandler: this.readU32(),
+          onEndedHandler: this.readU32(),
+          onCancelledHandler: this.readU32()
+        };
+      case OPCODES.COMBINE_GESTURES:
+        return {
+          opcode: 'COMBINE_GESTURES',
+          combinationType: this.readU8(),
+          firstGestureId: this.readU32(),
+          secondGestureId: this.readU32(),
+          combinedGestureId: this.readU32()
+        };
       default:
         // Unknown opcode - skip and continue
         return { opcode: 'UNKNOWN', opcodeValue: opcode };
+    }
+  }
+
+  readGestureData(gestureType, gestureState) {
+    switch (gestureType) {
+      case GESTURE_TYPES.TAP:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32()
+          };
+        } else if (gestureState === GESTURE_STATES.ENDED) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32(),
+            locationX: this.readF32(),
+            locationY: this.readF32(),
+            tapCount: this.readU8()
+          };
+        }
+        return {};
+      case GESTURE_TYPES.LONG_PRESS:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32()
+          };
+        } else if (gestureState === GESTURE_STATES.CHANGED || gestureState === GESTURE_STATES.CANCELLED) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32(),
+            locationX: this.readF32(),
+            locationY: this.readF32(),
+            duration: this.readF32()
+          };
+        } else if (gestureState === GESTURE_STATES.ENDED) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32(),
+            locationX: this.readF32(),
+            locationY: this.readF32(),
+            duration: this.readF32(),
+            pressure: this.readF32()
+          };
+        }
+        return {};
+      case GESTURE_TYPES.DRAG:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32()
+          };
+        } else if (gestureState === GESTURE_STATES.CHANGED || gestureState === GESTURE_STATES.ENDED) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32(),
+            locationX: this.readF32(),
+            locationY: this.readF32(),
+            translationX: this.readF32(),
+            translationY: this.readF32(),
+            velocityX: this.readF32(),
+            velocityY: this.readF32()
+          };
+        } else if (gestureState === GESTURE_STATES.CANCELLED) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32(),
+            locationX: this.readF32(),
+            locationY: this.readF32(),
+            translationX: this.readF32(),
+            translationY: this.readF32()
+          };
+        }
+        return {};
+      case GESTURE_TYPES.SWIPE:
+        if (gestureState === GESTURE_STATES.BEGAN) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32()
+          };
+        } else if (gestureState === GESTURE_STATES.CHANGED || gestureState === GESTURE_STATES.CANCELLED) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32(),
+            locationX: this.readF32(),
+            locationY: this.readF32(),
+            translationX: this.readF32(),
+            translationY: this.readF32(),
+            velocity: this.readF32()
+          };
+        } else if (gestureState === GESTURE_STATES.ENDED) {
+          return {
+            startX: this.readF32(),
+            startY: this.readF32(),
+            locationX: this.readF32(),
+            locationY: this.readF32(),
+            translationX: this.readF32(),
+            translationY: this.readF32(),
+            velocity: this.readF32(),
+            direction: this.readU8()
+          };
+        }
+        return {};
+      case GESTURE_TYPES.PINCH:
+        return {
+          startScale: this.readF32(),
+          scale: this.readF32(),
+          velocity: this.readF32(),
+          startLocationX: this.readF32(),
+          startLocationY: this.readF32()
+        };
+      case GESTURE_TYPES.ROTATE:
+        return {
+          startRotation: this.readF32(),
+          rotation: this.readF32(),
+          velocity: this.readF32(),
+          startLocationX: this.readF32(),
+          startLocationY: this.readF32()
+        };
+      default:
+        return {};
     }
   }
 
@@ -2668,11 +3387,12 @@ for (const inst of decoded) {
 | **Format** | Custom binary instruction protocol |
 | **Endianness** | Little-endian |
 | **Version** | 2 |
-| **Opcodes** | 8 defined, 124 reserved |
+| **Opcodes** | 11 defined, 121 reserved |
 | **Component Types** | 8 defined, 32,761 reserved |
 | **Properties** | 25 defined, 65,510 reserved |
 | **Value Types** | 8 defined, 119 reserved |
 | **Event Types** | 15 defined, 240 reserved |
+| **Gesture Types** | 6 defined, 249 reserved |
 | **Transport** | Transport-agnostic (ArrayBuffer) |
 
 ---
@@ -2685,3 +3405,4 @@ for (const inst of decoded) {
 | 1.0.0-beta | 2026-06-26 | Added COLOR value type with semantic token and literal sRGB support, updated color properties to use COLOR type, added renderer expectations for colors |
 | 2.0.0-alpha | 2026-06-26 | Added Design Token System: DESIGN_TOKEN value type, SET_DESIGN_TOKEN opcode, semantic component types (BUTTON, IMAGE, SWITCH, TEXT_FIELD), semantic properties (role, state, enabled, selected), comprehensive token categories and resolution rules |
 | 2.1.0-alpha | 2026-06-26 | Added Event System Phase 1: DISPATCH_EVENT and REGISTER_EVENT_HANDLER opcodes, binary event encoding, ON_APPEAR (0x0C), ON_DISAPPEAR (0x0D), ON_CHANGE (0x0E) event types, event phase support (capture, target, bubble), comprehensive event payload definitions for all event types |
+| 2.2.0-alpha | 2026-06-26 | Added Gesture System: GESTURE_UPDATE (0x09), ATTACH_GESTURE (0x0A), COMBINE_GESTURES (0x0B) opcodes, 6 gesture types (TAP, LONG_PRESS, DRAG, SWIPE, PINCH, ROTATE), gesture states (began, changed, ended, cancelled), gesture combination types (simultaneous, sequenced, exclusive), comprehensive binary encoding for all gesture states and data payloads |

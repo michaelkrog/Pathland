@@ -740,6 +740,323 @@ Implementations SHOULD provide a way to inspect events for debugging:
 
 ---
 
+## Gesture System
+
+Pathland provides a **gesture system** inspired by SwiftUI that offers a more declarative and composable approach to handling user interactions compared to traditional event systems.
+
+### Overview
+
+**Key Differences from Events:**
+
+| Aspect | Events | Gestures |
+|--------|--------|----------|
+| **Model** | Discrete notifications | Stateful interactions |
+| **Lifecycle** | Single dispatch | began → changed → ended/cancelled |
+| **Composition** | Independent | Combinable (simultaneous, sequenced, exclusive) |
+| **Use Case** | Simple interactions | Complex, continuous interactions |
+
+**Example Gestures:**
+- **Tap**: Single touch/click
+- **Long Press**: Press and hold
+- **Drag**: Move/panning
+- **Swipe**: Quick directional movement
+- **Pinch**: Two-finger zoom
+- **Rotate**: Two-finger rotation
+
+### Gesture Types
+
+| Gesture | Description | States | Platforms |
+|---------|-------------|--------|-----------|
+| `tap` | Single tap/click | began, ended | All |
+| `longPress` | Press and hold | began, changed, ended, cancelled | All |
+| `drag` | Move/panning | began, changed, ended, cancelled | All |
+| `swipe` | Quick directional swipe | began, changed, ended, cancelled | Touch, Mouse |
+| `pinch` | Two-finger zoom | began, changed, ended, cancelled | Touch, Mouse |
+| `rotate` | Two-finger rotation | began, changed, ended, cancelled | Touch, Mouse |
+
+### Gesture States
+
+All gestures progress through a lifecycle:
+
+1. **began**: Gesture recognition has started
+2. **changed**: Gesture is actively changing (continuous updates)
+3. **ended**: Gesture completed successfully
+4. **cancelled**: Gesture was interrupted
+
+### Gesture Handlers
+
+Gestures can have handlers for each state:
+
+```json
+{
+  "type": "circle",
+  "id": "draggable",
+  "gestures": [
+    {
+      "type": "drag",
+      "onBegan": "startDrag",
+      "onChanged": "updateDrag",
+      "onEnded": "endDrag",
+      "onCancelled": "cancelDrag"
+    }
+  ]
+}
+```
+
+**Handler Signature:**
+```javascript
+function handleDragBegan(event) {
+  // event contains:
+  // - targetId
+  // - gestureType
+  // - gestureState
+  // - startX, startY
+  // - timestamp
+  // - gestureId
+}
+
+function handleDragChanged(event) {
+  // event contains:
+  // - startX, startY
+  // - locationX, locationY
+  // - translationX, translationY
+  // - velocityX, velocityY
+}
+
+function handleDragEnded(event) {
+  // Same data as changed, plus final state
+}
+```
+
+### Gesture Combination
+
+Multiple gestures can be combined to create complex interactions:
+
+#### Simultaneous Combination
+Both gestures must succeed at the same time.
+
+**Use Case:** Pinch + Rotate for image manipulation
+
+```json
+{
+  "type": "image",
+  "gestures": [
+    {
+      "combination": "simultaneous",
+      "first": { "type": "pinch", "onChanged": "handleScale" },
+      "second": { "type": "rotate", "onChanged": "handleRotation" }
+    }
+  ]
+}
+```
+
+#### Sequenced Combination
+First gesture must fail for second to start.
+
+**Use Case:** Long press then drag for reordering
+
+```json
+{
+  "type": "list",
+  "gestures": [
+    {
+      "combination": "sequenced",
+      "first": { "type": "longPress", "onEnded": "startReorder" },
+      "second": { "type": "drag", "onChanged": "reorderItem" }
+    }
+  ]
+}
+```
+
+#### Exclusive Combination
+First gesture to start wins, others are cancelled.
+
+**Use Case:** Tap or long press (whichever happens first)
+
+```json
+{
+  "type": "button",
+  "gestures": [
+    {
+      "combination": "exclusive",
+      "first": { "type": "tap", "onEnded": "quickAction" },
+      "second": { "type": "longPress", "onEnded": "showContextMenu" }
+    }
+  ]
+}
+```
+
+### Gesture Data Structures
+
+#### Tap Gesture Data
+
+**began:**
+```json
+{
+  "startX": 100,
+  "startY": 200
+}
+```
+
+**ended:**
+```json
+{
+  "startX": 100,
+  "startY": 200,
+  "locationX": 105,
+  "locationY": 205,
+  "tapCount": 1
+}
+```
+
+#### Long Press Gesture Data
+
+**began:**
+```json
+{
+  "startX": 100,
+  "startY": 200
+}
+```
+
+**changed:**
+```json
+{
+  "startX": 100,
+  "startY": 200,
+  "locationX": 102,
+  "locationY": 202,
+  "duration": 0.35
+}
+```
+
+**ended:**
+```json
+{
+  "startX": 100,
+  "startY": 200,
+  "locationX": 105,
+  "locationY": 205,
+  "duration": 0.75,
+  "pressure": 0.8
+}
+```
+
+#### Drag Gesture Data
+
+**began:**
+```json
+{
+  "startX": 100,
+  "startY": 200
+}
+```
+
+**changed:**
+```json
+{
+  "startX": 100,
+  "startY": 200,
+  "locationX": 150,
+  "locationY": 250,
+  "translationX": 50,
+  "translationY": 50,
+  "velocityX": 200,
+  "velocityY": 150
+}
+```
+
+**ended:**
+```json
+{
+  "startX": 100,
+  "startY": 200,
+  "locationX": 180,
+  "locationY": 280,
+  "translationX": 80,
+  "translationY": 80,
+  "velocityX": 0,
+  "velocityY": 0
+}
+```
+
+**cancelled:**
+```json
+{
+  "startX": 100,
+  "startY": 200,
+  "locationX": 120,
+  "locationY": 220,
+  "translationX": 20,
+  "translationY": 20
+}
+```
+
+#### Swipe Gesture Data
+
+**ended:**
+```json
+{
+  "startX": 100,
+  "startY": 200,
+  "locationX": 50,
+  "locationY": 200,
+  "translationX": -50,
+  "translationY": 0,
+  "velocity": 500,
+  "direction": "left"
+}
+```
+
+**Direction Values:** `"left"`, `"right"`, `"up"`, `"down"`
+
+#### Pinch Gesture Data
+
+**changed:**
+```json
+{
+  "startScale": 1.0,
+  "scale": 1.5,
+  "velocity": 0.2,
+  "startLocationX": 150,
+  "startLocationY": 200
+}
+```
+
+#### Rotate Gesture Data
+
+**changed:**
+```json
+{
+  "startRotation": 0,
+  "rotation": 0.785,  // ~45 degrees in radians
+  "velocity": 0.5,
+  "startLocationX": 150,
+  "startLocationY": 200
+}
+```
+
+### Gesture vs Event: When to Use Which
+
+| Scenario | Recommended Approach |
+|----------|---------------------|
+| Simple button tap | Event (`onTap`) |
+| Single click action | Event (`onClick`) |
+| Dragging an item | Gesture (`drag`) |
+| Pinch-to-zoom | Gesture (`pinch`) |
+| Image rotation | Gesture (`rotate`) |
+| Swipe to delete | Gesture (`swipe`) |
+| Long press for context menu | Gesture (`longPress`) |
+| Combined pinch+rotate | Combined Gesture |
+| Reactive state changes | Event (`onChange`) |
+| Component lifecycle | Event (`onAppear`, `onDisappear`) |
+
+### Binary Encoding
+
+See [Binary Event Encoding](#binary-event-encoding) section for the binary format of gesture instructions.
+
+---
+
 ## Binary Event Encoding
 
 For efficient transport, Pathland supports a **binary encoding** for events that matches the command protocol format.
