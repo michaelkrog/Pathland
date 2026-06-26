@@ -28,9 +28,10 @@ A renderer is a pure function that:
 
 **Key Architecture:**
 - Application manages state (signals) and generates commands
-- Commands describe changes: create, addChild, setStyle, setProperty, removeChild, destroy
-- Renderer executes commands statelessly
+- Commands describe tree mutations: createNode, deleteNode, insertChild, removeChild, setProperty
+- Renderer executes commands statelessly using custom binary protocol
 - Only actual changes are transmitted (efficient)
+- Protocol is instruction-based bytecode, not schema-driven serialization
 
 All state (signals, computed values, etc.) is managed **externally** by the application or framework.
 

@@ -382,46 +382,71 @@ Commands are typically sent in **batches** to reduce overhead:
 
 ## 3. Binary Protocol
 
-Pathland's **official binary protocol** is **FlatBuffers**. See:
-- **[Binary Protocol Specification](./binary/BINARY.md)** - Complete binary protocol documentation
-- **[FlatBuffers Schema](./binary/flatbuffers/PATHLAND.fbs)** - Official schema definition
+Pathland's **official binary protocol** is a **custom binary instruction protocol**. See:
+- **[Binary Protocol Specification](./BINARY_PROTOCOL.md)** - Complete binary protocol documentation
 
-All conforming Pathland implementations **MUST** support the FlatBuffers binary format.
+All conforming Pathland implementations **MUST** support this binary format.
 
-### 3.1 Why FlatBuffers?
+### 3.1 Protocol Overview
 
-- **Zero-copy**: Data read directly from buffers without parsing
-- **Performance**: 5-10x faster than JSON, 2-3x faster than MessagePack
-- **Compact**: 60-75% smaller than JSON
-- **Transferable**: Works with ArrayBuffer transferable objects in browsers
-- **Cross-platform**: Works everywhere (browsers, mobile, embedded)
-- **Type-safe**: Compile-time type checking
-- **Open source**: Apache 2.0 license
+The protocol encodes **UI tree mutations** as a **linear stream of instructions** (bytecode). It is:
 
-### 3.2 Schema Overview
+- **Instruction-based**: Linear stream of opcodes with payloads
+- **Numeric IDs**: Uses u8/u16/u32 identifiers for opcodes, types, and properties
+- **Fixed-width types**: Uses fixed-width binary types (u8, u16, u32, i32, f32)
+- **Renderer-agnostic**: Only encodes tree mutations, no renderer-specific operations
+- **Deterministic decoding**: Can be parsed linearly with a simple cursor
+- **Forward compatible**: Supports adding new opcodes, types, and properties
 
-The FlatBuffers schema (`PATHLAND.fbs`) defines:
+### 3.2 Message Format
 
-- **Command Types**: Create, AddChild, RemoveChild, Destroy, SetStyle, SetProperty, SetEventHandler
-- **Component Types**: HStack, VStack, Text (extensible)
-- **Data Types**: All Pathland types (Length, Color, Point, Size, etc.)
-- **Message Types**: CommandBatch (to renderer), TypedEvent (from renderer)
+```
+[u16 version][u32 instructionCount][Instruction 1][Instruction 2]...[Instruction N]
+```
 
-### 3.3 Usage
+### 3.3 Instruction Types
+
+| Opcode | Value | Description |
+|--------|-------|-------------|
+| CREATE_NODE | 0x01 | Create a new node |
+| DELETE_NODE | 0x02 | Delete a node and its children |
+| INSERT_CHILD | 0x03 | Insert a child into a parent |
+| REMOVE_CHILD | 0x04 | Remove a child from a parent |
+| SET_PROPERTY | 0x05 | Set a property on a node |
+
+### 3.4 Component Types
+
+| Component | ID |
+|-----------|----|
+| HSTACK | 0x0001 |
+| VSTACK | 0x0002 |
+| TEXT | 0x0003 |
+
+### 3.5 Transport
+
+The protocol is **transport-agnostic**. Messages can be sent over:
+- WebSocket (ArrayBuffer)
+- Web Workers (`postMessage` with transferable ArrayBuffer)
+- IPC (raw bytes)
+- Shared Memory
+- Any transport that carries bytes
+
+### 3.6 Usage Example
 
 ```javascript
-// Generate code from schema
-flatc --js spec/binary/flatbuffers/PATHLAND.fbs
+// Application sends mutations to renderer
+const instructions = [
+  { opcode: 'CREATE_NODE', nodeId: 1, componentType: 0x0002 }, // VSTACK
+  { opcode: 'CREATE_NODE', nodeId: 2, componentType: 0x0003 }, // TEXT
+  { opcode: 'SET_PROPERTY', nodeId: 2, propertyId: 0x000A, valueType: 0x05, value: "Hello" },
+  { opcode: 'INSERT_CHILD', parentId: 1, childId: 2, index: 0 }
+];
 
-// Use in application
-import { Pathland } from './PATHLAND_generated.js';
-const builder = flatbuffers.createBuilder();
-const cmd = Pathland.Command.createCommand(builder, Pathland.CommandType.Create, ...);
-const buffer = builder.asArrayBuffer();
-
-// Transfer to renderer (zero-copy!)
-renderer.postMessage(buffer, [buffer]);
+const message = encodeMessage(instructions);
+renderer.postMessage(message, [message]); // Transfer ownership
 ```
+
+See **[BINARY_PROTOCOL.md](./BINARY_PROTOCOL.md)** for complete details.
 
 ---
 
