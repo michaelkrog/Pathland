@@ -232,8 +232,8 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
     
     <!-- Import the renderer and worker modules -->
     <script type="module">
-        import { initRenderer, getRenderer, SimpleApplication } from './src/renderer/htmlRenderer';
-        import { encodeMessage } from './src/application/encoder';
+        import { initRenderer, getRenderer, SimpleApplication } from './src/renderer/htmlRenderer.ts';
+        import { encodeMessage } from './src/application/encoder.ts';
         
         // Initialize renderer
         const renderContainer = document.getElementById('renderOutput');
