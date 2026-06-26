@@ -1,6 +1,14 @@
 # Pathland State Management Specification
 
-This document provides detailed specifications for the Pathland state management system.
+**Version:** 2.0.0-alpha  
+**Status:** Draft  
+**Last Updated:** June 26, 2026
+
+> **IMPORTANT**: This document describes the **application-side** state management system for Pathland. State management is **completely separate** from the binary protocol. The **[BINARY_PROTOCOL.md](../BINARY_PROTOCOL.md)** specification is the **sole authoritative source** for the protocol. The JSON representations in this document are **illustrative only** and describe application-level concepts, not protocol formats.
+
+> **CRITICAL ARCHITECTURAL PRINCIPLE**: Renderers do not manage state. All state (signals, computed values, effects) is managed **externally** by the application or framework. The renderer is a **stateless pure function** that only renders the current component tree based on commands it receives.
+
+---
 
 ## 1. State Management Overview
 
@@ -23,18 +31,9 @@ The Pathland state management system is designed to be:
 
 - All state (signals, computed values, effects) is managed by the **application or framework**
 - The renderer is a **stateless pure function** that only renders the current component tree
-- When state changes, the **application** rebuilds the component tree and passes it to the renderer
+- When state changes, the **application** rebuilds the component tree and generates commands
 - The renderer has **no knowledge** of signals, state updates, or dependencies
-
-### 1.3 Core Concepts
-
-Pathland uses a **signal-based** state management system:
-
-1. **Signals**: Hold state values and notify dependents when they change
-2. **Computed Signals**: Derived values that update automatically when their dependencies change
-3. **Effects**: Side effects that run in response to state changes
-4. **Scopes**: Isolated state contexts
-5. **Component Tree**: The output of state → UI transformation, passed to the renderer
+- The renderer does NOT maintain the component tree between command batches
 
 ### 1.3 State Flow
 
@@ -62,17 +61,25 @@ Pathland uses a **signal-based** state management system:
 │        ▼                                                        │
 │                                                                  │
 │  4. RE-RENDER AFFECTED COMPONENTS                              │
-│     Renderer updates only components that depend on         │
-│     the changed signal                                         │
+│     Application generates commands                           │
+│     Renderer executes commands as pure function              │
 │                                                                  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
+**Key Insight**: State changes flow from signals → computed signals → components → commands → renderer. The renderer has no memory between command batches.
+
+---
+
 ## 2. Signals
 
-### 2.1 Signal Structure
+### 2.1 Signal Concept
 
-A signal is a container for a value that can change over time:
+A signal is a container for a value that can change over time. Signals are **application-level constructs** and are not transmitted over the protocol.
+
+**Note:** The JSON structures below are **illustrative only** and represent implementation concepts, not protocol formats.
+
+### 2.2 Signal Structure (Conceptual)
 
 ```json
 {
@@ -96,9 +103,9 @@ A signal is a container for a value that can change over time:
 | `dependencies` | array of string | No | IDs of signals this signal depends on (for computed signals) |
 | `dependents` | array of string | No | IDs of signals/components that depend on this signal |
 
-### 2.2 Signal Types
+### 2.3 Signal Types
 
-#### 2.2.1 State Signal
+#### 2.3.1 State Signal
 
 A **state signal** holds a value that can be set directly:
 
@@ -118,7 +125,7 @@ A **state signal** holds a value that can be set directly:
 - `set(newValue)`: Sets a new value and triggers updates
 - `update(fn)`: Updates the value using a function (fn receives current value)
 
-#### 2.2.2 Computed Signal
+#### 2.3.2 Computed Signal
 
 A **computed signal** holds a value that is derived from other signals:
 
@@ -144,7 +151,7 @@ The computation function is implementation-defined but SHOULD:
 - Only depend on the signals in its `dependencies` list
 - Return the same value for the same dependency values
 
-### 2.3 Signal Creation
+### 2.4 Signal Creation
 
 Signals are created through implementation-specific APIs. The protocol does not specify the exact creation mechanism, but implementations SHOULD support:
 
@@ -152,7 +159,7 @@ Signals are created through implementation-specific APIs. The protocol does not 
 2. Creating computed signals with computation functions
 3. Creating signals within specific scopes
 
-### 2.4 Signal Updates
+### 2.5 Signal Updates
 
 When a signal's value changes:
 
@@ -160,13 +167,14 @@ When a signal's value changes:
 2. The `version` is incremented
 3. All dependents are notified
 4. Affected components are marked for re-render
+5. The application generates commands to update the renderer
 
 **Update Rules:**
 - Updates are synchronous by default
 - Implementations MAY support asynchronous updates
 - Updates should be batched when possible for performance
 
-### 2.5 Signal Equality
+### 2.6 Signal Equality
 
 When setting a new value, implementations SHOULD check for equality:
 
@@ -174,11 +182,13 @@ When setting a new value, implementations SHOULD check for equality:
 - This prevents unnecessary re-renders
 - The equality check is implementation-defined
 
+---
+
 ## 3. State Management in Components
 
 ### 3.1 Component State
 
-Each component can have its own state signals:
+Each component can have its own state signals. This is an **application-level concept** and is not transmitted over the protocol.
 
 ```json
 {
@@ -217,6 +227,8 @@ State can be scoped to different levels:
 - Child components can access state from parent scopes
 - State updates in a child scope do not affect parent scopes
 - Implementations SHOULD provide a way to create isolated scopes
+
+---
 
 ## 4. Computed Signals
 
@@ -259,11 +271,13 @@ Implementations MUST detect and handle circular dependencies:
   - Use a placeholder value
   - Break the cycle by using the previous value
 
+---
+
 ## 5. Effects
 
 ### 5.1 Effect System
 
-Effects are side effects that run in response to state changes:
+Effects are side effects that run in response to state changes. Effects are **application-level constructs** and are not part of the protocol.
 
 ```json
 {
@@ -300,11 +314,13 @@ Effects MAY have cleanup functions that run when:
 }
 ```
 
+---
+
 ## 6. State Updates and Events
 
 ### 6.1 State Updates from Events
 
-State can be updated in response to events:
+State can be updated in response to events. This is an **application-level** concern:
 
 ```json
 {
@@ -334,6 +350,10 @@ Event data can be used in state updates:
 }
 ```
 
+**Important:** Event data is provided by the renderer to the application, but the event handling itself is application-level.
+
+---
+
 ## 7. State Serialization
 
 ### 7.1 Serializable State
@@ -343,7 +363,7 @@ State signals can be serialized for:
 - Sharing state between components
 - Debugging
 
-**Serializable Format:**
+**Serializable Format (Conceptual):**
 
 ```json
 {
@@ -376,6 +396,8 @@ Implementations SHOULD handle non-serializable state gracefully:
 - Skip non-serializable fields
 - Provide placeholder values
 - Warn or error appropriately
+
+---
 
 ## 8. State Synchronization
 
@@ -441,6 +463,8 @@ Child components can inherit state from parent components:
 }
 ```
 
+---
+
 ## 9. Performance Optimizations
 
 ### 9.1 Batching Updates
@@ -479,6 +503,8 @@ Implementations MAY memoize:
 - Component render outputs
 - Expensive computations
 
+---
+
 ## 10. Debugging State
 
 ### 10.1 State Inspection
@@ -504,6 +530,8 @@ Implementations MAY support time travel debugging:
 - Replay state changes
 - Jump to specific points in time
 
+---
+
 ## 11. Security Considerations
 
 ### 11.1 State Validation
@@ -527,6 +555,8 @@ Implementations SHOULD handle sensitive state carefully:
 - Don't serialize sensitive state
 - Respect platform security policies
 
+---
+
 ## 12. Testing State
 
 ### 12.1 State Testing
@@ -544,10 +574,43 @@ Implementations SHOULD provide a way to mock state for testing:
 - Mock computed signal computations
 - Mock effect side effects
 
-## Appendix A: Example State Management
+---
+
+## Appendix A: State Management Flow
+
+```
+1. User taps increment button
+2. onTap handler is called
+3. count.set(count.get() + 1) is executed
+4. count signal updates:
+   - value: 0 -> 1
+   - version: 1 -> 2
+5. count notifies dependents:
+   - double-count (computed signal)
+   - count-display (component)
+6. double-count recomputes:
+   - value: 0 -> 2 (1 * 2)
+   - version: 1 -> 2
+   - notifies double-display
+7. Application marks components for re-render:
+   - count-display
+   - double-display
+8. Application generates commands:
+   - SET_PROPERTY for count-display with new content
+   - SET_PROPERTY for double-display with new content
+9. Renderer executes commands and updates output
+```
+
+**Key Insight**: The renderer has no memory of the state changes. It only sees the commands generated by the application.
+
+---
+
+## Appendix B: Complete Example (Conceptual)
 
 ```json
 // Complete example with state management
+// NOTE: This is a CONCEPTUAL representation of application state,
+// NOT a protocol format. The actual protocol uses binary commands.
 {
   "type": "vstack",
   "id": "counter-app",
@@ -630,27 +693,7 @@ Implementations SHOULD provide a way to mock state for testing:
 }
 ```
 
-## Appendix B: State Update Flow
-
-```
-1. User taps increment button
-2. onTap handler is called
-3. count.set(count.get() + 1) is executed
-4. count signal updates:
-   - value: 0 -> 1
-   - version: 1 -> 2
-5. count notifies dependents:
-   - double-count (computed signal)
-   - count-display (component)
-6. double-count recomputes:
-   - value: 0 -> 2 (1 * 2)
-   - version: 1 -> 2
-   - notifies double-display
-7. Renderer marks components for re-render:
-   - count-display
-   - double-display
-8. Renderer re-renders affected components
-```
+---
 
 ## Appendix C: State Type Summary
 
@@ -659,3 +702,33 @@ Implementations SHOULD provide a way to mock state for testing:
 | State Signal | Holds a direct value | Yes | No |
 | Computed Signal | Derived from other signals | No | Yes |
 | Effect | Side effect | N/A | Yes |
+
+---
+
+## Appendix D: Relationship to Binary Protocol
+
+**Important Clarification:**
+
+- **State Management (this document)**: Application-side concerns including signals, computed values, effects, and scopes
+- **Binary Protocol (BINARY_PROTOCOL.md)**: How the application communicates with the renderer
+
+**The Protocol Only Sees:**
+1. `CREATE_NODE` commands with component types and properties
+2. `SET_PROPERTY` commands to update properties
+3. `INSERT_CHILD`/`REMOVE_CHILD` commands to manage tree structure
+4. `DELETE_NODE` commands to remove components
+5. Event dispatch commands from renderer to application (with component IDs)
+
+**The Protocol Does NOT See:**
+- Signal values
+- Signal dependencies
+- Computed signal functions
+- Effect functions
+- State scopes
+- Any application state
+
+**For the authoritative protocol specification**, always refer to **[BINARY_PROTOCOL.md](../BINARY_PROTOCOL.md)**.
+
+---
+
+**Note**: This document describes **application-level state management** concepts. The binary protocol specification (BINARY_PROTOCOL.md) is the only authoritative source for the Pathland protocol. State management and the protocol are completely separate concerns.

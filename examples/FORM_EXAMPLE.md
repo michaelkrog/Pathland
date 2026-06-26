@@ -1,5 +1,11 @@
 # Pathland Form Example
 
+**Version:** 2.0.0-alpha  
+**Status:** Draft  
+**Last Updated:** June 26, 2026
+
+> **IMPORTANT**: This document provides a **conceptual** example of a form application using Pathland. The JSON representation is **illustrative only** and does not reflect the actual binary protocol format. For the **authoritative protocol specification**, see **[BINARY_PROTOCOL.md](../spec/BINARY_PROTOCOL.md)**. The actual protocol uses binary encoding with numeric IDs for components, properties, and values.
+
 This document provides a complete form example demonstrating text components with font styling, lineLimit, and alignment, along with HStack/VStack layouts and event handling.
 
 ## Complete Login Form
@@ -797,3 +803,7 @@ This example can be extended with:
 4. **Social login** - Add social login buttons
 5. **Form persistence** - Save form state
 6. **Auto-focus** - Focus first field on load
+
+---
+
+**Note**: This document is a **conceptual example**. For actual implementation, always refer to **[BINARY_PROTOCOL.md](../spec/BINARY_PROTOCOL.md)** for the authoritative protocol specification.

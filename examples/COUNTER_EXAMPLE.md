@@ -1,8 +1,18 @@
 # Pathland Counter Example
 
-This document provides a complete, working example of a counter application using the Pathland protocol. This example demonstrates all the core concepts: HStack, VStack, Text components with gap, alignment, padding, border, background, and events.
+**Version:** 2.0.0-alpha  
+**Status:** Draft  
+**Last Updated:** June 26, 2026
 
-## Complete Counter Application
+> **IMPORTANT**: This document provides a **conceptual** example of a counter application using Pathland. The JSON representation is **illustrative only** and does not reflect the actual binary protocol format. For the **authoritative protocol specification**, see **[BINARY_PROTOCOL.md](../spec/BINARY_PROTOCOL.md)**. The actual protocol uses binary encoding with numeric IDs for components, properties, and values.
+
+This example demonstrates all the core concepts: HStack, VStack, Text components with gap, alignment, padding, border, background, and events.
+
+---
+
+## Complete Counter Application (Conceptual)
+
+> **IMPORTANT**: The JSON below is a **human-readable conceptual representation** of the component tree. The actual protocol transmits **binary commands** (CREATE_NODE, SET_PROPERTY, INSERT_CHILD, etc.) using the format defined in BINARY_PROTOCOL.md.
 
 ```json
 {
@@ -71,7 +81,6 @@ This document provides a complete, working example of a counter application usin
           "content": "-",
           "modifiers": {
             "font": {
-              "family": ["SF Pro", "Helvetica", "Arial", "sans-serif"],
               "size": 24,
               "weight": "bold"
             },
@@ -97,7 +106,6 @@ This document provides a complete, working example of a counter application usin
           "content": "Reset",
           "modifiers": {
             "font": {
-              "family": ["SF Pro", "Helvetica", "Arial", "sans-serif"],
               "size": 18,
               "weight": "semibold"
             },
@@ -124,7 +132,6 @@ This document provides a complete, working example of a counter application usin
           "content": "+",
           "modifiers": {
             "font": {
-              "family": ["SF Pro", "Helvetica", "Arial", "sans-serif"],
               "size": 24,
               "weight": "bold"
             },
@@ -210,9 +217,37 @@ This document provides a complete, working example of a counter application usin
 }
 ```
 
+---
+
+## Binary Protocol Equivalent
+
+The conceptual JSON above would be transmitted as **binary commands** using the BINARY_PROTOCOL.md format. For example:
+
+```
+# Message 1: Create component tree (simplified)
+# Header: version=1, instructionCount=10
+01 00 0A 00 00 00
+
+# CREATE_NODE: VSTACK (id=1, type=0x0002)
+01 01 00 00 00 02 00 00
+
+# CREATE_NODE: TEXT title (id=2, type=0x0003) with properties
+01 02 00 00 00 03 00 04    # 4 properties
+0A 00 05 11 00 00 00     # text="Pathland Counter" (17 chars)
+50 61 74 68 6C 61 6E 64 20 43 6F 75 6E 74 65 72 00
+10 0A 07 01 01 00        # color=PRIMARY_TEXT (SEMANTIC_TOKEN)
+10 07 04 00 00 00 42    # fontSize=32.0
+10 0C 06 01              # textAlignment=CENTER
+... (additional commands for other nodes)
+```
+
+**For complete binary encoding details**, see **[BINARY_PROTOCOL.md](../spec/BINARY_PROTOCOL.md)**.
+
+---
+
 ## State Management
 
-The counter application uses the following state:
+The counter application uses the following state (application-level, not transmitted over protocol):
 
 ```json
 {
@@ -242,6 +277,10 @@ The counter application uses the following state:
 }
 ```
 
+**Note:** State management is **application-side only**. The protocol only transmits commands, not state.
+
+---
+
 ## Event Handlers
 
 The event handlers for the counter application:
@@ -261,7 +300,7 @@ function incrementCounter(event) {
   const currentIncrements = getSignalValue("total-increments");
   setSignalValue("total-increments", currentIncrements + 1);
   
-  // Update display
+  // Application generates SET_PROPERTY commands to update displays
   updateTextContent("count-display", (currentCount + 1).toString());
   updateTextContent("total-increments", "Increments: " + (currentIncrements + 1));
 }
@@ -278,7 +317,7 @@ function decrementCounter(event) {
   const currentDecrements = getSignalValue("total-decrements");
   setSignalValue("total-decrements", currentDecrements + 1);
   
-  // Update display
+  // Application generates SET_PROPERTY commands to update displays
   updateTextContent("count-display", newCount.toString());
   updateTextContent("total-decrements", "Decrements: " + (currentDecrements + 1));
 }
@@ -289,102 +328,63 @@ function resetCounter(event) {
   setSignalValue("total-increments", 0);
   setSignalValue("total-decrements", 0);
   
-  // Update displays
+  // Application generates SET_PROPERTY commands to update displays
   updateTextContent("count-display", "0");
   updateTextContent("total-increments", "Increments: 0");
   updateTextContent("total-decrements", "Decrements: 0");
 }
 ```
 
+**Note:** Event handlers are **application-side**. The protocol transmits events from renderer to application using DISPATCH_EVENT opcode (0x07).
+
+---
+
 ## Component Breakdown
 
 ### Root VStack
-- **Type:** `vstack`
-- **Modifiers:**
-  - `gap: 20` - Vertical spacing between children
-  - `alignment: "center"` - Children are centered horizontally
-  - `padding: {all: 30}` - 30px padding on all sides
-  - `background: {color: "#F5F5F7"}` - Light gray background
+- **Binary Type:** `0x0002` (VSTACK)
+- **Binary Properties:**
+  - `spacing` (0x0001) = 20.0 (F32)
+  - `alignment` (0x0002) = CENTER (0x01)
+  - `padding` (0x1006) = 30.0 (F32)
+  - `backgroundColor` (0x1001) = LITERAL_SRGB 0xFFF5F5F7 (white-ish gray)
 
 ### Title Text
-- **Type:** `text`
-- **Content:** "Pathland Counter"
-- **Modifiers:**
-  - `font: {family: [...], size: 32, weight: "bold"}` - Large, bold font
-  - `color: "#1D1D1F"` - Dark text color
-  - `textAlignment: "center"` - Centered text
+- **Binary Type:** `0x0003` (TEXT)
+- **Binary Properties:**
+  - `text` (0x000A) = "Pathland Counter" (STRING)
+  - `fontSize` (0x1007) = 32.0 (F32)
+  - `fontWeight` (0x1008) = BOLD (0x06)
+  - `color` (0x100A) = LITERAL_SRGB 0xFF1D1D1F (dark gray)
+  - `textAlignment` (0x000C) = CENTER (0x01)
 
 ### Count Display Text
-- **Type:** `text`
-- **Content:** Dynamic (starts at "0")
-- **Modifiers:**
-  - `font: {size: 72, weight: "bold"}` - Very large, bold font
-  - `color: "#0071E3"` - Blue text color
-  - `padding: {horizontal: 40, vertical: 20}` - Generous padding
-  - `background: {color: "#FFFFFF"}` - White background
-  - `border: {width: 4, color: "#0071E3", radius: 16}` - Thick blue border with rounded corners
+- **Binary Type:** `0x0003` (TEXT)
+- **Binary Properties:**
+  - `text` (0x000A) = "0" (STRING, dynamic)
+  - `fontSize` (0x1007) = 72.0 (F32)
+  - `fontWeight` (0x1008) = BOLD (0x06)
+  - `color` (0x100A) = LITERAL_SRGB 0xFF0071E3 (blue)
+  - `textAlignment` (0x000C) = CENTER (0x01)
+  - `padding` (0x1006) = 20.0 (F32 for vertical), 40.0 (F32 for horizontal)
+  - `backgroundColor` (0x1001) = LITERAL_SRGB 0xFFFFFFFF (white)
+  - `borderWidth` (0x1003) = 4.0 (F32)
+  - `borderColor` (0x1004) = LITERAL_SRGB 0xFF0071E3 (blue)
+  - `borderRadius` (0x1005) = 16.0 (F32)
 
 ### Button Row HStack
-- **Type:** `hstack`
-- **Modifiers:**
-  - `gap: 16` - Horizontal spacing between buttons
-  - `alignment: "center"` - Buttons are centered vertically
-  - `justification: "center"` - Buttons are centered horizontally
+- **Binary Type:** `0x0001` (HSTACK)
+- **Binary Properties:**
+  - `spacing` (0x0001) = 16.0 (F32)
+  - `alignment` (0x0002) = CENTER (0x01)
+  - `justification` (0x0003) = CENTER (0x01)
 
-### Decrement Button
-- **Type:** `text`
-- **Content:** "-"
-- **Modifiers:**
-  - `font: {size: 24, weight: "bold"}` - Large, bold font
-  - `color: "#FFFFFF"` - White text
-  - `padding: {horizontal: 30, vertical: 15}` - Comfortable touch target
-  - `background: {color: "#FF3B30"}` - Red background
-  - `border: {radius: 12}` - Rounded corners
-- **Events:**
-  - `onTap: "decrementCounter"` - Handles touch input
-  - `onClick: "decrementCounter"` - Handles mouse input
+### Buttons
+All buttons are TEXT components with:
+- Event handlers registered via REGISTER_EVENT_HANDLER (0x08)
+- Different background colors, padding, and border radii
 
-### Reset Button
-- **Type:** `text`
-- **Content:** "Reset"
-- **Modifiers:**
-  - `font: {size: 18, weight: "semibold"}` - Medium, semi-bold font
-  - `color: "#1D1D1F"` - Dark text
-  - `padding: {horizontal: 25, vertical: 15}` - Comfortable touch target
-  - `background: {color: "#FFFFFF"}` - White background
-  - `border: {width: 2, color: "#D2D2D7", radius: 12}` - Light gray border with rounded corners
-- **Events:**
-  - `onTap: "resetCounter"` - Handles touch input
-  - `onClick: "resetCounter"` - Handles mouse input
-
-### Increment Button
-- **Type:** `text`
-- **Content:** "+"
-- **Modifiers:**
-  - `font: {size: 24, weight: "bold"}` - Large, bold font
-  - `color: "#FFFFFF"` - White text
-  - `padding: {horizontal: 30, vertical: 15}` - Comfortable touch target
-  - `background: {color: "#34C759"}` - Green background
-  - `border: {radius: 12}` - Rounded corners
-- **Events:**
-  - `onTap: "incrementCounter"` - Handles touch input
-  - `onClick: "incrementCounter"` - Handles mouse input
-
-### Stats Section VStack
-- **Type:** `vstack`
-- **Modifiers:**
-  - `gap: 8` - Vertical spacing between children
-  - `alignment: "center"` - Children are centered horizontally
-  - `padding: {horizontal: 20, vertical: 15}` - Padding inside the container
-  - `background: {color: "#FFFFFF", opacity: 0.8}` - Semi-transparent white background
-  - `border: {radius: 12}` - Rounded corners
-
-### Stats Row HStack
-- **Type:** `hstack`
-- **Modifiers:**
-  - `gap: 20` - Horizontal spacing between text items
-  - `alignment: "center"` - Items are centered vertically
-  - `justification: "spaceBetween"` - Items are spaced evenly
+---
 
 ## Key Features Demonstrated
 
@@ -401,14 +401,16 @@ function resetCounter(event) {
 5. **Border styling** - Width, color, radius, and style
 
 ### Event Features
-1. **Tap events** - For touch input
-2. **Click events** - For mouse input
-3. **Event handlers** - Functions that update state and UI
+1. **Tap events** - For touch input (maps to TAP event type 0x01)
+2. **Click events** - For mouse input (maps to CLICK event type 0x04)
+3. **Event handlers** - Functions that update state and generate commands
 
 ### State Features
-1. **Signals** - Reactive state management
-2. **State updates** - Modifying signal values
-3. **UI updates** - Re-rendering based on state changes
+1. **Signals** - Reactive state management (application-side)
+2. **State updates** - Modifying signal values (application-side)
+3. **UI updates** - Generating commands based on state changes (application-side)
+
+---
 
 ## Visual Representation
 
@@ -435,6 +437,33 @@ function resetCounter(event) {
 └─────────────────────────────────────────┘
 ```
 
+---
+
+## Binary Protocol Mapping
+
+The conceptual JSON in this example maps to the following binary protocol elements:
+
+| Conceptual Property | Binary Property ID | Value Type | Notes |
+|---------------------|--------------------|------------|-------|
+| `type` | Component type in CREATE_NODE | u16 | HSTACK=0x0001, VSTACK=0x0002, TEXT=0x0003 |
+| `gap` | 0x0001 | F32 | For HSTACK/VSTACK |
+| `alignment` | 0x0002 | ENUM | For HSTACK/VSTACK |
+| `justification` | 0x0003 | ENUM | For HSTACK/VSTACK |
+| `padding` | 0x1006 | F32 or DESIGN_TOKEN | Style property |
+| `background.color` | 0x1001 | COLOR | Style property |
+| `border.width` | 0x1003 | F32 | Style property |
+| `border.color` | 0x1004 | COLOR | Style property |
+| `border.radius` | 0x1005 | F32 | Style property |
+| `color` (text) | 0x100A | COLOR | Style property |
+| `font.size` | 0x1007 | F32 | Style property |
+| `font.weight` | 0x1008 | ENUM | Style property |
+| `textAlignment` | 0x000C | ENUM | TEXT property |
+| `content` | 0x000A | STRING | TEXT property |
+
+**For complete property mapping**, see **[BINARY_PROTOCOL.md - Property ID Definitions](../spec/BINARY_PROTOCOL.md#property-id-definitions)**.
+
+---
+
 ## Implementation Notes
 
 ### For Web Renderer
@@ -453,12 +482,18 @@ function resetCounter(event) {
 - Use graphics library for rendering
 - Implement layout engine for HStack/VStack
 
+---
+
 ## Extensions
 
 This example can be extended with:
 
 1. **Animation** - Add smooth transitions when count changes
-2. **Theming** - Support light/dark mode
+2. **Theming** - Support light/dark mode using design tokens
 3. **Localization** - Support multiple languages
 4. **Accessibility** - Add ARIA labels and keyboard support
 5. **Persistence** - Save state to local storage
+
+---
+
+**Note**: This document is a **conceptual example**. For actual implementation, always refer to **[BINARY_PROTOCOL.md](../spec/BINARY_PROTOCOL.md)** for the authoritative protocol specification.
