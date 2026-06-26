@@ -9,10 +9,10 @@ Pathland is a **protocol-first** UI framework designed to enable retained-mode U
 ## Core Principles
 
 - **Protocol-first**: Standardized, open protocol for UI components, state, and events
-- **Command-based**: UI updates transmitted as **commands** (create, add, set, remove) rather than complete trees
-- **Binary Protocol**: Custom binary instruction protocol optimized for tree mutations
+- **Command-based**: UI updates transmitted as **commands** (CREATE_NODE, DELETE_NODE, INSERT_CHILD, REMOVE_CHILD, SET_PROPERTY) rather than complete trees
+- **Binary Protocol**: Custom binary instruction protocol (bytecode/ABI) optimized for frequent tree mutations
 - **Stateless Renderers**: **Renderers maintain NO state** - they are pure functions that execute commands. Component IDs are the ONLY information retained (for event routing)
-- **Renderer-agnostic**: Supports server-owned, SSR, prerendered, and client-rendered apps
+- **Renderer-agnostic**: Supports server-owned, SSR, prerendered, and client-rendered apps simultaneously
 - **Minimal runtime**: Lightweight with scoped state
 - **SwiftUI-inspired**: Syntax and concepts aligned with SwiftUI design
 
@@ -20,253 +20,183 @@ Pathland is a **protocol-first** UI framework designed to enable retained-mode U
 
 ### Protocol Specification
 
-- [Main Protocol Document](./spec/PROTOCOL.md) - Core protocol overview and concepts
+- [Binary Protocol](./spec/BINARY_PROTOCOL.md) - **Primary specification** - Custom binary instruction protocol with opcodes, component types, property IDs, and encoding rules
+- [Protocol Overview](./spec/PROTOCOL.md) - Core protocol concepts and architecture
 - [Component Specifications](./spec/components/COMPONENTS.md) - Detailed component definitions
 - [Event System](./spec/events/EVENTS.md) - Complete event system specification
 - [State Management](./spec/state/STATE.md) - Signal-based state management
+
+### Proof of Concept (POC)
+
+A working implementation is available in the [`/poc/`](./poc/) directory:
+- **HTML Renderer** - Full implementation of the binary protocol renderer for web browsers
+- **Demo Page** - Interactive demo with 5 examples:
+  1. Simple VStack with Text (semantic colors)
+  2. HStack with Spacer
+  3. Nested Stacks
+  4. Styled components (background, padding, opacity)
+  5. **Live Clock** - Real-time clock updating every second, with bold font at :00, :10, :20, :30, :40, :50
+- **Performance Timing** - Each demo logs encoding, parsing, and rendering times to console
+- **Protocol Inspection** - View the binary protocol commands and hex dump for each demo
+
+To run the POC:
+```bash
+cd poc
+npm install
+npm run dev
+```
+
+Then open `http://localhost:5173` in your browser.
 
 ### Examples
 
 - [Counter Example](./examples/COUNTER_EXAMPLE.md) - Demonstrates HStack, VStack, Text with styling and events
 - [Form Example](./examples/FORM_EXAMPLE.md) - Complete login form with validation
 
-## Core Components
+## Implemented Components (POC)
+
+The POC currently implements the following components with full binary protocol support:
 
 ### Layout Components
 
-| Component | Description | Key Modifiers |
-|-----------|-------------|---------------|
-| `hstack` | Horizontal stack container | gap, alignment, justification, padding, border, background |
-| `vstack` | Vertical stack container | gap, alignment, justification, padding, border, background |
+| Component | Type ID | Description |
+|-----------|---------|-------------|
+| `HSTACK` | `0x0001` | Horizontal stack container |
+| `VSTACK` | `0x0002` | Vertical stack container |
+| `SPACER` | `0x0008` | Flexible spacer (fills available space) |
 
 ### Content Components
 
-| Component | Description | Key Modifiers |
-|-----------|-------------|---------------|
-| `text` | Text display | font, lineLimit, textAlignment, color, padding, border, background |
+| Component | Type ID | Description |
+|-----------|---------|-------------|
+| `TEXT` | `0x0003` | Text display with styling |
+| `BUTTON` | `0x0004` | Interactive button |
 
-## Layout Modifiers
+### Supported Properties
 
-### Stack Layout (HStack & VStack)
+**Stack Properties (HSTACK/VSTACK):**
+- `SPACING` (0x0001) - Gap between children
+- `ALIGNMENT` (0x0002) - Cross-axis alignment
+- `JUSTIFICATION` (0x0003) - Main-axis distribution
+- `PADDING` (0x0004) - Inner padding
 
-- **`gap`**: Space between children (Length)
-- **`alignment`**: Cross-axis alignment (`"leading"`, `"center"`, `"trailing"`)
-- **`justification`**: Main-axis distribution (`"leading"`, `"center"`, `"trailing"`, `"spaceBetween"`, `"spaceAround"`, `"spaceEvenly"`)
+**Text Properties:**
+- `TEXT` (0x000A) - Text content
+- `LINE_LIMIT` (0x000B) - Maximum lines
+- `TEXT_ALIGNMENT` (0x000C) - Text alignment
 
-### Spacing
+**Style Properties:**
+- `COLOR` (0x100A) - Text color (semantic or literal sRGB)
+- `FONT_SIZE` (0x1007) - Font size in pixels
+- `FONT_WEIGHT` (0x1008) - Font weight enum
+- `BACKGROUND_COLOR` (0x1001) - Background color
+- `OPACITY` (0x100D) - Opacity value
+- `VISIBLE` (0x100E) - Visibility toggle
+- `WIDTH` (0x100B) / `HEIGHT` (0x100C) - Dimensions
 
-- **`padding`**: Inner padding (EdgeInsets or Length)
+**Color System:**
+- Semantic color tokens (PRIMARY_TEXT, SECONDARY_TEXT, BACKGROUND, etc.)
+- Literal sRGB colors as packed RGBA (0xAARRGGBB)
 
-### Borders
+For full component specifications, see [COMPONENTS.md](./spec/components/COMPONENTS.md).
 
-- **`border`**: Border styling (BorderStyle)
-  - `width`: Border thickness
-  - `color`: Border color
-  - `radius`: Corner radius (Length or CornerRadii)
-  - `style`: Border style (`"solid"`, `"dotted"`, `"dashed"`, etc.)
+## Architecture
 
-### Background
+### Command-Based Protocol
 
-- **`background`**: Background styling (BackgroundStyle)
-  - `color`: Solid color
-  - `gradient`: Gradient (LinearGradient or RadialGradient)
-  - `image`: Background image
-  - `opacity`: Opacity (0.0 to 1.0)
+The protocol transmits **tree mutations** as a stream of commands:
+- `CREATE_NODE` (0x01) - Create a new component with properties
+- `DELETE_NODE` (0x02) - Remove a component
+- `INSERT_CHILD` (0x03) - Add child to parent at index
+- `REMOVE_CHILD` (0x04) - Remove child from parent
+- `SET_PROPERTY` (0x05) - Update a property value
+- `SET_DESIGN_TOKEN` (0x06) - Override design token
 
-### Frame
+### Message Format
 
-- **`frame`**: Size constraints (FrameModifier)
-  - `width`, `height`: Dimensions
-  - `minWidth`, `maxWidth`, `minHeight`, `maxHeight`: Size constraints
-  - `alignment`: Content alignment within frame
+Each message contains:
+- Header: version (u16) + instruction count (u32)
+- Body: Sequence of binary-encoded commands
 
-## Text Modifiers
+### Binary Encoding
 
-### Font
+- **Opcodes**: u8 (1 byte)
+- **Node IDs**: u32 (4 bytes)
+- **Component Types**: u16 (2 bytes)
+- **Property IDs**: u16 (2 bytes)
+- **Value Types**: u8 (1 byte) with typed payloads
+- **Strings**: u32 length prefix + UTF-8 bytes
+- **Colors**: Tagged union (semantic token or packed RGBA u32)
 
-- **`font`**: Font styling (FontStyle)
-  - `family`: Font family name(s)
-  - `size`: Font size in points
-  - `weight`: Font weight (`"ultraLight"`, `"thin"`, `"light"`, `"regular"`, `"medium"`, `"semibold"`, `"bold"`, `"heavy"`, `"black"`, or numeric 100-900)
-  - `style`: Font style (`"normal"`, `"italic"`, `"oblique"`)
-  - `variant`: Font variant (`"normal"`, `"smallCaps"`)
-  - `letterSpacing`: Space between characters
-  - `lineHeight`: Line height (multiplier or exact)
-
-### Text Layout
-
-- **`lineLimit`**: Maximum number of lines (number or null for unlimited)
-- **`textAlignment`**: Text alignment (`"leading"`, `"center"`, `"trailing"`)
-
-### Text Appearance
-
-- **`color`**: Text color
-- **`truncationMode`**: How to truncate overflow (`"clip"`, `"head"`, `"tail"`, `"middle"`)
-- **`lineBreakMode`**: How to break lines (`"wordWrap"`, `"characterWrap"`, etc.)
+For complete encoding details, see [BINARY_PROTOCOL.md](./spec/BINARY_PROTOCOL.md).
 
 ## Event System
 
-### Core Event Types
+The protocol supports a comprehensive event system with binary encoding. Event types include:
+- TAP, DOUBLE_TAP, LONG_PRESS
+- CLICK, HOVER, FOCUS, BLUR
+- KEY_DOWN, KEY_UP
+- SCROLL, SWIPE
+- ON_APPEAR, ON_DISAPPEAR, ON_CHANGE
 
-| Event | Description | Handler |
-|-------|-------------|---------|
-| `tap` | Single tap/click | `onTap` |
-| `doubleTap` | Double tap/click | `onDoubleTap` |
-| `longPress` | Long press | `onLongPress` |
-| `click` | Mouse click with button info | `onClick` |
-| `hover` | Mouse hover | `onHover` |
-| `focus` | Focus gained | `onFocus` |
-| `blur` | Focus lost | `onBlur` |
-| `keyDown` | Key pressed | `onKeyDown` |
-| `keyUp` | Key released | `onKeyUp` |
-| `scroll` | Scroll action | `onScroll` |
-| `swipe` | Swipe gesture | `onSwipe` |
+For complete event specifications, see [EVENTS.md](./spec/events/EVENTS.md).
 
-### Event Structure
-
-```json
-{
-  "type": "tap",
-  "timestamp": 1234567890,
-  "target": "button-id",
-  "path": ["root", "container", "button-id"],
-  "data": {
-    "location": {"x": 50, "y": 25},
-    "tapCount": 1
-  }
-}
-```
-
-### Event Propagation
-
-1. **Capture Phase** (optional): Root → Target
-2. **Target Phase**: Target component handlers
-3. **Bubble Phase**: Target → Root
-
-Handlers can:
-- `stopPropagation()`: Stop further propagation
-- `stopImmediatePropagation()`: Stop other handlers on same component
-- `preventDefault()`: Prevent default action
+**Note**: Event handling in the POC HTML renderer is not yet implemented - this is planned for a future phase.
 
 ## State Management
 
-### Signals
+Pathland uses **signals** for reactive state management. Signals are reactive values that:
+- Trigger UI updates when changed
+- Support computed/derived values
+- Enable fine-grained reactivity
 
-Pathland uses **signals** for reactive state management:
+The application owns all state (signals, computed values). The renderer is stateless and only receives commands.
 
-```json
-{
-  "id": "counter",
-  "name": "Counter",
-  "value": 0,
-  "version": 1,
-  "computed": false,
-  "dependencies": [],
-  "dependents": ["counter-display"]
-}
-```
+For complete state management specifications, see [STATE.md](./spec/state/STATE.md).
 
-### Signal Types
-
-- **State Signal**: Mutable value that can be set directly
-- **Computed Signal**: Derived value that updates automatically when dependencies change
-
-### Signal Operations
-
-- `get()`: Read current value
-- `set(newValue)`: Set new value and trigger updates
-- `update(fn)`: Update value using a function
+**Note**: The POC currently uses a simple imperative application model for demonstration purposes.
 
 ## Protocol Features
 
-### Language-Agnostic
+### Design Tokens
 
-The protocol is defined in a **language-independent** way using JSON-like structures. It can be implemented in:
-- TypeScript/JavaScript
-- Swift
-- Kotlin
-- Python
-- C++
-- Rust
-- Any other language
+Pathland uses a **design token system** for theming:
+- Renderer owns the default theme and visual appearance
+- Application can override token values globally
+- Interaction states (hover, pressed, focus) are **renderer responsibilities**
+- Semantic colors resolve differently based on platform/theme
 
-### Platform-Agnostic
+### Color System
 
-Pathland can target:
-- **Web** (HTML/CSS/JS)
-- **Mobile** (iOS, Android)
-- **Desktop** (macOS, Windows, Linux)
-- **Embedded** (LVGL, custom graphics)
+- **Semantic tokens**: PRIMARY_TEXT, SECONDARY_TEXT, BACKGROUND, SURFACE, ACCENT, ERROR, etc.
+- **Literal colors**: Packed RGBA u32 values in sRGB color space (0xAARRGGBB)
+- All literal colors are explicitly defined as **sRGB** with D65 white point
 
-### Renderer-Agnostic
+### Renderer Responsibilities
 
-Any compliant renderer can implement the protocol:
-- DOM-based renderers
-- Native view renderers
-- Graphics library renderers
-- Custom renderers
+- Owns design tokens and their default values
+- Resolves semantic tokens to concrete visuals
+- Defines interaction state behavior (hover, pressed, focus)
+- Applies theme logic
+- Converts sRGB to native display space when supported
 
-## Data Types
+## Key Differentiators
 
-### Primitive Types
+### vs. React
+- **No hooks** - Uses signals instead of useState, useEffect, useMemo
+- **No virtual DOM** - Command-based protocol, not diffing
+- **No JSX transformations** - Direct component creation
+- **Stateless renderers** - Pure functions, no internal state
 
-- `string`: UTF-8 text
-- `number`: 64-bit floating point
-- `boolean`: true or false
-- `null`: Absence of value
+### vs. Flutter
+- **Protocol-first** - Not tied to a specific rendering engine
+- **Multiple backends** - Can target DOM, native views, graphics libraries
+- **No widget tree** - Retained tree with explicit mutations
 
-### Composite Types
-
-- **Length**: Absolute (number) or relative (string like `"50%"` or `"auto"`)
-- **Color**: Hex (`"#RRGGBB"`), RGB (`"rgb(R,G,B)"`), or named colors
-- **Point**: `{x: number, y: number}`
-- **Size**: `{width: Length, height: Length}`
-- **Rect**: `{origin: Point, size: Size}`
-- **EdgeInsets**: `{top: Length, right: Length, bottom: Length, left: Length}`
-
-## Example Component Tree
-
-```json
-{
-  "type": "vstack",
-  "modifiers": {
-    "gap": 16,
-    "alignment": "center",
-    "padding": {"all": 20}
-  },
-  "children": [
-    {
-      "type": "text",
-      "content": "Hello, Pathland!",
-      "modifiers": {
-        "font": {"family": "Arial", "size": 24, "weight": "bold"},
-        "color": "#333333"
-      }
-    },
-    {
-      "type": "hstack",
-      "modifiers": {
-        "gap": 8,
-        "justification": "center"
-      },
-      "children": [
-        {
-          "type": "text",
-          "content": "Tap me",
-          "modifiers": {
-            "padding": {"horizontal": 16, "vertical": 8},
-            "background": {"color": "#007AFF"},
-            "border": {"radius": 8}
-          },
-          "events": {
-            "onTap": "handleTap"
-          }
-        }
-      ]
-    }
-  ]
-}
-```
+### vs. Traditional DOM APIs
+- **Not imperative** - Declarative component definitions
+- **Not DOM-specific** - Renderer-agnostic protocol
+- **Minimal overhead** - Only transmits actual changes
 
 ## Getting Started
 
