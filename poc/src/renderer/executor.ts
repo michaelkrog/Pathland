@@ -75,6 +75,11 @@ export class CommandExecutor {
     };
     this.idToElement.set(command.nodeId, renderElement);
     this.elementToId.set(element, command.nodeId);
+    
+    // For POC: Add all nodes to rootContainer initially
+    // In a real implementation with proper tree hierarchy, root nodes would be
+    // inserted into the rootContainer via INSERT_CHILD commands
+    this.rootContainer.appendChild(element);
   }
 
   private executeDeleteNode(command: Extract<Command, { opcode: 'DELETE_NODE' }>): void {
