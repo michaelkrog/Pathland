@@ -28,7 +28,7 @@ A renderer is a pure function that:
 
 **Key Architecture:**
 - Application manages state (signals) and generates commands
-- Commands describe changes: create, addChild, setModifier, setContent, remove, destroy
+- Commands describe changes: create, addChild, setStyle, setContent, removeChild, destroy
 - Renderer executes commands statelessly
 - Only actual changes are transmitted (efficient)
 

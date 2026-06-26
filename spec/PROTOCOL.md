@@ -72,8 +72,8 @@ Pathland uses a **command-based** protocol where UI updates are described as a *
 **Command Types:**
 - `create` - Create a new component
 - `addChild` - Add a child to a parent component
-- `remove` - Remove a component
-- `setModifier` - Set or update a modifier on a component
+- `removeChild` - Remove a child from a parent component
+- `setStyle` - Set or update a style modifier on a component
 - `setContent` - Set content (e.g., text content)
 - `setEventHandler` - Set an event handler on a component
 - `destroy` - Destroy a component and its children
@@ -253,17 +253,17 @@ Removes a child from a parent component.
 }
 ```
 
-#### 3.2.4 Set Modifier Command
+#### 3.2.4 Set Style Command
 
-Sets or updates a modifier on a component.
+Sets or updates a style property on a component.
 
 ```json
 {
-  "type": "setModifier",
+  "type": "setStyle",
   "target": "component-id",
   "data": {
-    "modifier": "gap" | "alignment" | "padding" | "background" | <AnyModifier>,
-    "value": <ModifierValue>
+    "property": "gap" | "alignment" | "padding" | "background" | <AnyStyleProperty>,
+    "value": <StyleValue>
   }
 }
 ```
@@ -323,7 +323,7 @@ Commands are typically sent in **batches** to reduce overhead:
   "batchId": <string | number>,  // Optional batch identifier
   "commands": [
     { "type": "create", "target": "btn1", "data": { "componentType": "text", "content": "Click me" } },
-    { "type": "setModifier", "target": "btn1", "data": { "modifier": "background", "value": { "color": "#007AFF" } } },
+    { "type": "setStyle", "target": "btn1", "data": { "property": "background", "value": { "color": "#007AFF" } } },
     { "type": "setEventHandler", "target": "btn1", "data": { "event": "onTap", "handler": "handleClick" } },
     { "type": "addChild", "target": "root", "data": { "childId": "btn1" } }
   ]
@@ -349,7 +349,7 @@ Commands are typically sent in **batches** to reduce overhead:
 // These commands create and style a button:
 ["create hstack with id=container"]
 ["create text with id=label, content=Hello"]
-["setModifier on label: font={size: 24}"]
+["setStyle on label: font={size: 24}"]
 ["addChild: add label to container"]
 ```
 
