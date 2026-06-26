@@ -5,8 +5,7 @@
   "main": "dist/src/worker.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
-    "dev": "vite"
+    "test": "vitest"
   },
   "keywords": [
     "ui",

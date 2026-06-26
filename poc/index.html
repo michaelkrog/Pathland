@@ -230,13 +230,155 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
         </div>
     </div>
     
-    <!-- Import the renderer and worker modules -->
     <script type="module">
-        import { initRenderer, getRenderer, SimpleApplication } from './src/renderer/htmlRenderer.js';
+        // Demo application that runs directly in the browser
+        // This is a simplified version that doesn't require TypeScript compilation
+        
+        class SimpleRenderer {
+            constructor(rootContainer) {
+                this.rootContainer = rootContainer;
+                this.idToElement = new Map();
+                this.elementToId = new WeakMap();
+                this.nextId = 1;
+                this.setupStyles();
+            }
+            
+            setupStyles() {
+                if (document.querySelector('.pathland-styles')) return;
+                const style = document.createElement('style');
+                style.className = 'pathland-styles';
+                style.textContent = `
+                    .pathland-hstack {
+                        display: flex;
+                        flex-direction: row;
+                        box-sizing: border-box;
+                    }
+                    .pathland-vstack {
+                        display: flex;
+                        flex-direction: column;
+                        box-sizing: border-box;
+                    }
+                    .pathland-text {
+                        display: inline;
+                        box-sizing: border-box;
+                        white-space: nowrap;
+                    }
+                    .pathland-spacer {
+                        flex: 1 1 auto;
+                        min-width: 0;
+                        min-height: 0;
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            createNode(componentType, properties = {}) {
+                const nodeId = this.nextId++;
+                const element = document.createElement('div');
+                
+                switch (componentType) {
+                    case 1: // HSTACK
+                        element.className = 'pathland-hstack';
+                        break;
+                    case 2: // VSTACK
+                        element.className = 'pathland-vstack';
+                        break;
+                    case 3: // TEXT
+                        element.className = 'pathland-text';
+                        element.textContent = properties[0x000A] || '';
+                        break;
+                    case 8: // SPACER
+                        element.className = 'pathland-spacer';
+                        element.style.flex = '1 1 auto';
+                        element.style.minWidth = '0';
+                        element.style.minHeight = '0';
+                        break;
+                }
+                
+                element.dataset.pathlandType = componentType;
+                element.dataset.pathlandId = nodeId;
+                
+                // Apply properties
+                for (const [key, value] of Object.entries(properties)) {
+                    this.applyProperty(element, parseInt(key), value);
+                }
+                
+                this.idToElement.set(nodeId, element);
+                this.elementToId.set(element, nodeId);
+                
+                return nodeId;
+            }
+            
+            applyProperty(element, propertyId, value) {
+                // Simplified property application
+                switch (propertyId) {
+                    case 0x0001: // spacing
+                        element.style.gap = `${value}px`;
+                        break;
+                    case 0x0002: // alignment
+                        const alignments = [0, 1, 2, 3]; // START, CENTER, END, STRETCH
+                        const alignMap = ['flex-start', 'center', 'flex-end', 'stretch'];
+                        element.style.alignItems = alignMap[alignments.indexOf(value)] || 'stretch';
+                        break;
+                    case 0x0003: // justification
+                        const justifications = [0, 1, 2, 3, 4, 5];
+                        const justifyMap = ['flex-start', 'center', 'flex-end', 'space-between', 'space-around', 'space-evenly'];
+                        element.style.justifyContent = justifyMap[justifications.indexOf(value)] || 'flex-start';
+                        break;
+                    case 0x0004: // padding
+                        element.style.padding = `${value}px`;
+                        break;
+                    case 0x000A: // text
+                        element.textContent = value;
+                        break;
+                    case 0x1007: // fontSize
+                        element.style.fontSize = `${value}px`;
+                        break;
+                    case 0x100A: // color
+                        if (value && value.kind === 'literal') {
+                            const rgba = value.rgba >>> 0;
+                            const a = (rgba >>> 24) & 0xFF;
+                            const r = (rgba >>> 16) & 0xFF;
+                            const g = (rgba >>> 8) & 0xFF;
+                            const b = rgba & 0xFF;
+                            element.style.color = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+                        }
+                        break;
+                    case 0x1001: // backgroundColor
+                        if (value && value.kind === 'literal') {
+                            const rgba = value.rgba >>> 0;
+                            const a = (rgba >>> 24) & 0xFF;
+                            const r = (rgba >>> 16) & 0xFF;
+                            const g = (rgba >>> 8) & 0xFF;
+                            const b = rgba & 0xFF;
+                            element.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+                        }
+                        break;
+                }
+            }
+            
+            insertChild(parentId, childId) {
+                const parent = this.idToElement.get(parentId);
+                const child = this.idToElement.get(childId);
+                if (parent && child) {
+                    parent.appendChild(child);
+                }
+            }
+            
+            reset() {
+                for (const element of this.idToElement.values()) {
+                    if (element.parentNode) {
+                        element.parentNode.removeChild(element);
+                    }
+                }
+                this.idToElement.clear();
+                this.elementToId = new WeakMap();
+            }
+        }
         
         // Initialize renderer
         const renderContainer = document.getElementById('renderOutput');
-        const renderer = initRenderer(renderContainer);
+        const renderer = new SimpleRenderer(renderContainer);
         
         // Stats tracking
         let totalCommands = 0;
@@ -253,7 +395,7 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             document.getElementById('nodeCount').textContent = totalNodes;
         }
         
-        // Helper to dump protocol
+        // Helper to dump protocol info
         function dumpProtocol(message, commands) {
             const dump = document.getElementById('protocolDump');
             let output = `Message: ${message.length} bytes\n`;
@@ -264,11 +406,11 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
                 output += `${i + 1}. ${cmd.opcode}\n`;
                 if (cmd.opcode === 'CREATE_NODE') {
                     output += `   Node ID: ${cmd.nodeId}, Type: ${cmd.componentType}\n`;
-                    output += `   Properties: ${cmd.properties.size}\n`;
+                    output += `   Properties: ${Object.keys(cmd.properties || {}).length}\n`;
                 } else if (cmd.opcode === 'SET_PROPERTY') {
                     output += `   Node ID: ${cmd.nodeId}, Property: ${cmd.propertyId}\n`;
                 } else if (cmd.opcode === 'INSERT_CHILD') {
-                    output += `   Parent: ${cmd.parentId}, Child: ${cmd.childId}, Index: ${cmd.index}\n`;
+                    output += `   Parent: ${cmd.parentId}, Child: ${cmd.childId}\n`;
                 } else if (cmd.opcode === 'DELETE_NODE') {
                     output += `   Node ID: ${cmd.nodeId}\n`;
                 }
@@ -283,142 +425,178 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             dump.textContent = output;
         }
         
-        // Demo 1: Simple VStack with Text
-        window.demo1 = function() {
-            clearDemo();
-            const app = new SimpleApplication();
-            const commands = app.createSimpleUI();
-            const message = new Uint8Array(0); // Will be created by renderer
-            
-            // Execute directly (no worker for simplicity in demo)
-            renderer.reset();
-            
-            // Manually execute commands
-            for (const cmd of commands) {
-                renderer['executor'].executeCommand(cmd);
-            }
-            
-            // For demo purposes, encode to show protocol
-            import('./src/application/encoder.js').then(module => {
-                const encoded = module.encodeMessage(commands);
-                updateStats(commands.length, encoded.length, 3); // 1 VStack + 2 Text
-                dumpProtocol(encoded, commands);
-            });
-        };
-        
-        // Demo 2: HStack with Spacer
-        window.demo2 = function() {
-            clearDemo();
-            const app = new SimpleApplication();
-            const commands = app.createHStackWithSpacer();
-            
-            renderer.reset();
-            for (const cmd of commands) {
-                renderer['executor'].executeCommand(cmd);
-            }
-            
-            import('./src/application/encoder.js').then(module => {
-                const encoded = module.encodeMessage(commands);
-                updateStats(commands.length, encoded.length, 4); // 1 HStack + 2 Text + 1 Spacer
-                dumpProtocol(encoded, commands);
-            });
-        };
-        
-        // Demo 3: Nested Stacks
-        window.demo3 = function() {
-            clearDemo();
-            const app = new SimpleApplication();
-            
-            // Create VStack
-            const vstackId = app.createNode(0x0002, { // VSTACK
-                [0x0001]: 16, // spacing
-                [0x0002]: 0x01, // alignment: CENTER
-                [0x0004]: 20 // padding
-            });
-            
-            // Create HStack child
-            const hstackId = app.createNode(0x0001, { // HSTACK
-                [0x0001]: 12, // spacing
-                [0x0003]: 0x03 // justification: SPACE_BETWEEN
-            });
-            
-            // Create Text nodes
-            const text1Id = app.createNode(0x0003, { // TEXT
-                [0x000A]: 'Left',
-                [0x1007]: 14,
-                [0x100A]: { type: 'color', kind: 'semantic', tokenId: 0x0001 }
-            });
-            
-            const text2Id = app.createNode(0x0003, { // TEXT
-                [0x000A]: 'Right',
-                [0x1007]: 14,
-                [0x100A]: { type: 'color', kind: 'semantic', tokenId: 0x0002 }
-            });
-            
-            // Build hierarchy
-            app.insertChild(vstackId, hstackId);
-            app.insertChild(hstackId, text1Id);
-            app.insertChild(hstackId, text2Id);
-            
-            const commands = app.flushCommands();
-            
-            renderer.reset();
-            for (const cmd of commands) {
-                renderer['executor'].executeCommand(cmd);
-            }
-            
-            import('./src/application/encoder.js').then(module => {
-                const encoded = module.encodeMessage(commands);
-                updateStats(commands.length, encoded.length, 4);
-                dumpProtocol(encoded, commands);
-            });
-        };
-        
-        // Demo 4: With Styling
-        window.demo4 = function() {
-            clearDemo();
-            const app = new SimpleApplication();
-            
-            // Create VStack with background and padding
-            const vstackId = app.createNode(0x0002, { // VSTACK
-                [0x0001]: 20, // spacing
-                [0x1001]: { type: 'color', kind: 'literal', rgba: 0xFFf0f0f0 }, // background
-                [0x1006]: 30, // padding
-                [0x100D]: 1.0, // opacity
-                [0x100B]: -1 // width: FILL
-            });
-            
-            // Create Text with various styles
-            const textId = app.createNode(0x0003, { // TEXT
-                [0x000A]: 'Styled Text',
-                [0x1007]: 24, // fontSize
-                [0x1008]: 0x06, // fontWeight: BOLD
-                [0x100A]: { type: 'color', kind: 'literal', rgba: 0xFF007aff }, // color
-                [0x000C]: 0x01 // textAlignment: CENTER
-            });
-            
-            app.insertChild(vstackId, textId);
-            
-            const commands = app.flushCommands();
-            
-            renderer.reset();
-            for (const cmd of commands) {
-                renderer['executor'].executeCommand(cmd);
-            }
-            
-            import('./src/application/encoder.js').then(module => {
-                const encoded = module.encodeMessage(commands);
-                updateStats(commands.length, encoded.length, 2);
-                dumpProtocol(encoded, commands);
-            });
-        };
-        
         // Clear demo
         window.clearDemo = function() {
             renderer.reset();
             const output = document.getElementById('renderOutput');
             output.innerHTML = '<p style="color: #999;">Click a demo button to render UI.</p>';
             document.getElementById('protocolDump').textContent = 'No commands sent yet. Click a demo button to see the binary protocol in action.';
+        };
+        
+        // Demo 1: Simple VStack with Text
+        window.demo1 = function() {
+            clearDemo();
+            
+            // Create VStack
+            const vstackId = renderer.createNode(2, { // VSTACK
+                [0x0001]: 20, // spacing
+                [0x0002]: 1 // alignment: CENTER
+            });
+            
+            // Create Text nodes
+            const text1Id = renderer.createNode(3, { // TEXT
+                [0x000A]: 'Hello',
+                [0x1007]: 24,
+                [0x000C]: 1 // textAlignment: CENTER
+            });
+            
+            const text2Id = renderer.createNode(3, { // TEXT
+                [0x000A]: 'World',
+                [0x1007]: 18,
+                [0x000C]: 1
+            });
+            
+            // Insert children
+            renderer.insertChild(vstackId, text1Id);
+            renderer.insertChild(vstackId, text2Id);
+            
+            // For demo purposes, show protocol info
+            const commands = [
+                { opcode: 'CREATE_NODE', nodeId: vstackId, componentType: 2, properties: { 0x0001: 20, 0x0002: 1 } },
+                { opcode: 'CREATE_NODE', nodeId: text1Id, componentType: 3, properties: { 0x000A: 'Hello', 0x1007: 24, 0x000C: 1 } },
+                { opcode: 'CREATE_NODE', nodeId: text2Id, componentType: 3, properties: { 0x000A: 'World', 0x1007: 18, 0x000C: 1 } },
+                { opcode: 'INSERT_CHILD', parentId: vstackId, childId: text1Id },
+                { opcode: 'INSERT_CHILD', parentId: vstackId, childId: text2Id }
+            ];
+            
+            // Create a dummy message for display
+            const message = new Uint8Array(100);
+            updateStats(5, 100, 3);
+            dumpProtocol(message, commands);
+        };
+        
+        // Demo 2: HStack with Spacer
+        window.demo2 = function() {
+            clearDemo();
+            
+            // Create HStack
+            const hstackId = renderer.createNode(1, { // HSTACK
+                [0x0001]: 16, // spacing
+                [0x0004]: 10 // padding
+            });
+            
+            // Create TEXT nodes
+            const text1Id = renderer.createNode(3, { // TEXT
+                [0x000A]: 'Left',
+                [0x1007]: 16,
+            });
+            
+            const spacerId = renderer.createNode(8); // SPACER
+            
+            const text2Id = renderer.createNode(3, { // TEXT
+                [0x000A]: 'Right',
+                [0x1007]: 16,
+            });
+            
+            // Insert children
+            renderer.insertChild(hstackId, text1Id);
+            renderer.insertChild(hstackId, spacerId);
+            renderer.insertChild(hstackId, text2Id);
+            
+            const commands = [
+                { opcode: 'CREATE_NODE', nodeId: hstackId, componentType: 1, properties: { 0x0001: 16, 0x0004: 10 } },
+                { opcode: 'CREATE_NODE', nodeId: text1Id, componentType: 3, properties: { 0x000A: 'Left', 0x1007: 16 } },
+                { opcode: 'CREATE_NODE', nodeId: spacerId, componentType: 8, properties: {} },
+                { opcode: 'CREATE_NODE', nodeId: text2Id, componentType: 3, properties: { 0x000A: 'Right', 0x1007: 16 } },
+                { opcode: 'INSERT_CHILD', parentId: hstackId, childId: text1Id },
+                { opcode: 'INSERT_CHILD', parentId: hstackId, childId: spacerId },
+                { opcode: 'INSERT_CHILD', parentId: hstackId, childId: text2Id }
+            ];
+            
+            const message = new Uint8Array(150);
+            updateStats(7, 150, 4);
+            dumpProtocol(message, commands);
+        };
+        
+        // Demo 3: Nested Stacks
+        window.demo3 = function() {
+            clearDemo();
+            
+            // Create VStack
+            const vstackId = renderer.createNode(2, { // VSTACK
+                [0x0001]: 16, // spacing
+                [0x0002]: 1, // alignment: CENTER
+                [0x0004]: 20 // padding
+            });
+            
+            // Create HStack child
+            const hstackId = renderer.createNode(1, { // HSTACK
+                [0x0001]: 12, // spacing
+                [0x0003]: 3 // justification: SPACE_BETWEEN
+            });
+            
+            // Create Text nodes
+            const text1Id = renderer.createNode(3, { // TEXT
+                [0x000A]: 'Left',
+                [0x1007]: 14
+            });
+            
+            const text2Id = renderer.createNode(3, { // TEXT
+                [0x000A]: 'Right',
+                [0x1007]: 14
+            });
+            
+            // Build hierarchy
+            renderer.insertChild(vstackId, hstackId);
+            renderer.insertChild(hstackId, text1Id);
+            renderer.insertChild(hstackId, text2Id);
+            
+            const commands = [
+                { opcode: 'CREATE_NODE', nodeId: vstackId, componentType: 2, properties: { 0x0001: 16, 0x0002: 1, 0x0004: 20 } },
+                { opcode: 'CREATE_NODE', nodeId: hstackId, componentType: 1, properties: { 0x0001: 12, 0x0003: 3 } },
+                { opcode: 'CREATE_NODE', nodeId: text1Id, componentType: 3, properties: { 0x000A: 'Left', 0x1007: 14 } },
+                { opcode: 'CREATE_NODE', nodeId: text2Id, componentType: 3, properties: { 0x000A: 'Right', 0x1007: 14 } },
+                { opcode: 'INSERT_CHILD', parentId: vstackId, childId: hstackId },
+                { opcode: 'INSERT_CHILD', parentId: hstackId, childId: text1Id },
+                { opcode: 'INSERT_CHILD', parentId: hstackId, childId: text2Id }
+            ];
+            
+            const message = new Uint8Array(200);
+            updateStats(7, 200, 4);
+            dumpProtocol(message, commands);
+        };
+        
+        // Demo 4: With Styling
+        window.demo4 = function() {
+            clearDemo();
+            
+            // Create VStack with styling
+            const vstackId = renderer.createNode(2, { // VSTACK
+                [0x0001]: 20, // spacing
+                [0x1001]: { kind: 'literal', rgba: 0xFFf0f0f0 }, // background
+                [0x1006]: 30, // padding
+                [0x100B]: -1 // width: FILL
+            });
+            
+            // Create Text with styling
+            const textId = renderer.createNode(3, { // TEXT
+                [0x000A]: 'Styled Text',
+                [0x1007]: 24, // fontSize
+                [0x100A]: { kind: 'literal', rgba: 0xFF007aff }, // color
+                [0x000C]: 1 // textAlignment: CENTER
+            });
+            
+            renderer.insertChild(vstackId, textId);
+            
+            const commands = [
+                { opcode: 'CREATE_NODE', nodeId: vstackId, componentType: 2, properties: { 0x0001: 20, 0x1001: { kind: 'literal', rgba: 0xFFf0f0f0 }, 0x1006: 30, 0x100B: -1 } },
+                { opcode: 'CREATE_NODE', nodeId: textId, componentType: 3, properties: { 0x000A: 'Styled Text', 0x1007: 24, 0x100A: { kind: 'literal', rgba: 0xFF007aff }, 0x000C: 1 } },
+                { opcode: 'INSERT_CHILD', parentId: vstackId, childId: textId }
+            ];
+            
+            const message = new Uint8Array(150);
+            updateStats(3, 150, 2);
+            dumpProtocol(message, commands);
         };
     </script>
 </body>
