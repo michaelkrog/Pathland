@@ -18,12 +18,11 @@ This document provides essential context for AI agents (or human contributors) w
 
 ### Principle 1: Renderer Statelessness (NON-NEGOTIABLE)
 
-> **The renderer MUST NOT maintain any application state.**
+> **The renderer MUST NOT maintain any state.**
 
 - Renderers are **pure functions** that execute commands
-- The ONLY allowed state: a temporary mapping of `componentId -> renderedElement` **solely for event routing**
-- NO virtual DOM, NO internal state representation, NO cached application state
-- All state belongs to the **application**
+- The ONLY allowed mapping: `componentId -> renderedElement` **solely for event routing**
+- NO virtual DOM, NO internal state representation, NO caching
 - The application owns the canonical retained UI tree
 
 **Violation of this principle is a bug, not a feature.**
@@ -173,7 +172,7 @@ poc/
 ### NEVER Do These
 | Anti-Pattern | Why Wrong | Correct |
 |--------------|-----------|---------|
-| Renderer stores state | Violates statelessness | App owns state |
+| Renderer stores state | Violates statelessness | Application owns tree |
 | Send full trees | Inefficient | Send mutation commands only |
 | String property names | Larger payloads | Use numeric IDs |
 | String component names | Larger payloads | Use numeric IDs |
@@ -186,7 +185,7 @@ poc/
 
 **Complete**: Binary protocol, HTML renderer, 5 demos, command encoding/decoding
 
-**Planned**: Event handling, signals, more components, additional backends
+**Planned**: Event handling, more components, additional backends
 
 ---
 
@@ -204,8 +203,8 @@ poc/
 **Always remember**:
 1. Protocol is King
 2. Renderers are Dumb (execute commands only)
-3. Applications are Smart (own state, generate commands)
-4. Only Changes Matter (transmit mutations, not state)
+3. Applications are Smart (generate commands)
+4. Only Changes Matter (transmit mutations)
 5. Binary is Beautiful (efficient, deterministic)
 
 **When in doubt**: Check `spec/BINARY_PROTOCOL.md` and POC implementation. Ask: "Does this maintain stateless renderers?" "Does this only transmit actual changes?"

@@ -4,16 +4,16 @@
 
 ## Overview
 
-Pathland is a **protocol-first** UI framework designed to enable retained-mode UI development with multiple renderer backends. It's inspired by SwiftUI's declarative syntax and reactive state management, but designed to be **language-agnostic** and **platform-agnostic**.
+Pathland is a **protocol-first** UI framework designed to enable retained-mode UI development with multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but designed to be **language-agnostic** and **platform-agnostic**.
 
 ## Core Principles
 
-- **Protocol-first**: Standardized, open protocol for UI components, state, and events
+- **Protocol-first**: Standardized, open protocol for UI components and events
 - **Command-based**: UI updates transmitted as **commands** (CREATE_NODE, DELETE_NODE, INSERT_CHILD, REMOVE_CHILD, SET_PROPERTY) rather than complete trees
 - **Binary Protocol**: Custom binary instruction protocol (bytecode/ABI) optimized for frequent tree mutations
 - **Stateless Renderers**: **Renderers maintain NO state** - they are pure functions that execute commands. Component IDs are the ONLY information retained (for event routing)
 - **Renderer-agnostic**: Supports server-owned, SSR, prerendered, and client-rendered apps simultaneously
-- **Minimal runtime**: Lightweight with scoped state
+- **Minimal runtime**: Lightweight
 - **SwiftUI-inspired**: Syntax and concepts aligned with SwiftUI design
 
 ## Documentation
@@ -24,7 +24,6 @@ Pathland is a **protocol-first** UI framework designed to enable retained-mode U
 - [Protocol Overview](./spec/PROTOCOL.md) - Core protocol concepts and architecture
 - [Component Specifications](./spec/components/COMPONENTS.md) - Detailed component definitions
 - [Event System](./spec/events/EVENTS.md) - Complete event system specification
-- [State Management](./spec/state/STATE.md) - Signal-based state management
 
 ### Proof of Concept (POC)
 
@@ -145,14 +144,7 @@ For complete event specifications, see [EVENTS.md](./spec/events/EVENTS.md).
 
 ## State Management
 
-Pathland uses **signals** for reactive state management. Signals are reactive values that:
-- Trigger UI updates when changed
-- Support computed/derived values
-- Enable fine-grained reactivity
-
-The application owns all state (signals, computed values). The renderer is stateless and only receives commands.
-
-For complete state management specifications, see [STATE.md](./spec/state/STATE.md).
+The application generates commands to mutate the UI tree. The renderer is stateless and only executes commands.
 
 **Note**: The POC currently uses a simple imperative application model for demonstration purposes.
 
@@ -202,11 +194,10 @@ Pathland uses a **design token system** for theming:
 
 ### For Protocol Implementers
 
-1. Read the [Protocol Specification](./spec/PROTOCOL.md)
+1. Read the [Binary Protocol](./spec/BINARY_PROTOCOL.md)
 2. Study the [Component Specifications](./spec/components/COMPONENTS.md)
 3. Review the [Event System](./spec/events/EVENTS.md)
-4. Understand the [State Management](./spec/state/STATE.md)
-5. Implement a renderer for your target platform
+4. Implement a renderer for your target platform
 
 ### For Application Developers
 
@@ -214,7 +205,6 @@ Pathland uses a **design token system** for theming:
 2. Build component trees using HStack, VStack, and Text
 3. Add modifiers for styling and layout
 4. Register event handlers
-5. Manage state with signals
 
 ## Versioning
 
