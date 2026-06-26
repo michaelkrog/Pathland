@@ -47,11 +47,6 @@ npm run dev
 
 Then open `http://localhost:5173` in your browser.
 
-### Examples
-
-- [Counter Example](./examples/COUNTER_EXAMPLE.md) - Demonstrates HStack, VStack, Text with styling and events
-- [Form Example](./examples/FORM_EXAMPLE.md) - Complete login form with validation
-
 ## Implemented Components (POC)
 
 The POC currently implements the following components with full binary protocol support:
