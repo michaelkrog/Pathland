@@ -208,6 +208,18 @@
                     <button class="secondary" onclick="clearDemo()">Clear</button>
                 </div>
             </div>
+            
+            <div class="card">
+                <h3>Demo 5: Live Clock</h3>
+                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+                    Displays current time updating every second.
+                </p>
+                <div class="controls">
+                    <button class="primary" onclick="demo5()">Start Clock</button>
+                    <button class="danger" onclick="stopClock()">Stop Clock</button>
+                    <button class="secondary" onclick="clearDemo()">Clear</button>
+                </div>
+            </div>
         </div>
         
         <div class="demo-area">
@@ -255,7 +267,7 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
         }
         
         // Helper to dump protocol
-        function dumpProtocol(message, commands) {
+        function dumpProtocol(message, commands, append = false) {
             const dump = document.getElementById('protocolDump');
             let output = `Message: ${message.length} bytes\n`;
             output += `Commands: ${commands.length}\n\n`;
@@ -279,9 +291,13 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             const hexDump = Array.from(message.subarray(0, Math.min(100, message.length)))
                 .map(b => b.toString(16).padStart(2, '0'))
                 .join(' ');
-            output += `\nHex Dump (first 100 bytes):\n${hexDump}\n`;
+            output += `\nHex Dump (first 100 bytes):\n${hexDump}\n\n`;
             
-            dump.textContent = output;
+            if (append) {
+                dump.textContent += output;
+            } else {
+                dump.textContent = output;
+            }
         }
         
         // Demo 1: Simple VStack with Text
@@ -295,8 +311,11 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             updateStats(commands.length, encoded.length, 3); // 1 VStack + 2 Text
             dumpProtocol(encoded, commands);
             
-            // Send to renderer
+            // Send to renderer with timing
+            const parseRenderStart = performance.now();
             renderer.receiveMessage(encoded.buffer);
+            const parseRenderEnd = performance.now();
+            console.log(`[Pathland Demo 1] Parsed and rendered ${commands.length} commands in ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
         };
         
         // Demo 2: HStack with Spacer
@@ -309,8 +328,11 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             updateStats(commands.length, encoded.length, 4); // 1 HStack + 2 Text + 1 Spacer
             dumpProtocol(encoded, commands);
             
-            // Send to renderer
+            // Send to renderer with timing
+            const parseRenderStart = performance.now();
             renderer.receiveMessage(encoded.buffer);
+            const parseRenderEnd = performance.now();
+            console.log(`[Pathland Demo 2] Parsed and rendered ${commands.length} commands in ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
         };
         
         // Demo 3: Nested Stacks
@@ -345,6 +367,7 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             });
             
             // Build hierarchy
+            app.insertIntoRoot(vstackId);
             app.insertChild(vstackId, hstackId);
             app.insertChild(hstackId, text1Id);
             app.insertChild(hstackId, text2Id);
@@ -355,8 +378,11 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             updateStats(commands.length, encoded.length, 4);
             dumpProtocol(encoded, commands);
             
-            // Send to renderer
+            // Send to renderer with timing
+            const parseRenderStart = performance.now();
             renderer.receiveMessage(encoded.buffer);
+            const parseRenderEnd = performance.now();
+            console.log(`[Pathland Demo 3] Parsed and rendered ${commands.length} commands in ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
         };
         
         // Demo 4: With Styling
@@ -382,6 +408,7 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
                 [0x000C]: 0x01 // textAlignment: CENTER
             });
             
+            app.insertIntoRoot(vstackId);
             app.insertChild(vstackId, textId);
             
             const commands = app.flushCommands();
@@ -390,16 +417,103 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             updateStats(commands.length, encoded.length, 2);
             dumpProtocol(encoded, commands);
             
-            // Send to renderer
+            // Send to renderer with timing
+            const parseRenderStart = performance.now();
             renderer.receiveMessage(encoded.buffer);
+            const parseRenderEnd = performance.now();
+            console.log(`[Pathland Demo 4] Parsed and rendered ${commands.length} commands in ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
         };
         
         // Clear demo
         window.clearDemo = function() {
+            stopClock();
             renderer.reset();
             const output = document.getElementById('renderOutput');
             output.innerHTML = '<p style="color: #999;">Click a demo button to render UI.</p>';
             document.getElementById('protocolDump').textContent = 'No commands sent yet. Click a demo button to see the binary protocol in action.';
+        };
+        
+        // Demo 5: Live Clock
+        let clockInterval = null;
+        let clockTextId = null;
+        let clockWasBold = false;
+        
+        function getCurrentTime() {
+            const now = new Date();
+            return now.toLocaleTimeString();
+        }
+        
+        window.demo5 = function() {
+            stopClock();
+            clearDemo();
+            const app = new SimpleApplication();
+            
+            // Create Text node for the clock
+            clockTextId = app.createNode(0x0003, { // TEXT
+                [0x000A]: getCurrentTime(), // text
+                [0x1007]: 32, // fontSize
+                [0x1008]: 0x04, // fontWeight: REGULAR (will be updated to BOLD at 0, 10, 20, 30, 40, 50 seconds)
+                [0x000C]: 0x01 // textAlignment: CENTER
+            });
+            
+            app.insertIntoRoot(clockTextId);
+            
+            const commands = app.flushCommands();
+            const encoded = encodeMessage(commands);
+            updateStats(commands.length, encoded.length, 1);
+            dumpProtocol(encoded, commands);
+            
+            // Send initial render
+            const parseRenderStart = performance.now();
+            renderer.receiveMessage(encoded.buffer);
+            const parseRenderEnd = performance.now();
+            console.log(`[Pathland Demo 5] Initial render: ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
+            
+            // Start the clock update interval
+            clockInterval = window.setInterval(() => {
+                const updateApp = new SimpleApplication();
+                const now = new Date();
+                const timeText = now.toLocaleTimeString();
+                const seconds = now.getSeconds();
+                
+                // Update the text property
+                updateApp.setProperty(clockTextId, 0x000A, timeText);
+                
+                // Make bold when seconds are 0, 10, 20, 30, 40, 50
+                const isBold = [0, 10, 20, 30, 40, 50].includes(seconds);
+                if (isBold !== clockWasBold) {
+                    updateApp.setProperty(clockTextId, 0x1008, isBold ? 0x06 : 0x04); // BOLD or REGULAR
+                    clockWasBold = isBold;
+                }
+                
+                const updateCommands = updateApp.flushCommands();
+                const updateEncoded = encodeMessage(updateCommands);
+                
+                // Update stats
+                totalCommands += updateCommands.length;
+                totalBytes += updateEncoded.length;
+                document.getElementById('commandCount').textContent = totalCommands;
+                document.getElementById('byteCount').textContent = totalBytes;
+                
+                // Update protocol dump
+                dumpProtocol(updateEncoded, updateCommands);
+                
+                // Send update to renderer
+                const updateStart = performance.now();
+                renderer.receiveMessage(updateEncoded.buffer);
+                const updateEnd = performance.now();
+                console.log(`[Pathland Demo 5] Updated time in ${(updateEnd - updateStart).toFixed(2)}ms: ${timeText} (bold: ${isBold})`);
+            }, 1000);
+        };
+        
+        window.stopClock = function() {
+            if (clockInterval !== null) {
+                clearInterval(clockInterval);
+                clockInterval = null;
+                clockTextId = null;
+                clockWasBold = false;
+                console.log('[Pathland Demo 5] Clock stopped');
+            }
         };
     </script>
 </body>

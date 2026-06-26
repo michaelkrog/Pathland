@@ -73,13 +73,23 @@ export class HTMLRenderer {
    * Receives and processes a binary message from the application.
    */
   receiveMessage(data: ArrayBuffer): void {
-    // Ensure rootContainer is referenced (stored for potential future use)
-    void this.rootContainer;
     const buffer = new Uint8Array(data);
-    const message = decodeMessage(buffer);
     
-    // Execute commands
+    // Time parsing
+    const parseStart = performance.now();
+    const message = decodeMessage(buffer);
+    const parseEnd = performance.now();
+    const parseTime = parseEnd - parseStart;
+    
+    // Time rendering
+    const renderStart = performance.now();
     this.executor.executeCommands(message.commands);
+    const renderEnd = performance.now();
+    const renderTime = renderEnd - renderStart;
+    
+    // Log timing
+    console.log(`[Pathland] Parsed ${message.commands.length} commands in ${parseTime.toFixed(2)}ms`);
+    console.log(`[Pathland] Rendered ${message.commands.length} commands in ${renderTime.toFixed(2)}ms`);
   }
 
   /**
@@ -213,6 +223,31 @@ export class SimpleApplication {
     const commands = [...this.commands];
     this.commands = [];
     return commands;
+  }
+  
+  /**
+   * Creates commands, encodes them, sends to renderer, and logs timing.
+   * Helper for demo purposes.
+   */
+  syncAndLog(renderer: HTMLRenderer): void {
+    const commands = this.flushCommands();
+    if (commands.length === 0) return;
+    
+    // Time encoding
+    const encodeStart = performance.now();
+    const encoded = encodeMessage(commands);
+    const encodeEnd = performance.now();
+    const encodeTime = encodeEnd - encodeStart;
+    
+    // Time parsing and rendering
+    const parseRenderStart = performance.now();
+    renderer.receiveMessage(encoded.buffer);
+    const parseRenderEnd = performance.now();
+    const parseRenderTime = parseRenderEnd - parseRenderStart;
+    
+    // Log timing
+    console.log(`[Pathland] Built ${commands.length} commands in ${encodeTime.toFixed(2)}ms`);
+    console.log(`[Pathland] Parsed and rendered in ${parseRenderTime.toFixed(2)}ms`);
   }
 
   /**
