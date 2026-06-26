@@ -380,9 +380,54 @@ Commands are typically sent in **batches** to reduce overhead:
 ["addChild: add label to container"]
 ```
 
+## 3. Binary Protocol
+
+Pathland's **official binary protocol** is **FlatBuffers**. See:
+- **[Binary Protocol Specification](./binary/BINARY.md)** - Complete binary protocol documentation
+- **[FlatBuffers Schema](./binary/flatbuffers/PATHLAND.fbs)** - Official schema definition
+
+All conforming Pathland implementations **MUST** support the FlatBuffers binary format.
+
+### 3.1 Why FlatBuffers?
+
+- **Zero-copy**: Data read directly from buffers without parsing
+- **Performance**: 5-10x faster than JSON, 2-3x faster than MessagePack
+- **Compact**: 60-75% smaller than JSON
+- **Transferable**: Works with ArrayBuffer transferable objects in browsers
+- **Cross-platform**: Works everywhere (browsers, mobile, embedded)
+- **Type-safe**: Compile-time type checking
+- **Open source**: Apache 2.0 license
+
+### 3.2 Schema Overview
+
+The FlatBuffers schema (`PATHLAND.fbs`) defines:
+
+- **Command Types**: Create, AddChild, RemoveChild, Destroy, SetStyle, SetProperty, SetEventHandler
+- **Component Types**: HStack, VStack, Text (extensible)
+- **Data Types**: All Pathland types (Length, Color, Point, Size, etc.)
+- **Message Types**: CommandBatch (to renderer), TypedEvent (from renderer)
+
+### 3.3 Usage
+
+```javascript
+// Generate code from schema
+flatc --js spec/binary/flatbuffers/PATHLAND.fbs
+
+// Use in application
+import { Pathland } from './PATHLAND_generated.js';
+const builder = flatbuffers.createBuilder();
+const cmd = Pathland.Command.createCommand(builder, Pathland.CommandType.Create, ...);
+const buffer = builder.asArrayBuffer();
+
+// Transfer to renderer (zero-copy!)
+renderer.postMessage(buffer, [buffer]);
+```
+
+---
+
 ## 4. Data Types
 
-### 3.1 Primitive Types
+### 4.1 Primitive Types
 
 | Type | Description | Examples |
 |------|-------------|----------|
@@ -391,9 +436,9 @@ Commands are typically sent in **batches** to reduce overhead:
 | `boolean` | True or false | `true`, `false` |
 | `null` | Absence of value | `null` |
 
-### 3.2 Composite Types
+### 4.2 Composite Types
 
-#### 3.2.1 Length
+#### 4.2.1 Length
 
 A `Length` represents a measurement value. It can be:
 
@@ -408,7 +453,7 @@ A `Length` represents a measurement value. It can be:
 "auto"     // automatic
 ```
 
-#### 3.2.2 Color
+#### 4.2.2 Color
 
 A `Color` represents a color value. Implementations SHOULD support at minimum:
 
@@ -425,7 +470,7 @@ A `Color` represents a color value. Implementations SHOULD support at minimum:
 "systemRed"      // Platform-specific named color
 ```
 
-#### 3.2.3 Point
+#### 4.2.3 Point
 
 A `Point` represents a 2D coordinate.
 
@@ -436,7 +481,7 @@ A `Point` represents a 2D coordinate.
 }
 ```
 
-#### 3.2.4 Size
+#### 4.2.4 Size
 
 A `Size` represents width and height dimensions.
 
@@ -447,7 +492,7 @@ A `Size` represents width and height dimensions.
 }
 ```
 
-#### 3.2.5 Rect
+#### 4.2.5 Rect
 
 A `Rect` represents a rectangle defined by origin and size.
 
@@ -458,7 +503,7 @@ A `Rect` represents a rectangle defined by origin and size.
 }
 ```
 
-#### 3.2.6 Edge Insets
+#### 4.2.6 Edge Insets
 
 `EdgeInsets` define padding or margins for each edge.
 
@@ -537,10 +582,6 @@ Implementations MAY define additional component types.
 ### 4.4 Component IDs
 
 Each component MUST have a unique `id` within its scope. The `id`:
-
-Each component SHOULD have a unique `id` within its scope. The `id`:
-
-- MUST be unique among siblings
 - SHOULD be stable across renders
 - MAY be used for event targeting and state management
 - MAY be auto-generated if not provided

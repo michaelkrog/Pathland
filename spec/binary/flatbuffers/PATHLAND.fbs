@@ -1,0 +1,537 @@
+// Pathland Protocol - FlatBuffers Schema
+// Version: 1.0.0-alpha
+// 
+// This is the OFFICIAL binary protocol for Pathland.
+// All Pathland implementations MUST support this binary format.
+// 
+// Usage:
+//   flatc --js pathland.fbs  # Generate JavaScript bindings
+//   flatc --cpp pathland.fbs # Generate C++ bindings
+//   etc.
+
+namespace Pathland;
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+/// Command types for the command-based protocol
+enum CommandType : byte {
+  /// Create a new component
+  Create = 0,
+  
+  /// Add a child to a parent component
+  AddChild = 1,
+  
+  /// Remove a child from a parent component
+  RemoveChild = 2,
+  
+  /// Destroy a component and all its children
+  Destroy = 3,
+  
+  /// Set a visual style property
+  SetStyle = 4,
+  
+  /// Set a structural/layout property
+  SetProperty = 5,
+  
+  /// Set an event handler on a component
+  SetEventHandler = 6
+}
+
+/// Core component types
+enum ComponentType : byte {
+  HStack = 0,
+  VStack = 1,
+  Text = 2
+}
+
+/// Stack alignment (cross-axis)
+enum StackAlignment : byte {
+  Leading = 0,
+  Center = 1,
+  Trailing = 2
+}
+
+/// Stack justification (main-axis)
+enum StackJustification : byte {
+  Leading = 0,
+  Center = 1,
+  Trailing = 2,
+  SpaceBetween = 3,
+  SpaceAround = 4,
+  SpaceEvenly = 5
+}
+
+/// Horizontal text alignment
+enum TextAlignment : byte {
+  Leading = 0,
+  Center = 1,
+  Trailing = 2
+}
+
+/// Text truncation modes
+enum TextTruncationMode : byte {
+  Clip = 0,
+  Head = 1,
+  Tail = 2,
+  Middle = 3
+}
+
+/// Text line break modes
+enum TextLineBreakMode : byte {
+  WordWrap = 0,
+  CharacterWrap = 1,
+  Clip = 2,
+  HeadTruncation = 3,
+  TailTruncation = 4,
+  MiddleTruncation = 5
+}
+
+/// Border styles
+enum BorderStyle : byte {
+  Solid = 0,
+  Dotted = 1,
+  Dashed = 2,
+  Double = 3
+}
+
+/// Gradient types
+enum GradientType : byte {
+  Linear = 0,
+  Radial = 1
+}
+
+/// Gradient directions (for linear gradients)
+enum LinearGradientDirection : byte {
+  ToBottom = 0,
+  ToRight = 1,
+  ToTop = 2,
+  ToLeft = 3,
+  ToTopLeft = 4,
+  ToTopRight = 5,
+  ToBottomLeft = 6,
+  ToBottomRight = 7
+}
+
+/// Background image sizing
+enum BackgroundSize : byte {
+  Cover = 0,
+  Contain = 1,
+  Stretch = 2
+}
+
+/// Background image repeat
+enum BackgroundRepeat : byte {
+  NoRepeat = 0,
+  Repeat = 1,
+  RepeatX = 2,
+  RepeatY = 3
+}
+
+/// Event types
+enum EventType : byte {
+  Tap = 0,
+  DoubleTap = 1,
+  LongPress = 2,
+  Click = 3,
+  Hover = 4,
+  Focus = 5,
+  Blur = 6,
+  KeyDown = 7,
+  KeyUp = 8,
+  Scroll = 9,
+  Swipe = 10
+}
+
+/// Mouse buttons
+enum MouseButton : byte {
+  Left = 0,
+  Right = 1,
+  Middle = 2,
+  Back = 3,
+  Forward = 4
+}
+
+/// Font weights (mapping to CSS numeric values)
+enum FontWeight : byte {
+  UltraLight = 0,   // 100
+  Thin = 1,        // 200
+  Light = 2,       // 300
+  Regular = 3,     // 400
+  Medium = 4,      // 500
+  Semibold = 5,    // 600
+  Bold = 6,        // 700
+  Heavy = 7,       // 800
+  Black = 8        // 900
+}
+
+/// Font styles
+enum FontStyle : byte {
+  Normal = 0,
+  Italic = 1,
+  Oblique = 2
+}
+
+/// Swipe directions
+enum SwipeDirection : byte {
+  Left = 0,
+  Right = 1,
+  Up = 2,
+  Down = 3
+}
+
+// ============================================================================
+// PRIMITIVE TYPES
+// ============================================================================
+
+/// Length can be absolute (float), relative (string like "50%"), or auto ("auto")
+/// We represent this as a union to handle all cases efficiently
+table Length {
+  /// Use one of these fields based on the type
+  absolute:float;
+  relative:string;
+  isAuto:bool;
+}
+
+/// Color can be hex, rgb, rgba, or named
+/// For simplicity, we store as string and let implementations parse
+/// Alternatively, we could use separate fields for RGBA
+table Color {
+  /// Hex: "#RRGGBB" or "#RRGGBBAA"
+  /// RGB: "rgb(255,0,0)" or "rgba(255,0,0,0.5)"
+  /// Named: "red", "blue", "systemRed", etc.
+  value:string;
+  
+  // Optional: Pre-parsed RGBA for performance
+  // r:byte;
+  // g:byte;
+  // b:byte;
+  // a:float;
+}
+
+// ============================================================================
+// GEOMETRY TYPES
+// ============================================================================
+
+/// 2D point
+table Point {
+  x:double;
+  y:double;
+}
+
+/// Size with Length values
+table Size {
+  width:Length;
+  height:Length;
+}
+
+/// Rectangle defined by origin and size
+table Rect {
+  origin:Point;
+  size:Size;
+}
+
+/// Edge insets (padding/margins)
+table EdgeInsets {
+  top:Length;
+  right:Length;
+  bottom:Length;
+  left:Length;
+  
+  /// Shorthand: if all are equal
+  all:Length;
+  
+  /// Shorthand: horizontal and vertical
+  horizontal:Length;
+  vertical:Length;
+}
+
+/// Corner radii
+table CornerRadii {
+  topLeft:Length;
+  topRight:Length;
+  bottomLeft:Length;
+  bottomRight:Length;
+}
+
+// ============================================================================
+// STYLE TYPES
+// ============================================================================
+
+/// Border styling
+table BorderStyle {
+  width:Length;
+  color:Color;
+  radius:Length;  // or CornerRadii for per-corner
+  style:BorderStyle;
+}
+
+/// Gradient stop
+table GradientStop {
+  position:float;  // 0.0 to 1.0
+  color:Color;
+}
+
+/// Linear gradient
+table LinearGradient {
+  direction:LinearGradientDirection;
+  stops:[GradientStop];
+}
+
+/// Radial gradient
+table RadialGradient {
+  center:Point;
+  radius:float;
+  stops:[GradientStop];
+}
+
+/// Gradient can be linear or radial
+table Gradient {
+  type:GradientType;
+  linear:LinearGradient;
+  radial:RadialGradient;
+}
+
+/// Background image styling
+table BackgroundImage {
+  source:string;  // URL or reference
+  size:BackgroundSize;
+  position:Point;  // or use named positions
+  repeat:BackgroundRepeat;
+}
+
+/// Background styling
+table BackgroundStyle {
+  color:Color;
+  gradient:Gradient;
+  image:BackgroundImage;
+  opacity:float;
+}
+
+/// Font styling
+table FontStyle {
+  family:[string];  // Array of fallback fonts
+  size:float;       // in points
+  weight:FontWeight;
+  style:FontStyle;
+  variant:string;   // "normal", "smallCaps"
+  letterSpacing:float;
+  lineHeight:float;
+}
+
+// ============================================================================
+// COMPONENT DATA TYPES
+// ============================================================================
+
+/// Data for Create command
+table CreateData {
+  componentType:ComponentType;
+  /// Initial modifiers (encoded as nested structures)
+  /// For performance, we could use unions or separate fields
+  initialStyles:[StyleEntry];
+  initialProperties:[PropertyEntry];
+  /// Initial event handlers (handler references as strings)
+  initialEvents:[EventHandlerEntry];
+}
+
+/// Style entry: property name + value
+table StyleEntry {
+  property:string;  // "background", "border", "color", "font", "padding", "opacity"
+  /// Value is stored as a union of possible style values
+  background:BackgroundStyle;
+  border:BorderStyle;
+  color:Color;
+  font:FontStyle;
+  padding:EdgeInsets;
+  opacity:float;
+}
+
+/// Property entry: property name + value
+table PropertyEntry {
+  property:string;  // "gap", "alignment", "justification", "content", "lineLimit", "textAlignment", "frame"
+  /// Value is stored as a union of possible property values
+  gap:Length;
+  alignment:StackAlignment;
+  justification:StackJustification;
+  content:string;
+  lineLimit:uint;
+  textAlignment:TextAlignment;
+  frame:Size;  // or FrameModifier
+}
+
+/// Event handler entry
+table EventHandlerEntry {
+  event:EventType;
+  handler:string;  // Reference to handler function
+}
+
+/// Data for AddChild command
+table AddChildData {
+  childId:string;
+  /// Optional: index to insert at (defaults to end)
+  index:uint;
+}
+
+/// Data for RemoveChild command
+table RemoveChildData {
+  childId:string;
+}
+
+/// Data for SetStyle command
+table SetStyleData {
+  property:string;  // "background", "border", "color", "font", "padding", "opacity"
+  /// Style value as union
+  background:BackgroundStyle;
+  border:BorderStyle;
+  color:Color;
+  font:FontStyle;
+  padding:EdgeInsets;
+  opacity:float;
+}
+
+/// Data for SetProperty command
+table SetPropertyData {
+  property:string;  // "gap", "alignment", "justification", "content", "lineLimit", "textAlignment", "frame"
+  /// Property value as union
+  gap:Length;
+  alignment:StackAlignment;
+  justification:StackJustification;
+  content:string;
+  lineLimit:uint;
+  textAlignment:TextAlignment;
+  frame:Size;
+}
+
+/// Data for SetEventHandler command
+table SetEventHandlerData {
+  event:EventType;
+  handler:string;  // Reference to handler function
+}
+
+// ============================================================================
+// COMMAND STRUCTURE
+// ============================================================================
+
+/// A single command in the Pathland protocol
+table Command {
+  /// The type of command
+  type:CommandType;
+  
+  /// The target component ID
+  target:string;
+  
+  /// Command-specific data (union)
+  create:CreateData;
+  addChild:AddChildData;
+  removeChild:RemoveChildData;
+  destroy:Empty;  // No data needed
+  setStyle:SetStyleData;
+  setProperty:SetPropertyData;
+  setEventHandler:SetEventHandlerData;
+}
+
+/// Empty table for commands with no data
+table Empty {}
+
+/// A batch of commands to be executed together
+table CommandBatch {
+  /// Optional batch identifier
+  batchId:ulong;
+  
+  /// Array of commands in this batch
+  commands:[Command];
+}
+
+// ============================================================================
+// EVENT STRUCTURES
+// ============================================================================
+
+/// Base event structure
+table Event {
+  type:EventType;
+  timestamp:ulong;  // Milliseconds since epoch
+  target:string;   // Component ID that triggered the event
+  path:[string];   // Path from root to target
+}
+
+/// Tap event data
+table TapEventData {
+  location:Point;
+  tapCount:uint;
+}
+
+/// Click event data
+table ClickEventData {
+  location:Point;
+  button:MouseButton;
+  clickCount:uint;
+  modifiers:EventModifiers;
+}
+
+/// Hover event data
+table HoverEventData {
+  isHovering:bool;
+  location:Point;
+}
+
+/// Focus/Blur event data
+table FocusEventData {
+  isFocused:bool;
+}
+
+/// Keyboard event data
+table KeyboardEventData {
+  key:string;
+  code:string;
+  modifiers:EventModifiers;
+  repeat:bool;
+}
+
+/// Scroll event data
+table ScrollEventData {
+  delta:Point;
+  contentOffset:Point;
+  contentSize:Size;
+  viewportSize:Size;
+}
+
+/// Swipe event data
+table SwipeEventData {
+  direction:SwipeDirection;
+  velocity:float;
+  distance:float;
+}
+
+/// Event modifiers (keyboard state)
+table EventModifiers {
+  shift:bool;
+  control:bool;
+  alt:bool;
+  meta:bool;
+}
+
+/// Event with specific data
+table TypedEvent {
+  event:Event;
+  tapData:TapEventData;
+  clickData:ClickEventData;
+  hoverData:HoverEventData;
+  focusData:FocusEventData;
+  keyboardData:KeyboardEventData;
+  scrollData:ScrollEventData;
+  swipeData:SwipeEventData;
+}
+
+// ============================================================================
+// ROOT TYPE
+// ============================================================================
+
+/// The root type for Pathland protocol messages
+/// This allows for both commands (to renderer) and events (from renderer)
+union Message {
+  CommandBatch,
+  TypedEvent
+}
+
+root_type Message;
