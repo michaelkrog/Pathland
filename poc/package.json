@@ -5,7 +5,8 @@
   "main": "dist/src/worker.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest"
+    "test": "vitest",
+    "dev": "vite"
   },
   "keywords": [
     "ui",
@@ -18,7 +19,7 @@
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.3.0",
-    "vite": "^5.0.0",
+    "vite": "^5.4.21",
     "vitest": "^1.0.0"
   },
   "dependencies": {

@@ -7,6 +7,10 @@ export default defineConfig({
       '@pathland': path.resolve(__dirname, './src'),
     },
   },
+  esbuild: {
+    // Ensure TypeScript files are handled correctly
+    target: 'es2020',
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
