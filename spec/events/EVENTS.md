@@ -480,6 +480,9 @@ Event handler names follow the pattern `on<EventType>` where `<EventType>` is th
 | `keyUp` | `onKeyUp` |
 | `scroll` | `onScroll` |
 | `swipe` | `onSwipe` |
+| `onAppear` | `onAppear` |
+| `onDisappear` | `onDisappear` |
+| `onChange` | `onChange` |
 
 ### 3.3 Handler Representation
 
@@ -731,6 +734,176 @@ Implementations SHOULD provide a way to inspect events for debugging:
 | `keyUp` | All | `onKeyUp` | `key`, `code`, `modifiers` |
 | `scroll` | All | `onScroll` | `delta`, `contentOffset`, `contentSize`, `viewportSize` |
 | `swipe` | Touch | `onSwipe` | `direction`, `velocity`, `distance` |
+| `onAppear` | All | `onAppear` | None |
+| `onDisappear` | All | `onDisappear` | None |
+| `onChange` | All | `onChange` | `propertyId`, `oldValue`, `newValue` |
+
+---
+
+## Binary Event Encoding
+
+For efficient transport, Pathland supports a **binary encoding** for events that matches the command protocol format.
+
+### Event Message Format
+
+Events are dispatched using the `DISPATCH_EVENT` (0x07) opcode with the following binary format:
+
+```
+[u8 opcode=0x07][u32 targetId][u8 eventType][u32 timestamp][u8 phase][event-specific data...]
+```
+
+**Fields:**
+- `opcode`: Always 0x07 for DISPATCH_EVENT
+- `targetId`: The component ID that the event targets
+- `eventType`: The type of event (see Event Type IDs below)
+- `timestamp`: Milliseconds since epoch (little-endian)
+- `phase`: Event propagation phase (0x00=capture, 0x01=target, 0x02=bubble)
+
+### Event Type IDs
+
+| Event Type | ID (hex) | ID (decimal) | Data Payload |
+|------------|----------|--------------|--------------|
+| TAP | 0x01 | 1 | x, y, tapCount |
+| DOUBLE_TAP | 0x02 | 2 | x, y, tapCount |
+| LONG_PRESS | 0x03 | 3 | x, y, duration, pressure |
+| CLICK | 0x04 | 4 | x, y, button, clickCount, modifiers |
+| HOVER | 0x05 | 5 | isHovering, x, y |
+| FOCUS | 0x06 | 6 | isFocused |
+| BLUR | 0x07 | 7 | isFocused |
+| KEY_DOWN | 0x08 | 8 | keyCode, modifiers, repeat |
+| KEY_UP | 0x09 | 9 | keyCode, modifiers |
+| SCROLL | 0x0A | 10 | deltaX, deltaY, offsetX, offsetY |
+| SWIPE | 0x0B | 11 | direction, velocity, distance |
+| ON_APPEAR | 0x0C | 12 | (none) |
+| ON_DISAPPEAR | 0x0D | 13 | (none) |
+| ON_CHANGE | 0x0E | 14 | propertyId, valueType, value |
+
+### Phase Enum
+
+| Phase | Value | Description |
+|-------|-------|-------------|
+| CAPTURE | 0x00 | Event traveling from root to target |
+| TARGET | 0x01 | Event at target component |
+| BUBBLE | 0x02 | Event traveling from target to root |
+
+### Event Registration
+
+Event handlers are registered using the `REGISTER_EVENT_HANDLER` (0x08) opcode:
+
+```
+[u8 opcode=0x08][u32 nodeId][u8 eventType][u8 handlerPhase][u32 handlerId]
+```
+
+**Fields:**
+- `opcode`: Always 0x08 for REGISTER_EVENT_HANDLER
+- `nodeId`: The component ID to register the handler on
+- `eventType`: The type of event to handle
+- `handlerPhase`: Which propagation phase to handle (0x00=capture, 0x01=target, 0x02=bubble, 0xFF=any)
+- `handlerId`: A unique identifier for the handler (used for callback invocation)
+
+**Handler Phase Values:**
+- 0x00: Capture phase only
+- 0x01: Target phase only
+- 0x02: Bubble phase only
+- 0xFF: All phases
+
+### Binary Payload Details
+
+#### TAP / DOUBLE_TAP Events
+```
+[f32 x][f32 y][u8 tapCount]
+```
+
+#### LONG_PRESS Event
+```
+[f32 x][f32 y][f32 duration][f32 pressure]
+```
+
+#### CLICK Event
+```
+[f32 x][f32 y][u8 button][u8 clickCount][u8 modifiers]
+```
+- Button: 0x00=LEFT, 0x01=RIGHT, 0x02=MIDDLE, 0x03=BACK, 0x04=FORWARD
+- Modifiers: Bit flags (0x01=SHIFT, 0x02=CTRL, 0x04=ALT, 0x08=META)
+
+#### HOVER Event
+```
+[u8 isHovering][f32 x][f32 y]
+```
+- isHovering: 0x00=false, 0x01=true
+
+#### FOCUS / BLUR Events
+```
+[u8 isFocused]
+```
+- isFocused: 0x00=false, 0x01=true
+
+#### KEY_DOWN Event
+```
+[u16 keyCode][u8 modifiers][u8 repeat]
+```
+- repeat: 0x00=false, 0x01=true
+
+#### KEY_UP Event
+```
+[u16 keyCode][u8 modifiers]
+```
+
+#### SCROLL Event
+```
+[f32 deltaX][f32 deltaY][f32 contentOffsetX][f32 contentOffsetY]
+```
+
+#### SWIPE Event
+```
+[u8 direction][f32 velocity][f32 distance]
+```
+- Direction: 0x00=LEFT, 0x01=RIGHT, 0x02=UP, 0x03=DOWN
+
+#### ON_APPEAR / ON_DISAPPEAR Events
+No data payload.
+
+#### ON_CHANGE Event
+```
+[u16 propertyId][u8 valueType][value...]
+```
+The value is encoded using the same format as the `SET_PROPERTY` instruction (see Value Type Table in the main protocol specification).
+
+### Usage Examples
+
+**Registering a tap handler:**
+```binary
+08 2A 00 00 00 01 01 05 00 00 00
+```
+- Opcode: 0x08 (REGISTER_EVENT_HANDLER)
+- nodeId: 42
+- eventType: 0x01 (TAP)
+- handlerPhase: 0x01 (TARGET)
+- handlerId: 5
+
+**Dispatching a tap event:**
+```binary
+07 2A 00 00 00 01 60 6E 9A 01 01 00 00 80 3F 00 00 00 00
+```
+- Opcode: 0x07 (DISPATCH_EVENT)
+- targetId: 42
+- eventType: 0x01 (TAP)
+- timestamp: 1699911200 (example)
+- phase: 0x01 (TARGET)
+- data: x=1.0, y=0.0, tapCount=1
+
+**Dispatching an onChange event:**
+```binary
+07 2A 00 00 00 0E 60 6E 9A 01 01 0A 00 07 02 FF 00 00 FF
+```
+- Opcode: 0x07 (DISPATCH_EVENT)
+- targetId: 42
+- eventType: 0x0E (ON_CHANGE)
+- timestamp: 1699911200
+- phase: 0x01 (TARGET)
+- data: propertyId=0x000A (COLOR), valueType=0x07 (COLOR), colorKind=0x02 (LITERAL_SRGB), rgba=0xFF0000FF (blue)
+
+---
 
 ## Appendix B: Example Event Flow
 

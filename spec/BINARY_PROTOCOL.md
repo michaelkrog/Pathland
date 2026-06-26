@@ -125,12 +125,14 @@ The payload structure depends on the opcode.
 | 4 | 0x04 | `REMOVE_CHILD` | Remove a child from a parent |
 | 5 | 0x05 | `SET_PROPERTY` | Set a property on a node |
 | 6 | 0x06 | `SET_DESIGN_TOKEN` | Set a design token value globally |
+| 7 | 0x07 | `DISPATCH_EVENT` | Dispatch an event to a component |
+| 8 | 0x08 | `REGISTER_EVENT_HANDLER` | Register an event handler on a component |
 
 ### Reserved Opcodes
 
 | Range | Purpose |
 |-------|---------|
-| 0x07-0x7F | Future opcodes |
+| 0x09-0x7F | Future opcodes |
 | 0x80-0xFF | Custom/extended opcodes |
 
 Implementations SHOULD ignore unknown opcodes to maintain forward compatibility.
@@ -509,6 +511,207 @@ Breakdown:
 - `00 00 00 40 41` - f32 value 8.0 (0x41000000 in LE)
 
 **Note:** Token IDs are assigned by the application and used for reference. The actual token path resolution is handled by the renderer's theme system.
+
+---
+
+### 7. DISPATCH_EVENT (0x07)
+
+Dispatches an event to a component in the UI tree.
+
+**Payload:**
+```
+[u32 targetId][u8 eventType][u32 timestamp][u8 phase][event-specific data...]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `targetId` | u32 | ID of the target component |
+| `eventType` | u8 | Type of event (see Event Type Table) |
+| `timestamp` | u32 | Milliseconds since epoch (little-endian) |
+| `phase` | u8 | Event phase (0x00=capture, 0x01=target, 0x02=bubble) |
+
+**Binary Layout:**
+```
+07  TargetID(4B)  EventType(1B)  Timestamp(4B)  Phase(1B)  [EventData...]
+```
+
+**Example:** Dispatch a tap event to node 42 in target phase
+```
+07 2A 00 00 00 01 60 6E 9A 01 01 00 00 00 80 3F 00 00 80 3F
+```
+Breakdown:
+- `07` - DISPATCH_EVENT opcode
+- `2A 00 00 00` - targetId = 42
+- `01` - eventType = TAP (0x01)
+- `60 6E 9A 01` - timestamp (example: 1699911200 = 2023-11-15)
+- `01` - phase = TARGET (0x01)
+- `00 00 80 3F` - x = 1.0 (f32)
+- `00 00 80 3F` - y = 1.0 (f32)
+
+---
+
+### 8. REGISTER_EVENT_HANDLER (0x08)
+
+Registers an event handler on a component.
+
+**Payload:**
+```
+[u32 nodeId][u8 eventType][u8 handlerPhase][u32 handlerId]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nodeId` | u32 | ID of the component |
+| `eventType` | u8 | Type of event to handle (see Event Type Table) |
+| `handlerPhase` | u8 | Which phase to handle (0x00=capture, 0x01=target, 0x02=bubble, 0xFF=any) |
+| `handlerId` | u32 | Unique identifier for the handler (used for callback) |
+
+**Binary Layout:**
+```
+08  NodeID(4B)  EventType(1B)  Phase(1B)  HandlerID(4B)
+```
+
+**Example:** Register a tap handler on node 42 for target phase
+```
+08 2A 00 00 00 01 01 05 00 00 00
+```
+Breakdown:
+- `08` - REGISTER_EVENT_HANDLER opcode
+- `2A 00 00 00` - nodeId = 42
+- `01` - eventType = TAP (0x01)
+- `01` - handlerPhase = TARGET (0x01)
+- `05 00 00 00` - handlerId = 5
+
+**Handler Phase Values:**
+- `0x00`: Capture phase only
+- `0x01`: Target phase only
+- `0x02`: Bubble phase only
+- `0xFF`: All phases (capture, target, bubble)
+
+---
+
+## Event System
+
+### Event Type Table
+
+| Event Type | ID | Description | Data Payload |
+|------------|----|-------------|--------------|
+| TAP | 0x01 | Single tap/click | `[f32 x][f32 y][u8 tapCount]` |
+| DOUBLE_TAP | 0x02 | Double tap/click | `[f32 x][f32 y][u8 tapCount=2]` |
+| LONG_PRESS | 0x03 | Long press | `[f32 x][f32 y][f32 duration][f32 pressure]` |
+| CLICK | 0x04 | Mouse click | `[f32 x][f32 y][u8 button][u8 clickCount][u8 modifiers]` |
+| HOVER | 0x05 | Hover state change | `[u8 isHovering][f32 x][f32 y]` |
+| FOCUS | 0x06 | Focus state change | `[u8 isFocused]` |
+| BLUR | 0x07 | Blur (focus lost) | `[u8 isFocused=false]` |
+| KEY_DOWN | 0x08 | Key pressed | `[u16 keyCode][u8 modifiers][u8 repeat]` |
+| KEY_UP | 0x09 | Key released | `[u16 keyCode][u8 modifiers]` |
+| SCROLL | 0x0A | Scroll action | `[f32 deltaX][f32 deltaY][f32 offsetX][f32 offsetY]` |
+| SWIPE | 0x0B | Swipe gesture | `[u8 direction][f32 velocity][f32 distance]` |
+| **ON_APPEAR** | **0x0C** | **Component mounted** | **None** |
+| **ON_DISAPPEAR** | **0x0D** | **Component unmounted** | **None** |
+| **ON_CHANGE** | **0x0E** | **Property changed** | **[u16 propertyId][value...]** |
+
+**Event Phase Enum:**
+| Phase | Value | Description |
+|-------|-------|-------------|
+| CAPTURE | 0x00 | Event traveling from root to target |
+| TARGET | 0x01 | Event at target component |
+| BUBBLE | 0x02 | Event traveling from target to root |
+
+**Modifier Flags (u8):**
+- Bit 0 (0x01): Shift key
+- Bit 1 (0x02): Control key
+- Bit 2 (0x04): Alt key
+- Bit 3 (0x08): Meta key (Command/Windows)
+
+**Button Enum:**
+| Button | Value |
+|--------|-------|
+| LEFT | 0x00 |
+| RIGHT | 0x01 |
+| MIDDLE | 0x02 |
+| BACK | 0x03 |
+| FORWARD | 0x04 |
+
+**Direction Enum (for SWIPE):**
+| Direction | Value |
+|-----------|-------|
+| LEFT | 0x00 |
+| RIGHT | 0x01 |
+| UP | 0x02 |
+| DOWN | 0x03 |
+
+### Event Payload Details
+
+#### ON_CHANGE Event
+Dispatched when a property value changes on a component.
+
+**Payload:**
+```
+[u16 propertyId][u8 valueType][value...]
+```
+
+**Example:** Color property changed from red to blue
+```
+0C 0E  // ON_CHANGE event type
+0A 00  // propertyId = COLOR (0x000A)
+07      // valueType = COLOR
+02      // colorKind = LITERAL_SRGB
+FF 00 00 FF  // newValue = opaque blue (0xFF0000FF)
+```
+
+#### ON_APPEAR / ON_DISAPPEAR Events
+Lifecycle events with no additional data payload.
+
+**Payload:** None (only header)
+
+**Example:** Component mounted
+```
+0C 0C  // ON_APPEAR event type
+```
+
+#### TAP / DOUBLE_TAP Events
+
+**Payload:**
+```
+[f32 x][f32 y][u8 tapCount]
+```
+
+**Example:** Single tap at (100, 200)
+```
+01       // TAP event type
+00 00 C8 42  // x = 100.0 (f32)
+00 00 34 43  // y = 200.0 (f32)
+01       // tapCount = 1
+```
+
+#### KEY_DOWN / KEY_UP Events
+
+**Key Codes (u16):** Standard key codes matching platform conventions.
+
+**Example:** Key 'A' pressed with Shift modifier
+```
+08       // KEY_DOWN event type
+41 00    // keyCode = 0x0041 ('A')
+01       // modifiers = Shift (0x01)
+00       // repeat = false
+```
+
+#### SCROLL Event
+
+**Payload:**
+```
+[f32 deltaX][f32 deltaY][f32 contentOffsetX][f32 contentOffsetY]
+```
+
+**Example:** Scroll down by 50 pixels
+```
+0A       // SCROLL event type
+00 00 00 00  // deltaX = 0.0
+00 00 9A 42  // deltaY = 50.0
+00 00 00 00  // contentOffsetX = 0.0
+00 00 80 42  // contentOffsetY = 100.0
+```
 
 ---
 
@@ -1291,6 +1494,65 @@ DELETE_NODE = 0x02
 INSERT_CHILD = 0x03
 REMOVE_CHILD = 0x04
 SET_PROPERTY = 0x05
+SET_DESIGN_TOKEN = 0x06
+DISPATCH_EVENT = 0x07
+REGISTER_EVENT_HANDLER = 0x08
+```
+
+### Event Types
+
+```
+TAP = 0x01
+DOUBLE_TAP = 0x02
+LONG_PRESS = 0x03
+CLICK = 0x04
+HOVER = 0x05
+FOCUS = 0x06
+BLUR = 0x07
+KEY_DOWN = 0x08
+KEY_UP = 0x09
+SCROLL = 0x0A
+SWIPE = 0x0B
+ON_APPEAR = 0x0C
+ON_DISAPPEAR = 0x0D
+ON_CHANGE = 0x0E
+```
+
+### Event Phases
+
+```
+CAPTURE = 0x00
+TARGET = 0x01
+BUBBLE = 0x02
+ANY_PHASE = 0xFF
+```
+
+### Button Types
+
+```
+LEFT = 0x00
+RIGHT = 0x01
+MIDDLE = 0x02
+BACK = 0x03
+FORWARD = 0x04
+```
+
+### Modifier Keys
+
+```
+SHIFT = 0x01
+CONTROL = 0x02
+ALT = 0x04
+META = 0x08
+```
+
+### Swipe Directions
+
+```
+LEFT = 0x00
+RIGHT = 0x01
+UP = 0x02
+DOWN = 0x03
 ```
 
 ### Component Types
@@ -1482,7 +1744,9 @@ const OPCODES = {
   INSERT_CHILD: 0x03,
   REMOVE_CHILD: 0x04,
   SET_PROPERTY: 0x05,
-  SET_DESIGN_TOKEN: 0x06
+  SET_DESIGN_TOKEN: 0x06,
+  DISPATCH_EVENT: 0x07,
+  REGISTER_EVENT_HANDLER: 0x08
 };
 
 // Component Types
@@ -1495,6 +1759,57 @@ const COMPONENT_TYPES = {
   SWITCH: 0x0006,
   TEXT_FIELD: 0x0007,
   SPACER: 0x0008
+};
+
+// Event Types
+const EVENT_TYPES = {
+  TAP: 0x01,
+  DOUBLE_TAP: 0x02,
+  LONG_PRESS: 0x03,
+  CLICK: 0x04,
+  HOVER: 0x05,
+  FOCUS: 0x06,
+  BLUR: 0x07,
+  KEY_DOWN: 0x08,
+  KEY_UP: 0x09,
+  SCROLL: 0x0A,
+  SWIPE: 0x0B,
+  ON_APPEAR: 0x0C,
+  ON_DISAPPEAR: 0x0D,
+  ON_CHANGE: 0x0E
+};
+
+// Event Phases
+const EVENT_PHASES = {
+  CAPTURE: 0x00,
+  TARGET: 0x01,
+  BUBBLE: 0x02,
+  ANY: 0xFF
+};
+
+// Button Types
+const BUTTON_TYPES = {
+  LEFT: 0x00,
+  RIGHT: 0x01,
+  MIDDLE: 0x02,
+  BACK: 0x03,
+  FORWARD: 0x04
+};
+
+// Modifier Keys (bit flags)
+const MODIFIER_KEYS = {
+  SHIFT: 0x01,
+  CONTROL: 0x02,
+  ALT: 0x04,
+  META: 0x08
+};
+
+// Swipe Directions
+const SWIPE_DIRECTIONS = {
+  LEFT: 0x00,
+  RIGHT: 0x01,
+  UP: 0x02,
+  DOWN: 0x03
 };
 
 // Value Types
@@ -1775,8 +2090,50 @@ class BinaryEncoder {
         return 1 + 4 + 2 + 1 + this.calculateValueSize(inst.valueType, inst.value);
       case 'SET_DESIGN_TOKEN':
         return 1 + 4 + 2 + this.calculateTokenValueSize(inst.tokenValueType, inst.value);
+      case 'DISPATCH_EVENT':
+        // opcode + targetId + eventType + timestamp + phase + eventData
+        return 1 + 4 + 1 + 4 + 1 + this.calculateEventDataSize(inst.eventType, inst.data);
+      case 'REGISTER_EVENT_HANDLER':
+        return 1 + 4 + 1 + 1 + 4; // opcode + nodeId + eventType + handlerPhase + handlerId
       default:
         return 1; // opcode only (minimum)
+    }
+  }
+
+  calculateEventDataSize(eventType, data) {
+    // Calculate size based on event type and data
+    switch (eventType) {
+      case EVENT_TYPES.TAP:
+      case EVENT_TYPES.DOUBLE_TAP:
+        return 4 + 4 + 1; // x, y, tapCount
+      case EVENT_TYPES.LONG_PRESS:
+        return 4 + 4 + 4 + 4; // x, y, duration, pressure
+      case EVENT_TYPES.CLICK:
+        return 4 + 4 + 1 + 1 + 1; // x, y, button, clickCount, modifiers
+      case EVENT_TYPES.HOVER:
+        return 1 + 4 + 4; // isHovering, x, y
+      case EVENT_TYPES.FOCUS:
+      case EVENT_TYPES.BLUR:
+        return 1; // isFocused
+      case EVENT_TYPES.KEY_DOWN:
+        return 2 + 1 + 1; // keyCode, modifiers, repeat
+      case EVENT_TYPES.KEY_UP:
+        return 2 + 1; // keyCode, modifiers
+      case EVENT_TYPES.SCROLL:
+        return 4 + 4 + 4 + 4; // deltaX, deltaY, offsetX, offsetY
+      case EVENT_TYPES.SWIPE:
+        return 1 + 4 + 4; // direction, velocity, distance
+      case EVENT_TYPES.ON_APPEAR:
+      case EVENT_TYPES.ON_DISAPPEAR:
+        return 0; // No data payload
+      case EVENT_TYPES.ON_CHANGE:
+        // propertyId + valueType + value
+        if (data && data.propertyId) {
+          return 2 + 1 + this.calculateValueSize(data.valueType, data.value);
+        }
+        return 0;
+      default:
+        return 0; // Unknown event type, no data
     }
   }
 
@@ -1842,6 +2199,83 @@ class BinaryEncoder {
         this.writeU32(inst.tokenId);
         this.writeU16(inst.tokenValueType);
         this.writeTokenValue(inst.tokenValueType, inst.value);
+        break;
+      case 'DISPATCH_EVENT':
+        this.writeU32(inst.targetId);
+        this.writeU8(inst.eventType);
+        this.writeU32(inst.timestamp ?? Date.now());
+        this.writeU8(inst.phase ?? EVENT_PHASES.TARGET);
+        this.writeEventData(inst.eventType, inst.data);
+        break;
+      case 'REGISTER_EVENT_HANDLER':
+        this.writeU32(inst.nodeId);
+        this.writeU8(inst.eventType);
+        this.writeU8(inst.handlerPhase ?? EVENT_PHASES.TARGET);
+        this.writeU32(inst.handlerId);
+        break;
+    }
+  }
+
+  writeEventData(eventType, data) {
+    switch (eventType) {
+      case EVENT_TYPES.TAP:
+      case EVENT_TYPES.DOUBLE_TAP:
+        this.writeF32(data.x ?? 0);
+        this.writeF32(data.y ?? 0);
+        this.writeU8(data.tapCount ?? 1);
+        break;
+      case EVENT_TYPES.LONG_PRESS:
+        this.writeF32(data.x ?? 0);
+        this.writeF32(data.y ?? 0);
+        this.writeF32(data.duration ?? 0);
+        this.writeF32(data.pressure ?? 0);
+        break;
+      case EVENT_TYPES.CLICK:
+        this.writeF32(data.x ?? 0);
+        this.writeF32(data.y ?? 0);
+        this.writeU8(data.button ?? BUTTON_TYPES.LEFT);
+        this.writeU8(data.clickCount ?? 1);
+        this.writeU8(data.modifiers ?? 0);
+        break;
+      case EVENT_TYPES.HOVER:
+        this.writeU8(data.isHovering ? 1 : 0);
+        this.writeF32(data.x ?? 0);
+        this.writeF32(data.y ?? 0);
+        break;
+      case EVENT_TYPES.FOCUS:
+      case EVENT_TYPES.BLUR:
+        this.writeU8(data.isFocused ? 1 : 0);
+        break;
+      case EVENT_TYPES.KEY_DOWN:
+        this.writeU16(data.keyCode ?? 0);
+        this.writeU8(data.modifiers ?? 0);
+        this.writeU8(data.repeat ? 1 : 0);
+        break;
+      case EVENT_TYPES.KEY_UP:
+        this.writeU16(data.keyCode ?? 0);
+        this.writeU8(data.modifiers ?? 0);
+        break;
+      case EVENT_TYPES.SCROLL:
+        this.writeF32(data.deltaX ?? 0);
+        this.writeF32(data.deltaY ?? 0);
+        this.writeF32(data.contentOffsetX ?? 0);
+        this.writeF32(data.contentOffsetY ?? 0);
+        break;
+      case EVENT_TYPES.SWIPE:
+        this.writeU8(data.direction ?? SWIPE_DIRECTIONS.LEFT);
+        this.writeF32(data.velocity ?? 0);
+        this.writeF32(data.distance ?? 0);
+        break;
+      case EVENT_TYPES.ON_APPEAR:
+      case EVENT_TYPES.ON_DISAPPEAR:
+        // No data payload
+        break;
+      case EVENT_TYPES.ON_CHANGE:
+        if (data && data.propertyId) {
+          this.writeU16(data.propertyId);
+          this.writeU8(data.valueType);
+          this.writeValue(data.valueType, data.value);
+        }
         break;
     }
   }
@@ -2020,24 +2454,129 @@ class BinaryDecoder {
           parentId: this.readU32(),
           childId: this.readU32()
         };
-      case OPCODES.SET_PROPERTY:
+      case OPCODES.SET_PROPERTY: {
+        const nodeId = this.readU32();
+        const propertyId = this.readU16();
+        const valueType = this.readU8();
+        const value = this.readValue(valueType);
         return {
           opcode: 'SET_PROPERTY',
-          nodeId: this.readU32(),
-          propertyId: this.readU16(),
-          valueType: this.readU8(),
-          value: this.readValue(this.readU8())
+          nodeId,
+          propertyId,
+          valueType,
+          value
         };
-      case OPCODES.SET_DESIGN_TOKEN:
+      }
+      case OPCODES.SET_DESIGN_TOKEN: {
+        const tokenId = this.readU32();
+        const tokenValueType = this.readU16();
+        const value = this.readTokenValue(tokenValueType);
         return {
           opcode: 'SET_DESIGN_TOKEN',
-          tokenId: this.readU32(),
-          tokenValueType: this.readU16(),
-          value: this.readTokenValue(this.readU16())
+          tokenId,
+          tokenValueType,
+          value
+        };
+      }
+      case OPCODES.DISPATCH_EVENT: {
+        const targetId = this.readU32();
+        const eventType = this.readU8();
+        const timestamp = this.readU32();
+        const phase = this.readU8();
+        const data = this.readEventData(eventType);
+        return {
+          opcode: 'DISPATCH_EVENT',
+          targetId,
+          eventType,
+          timestamp,
+          phase,
+          data
+        };
+      }
+      case OPCODES.REGISTER_EVENT_HANDLER:
+        return {
+          opcode: 'REGISTER_EVENT_HANDLER',
+          nodeId: this.readU32(),
+          eventType: this.readU8(),
+          handlerPhase: this.readU8(),
+          handlerId: this.readU32()
         };
       default:
         // Unknown opcode - skip and continue
         return { opcode: 'UNKNOWN', opcodeValue: opcode };
+    }
+  }
+
+  readEventData(eventType) {
+    switch (eventType) {
+      case EVENT_TYPES.TAP:
+      case EVENT_TYPES.DOUBLE_TAP:
+        return {
+          x: this.readF32(),
+          y: this.readF32(),
+          tapCount: this.readU8()
+        };
+      case EVENT_TYPES.LONG_PRESS:
+        return {
+          x: this.readF32(),
+          y: this.readF32(),
+          duration: this.readF32(),
+          pressure: this.readF32()
+        };
+      case EVENT_TYPES.CLICK:
+        return {
+          x: this.readF32(),
+          y: this.readF32(),
+          button: this.readU8(),
+          clickCount: this.readU8(),
+          modifiers: this.readU8()
+        };
+      case EVENT_TYPES.HOVER:
+        return {
+          isHovering: this.readU8() === 1,
+          x: this.readF32(),
+          y: this.readF32()
+        };
+      case EVENT_TYPES.FOCUS:
+      case EVENT_TYPES.BLUR:
+        return {
+          isFocused: this.readU8() === 1
+        };
+      case EVENT_TYPES.KEY_DOWN:
+        return {
+          keyCode: this.readU16(),
+          modifiers: this.readU8(),
+          repeat: this.readU8() === 1
+        };
+      case EVENT_TYPES.KEY_UP:
+        return {
+          keyCode: this.readU16(),
+          modifiers: this.readU8()
+        };
+      case EVENT_TYPES.SCROLL:
+        return {
+          deltaX: this.readF32(),
+          deltaY: this.readF32(),
+          contentOffsetX: this.readF32(),
+          contentOffsetY: this.readF32()
+        };
+      case EVENT_TYPES.SWIPE:
+        return {
+          direction: this.readU8(),
+          velocity: this.readF32(),
+          distance: this.readF32()
+        };
+      case EVENT_TYPES.ON_APPEAR:
+      case EVENT_TYPES.ON_DISAPPEAR:
+        return {}; // No data payload
+      case EVENT_TYPES.ON_CHANGE:
+        return {
+          propertyId: this.readU16(),
+          valueType: this.readU8(),
+          value: this.readValue(this.readU8())
+        };
+      default:
+        return null; // Unknown event type
     }
   }
 
@@ -2129,10 +2668,11 @@ for (const inst of decoded) {
 | **Format** | Custom binary instruction protocol |
 | **Endianness** | Little-endian |
 | **Version** | 2 |
-| **Opcodes** | 6 defined, 126 reserved |
+| **Opcodes** | 8 defined, 124 reserved |
 | **Component Types** | 8 defined, 32,761 reserved |
 | **Properties** | 25 defined, 65,510 reserved |
 | **Value Types** | 8 defined, 119 reserved |
+| **Event Types** | 15 defined, 240 reserved |
 | **Transport** | Transport-agnostic (ArrayBuffer) |
 
 ---
@@ -2144,3 +2684,4 @@ for (const inst of decoded) {
 | 1.0.0-alpha | 2026-06-25 | Initial custom binary protocol specification |
 | 1.0.0-beta | 2026-06-26 | Added COLOR value type with semantic token and literal sRGB support, updated color properties to use COLOR type, added renderer expectations for colors |
 | 2.0.0-alpha | 2026-06-26 | Added Design Token System: DESIGN_TOKEN value type, SET_DESIGN_TOKEN opcode, semantic component types (BUTTON, IMAGE, SWITCH, TEXT_FIELD), semantic properties (role, state, enabled, selected), comprehensive token categories and resolution rules |
+| 2.1.0-alpha | 2026-06-26 | Added Event System Phase 1: DISPATCH_EVENT and REGISTER_EVENT_HANDLER opcodes, binary event encoding, ON_APPEAR (0x0C), ON_DISAPPEAR (0x0D), ON_CHANGE (0x0E) event types, event phase support (capture, target, bubble), comprehensive event payload definitions for all event types |
