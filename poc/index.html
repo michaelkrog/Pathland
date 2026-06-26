@@ -289,20 +289,14 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             clearDemo();
             const app = new SimpleApplication();
             const commands = app.createSimpleUI();
-            const message = new Uint8Array(0); // Will be created by renderer
-            
-            // Execute directly (no worker for simplicity in demo)
-            renderer.reset();
-            
-            // Manually execute commands
-            for (const cmd of commands) {
-                renderer['executor'].executeCommand(cmd);
-            }
             
             // For demo purposes, encode to show protocol
             const encoded = encodeMessage(commands);
             updateStats(commands.length, encoded.length, 3); // 1 VStack + 2 Text
             dumpProtocol(encoded, commands);
+            
+            // Send to renderer
+            renderer.receiveMessage(encoded.buffer);
         };
         
         // Demo 2: HStack with Spacer
@@ -311,14 +305,12 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             const app = new SimpleApplication();
             const commands = app.createHStackWithSpacer();
             
-            renderer.reset();
-            for (const cmd of commands) {
-                renderer['executor'].executeCommand(cmd);
-            }
-            
             const encoded = encodeMessage(commands);
             updateStats(commands.length, encoded.length, 4); // 1 HStack + 2 Text + 1 Spacer
             dumpProtocol(encoded, commands);
+            
+            // Send to renderer
+            renderer.receiveMessage(encoded.buffer);
         };
         
         // Demo 3: Nested Stacks
@@ -359,14 +351,12 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             
             const commands = app.flushCommands();
             
-            renderer.reset();
-            for (const cmd of commands) {
-                renderer['executor'].executeCommand(cmd);
-            }
-            
             const encoded = encodeMessage(commands);
             updateStats(commands.length, encoded.length, 4);
             dumpProtocol(encoded, commands);
+            
+            // Send to renderer
+            renderer.receiveMessage(encoded.buffer);
         };
         
         // Demo 4: With Styling
@@ -396,14 +386,12 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
             
             const commands = app.flushCommands();
             
-            renderer.reset();
-            for (const cmd of commands) {
-                renderer['executor'].executeCommand(cmd);
-            }
-            
             const encoded = encodeMessage(commands);
             updateStats(commands.length, encoded.length, 2);
             dumpProtocol(encoded, commands);
+            
+            // Send to renderer
+            renderer.receiveMessage(encoded.buffer);
         };
         
         // Clear demo
