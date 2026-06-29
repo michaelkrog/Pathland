@@ -1,7 +1,9 @@
 import { CommandExecutor } from './executor';
 import { decodeMessage } from './decoder';
-import { createCreateNodeCommand, createSetPropertyCommand, Command } from '../application/encoder';
-import { ComponentType, ROOT_CONTAINER_ID } from '../protocol/constants';
+import { encodeMessage, createCreateNodeCommand, createSetPropertyCommand, createRegisterEventHandlerCommand, Command } from '../application/encoder';
+import { ComponentType, ROOT_CONTAINER_ID, EventType } from '../protocol/constants';
+
+export type { EventType };
 
 /**
  * HTML Renderer
@@ -11,12 +13,20 @@ import { ComponentType, ROOT_CONTAINER_ID } from '../protocol/constants';
  */
 export class HTMLRenderer {
   private executor: CommandExecutor;
-  private rootContainer: HTMLElement;
+  
+
 
   constructor(rootContainer: HTMLElement = document.body) {
-    this.rootContainer = rootContainer;
     this.executor = new CommandExecutor(rootContainer);
     this.setupDefaultStyles();
+  }
+
+  /**
+   * Sets a callback to be called when events are dispatched from the renderer.
+   * This is used to send events back to the application (worker thread).
+   */
+  setOnEventCallback(callback: (event: { targetId: number; eventType: number; data?: any }) => void): void {
+    this.executor.setOnEventCallback(callback);
   }
 
   /**
@@ -72,8 +82,8 @@ export class HTMLRenderer {
   /**
    * Receives and processes a binary message from the application.
    */
-  receiveMessage(data: ArrayBuffer): void {
-    const buffer = new Uint8Array(data);
+  receiveMessage(data: ArrayBuffer | ArrayBufferLike): void {
+    const buffer = new Uint8Array(data instanceof ArrayBuffer ? data : new ArrayBuffer(data.byteLength));
     
     // Time parsing
     const parseStart = performance.now();
@@ -214,6 +224,14 @@ export class SimpleApplication {
       opcode: 'DELETE_NODE',
       nodeId
     });
+  }
+
+  /**
+   * Registers an event handler on a node.
+   */
+  registerEventHandler(nodeId: number, eventType: EventType, handlerId: number = 1): void {
+    const command = createRegisterEventHandlerCommand(nodeId, eventType, handlerId);
+    this.commands.push(command);
   }
 
   /**

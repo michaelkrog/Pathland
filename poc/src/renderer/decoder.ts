@@ -133,32 +133,30 @@ function decodeSetDesignToken(reader: BinaryReader): Command {
 
 function decodeDispatchEvent(reader: BinaryReader): Command {
   const targetId = reader.readU32();
-  reader.readU8(); // eventType (placeholder)
-  reader.readU32(); // timestamp (placeholder)
-  reader.readU8(); // phase (placeholder)
+  const eventType = reader.readU8();
+  reader.readU32(); // timestamp
+  reader.readU8(); // phase
   
   // For now, skip the event-specific data
   // In a full implementation, we would decode based on eventType
   return {
-    opcode: 'SET_PROPERTY', // Placeholder - actual event handling would be different
-    nodeId: targetId,
-    propertyId: 0,
-    value: { type: 'u32', value: 0 }
+    opcode: 'DISPATCH_EVENT',
+    targetId,
+    eventType
   };
 }
 
 function decodeRegisterEventHandler(reader: BinaryReader): Command {
   const nodeId = reader.readU32();
-  reader.readU8(); // eventType (placeholder)
-  reader.readU8(); // handlerPhase (placeholder)
+  const eventType = reader.readU8();
+  reader.readU8(); // handlerPhase
   const handlerId = reader.readU32();
   
-  // For now, skip - not needed for Phase 1
   return {
-    opcode: 'SET_PROPERTY', // Placeholder
+    opcode: 'REGISTER_EVENT_HANDLER',
     nodeId,
-    propertyId: 0,
-    value: { type: 'u32', value: handlerId }
+    eventType,
+    handlerId
   };
 }
 

@@ -119,7 +119,9 @@ export type Command =
   | { opcode: 'INSERT_CHILD'; parentId: number; childId: number; index: number }
   | { opcode: 'REMOVE_CHILD'; parentId: number; childId: number }
   | { opcode: 'SET_PROPERTY'; nodeId: number; propertyId: number; value: PropertyValue }
-  | { opcode: 'SET_DESIGN_TOKEN'; tokenPath: string; value: PropertyValue };
+  | { opcode: 'SET_DESIGN_TOKEN'; tokenPath: string; value: PropertyValue }
+  | { opcode: 'REGISTER_EVENT_HANDLER'; nodeId: number; eventType: number; handlerId: number }
+  | { opcode: 'DISPATCH_EVENT'; targetId: number; eventType: number; data?: any };
 
 // ============================================
 // RENDERER TYPES
@@ -131,8 +133,8 @@ export interface RenderElement {
   children: HTMLElement[];
 }
 
-// Event handler type
-export type EventHandler = (event: { type: string; targetId: number; data: any }) => void;
+// Event handler type - can accept any event type (DOM events or custom)
+export type EventHandler = (event: any) => void;
 
 // ============================================
 // UTILITY TYPES

@@ -1,5 +1,5 @@
-import { ComponentType, StackProperty, TextProperty, StyleProperty, Alignment, Justification, TextAlignment, SemanticColorToken, ROOT_CONTAINER_ID } from '../protocol/constants';
-import { Command, PropertyValue, RenderElement } from '../application/types';
+import { ComponentType, StackProperty, TextProperty, StyleProperty, Alignment, Justification, TextAlignment, SemanticColorToken, ROOT_CONTAINER_ID, EventType } from '../protocol/constants';
+import { Command, PropertyValue, RenderElement, EventHandler } from '../application/types';
 import { propertyValueToJS } from './decoder';
 
 /**
@@ -12,9 +12,25 @@ export class CommandExecutor {
   private idToElement: Map<number, RenderElement> = new Map();
   private elementToId: WeakMap<HTMLElement, number> = new WeakMap();
   private rootContainer: HTMLElement;
+  
+  // Event handling: maps nodeId -> eventType -> handler
+  private eventHandlers: Map<number, Map<number, EventHandler>> = new Map();
+  // Reverse lookup: handler -> (nodeId, eventType) for cleanup
+  private handlerToNode: Map<EventHandler, { nodeId: number; eventType: number }> = new Map();
+  
+  // Callback to send events back to the application (worker thread)
+  private onEventCallback: ((event: { targetId: number; eventType: number; data?: any }) => void) | null = null;
 
   constructor(rootContainer: HTMLElement) {
     this.rootContainer = rootContainer;
+  }
+
+  /**
+   * Sets a callback to be called when events are dispatched from the renderer.
+   * This is used to send events back to the application (worker thread).
+   */
+  setOnEventCallback(callback: (event: { targetId: number; eventType: number; data?: any }) => void): void {
+    this.onEventCallback = callback;
   }
 
   /**
@@ -51,6 +67,12 @@ export class CommandExecutor {
       case 'SET_DESIGN_TOKEN':
         // Not implemented in Phase 1
         break;
+      case 'REGISTER_EVENT_HANDLER':
+        this.executeRegisterEventHandler(command);
+        break;
+      case 'DISPATCH_EVENT':
+        this.executeDispatchEvent(command);
+        break;
       default:
         console.warn(`Unknown command opcode: ${(command as any).opcode}`);
         break;
@@ -78,6 +100,9 @@ export class CommandExecutor {
   private executeDeleteNode(command: Extract<Command, { opcode: 'DELETE_NODE' }>): void {
     const renderElement = this.idToElement.get(command.nodeId);
     if (renderElement) {
+      // Clean up event handlers for this node
+      this.cleanupEventHandlers(command.nodeId);
+      
       // Remove from DOM
       if (renderElement.element.parentNode) {
         renderElement.element.parentNode.removeChild(renderElement.element);
@@ -91,10 +116,37 @@ export class CommandExecutor {
       for (const childElement of renderElement.children) {
         const childId = this.elementToId.get(childElement);
         if (childId !== undefined) {
+          // Clean up child event handlers too
+          this.cleanupEventHandlers(childId);
           this.idToElement.delete(childId);
           this.elementToId.delete(childElement);
         }
       }
+    }
+  }
+
+  /**
+   * Cleans up all event handlers for a given node ID.
+   */
+  private cleanupEventHandlers(nodeId: number): void {
+    const nodeHandlers = this.eventHandlers.get(nodeId);
+    if (nodeHandlers) {
+      // Remove all event listeners for this node
+      for (const [eventType, handler] of nodeHandlers) {
+        const renderElement = this.idToElement.get(nodeId);
+        if (renderElement) {
+          const domEventType = this.mapEventTypeToDOM(eventType);
+          if (domEventType) {
+            renderElement.element.removeEventListener(domEventType, handler as any);
+          }
+        }
+        
+        // Remove from reverse lookup
+        this.handlerToNode.delete(handler);
+      }
+      
+      // Clear the handlers for this node
+      this.eventHandlers.delete(nodeId);
     }
   }
 
@@ -170,6 +222,98 @@ export class CommandExecutor {
       this.applyProperty(renderElement.element, command.propertyId, command.value);
     } else {
       console.warn(`SET_PROPERTY: node ${command.nodeId} not found`);
+    }
+  }
+
+  private executeRegisterEventHandler(command: Extract<Command, { opcode: 'REGISTER_EVENT_HANDLER' }>): void {
+    const renderElement = this.idToElement.get(command.nodeId);
+    
+    if (renderElement) {
+      const element = renderElement.element;
+      
+      // Get or create the event handler map for this node
+      let nodeHandlers = this.eventHandlers.get(command.nodeId);
+      if (!nodeHandlers) {
+        nodeHandlers = new Map();
+        this.eventHandlers.set(command.nodeId, nodeHandlers);
+      }
+      
+      // Create the actual DOM event handler
+      const handler: EventHandler = (event: MouseEvent) => {
+        // Prevent default behavior for some events
+        if (command.eventType === EventType.CLICK || command.eventType === EventType.TAP) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        
+        // Call the callback to send event back to the application
+        if (this.onEventCallback) {
+          this.onEventCallback({
+            targetId: command.nodeId,
+            eventType: command.eventType,
+            data: { handlerId: command.handlerId }
+          });
+        }
+      };
+      
+      // Store the handler for cleanup
+      this.handlerToNode.set(handler, { nodeId: command.nodeId, eventType: command.eventType });
+      nodeHandlers.set(command.eventType, handler);
+      
+      // Map Pathland event types to DOM event types
+      const domEventType = this.mapEventTypeToDOM(command.eventType);
+      if (domEventType) {
+        element.addEventListener(domEventType, handler as any);
+        
+        // Make the element clickable if it's a click/tap handler
+        if (command.eventType === EventType.CLICK || command.eventType === EventType.TAP) {
+          element.style.cursor = 'pointer';
+        }
+      }
+    } else {
+      console.warn(`REGISTER_EVENT_HANDLER: node ${command.nodeId} not found`);
+    }
+  }
+
+  private executeDispatchEvent(command: Extract<Command, { opcode: 'DISPATCH_EVENT' }>): void {
+    // This is used internally to simulate events from the application side
+    // For now, we'll just call the onEventCallback directly
+    if (this.onEventCallback) {
+      this.onEventCallback({
+        targetId: command.targetId,
+        eventType: command.eventType,
+        data: command.data
+      });
+    }
+  }
+
+  /**
+   * Maps Pathland event types to DOM event types.
+   */
+  private mapEventTypeToDOM(eventType: number): string | null {
+    switch (eventType) {
+      case EventType.TAP:
+      case EventType.CLICK:
+        return 'click';
+      case EventType.DOUBLE_TAP:
+        return 'dblclick';
+      case EventType.LONG_PRESS:
+        // For simplicity, map to contextmenu (right-click) as a proxy
+        return 'contextmenu';
+      case EventType.HOVER:
+        return 'mouseenter';
+      case EventType.FOCUS:
+        return 'focus';
+      case EventType.BLUR:
+        return 'blur';
+      case EventType.KEY_DOWN:
+        return 'keydown';
+      case EventType.KEY_UP:
+        return 'keyup';
+      case EventType.SCROLL:
+        return 'scroll';
+      default:
+        return null;
     }
   }
 
@@ -471,6 +615,13 @@ export class CommandExecutor {
    * This is called when we want to start fresh.
    */
   reset(): void {
+    // Clean up all event handlers
+    for (const [nodeId] of this.eventHandlers) {
+      this.cleanupEventHandlers(nodeId);
+    }
+    this.eventHandlers.clear();
+    this.handlerToNode.clear();
+    
     // Remove all elements from DOM
     for (const renderElement of this.idToElement.values()) {
       if (renderElement.element.parentNode) {

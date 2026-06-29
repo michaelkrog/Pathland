@@ -220,6 +220,18 @@
                     <button class="secondary" onclick="clearDemo()">Clear</button>
                 </div>
             </div>
+            
+            <div class="card">
+                <h3>Demo 6: Event Handling</h3>
+                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+                    Clickable text that increments a counter via events. Events are sent via the protocol to the worker thread and back.
+                </p>
+                <div class="controls">
+                    <button class="primary" onclick="demo6()">Start Counter</button>
+                    <button class="danger" onclick="stopCounter()">Stop Counter</button>
+                    <button class="secondary" onclick="clearDemo()">Clear</button>
+                </div>
+            </div>
         </div>
         
         <div class="demo-area">
@@ -246,6 +258,7 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
     <script type="module">
         import { initRenderer, getRenderer, SimpleApplication } from './src/renderer/htmlRenderer.ts';
         import { encodeMessage } from './src/application/encoder.ts';
+        import { EventType } from './src/protocol/constants.ts';
         
         // Initialize renderer
         const renderContainer = document.getElementById('renderOutput');
@@ -427,7 +440,9 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
         // Clear demo
         window.clearDemo = function() {
             stopClock();
+            stopCounter();
             renderer.reset();
+            renderer.setOnEventCallback(null); // Clear event callback
             const output = document.getElementById('renderOutput');
             output.innerHTML = '<p style="color: #999;">Click a demo button to render UI.</p>';
             document.getElementById('protocolDump').textContent = 'No commands sent yet. Click a demo button to see the binary protocol in action.';
@@ -437,6 +452,12 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
         let clockInterval = null;
         let clockTextId = null;
         let clockWasBold = false;
+        
+        // Demo 6: Event Handling
+        let counterTextId = null;
+        let counterValue = 0;
+        let counterInterval = null;
+        let counterIsRed = false;
         
         function getCurrentTime() {
             const now = new Date();
@@ -514,6 +535,119 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
                 clockWasBold = false;
                 console.log('[Pathland Demo 5] Clock stopped');
             }
+        };
+        
+        // Demo 6: Event Handling
+        window.demo6 = function() {
+            stopCounter();
+            clearDemo();
+            const app = new SimpleApplication();
+            
+            // Reset counter
+            counterValue = 0;
+            counterIsRed = false;
+            
+            // Create a VStack to contain the counter
+            const vstackId = app.createNode(0x0002, { // VSTACK
+                [0x0001]: 20, // spacing
+                [0x0002]: 0x01, // alignment: CENTER
+                [0x1006]: 30, // padding
+            });
+            
+            // Create the counter text node
+            counterTextId = app.createNode(0x0003, { // TEXT
+                [0x000A]: `Counter: ${counterValue}`, // text
+                [0x1007]: 32, // fontSize
+                [0x1008]: 0x06, // fontWeight: BOLD
+                [0x100A]: { type: 'color', kind: 'literal', rgba: 0xFF007aff }, // color: blue
+                [0x000C]: 0x01 // textAlignment: CENTER
+            });
+            
+            // Create an instruction text
+            const instructionId = app.createNode(0x0003, { // TEXT
+                [0x000A]: 'Click the counter above to increment',
+                [0x1007]: 14, // fontSize
+                [0x100A]: { type: 'color', kind: 'semantic', tokenId: 0x0002 }, // SECONDARY_TEXT
+                [0x000C]: 0x01 // textAlignment: CENTER
+            });
+            
+            // Build hierarchy
+            app.insertIntoRoot(vstackId);
+            app.insertChild(vstackId, counterTextId);
+            app.insertChild(vstackId, instructionId);
+            
+            // Register click event handler on the counter text
+            app.registerEventHandler(counterTextId, EventType.CLICK, 1);
+            
+            const commands = app.flushCommands();
+            
+            const encoded = encodeMessage(commands);
+            updateStats(commands.length, encoded.length, 3); // 1 VStack + 2 Text
+            dumpProtocol(encoded, commands);
+            
+            // Send initial render
+            const parseRenderStart = performance.now();
+            renderer.receiveMessage(encoded.buffer);
+            const parseRenderEnd = performance.now();
+            console.log(`[Pathland Demo 6] Initial render: ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
+            
+            // Set up the event callback to handle clicks
+            renderer.setOnEventCallback(function(event) {
+                if (event.targetId === counterTextId && event.eventType === EventType.CLICK) {
+                    console.log(`[Pathland Demo 6] Click event received for counter!`);
+                    
+                    // Increment the counter
+                    counterValue++;
+                    
+                    // Create an update command to change the text
+                    const updateApp = new SimpleApplication();
+                    updateApp.setProperty(counterTextId, 0x000A, `Counter: ${counterValue}`);
+                    
+                    // Only set color when it actually changes (every 5 clicks)
+                    const shouldBeRed = counterValue % 5 === 0;
+                    if (shouldBeRed !== counterIsRed) {
+                        if (shouldBeRed) {
+                            updateApp.setProperty(counterTextId, 0x100A, { type: 'color', kind: 'literal', rgba: 0xFFff3b30 }); // red
+                        } else {
+                            updateApp.setProperty(counterTextId, 0x100A, { type: 'color', kind: 'literal', rgba: 0xFF007aff }); // blue
+                        }
+                        counterIsRed = shouldBeRed;
+                    }
+                    
+                    const updateCommands = updateApp.flushCommands();
+                    const updateEncoded = encodeMessage(updateCommands);
+                    
+                    // Update stats
+                    totalCommands += updateCommands.length;
+                    totalBytes += updateEncoded.length;
+                    document.getElementById('commandCount').textContent = totalCommands;
+                    document.getElementById('byteCount').textContent = totalBytes;
+                    
+                    // Update protocol dump
+                    dumpProtocol(updateEncoded, updateCommands, true);
+                    
+                    // Send update to renderer
+                    const updateStart = performance.now();
+                    renderer.receiveMessage(updateEncoded.buffer);
+                    const updateEnd = performance.now();
+                    console.log(`[Pathland Demo 6] Updated counter to ${counterValue} in ${(updateEnd - updateStart).toFixed(2)}ms`);
+                }
+            });
+        };
+        
+        window.stopCounter = function() {
+            if (counterInterval !== null) {
+                clearInterval(counterInterval);
+                counterInterval = null;
+            }
+            counterTextId = null;
+            counterValue = 0;
+            counterIsRed = false;
+            
+            // Clear the event callback to prevent memory leaks
+            renderer.setOnEventCallback(null);
+            
+            console.log('[Pathland Demo 6] Counter stopped');
         };
     </script>
 </body>

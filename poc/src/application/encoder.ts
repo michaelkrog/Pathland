@@ -2,7 +2,9 @@ import { BinaryWriter } from '../protocol/binary';
 import {
   Opcode,
   ComponentType,
-  ValueType
+  ValueType,
+  EventType,
+  EventPhase
 } from '../protocol/constants';
 import { Command, PropertyValue } from './types';
 
@@ -35,6 +37,12 @@ export function encodeMessage(commands: Command[]): Uint8Array {
         break;
       case 'SET_DESIGN_TOKEN':
         encodeSetDesignToken(writer, command);
+        break;
+      case 'REGISTER_EVENT_HANDLER':
+        encodeRegisterEventHandler(writer, command);
+        break;
+      case 'DISPATCH_EVENT':
+        encodeDispatchEvent(writer, command);
         break;
       default:
         // Unknown opcode - should not happen
@@ -214,5 +222,56 @@ export function createSetPropertyCommand(
     nodeId,
     propertyId,
     value: createPropertyValue(value)
+  };
+}
+
+function encodeRegisterEventHandler(writer: BinaryWriter, command: Extract<Command, { opcode: 'REGISTER_EVENT_HANDLER' }>): void {
+  writer.writeU8(Opcode.REGISTER_EVENT_HANDLER);
+  writer.writeU32(command.nodeId);
+  writer.writeU8(command.eventType);
+  writer.writeU8(EventPhase.TARGET); // Always target phase for now
+  writer.writeU32(command.handlerId);
+}
+
+function encodeDispatchEvent(writer: BinaryWriter, command: Extract<Command, { opcode: 'DISPATCH_EVENT' }>): void {
+  writer.writeU8(Opcode.DISPATCH_EVENT);
+  writer.writeU32(command.targetId);
+  writer.writeU8(command.eventType);
+  writer.writeU32(Math.floor(Date.now() / 1000)); // timestamp in seconds
+  writer.writeU8(EventPhase.TARGET); // phase
+  
+  // For now, we don't encode the data field in the binary format
+  // This could be extended later to support event data
+}
+
+/**
+ * Creates a REGISTER_EVENT_HANDLER command
+ */
+export function createRegisterEventHandlerCommand(
+  nodeId: number,
+  eventType: EventType,
+  handlerId: number
+): Command {
+  return {
+    opcode: 'REGISTER_EVENT_HANDLER',
+    nodeId,
+    eventType,
+    handlerId
+  };
+}
+
+/**
+ * Creates a DISPATCH_EVENT command
+ */
+export function createDispatchEventCommand(
+  targetId: number,
+  eventType: EventType,
+  data?: any
+): Command {
+  return {
+    opcode: 'DISPATCH_EVENT',
+    targetId,
+    eventType,
+    data
   };
 }
