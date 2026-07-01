@@ -232,6 +232,30 @@
                     <button class="secondary" onclick="clearDemo()">Clear</button>
                 </div>
             </div>
+            
+            <div class="card">
+                <h3>Demo 7: Environment Context</h3>
+                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+                    Displays viewport dimensions, device info, and preferences from the Environment Context Protocol.
+                </p>
+                <div class="controls">
+                    <button class="primary" onclick="demo7()">Start Environment</button>
+                    <button class="danger" onclick="stopEnvironment()">Stop</button>
+                    <button class="secondary" onclick="clearDemo()">Clear</button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3>Demo 8: Design Tokens</h3>
+                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
+                    Demonstrates design token usage. Click the colored box to cycle through token values using SET_DESIGN_TOKEN.
+                </p>
+                <div class="controls">
+                    <button class="primary" onclick="demo8()">Start Token Demo</button>
+                    <button class="danger" onclick="stopTokens()">Stop</button>
+                    <button class="secondary" onclick="clearDemo()">Clear</button>
+                </div>
+            </div>
         </div>
         
         <div class="demo-area">
@@ -354,6 +378,10 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
                 renderer.triggerStop('5');
             } else if (activeDemo === '6') {
                 renderer.triggerStop('6');
+            } else if (activeDemo === '7') {
+                renderer.triggerStop('7');
+            } else if (activeDemo === '8') {
+                renderer.triggerStop('8');
             }
             
             // Clear the renderer
@@ -396,6 +424,38 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
                 renderer.triggerStop('6');
                 activeDemo = null;
                 console.log('[Pathland Demo 6] Counter stopped');
+            }
+        };
+        
+        // Demo 7: Environment Context
+        window.demo7 = function() {
+            clearDemo();
+            activeDemo = '7';
+            renderer.triggerDemo('7');
+            console.log(`[Pathland Demo 7] Started`);
+        };
+        
+        window.stopEnvironment = function() {
+            if (activeDemo === '7') {
+                renderer.triggerStop('7');
+                activeDemo = null;
+                console.log('[Pathland Demo 7] Environment stopped');
+            }
+        };
+        
+        // Demo 8: Design Tokens
+        window.demo8 = function() {
+            clearDemo();
+            activeDemo = '8';
+            renderer.triggerDemo('8');
+            console.log(`[Pathland Demo 8] Started`);
+        };
+        
+        window.stopTokens = function() {
+            if (activeDemo === '8') {
+                renderer.triggerStop('8');
+                activeDemo = null;
+                console.log('[Pathland Demo 8] Design tokens stopped');
             }
         };
     </script>

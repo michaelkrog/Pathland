@@ -1,7 +1,8 @@
 import { BinaryReader } from '../protocol/binary';
 import {
   Opcode,
-  ValueType
+  ValueType,
+  EnvironmentField
 } from '../protocol/constants';
 import { Command, PropertyValue } from '../application/types';
 
@@ -50,6 +51,13 @@ function decodeCommand(reader: BinaryReader, opcode: number): Command | null {
       return decodeDispatchEvent(reader);
     case Opcode.REGISTER_EVENT_HANDLER:
       return decodeRegisterEventHandler(reader);
+    // Environment Context Protocol (0x20-0x22)
+    case Opcode.SET_ENVIRONMENT:
+      return decodeSetEnvironment(reader);
+    case Opcode.UPDATE_ENVIRONMENT:
+      return decodeUpdateEnvironment(reader);
+    case Opcode.REQUEST_ENVIRONMENT:
+      return decodeRequestEnvironment(reader);
     default:
       // Unknown opcode - skip for forward compatibility
       return null;
@@ -220,5 +228,124 @@ export function propertyValueToJS(value: PropertyValue): any {
       return { type: 'designToken', path: value.path };
     default:
       return null;
+  }
+}
+
+// ===== Environment Context Protocol Decoding =====
+
+function decodeSetEnvironment(reader: BinaryReader): Command {
+  const fieldCount = reader.readU8();
+  const fields = new Map<number, PropertyValue>();
+  
+  for (let i = 0; i < fieldCount; i++) {
+    const fieldId = reader.readU8();
+    const fieldSize = reader.readU8();
+    const fieldValue = decodeEnvironmentFieldValue(reader, fieldId, fieldSize);
+    fields.set(fieldId, fieldValue);
+  }
+  
+  return {
+    opcode: 'SET_ENVIRONMENT',
+    fields
+  };
+}
+
+function decodeUpdateEnvironment(reader: BinaryReader): Command {
+  const fieldCount = reader.readU8();
+  const fields = new Map<number, PropertyValue>();
+  
+  for (let i = 0; i < fieldCount; i++) {
+    const fieldId = reader.readU8();
+    const fieldSize = reader.readU8();
+    const fieldValue = decodeEnvironmentFieldValue(reader, fieldId, fieldSize);
+    fields.set(fieldId, fieldValue);
+  }
+  
+  return {
+    opcode: 'UPDATE_ENVIRONMENT',
+    fields
+  };
+}
+
+function decodeRequestEnvironment(reader: BinaryReader): Command {
+  const requestId = reader.readU8();
+  const fieldCountOrAll = reader.readU8();
+  
+  // 0xFF means "all fields"
+  if (fieldCountOrAll === 0xFF) {
+    return {
+      opcode: 'REQUEST_ENVIRONMENT',
+      requestId,
+      fieldIds: [] // Empty array means "all fields"
+    };
+  }
+  
+  const fieldIds: number[] = [];
+  for (let i = 0; i < fieldCountOrAll; i++) {
+    fieldIds.push(reader.readU8());
+  }
+  
+  return {
+    opcode: 'REQUEST_ENVIRONMENT',
+    requestId,
+    fieldIds
+  };
+}
+
+/**
+ * Decodes an environment field value based on its fieldId and size.
+ * Different fields have different types as per the spec.
+ */
+function decodeEnvironmentFieldValue(reader: BinaryReader, fieldId: number, fieldSize: number): PropertyValue {
+  // Determine the type based on fieldId
+  switch (fieldId) {
+    // Viewport dimensions (u32)
+    case EnvironmentField.VIEWPORT_WIDTH_PX:
+    case EnvironmentField.VIEWPORT_HEIGHT_PX:
+    case EnvironmentField.VIEWPORT_WIDTH_DP:
+    case EnvironmentField.VIEWPORT_HEIGHT_DP:
+    case EnvironmentField.SAFE_AREA_TOP:
+    case EnvironmentField.SAFE_AREA_RIGHT:
+    case EnvironmentField.SAFE_AREA_BOTTOM:
+    case EnvironmentField.SAFE_AREA_LEFT:
+      return { type: 'u32', value: reader.readU32() };
+    
+    // Device pixel ratio (f32)
+    case EnvironmentField.DEVICE_PIXEL_RATIO:
+    case EnvironmentField.FONT_SCALE:
+      return { type: 'f32', value: reader.readF32() };
+    
+    // Enums (u8)
+    case EnvironmentField.COLOR_SCHEME:
+    case EnvironmentField.TEXT_DIRECTION:
+    case EnvironmentField.PLATFORM:
+    case EnvironmentField.DEVICE_TYPE:
+    case EnvironmentField.POINTER_TYPE:
+    case EnvironmentField.ORIENTATION:
+      return { type: 'u8', value: reader.readU8() };
+    
+    // Booleans (u8, but 0 or 1)
+    case EnvironmentField.REDUCED_MOTION:
+    case EnvironmentField.KEYBOARD_AVAILABLE:
+      return { type: 'u8', value: reader.readU8() };
+    
+    // Strings (variable length)
+    case EnvironmentField.LOCALE:
+    case EnvironmentField.TIMEZONE:
+      return { type: 'string', value: reader.readString() };
+    
+    // Default: read as raw bytes
+    default:
+      // For unknown fields, read the raw bytes
+      const rawBytes = reader.readBytes(fieldSize);
+      // Convert to a number if possible
+      if (fieldSize === 1) {
+        return { type: 'u8', value: rawBytes[0] };
+      } else if (fieldSize === 4) {
+        // Could be u32 or f32 - default to u32
+        const view = new DataView(rawBytes.buffer, rawBytes.byteOffset, rawBytes.byteLength);
+        return { type: 'u32', value: view.getUint32(0, true) };
+      }
+      return { type: 'string', value: `unknown_${fieldId}` };
   }
 }

@@ -121,7 +121,10 @@ export type Command =
   | { opcode: 'SET_PROPERTY'; nodeId: number; propertyId: number; value: PropertyValue }
   | { opcode: 'SET_DESIGN_TOKEN'; tokenPath: string; value: PropertyValue }
   | { opcode: 'REGISTER_EVENT_HANDLER'; nodeId: number; eventType: number; handlerId: number }
-  | { opcode: 'DISPATCH_EVENT'; targetId: number; eventType: number; data?: any };
+  | { opcode: 'DISPATCH_EVENT'; targetId: number; eventType: number; data?: any }
+  | { opcode: 'SET_ENVIRONMENT'; fields: Map<number, PropertyValue> }
+  | { opcode: 'UPDATE_ENVIRONMENT'; fields: Map<number, PropertyValue> }
+  | { opcode: 'REQUEST_ENVIRONMENT'; requestId: number; fieldIds: number[] };
 
 // ============================================
 // RENDERER TYPES

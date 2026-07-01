@@ -10,6 +10,7 @@ import {
   createCreateNodeCommand, 
   createSetPropertyCommand,
   createRegisterEventHandlerCommand,
+  createPropertyValue,
   Command
 } from './application/encoder';
 import { 
@@ -22,8 +23,13 @@ import {
   TextAlignment,
   SemanticColorToken,
   EventType,
-  ROOT_CONTAINER_ID
+  ROOT_CONTAINER_ID,
+  Opcode,
+  EnvironmentField,
+  FILL
 } from './protocol/constants';
+import { BinaryReader } from './protocol/binary';
+import { PropertyValue } from './application/types';
 
 // ============================================
 // APPLICATION STATE
@@ -75,6 +81,17 @@ class PathlandApplication {
     this.commands.push({
       opcode: 'DELETE_NODE',
       nodeId
+    });
+  }
+  
+  /**
+   * Sets a design token value.
+   */
+  setDesignToken(tokenPath: string, value: any): void {
+    this.commands.push({
+      opcode: 'SET_DESIGN_TOKEN',
+      tokenPath,
+      value: createPropertyValue(value)
     });
   }
   
@@ -277,6 +294,144 @@ class PathlandApplication {
     this.nextId = 1;
     this.commands = [];
   }
+}
+
+// ============================================
+// ENVIRONMENT STATE
+// ============================================
+
+/**
+ * Stores the current environment state received from the renderer.
+ * In a full implementation, this would be used by the application to make UI decisions.
+ */
+let environmentState: Map<number, PropertyValue> = new Map();
+
+/**
+ * Handles an environment message from the renderer.
+ */
+function handleEnvironmentMessage(binaryData: ArrayBuffer): void {
+  // Decode the environment message
+  const buffer = new Uint8Array(binaryData);
+  const reader = new BinaryReader(buffer);
+  
+  // Read the opcode
+  const opcode = reader.readU8();
+  
+  switch (opcode) {
+    case Opcode.SET_ENVIRONMENT:
+      decodeEnvironmentMessage(reader);
+      break;
+    
+    case Opcode.UPDATE_ENVIRONMENT:
+      decodeEnvironmentMessage(reader);
+      break;
+    
+    case Opcode.REQUEST_ENVIRONMENT:
+      // This should not happen on the application side
+      console.warn('[Pathland] Received REQUEST_ENVIRONMENT on application side - should be sent to renderer');
+      break;
+    
+    default:
+      console.warn(`[Pathland] Unknown environment opcode: ${opcode}`);
+      break;
+  }
+}
+
+/**
+ * Decodes an environment message (SET_ENVIRONMENT or UPDATE_ENVIRONMENT).
+ */
+function decodeEnvironmentMessage(reader: BinaryReader): void {
+  const fieldCount = reader.readU8();
+  
+  for (let i = 0; i < fieldCount; i++) {
+    const fieldId = reader.readU8();
+    const fieldSize = reader.readU8();
+    const value = decodeEnvironmentFieldValue(reader, fieldId, fieldSize);
+    
+    // Store the environment field
+    environmentState.set(fieldId, value);
+    
+    // Log for debugging
+    const fieldName = getEnvironmentFieldName(fieldId);
+    console.log(`[Pathland] Environment: ${fieldName} =`, value);
+  }
+}
+
+/**
+ * Decodes an environment field value based on its fieldId and size.
+ */
+function decodeEnvironmentFieldValue(reader: BinaryReader, fieldId: number, fieldSize: number): PropertyValue {
+  // This mirrors the logic in the renderer's decoder
+  switch (fieldId) {
+    case EnvironmentField.VIEWPORT_WIDTH_PX:
+    case EnvironmentField.VIEWPORT_HEIGHT_PX:
+    case EnvironmentField.VIEWPORT_WIDTH_DP:
+    case EnvironmentField.VIEWPORT_HEIGHT_DP:
+    case EnvironmentField.SAFE_AREA_TOP:
+    case EnvironmentField.SAFE_AREA_RIGHT:
+    case EnvironmentField.SAFE_AREA_BOTTOM:
+    case EnvironmentField.SAFE_AREA_LEFT:
+      return { type: 'u32', value: reader.readU32() };
+    
+    case EnvironmentField.DEVICE_PIXEL_RATIO:
+    case EnvironmentField.FONT_SCALE:
+      return { type: 'f32', value: reader.readF32() };
+    
+    case EnvironmentField.COLOR_SCHEME:
+    case EnvironmentField.TEXT_DIRECTION:
+    case EnvironmentField.PLATFORM:
+    case EnvironmentField.DEVICE_TYPE:
+    case EnvironmentField.POINTER_TYPE:
+    case EnvironmentField.ORIENTATION:
+    case EnvironmentField.REDUCED_MOTION:
+    case EnvironmentField.KEYBOARD_AVAILABLE:
+      return { type: 'u8', value: reader.readU8() };
+    
+    case EnvironmentField.LOCALE:
+    case EnvironmentField.TIMEZONE:
+      return { type: 'string', value: reader.readString() };
+    
+    default:
+      // For unknown fields, skip the bytes
+      reader.skip(fieldSize);
+      return { type: 'string', value: `unknown_${fieldId}` };
+  }
+}
+
+/**
+ * Gets the human-readable name of an environment field.
+ */
+function getEnvironmentFieldName(fieldId: number): string {
+  const names: Record<number, string> = {
+    [EnvironmentField.VIEWPORT_WIDTH_PX]: 'VIEWPORT_WIDTH_PX',
+    [EnvironmentField.VIEWPORT_HEIGHT_PX]: 'VIEWPORT_HEIGHT_PX',
+    [EnvironmentField.VIEWPORT_WIDTH_DP]: 'VIEWPORT_WIDTH_DP',
+    [EnvironmentField.VIEWPORT_HEIGHT_DP]: 'VIEWPORT_HEIGHT_DP',
+    [EnvironmentField.DEVICE_PIXEL_RATIO]: 'DEVICE_PIXEL_RATIO',
+    [EnvironmentField.SAFE_AREA_TOP]: 'SAFE_AREA_TOP',
+    [EnvironmentField.SAFE_AREA_RIGHT]: 'SAFE_AREA_RIGHT',
+    [EnvironmentField.SAFE_AREA_BOTTOM]: 'SAFE_AREA_BOTTOM',
+    [EnvironmentField.SAFE_AREA_LEFT]: 'SAFE_AREA_LEFT',
+    [EnvironmentField.COLOR_SCHEME]: 'COLOR_SCHEME',
+    [EnvironmentField.TEXT_DIRECTION]: 'TEXT_DIRECTION',
+    [EnvironmentField.REDUCED_MOTION]: 'REDUCED_MOTION',
+    [EnvironmentField.FONT_SCALE]: 'FONT_SCALE',
+    [EnvironmentField.PLATFORM]: 'PLATFORM',
+    [EnvironmentField.DEVICE_TYPE]: 'DEVICE_TYPE',
+    [EnvironmentField.POINTER_TYPE]: 'POINTER_TYPE',
+    [EnvironmentField.KEYBOARD_AVAILABLE]: 'KEYBOARD_AVAILABLE',
+    [EnvironmentField.ORIENTATION]: 'ORIENTATION',
+    [EnvironmentField.LOCALE]: 'LOCALE',
+    [EnvironmentField.TIMEZONE]: 'TIMEZONE',
+  };
+  return names[fieldId] || `UNKNOWN_${fieldId}`;
+}
+
+/**
+ * Gets the current value of an environment field.
+ */
+export function getEnvironmentValue(fieldId: number): PropertyValue | undefined {
+  return environmentState.get(fieldId);
 }
 
 // ============================================
@@ -535,6 +690,10 @@ function stopAllDemos(): void {
   counterTextId = null;
   counterValue = 0;
   counterIsRed = false;
+  envTextId = null;
+  envVStackId = null;
+  tokenDemoId = null;
+  tokenValue = 0;
   app.reset();
 }
 
@@ -567,11 +726,278 @@ function handleEvent(targetId: number, eventType: number): void {
       commands: commands
     }, [encoded.buffer]);
   }
+  
+  // Handle design token demo clicks
+  if (demoType === 'design-tokens' && eventType === EventType.CLICK && targetId === tokenDemoId) {
+    handleTokenClick(targetId);
+  }
 }
 
 function getCurrentTime(): string {
   const now = new Date();
   return now.toLocaleTimeString();
+}
+
+// ============================================
+// DEMO 7: ENVIRONMENT CONTEXT
+// ============================================
+
+let envTextId: number | null = null;
+let envVStackId: number | null = null;
+
+function startDemo7(): void {
+  // Demo 7: Environment Context - Display viewport info that updates on resize
+  stopAllDemos();
+  demoType = 'environment';
+  
+  app.reset();
+  
+  // Create a VStack to contain environment info
+  envVStackId = app.createNode(ComponentType.VSTACK, {
+    [StackProperty.SPACING]: 12,
+    [StackProperty.ALIGNMENT]: Alignment.CENTER,
+    [StackProperty.PADDING]: 20,
+    [StyleProperty.BACKGROUND_COLOR]: { type: 'color', kind: 'literal', rgba: 0xFFf0f0f0 }, // Light gray background
+    [StyleProperty.BORDER_RADIUS]: 8,
+  });
+  
+  // Create title
+  const titleId = app.createNode(ComponentType.TEXT, {
+    [TextProperty.TEXT]: 'Environment Context Demo',
+    [StyleProperty.FONT_SIZE]: 24,
+    [StyleProperty.FONT_WEIGHT]: 0x06, // BOLD
+    [StyleProperty.COLOR]: { type: 'color', kind: 'literal', rgba: 0xFF000000 }, // Black
+    [TextProperty.TEXT_ALIGNMENT]: TextAlignment.CENTER,
+  });
+  
+  // Create environment info text
+  envTextId = app.createNode(ComponentType.TEXT, {
+    [TextProperty.TEXT]: getEnvironmentText(),
+    [StyleProperty.FONT_SIZE]: 16,
+    [StyleProperty.COLOR]: { type: 'color', kind: 'literal', rgba: 0xFF333333 }, // Dark text
+    [TextProperty.TEXT_ALIGNMENT]: TextAlignment.CENTER,
+  });
+  
+  // Create instructions
+  const instructionId = app.createNode(ComponentType.TEXT, {
+    [TextProperty.TEXT]: 'Resize the window to see environment values update',
+    [StyleProperty.FONT_SIZE]: 14,
+    [StyleProperty.COLOR]: { type: 'color', kind: 'literal', rgba: 0xFF666666 },
+    [TextProperty.TEXT_ALIGNMENT]: TextAlignment.CENTER,
+  });
+  
+  // Build hierarchy
+  app.insertIntoRoot(envVStackId);
+  app.insertChild(envVStackId, titleId);
+  app.insertChild(envVStackId, envTextId);
+  app.insertChild(envVStackId, instructionId);
+  
+  app.sync();
+  
+  // Start an interval to update the environment display
+  // (Environment updates come from the renderer, but we also poll to show we can read the values)
+  activeInterval = setInterval(() => {
+    updateEnvironmentDisplay();
+  }, 1000);
+}
+
+function getEnvironmentText(): string {
+  const width = getEnvironmentValue(0x01); // VIEWPORT_WIDTH_PX
+  const height = getEnvironmentValue(0x02); // VIEWPORT_HEIGHT_PX
+  const dpr = getEnvironmentValue(0x05); // DEVICE_PIXEL_RATIO
+  const colorScheme = getEnvironmentValue(0x0A); // COLOR_SCHEME
+  const platform = getEnvironmentValue(0x0E); // PLATFORM
+  const deviceType = getEnvironmentValue(0x0F); // DEVICE_TYPE
+  const orientation = getEnvironmentValue(0x12); // ORIENTATION
+  const locale = getEnvironmentValue(0x13); // LOCALE
+  
+  const widthVal = width && width.type === 'u32' ? width.value : '?';
+  const heightVal = height && height.type === 'u32' ? height.value : '?';
+  const dprVal = dpr && dpr.type === 'f32' ? dpr.value.toFixed(2) : '?';
+  const colorSchemeVal = colorScheme && colorScheme.type === 'u8' ? getColorSchemeName(colorScheme.value) : '?';
+  const platformVal = platform && platform.type === 'u8' ? getPlatformName(platform.value) : '?';
+  const deviceTypeVal = deviceType && deviceType.type === 'u8' ? getDeviceTypeName(deviceType.value) : '?';
+  const orientationVal = orientation && orientation.type === 'u8' ? getOrientationName(orientation.value) : '?';
+  const localeVal = locale && locale.type === 'string' ? locale.value : '?';
+  
+  return `Viewport: ${widthVal}×${heightVal}px\nDPR: ${dprVal}\nColor: ${colorSchemeVal}\nPlatform: ${platformVal}\nDevice: ${deviceTypeVal}\nOrientation: ${orientationVal}\nLocale: ${localeVal}`;
+}
+
+function getColorSchemeName(value: number): string {
+  switch (value) {
+    case 0: return 'Light';
+    case 1: return 'Dark';
+    case 2: return 'System';
+    default: return `Unknown(${value})`;
+  }
+}
+
+function getPlatformName(value: number): string {
+  switch (value) {
+    case 0: return 'iOS';
+    case 1: return 'Android';
+    case 2: return 'Web';
+    case 3: return 'Windows';
+    case 4: return 'macOS';
+    case 5: return 'Linux';
+    default: return `Unknown(${value})`;
+  }
+}
+
+function getDeviceTypeName(value: number): string {
+  switch (value) {
+    case 0: return 'Phone';
+    case 1: return 'Tablet';
+    case 2: return 'Desktop';
+    case 3: return 'Embedded';
+    default: return `Unknown(${value})`;
+  }
+}
+
+function getOrientationName(value: number): string {
+  switch (value) {
+    case 0: return 'Portrait';
+    case 1: return 'Landscape';
+    case 2: return 'Square';
+    default: return `Unknown(${value})`;
+  }
+}
+
+function updateEnvironmentDisplay(): void {
+  if (!envTextId) return;
+  
+  const updateApp = new PathlandApplication();
+  updateApp.setProperty(envTextId, TextProperty.TEXT, getEnvironmentText());
+  const commands = updateApp.flushCommands();
+  const encoded = encodeMessage(commands);
+  (self as any).postMessage({
+    type: 'commands',
+    binary: encoded,
+    commands: commands
+  }, [encoded.buffer]);
+}
+
+// ============================================
+// DEMO 8: DESIGN TOKENS
+// ============================================
+
+let tokenDemoId: number | null = null;
+let tokenValue: number = 0;
+
+function startDemo8(): void {
+  // Demo 8: Design Tokens - Show how tokens can be used and updated
+  stopAllDemos();
+  demoType = 'design-tokens';
+  
+  app.reset();
+  tokenValue = 0;
+  
+  // Create a VStack to contain the demo
+  const vstackId = app.createNode(ComponentType.VSTACK, {
+    [StackProperty.SPACING]: 16,
+    [StackProperty.ALIGNMENT]: Alignment.CENTER,
+    [StackProperty.PADDING]: 20,
+    [StyleProperty.WIDTH]: FILL,
+    [StyleProperty.HEIGHT]: FILL,
+  });
+  
+  // Create title
+  const titleId = app.createNode(ComponentType.TEXT, {
+    [TextProperty.TEXT]: 'Design Token Demo',
+    [StyleProperty.FONT_SIZE]: 24,
+    [StyleProperty.FONT_WEIGHT]: 0x06, // BOLD
+    [StyleProperty.COLOR]: { type: 'color', kind: 'semantic', tokenId: SemanticColorToken.PRIMARY_TEXT },
+    [TextProperty.TEXT_ALIGNMENT]: TextAlignment.CENTER,
+  });
+  
+  // Create a box that uses a design token for its background color
+  const boxId = app.createNode(ComponentType.VSTACK, {
+    [StackProperty.ALIGNMENT]: Alignment.CENTER,
+    [StackProperty.JUSTIFICATION]: Justification.CENTER,
+    [StyleProperty.BACKGROUND_COLOR]: { type: 'designToken', path: 'app.color.primary' },
+    [StyleProperty.WIDTH]: 200,
+    [StyleProperty.HEIGHT]: 100,
+    [StyleProperty.BORDER_RADIUS]: 8,
+    [StyleProperty.PADDING]: 20,
+  });
+  
+  // Create text inside the box
+  const boxTextId = app.createNode(ComponentType.TEXT, {
+    [TextProperty.TEXT]: 'Click me to change token color',
+    [StyleProperty.FONT_SIZE]: 16,
+    [StyleProperty.FONT_WEIGHT]: 0x06,
+    [StyleProperty.COLOR]: { type: 'color', kind: 'literal', rgba: 0xFFFFFFFF }, // White text
+    [TextProperty.TEXT_ALIGNMENT]: TextAlignment.CENTER,
+  });
+  tokenDemoId = boxId;
+  
+  // Create token value display
+  const tokenTextId = app.createNode(ComponentType.TEXT, {
+    [TextProperty.TEXT]: `Token Value: ${tokenValue}`,
+    [StyleProperty.FONT_SIZE]: 14,
+    [StyleProperty.COLOR]: { type: 'color', kind: 'semantic', tokenId: SemanticColorToken.SECONDARY_TEXT },
+    [TextProperty.TEXT_ALIGNMENT]: TextAlignment.CENTER,
+  });
+  
+  // Create instructions
+  const instructionId = app.createNode(ComponentType.TEXT, {
+    [TextProperty.TEXT]: 'Click the colored box to cycle through token values',
+    [StyleProperty.FONT_SIZE]: 14,
+    [StyleProperty.COLOR]: { type: 'color', kind: 'semantic', tokenId: SemanticColorToken.TERTIARY_TEXT },
+    [TextProperty.TEXT_ALIGNMENT]: TextAlignment.CENTER,
+  });
+  
+  // Build hierarchy
+  app.insertIntoRoot(vstackId);
+  app.insertChild(vstackId, titleId);
+  app.insertChild(vstackId, boxId);
+  app.insertChild(boxId, boxTextId);
+  app.insertChild(vstackId, tokenTextId);
+  app.insertChild(vstackId, instructionId);
+  
+  // Register click handler on the box
+  app.registerEventHandler(boxId, EventType.CLICK, 1);
+  
+  // Send design token command FIRST so it's available when UI is created
+  app.setDesignToken('app.color.primary', { type: 'color', kind: 'literal', rgba: getTokenColor(tokenValue) });
+  
+  // Send all commands together
+  app.sync();
+}
+
+function getTokenColor(index: number): number {
+  const colors = [
+    0xFFff0000, // Red
+    0xFF00ff00, // Green
+    0xFF0000ff, // Blue
+    0xFFffff00, // Yellow
+    0xFFff00ff, // Magenta
+    0xFF00ffff, // Cyan
+  ];
+  return colors[index % colors.length];
+}
+
+function handleTokenClick(targetId: number): void {
+  if (demoType !== 'design-tokens' || targetId !== tokenDemoId) return;
+  
+  // Cycle token value
+  tokenValue = (tokenValue + 1) % 6;
+  
+  // Update the design token
+  const tokenApp = new PathlandApplication();
+  tokenApp.setDesignToken('app.color.primary', { type: 'color', kind: 'literal', rgba: getTokenColor(tokenValue) });
+  
+  // Also update the box's background color to trigger re-resolution of the design token
+  // This is a workaround until we have a proper design token change notification system
+  tokenApp.setProperty(tokenDemoId!, StyleProperty.BACKGROUND_COLOR, { type: 'designToken', path: 'app.color.primary' });
+  
+  const tokenCommands = tokenApp.flushCommands();
+  const tokenEncoded = encodeMessage(tokenCommands);
+  (self as any).postMessage({
+    type: 'commands',
+    binary: tokenEncoded,
+    commands: tokenCommands
+  }, [tokenEncoded.buffer]);
 }
 
 // ============================================
@@ -608,11 +1034,21 @@ self.onmessage = function(event: MessageEvent) {
           case '6':
             startDemo6();
             break;
+          case '7':
+            startDemo7();
+            break;
+          case '8':
+            startDemo8();
+            break;
         }
         break;
       
       case 'event':
         handleEvent(message.targetId, message.eventType);
+        break;
+      
+      case 'environment':
+        handleEnvironmentMessage(message.binary);
         break;
       
       case 'clear':
@@ -626,6 +1062,10 @@ self.onmessage = function(event: MessageEvent) {
         switch (message.demo) {
           case '5':
           case 'clock':
+          case '7':
+          case 'environment':
+          case '8':
+          case 'design-tokens':
             stopAllDemos();
             break;
         }

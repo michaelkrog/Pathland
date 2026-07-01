@@ -26,6 +26,10 @@ export enum Opcode {
   GESTURE_UPDATE = 0x09,
   ATTACH_GESTURE = 0x0A,
   COMBINE_GESTURES = 0x0B,
+  // Environment Context Protocol (0x20-0x22)
+  SET_ENVIRONMENT = 0x20,
+  UPDATE_ENVIRONMENT = 0x21,
+  REQUEST_ENVIRONMENT = 0x22,
 }
 
 // ===== Component Types =====
@@ -128,6 +132,80 @@ export enum TextAlignment {
 // ===== Special Width/Height Values =====
 export const FILL = -1.0;      // Fill available space
 export const HUG_CONTENT = -2.0; // Size to fit content
+
+// ===== Environment Field IDs =====
+export enum EnvironmentField {
+  // Viewport dimensions (0x01-0x04)
+  VIEWPORT_WIDTH_PX = 0x01,
+  VIEWPORT_HEIGHT_PX = 0x02,
+  VIEWPORT_WIDTH_DP = 0x03,
+  VIEWPORT_HEIGHT_DP = 0x04,
+  // Device info (0x05)
+  DEVICE_PIXEL_RATIO = 0x05,
+  // Safe area insets (0x06-0x09)
+  SAFE_AREA_TOP = 0x06,
+  SAFE_AREA_RIGHT = 0x07,
+  SAFE_AREA_BOTTOM = 0x08,
+  SAFE_AREA_LEFT = 0x09,
+  // Display preferences (0x0A-0x0E)
+  COLOR_SCHEME = 0x0A,
+  TEXT_DIRECTION = 0x0B,
+  REDUCED_MOTION = 0x0C,
+  FONT_SCALE = 0x0D,
+  PLATFORM = 0x0E,
+  // Device info (0x0F-0x12)
+  DEVICE_TYPE = 0x0F,
+  POINTER_TYPE = 0x10,
+  KEYBOARD_AVAILABLE = 0x11,
+  ORIENTATION = 0x12,
+  // Locale (0x13-0x14)
+  LOCALE = 0x13,
+  TIMEZONE = 0x14,
+}
+
+// ===== Environment Enums =====
+export enum ColorScheme {
+  LIGHT = 0,
+  DARK = 1,
+  SYSTEM = 2,
+}
+
+export enum TextDirection {
+  LTR = 0,
+  RTL = 1,
+  AUTO = 2,
+}
+
+export enum Platform {
+  IOS = 0,
+  ANDROID = 1,
+  WEB = 2,
+  WINDOWS = 3,
+  MACOS = 4,
+  LINUX = 5,
+  UNKNOWN = 255,
+}
+
+export enum DeviceType {
+  PHONE = 0,
+  TABLET = 1,
+  DESKTOP = 2,
+  EMBEDDED = 3,
+  UNKNOWN = 255,
+}
+
+export enum PointerType {
+  TOUCH = 0,
+  MOUSE = 1,
+  PEN = 2,
+  UNKNOWN = 255,
+}
+
+export enum Orientation {
+  PORTRAIT = 0,
+  LANDSCAPE = 1,
+  SQUARE = 2,
+}
 
 // ===== Event Types =====
 export enum EventType {

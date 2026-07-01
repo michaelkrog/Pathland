@@ -65,7 +65,7 @@ export class CommandExecutor {
         this.executeSetProperty(command);
         break;
       case 'SET_DESIGN_TOKEN':
-        // Not implemented in Phase 1
+        this.executeSetDesignToken(command);
         break;
       case 'REGISTER_EVENT_HANDLER':
         this.executeRegisterEventHandler(command);
@@ -225,6 +225,95 @@ export class CommandExecutor {
     }
   }
 
+  /**
+   * Stores a design token value for later use.
+   * In a full implementation, this would update a design token registry
+   * and potentially trigger re-rendering of components that use this token.
+   */
+  private designTokens: Map<string, PropertyValue> = new Map();
+
+  private executeSetDesignToken(command: Extract<Command, { opcode: 'SET_DESIGN_TOKEN' }>): void {
+    // Store the design token for later use
+    this.designTokens.set(command.tokenPath, command.value);
+    
+    // In a full implementation, we would:
+    // 1. Update the CSS variable for this token path
+    // 2. Trigger re-rendering of any components that reference this token
+    // For now, just store it and log
+    console.log(`[Pathland] Design token set: ${command.tokenPath} =`, command.value);
+    
+    // Update CSS variable
+    this.updateCSSVariable(command.tokenPath, command.value);
+  }
+
+  /**
+   * Updates a CSS variable based on a design token value.
+   */
+  private updateCSSVariable(tokenPath: string, value: PropertyValue): void {
+    // Convert token path to CSS variable name (e.g., "brand.color.primary" -> "--brand-color-primary")
+    const cssVarName = '--' + tokenPath.replace(/\./g, '-');
+    
+    const jsValue = propertyValueToJS(value);
+    let cssValue: string;
+    
+    switch (value.type) {
+      case 'color':
+        if (value.kind === 'literal') {
+          const { a, r, g, b } = this.rgbaToObject(value.rgba);
+          cssValue = `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+        } else {
+          // Semantic color - resolve to actual color
+          cssValue = this.resolveSemanticColor(value.tokenId);
+        }
+        break;
+      case 'string':
+        cssValue = jsValue;
+        break;
+      case 'u8':
+      case 'u32':
+      case 'i32':
+      case 'f32':
+        cssValue = jsValue.toString();
+        if (value.type === 'f32' || value.type === 'i32') {
+          cssValue += 'px'; // Assume pixels for numeric values
+        }
+        break;
+      case 'enum':
+        cssValue = jsValue.toString();
+        break;
+      case 'designToken':
+        // Design token referencing another token - not fully implemented
+        cssValue = `var(--${value.path.replace(/\./g, '-')})`;
+        break;
+      default:
+        cssValue = String(jsValue);
+    }
+    
+    // Update the CSS variable on the root element
+    (this.rootContainer as HTMLElement).style.setProperty(cssVarName, cssValue);
+  }
+
+  /**
+   * Resolves a semantic color token to a CSS color string.
+   */
+  private resolveSemanticColor(tokenId: number): string {
+    const colorMap: Record<number, string> = {
+      [0x0001 /* PRIMARY_TEXT */]: 'rgba(0, 0, 0, 1)',
+      [0x0002 /* SECONDARY_TEXT */]: 'rgba(60, 60, 60, 1)',
+      [0x0003 /* TERTIARY_TEXT */]: 'rgba(90, 90, 90, 1)',
+      [0x0004 /* BACKGROUND */]: 'rgba(255, 255, 255, 1)',
+      [0x0005 /* SURFACE */]: 'rgba(242, 242, 242, 1)',
+      [0x0006 /* ACCENT */]: 'rgba(0, 122, 255, 1)',
+      [0x0007 /* ERROR */]: 'rgba(255, 59, 48, 1)',
+      [0x0008 /* SUCCESS */]: 'rgba(52, 199, 89, 1)',
+      [0x0009 /* WARNING */]: 'rgba(255, 149, 0, 1)',
+      [0x000A /* INFO */]: 'rgba(0, 122, 255, 0.5)',
+      [0x000B /* BORDER */]: 'rgba(195, 195, 195, 1)',
+      [0x000C /* SEPARATOR */]: 'rgba(195, 195, 195, 1)',
+    };
+    return colorMap[tokenId] || 'rgba(0, 0, 0, 1)';
+  }
+
   private executeRegisterEventHandler(command: Extract<Command, { opcode: 'REGISTER_EVENT_HANDLER' }>): void {
     const renderElement = this.idToElement.get(command.nodeId);
     
@@ -243,7 +332,6 @@ export class CommandExecutor {
         // Prevent default behavior for some events
         if (command.eventType === EventType.CLICK || command.eventType === EventType.TAP) {
           event.preventDefault();
-          event.stopPropagation();
         }
         
         // Call the callback to send event back to the application
@@ -356,11 +444,30 @@ export class CommandExecutor {
   }
 
   /**
+   * Resolves a property value, replacing design token references with their actual values.
+   */
+  private resolvePropertyValue(value: PropertyValue): PropertyValue {
+    // If it's a design token reference, look it up
+    if (value.type === 'designToken') {
+      const resolved = this.designTokens.get(value.path);
+      if (resolved) {
+        return resolved;
+      }
+      // If design token not found, return a default
+      console.warn(`Design token not found: ${value.path}`);
+      return { type: 'color', kind: 'literal', rgba: 0xFF000000 }; // Default to black
+    }
+    return value;
+  }
+
+  /**
    * Applies a property to an element based on the property ID.
    * This is where the protocol's property IDs map to actual renderer behavior.
    */
   private applyProperty(element: HTMLElement, propertyId: number, value: PropertyValue): void {
-    const jsValue = propertyValueToJS(value);
+    // Resolve design token references
+    const resolvedValue = this.resolvePropertyValue(value);
+    const jsValue = propertyValueToJS(resolvedValue);
     
     // HSTACK/VSTACK properties (0x0001-0x0005)
     switch (propertyId) {
@@ -400,7 +507,7 @@ export class CommandExecutor {
     // Style properties (0x1000-0x10FF)
     switch (propertyId) {
       case StyleProperty.BACKGROUND_COLOR:
-        this.applyBackgroundColor(element, value);
+        this.applyBackgroundColor(element, resolvedValue);
         break;
       case StyleProperty.BACKGROUND_OPACITY:
         element.style.backgroundColor = `rgba(var(--bg-rgb), ${jsValue})`;
@@ -409,7 +516,7 @@ export class CommandExecutor {
         element.style.borderWidth = `${jsValue}px`;
         break;
       case StyleProperty.BORDER_COLOR:
-        this.applyBorderColor(element, value);
+        this.applyBorderColor(element, resolvedValue);
         break;
       case StyleProperty.BORDER_RADIUS:
         element.style.borderRadius = `${jsValue}px`;
@@ -427,7 +534,7 @@ export class CommandExecutor {
         element.style.fontFamily = jsValue;
         break;
       case StyleProperty.COLOR:
-        this.applyTextColor(element, value);
+        this.applyTextColor(element, resolvedValue);
         break;
       case StyleProperty.WIDTH:
         this.applyWidth(element, jsValue);

@@ -1,7 +1,8 @@
 import { CommandExecutor } from './executor';
 import { decodeMessage } from './decoder';
 import { encodeMessage, createCreateNodeCommand, createSetPropertyCommand, createRegisterEventHandlerCommand, Command } from '../application/encoder';
-import { ComponentType, ROOT_CONTAINER_ID, EventType } from '../protocol/constants';
+import { ComponentType, ROOT_CONTAINER_ID, EventType, EnvironmentField, ColorScheme, Platform, DeviceType, PointerType, Orientation, TextDirection } from '../protocol/constants';
+import { BinaryWriter } from '../protocol/binary';
 
 export type { EventType };
 
@@ -26,6 +27,9 @@ export class HTMLRenderer {
   setWorker(worker: Worker): void {
     this.worker = worker;
     
+    // Initialize environment support
+    this.initializeEnvironment();
+    
     // Handle messages from worker
     worker.onmessage = (event: MessageEvent) => {
       const data = event.data;
@@ -43,6 +47,10 @@ export class HTMLRenderer {
       else if (data && typeof data === 'object' && data.type) {
         if (data.type === 'pong') {
           console.log('[Worker] Pong received');
+        }
+        // Handle environment requests from application
+        else if (data.type === 'request_environment') {
+          this.handleEnvironmentRequest(data);
         }
       }
     };
@@ -188,6 +196,226 @@ export class HTMLRenderer {
    */
   getComponentId(element: HTMLElement): number | undefined {
     return this.executor.getComponentId(element);
+  }
+
+  // ============================================
+  // ENVIRONMENT CONTEXT PROTOCOL
+  // ============================================
+
+  /**
+   * Sends the current environment state to the application (worker).
+   * Called at initialization and when environment changes.
+   */
+  sendEnvironmentToApplication(useUpdate: boolean = false): void {
+    if (!this.worker) {
+      console.warn('[Pathland] No worker to send environment to');
+      return;
+    }
+
+    const writer = new BinaryWriter();
+    const opcode = useUpdate ? 0x21 : 0x20; // UPDATE_ENVIRONMENT or SET_ENVIRONMENT
+    const fields = this.collectEnvironmentFields();
+
+    writer.writeU8(opcode);
+    writer.writeU8(fields.size);
+
+    for (const [fieldId, value] of fields) {
+      writer.writeU8(fieldId);
+      
+      // Calculate the actual size by encoding to a temporary writer
+      const sizeWriter = new BinaryWriter();
+      this.encodeFieldValue(sizeWriter, fieldId, value);
+      const fieldSize = sizeWriter.length;
+      
+      writer.writeU8(fieldSize);
+      
+      // Now write the actual value
+      this.encodeFieldValue(writer, fieldId, value);
+    }
+
+    const message = writer.toArray();
+    this.worker.postMessage({ type: 'environment', binary: message.buffer }, [message.buffer]);
+  }
+
+  /**
+   * Collects the current environment fields.
+   */
+  private collectEnvironmentFields(): Map<number, any> {
+    const fields = new Map<number, any>();
+
+    // Viewport dimensions
+    fields.set(EnvironmentField.VIEWPORT_WIDTH_PX, window.innerWidth);
+    fields.set(EnvironmentField.VIEWPORT_HEIGHT_PX, window.innerHeight);
+    
+    // Calculate DP (logical) dimensions
+    const dpr = window.devicePixelRatio || 1;
+    fields.set(EnvironmentField.VIEWPORT_WIDTH_DP, Math.round(window.innerWidth * dpr));
+    fields.set(EnvironmentField.VIEWPORT_HEIGHT_DP, Math.round(window.innerHeight * dpr));
+    
+    // Device pixel ratio
+    fields.set(EnvironmentField.DEVICE_PIXEL_RATIO, dpr);
+
+    // Safe area insets (for mobile - default to 0 for desktop)
+    // In a real implementation, these would come from the platform
+    fields.set(EnvironmentField.SAFE_AREA_TOP, 0);
+    fields.set(EnvironmentField.SAFE_AREA_RIGHT, 0);
+    fields.set(EnvironmentField.SAFE_AREA_BOTTOM, 0);
+    fields.set(EnvironmentField.SAFE_AREA_LEFT, 0);
+
+    // Color scheme
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+    let colorScheme = ColorScheme.SYSTEM;
+    if (prefersDark) {
+      colorScheme = ColorScheme.DARK;
+    } else if (prefersLight) {
+      colorScheme = ColorScheme.LIGHT;
+    }
+    fields.set(EnvironmentField.COLOR_SCHEME, colorScheme);
+
+    // Text direction
+    fields.set(EnvironmentField.TEXT_DIRECTION, TextDirection.LTR); // Default
+
+    // Reduced motion
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    fields.set(EnvironmentField.REDUCED_MOTION, reducedMotion ? 1 : 0);
+
+    // Font scale
+    fields.set(EnvironmentField.FONT_SCALE, 1.0); // Default
+
+    // Platform (web in browser)
+    fields.set(EnvironmentField.PLATFORM, Platform.WEB);
+
+    // Device type (detect based on screen size)
+    const isMobile = window.innerWidth <= 768 || window.innerHeight <= 768;
+    fields.set(EnvironmentField.DEVICE_TYPE, isMobile ? DeviceType.PHONE : DeviceType.DESKTOP);
+
+    // Pointer type (detect touch support)
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    fields.set(EnvironmentField.POINTER_TYPE, hasTouch ? PointerType.TOUCH : PointerType.MOUSE);
+
+    // Keyboard availability
+    fields.set(EnvironmentField.KEYBOARD_AVAILABLE, 1); // Assume available in desktop
+
+    // Orientation
+    const isPortrait = window.innerHeight > window.innerWidth;
+    const isLandscape = window.innerWidth > window.innerHeight;
+    let orientation = Orientation.SQUARE;
+    if (isPortrait) {
+      orientation = Orientation.PORTRAIT;
+    } else if (isLandscape) {
+      orientation = Orientation.LANDSCAPE;
+    }
+    fields.set(EnvironmentField.ORIENTATION, orientation);
+
+    // Locale
+    fields.set(EnvironmentField.LOCALE, navigator.language || 'en-US');
+
+    // Timezone
+    fields.set(EnvironmentField.TIMEZONE, Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC');
+
+    return fields;
+  }
+
+  /**
+   * Encodes a field value to the writer based on its ID.
+   */
+  private encodeFieldValue(writer: BinaryWriter, fieldId: number, value: any): void {
+    switch (fieldId) {
+      case EnvironmentField.VIEWPORT_WIDTH_PX:
+      case EnvironmentField.VIEWPORT_HEIGHT_PX:
+      case EnvironmentField.VIEWPORT_WIDTH_DP:
+      case EnvironmentField.VIEWPORT_HEIGHT_DP:
+      case EnvironmentField.SAFE_AREA_TOP:
+      case EnvironmentField.SAFE_AREA_RIGHT:
+      case EnvironmentField.SAFE_AREA_BOTTOM:
+      case EnvironmentField.SAFE_AREA_LEFT:
+        writer.writeU32(value);
+        break;
+      
+      case EnvironmentField.DEVICE_PIXEL_RATIO:
+      case EnvironmentField.FONT_SCALE:
+        writer.writeF32(value);
+        break;
+      
+      case EnvironmentField.COLOR_SCHEME:
+      case EnvironmentField.TEXT_DIRECTION:
+      case EnvironmentField.PLATFORM:
+      case EnvironmentField.DEVICE_TYPE:
+      case EnvironmentField.POINTER_TYPE:
+      case EnvironmentField.ORIENTATION:
+      case EnvironmentField.REDUCED_MOTION:
+      case EnvironmentField.KEYBOARD_AVAILABLE:
+        writer.writeU8(value);
+        break;
+      
+      case EnvironmentField.LOCALE:
+      case EnvironmentField.TIMEZONE:
+        writer.writeString(value);
+        break;
+      
+      default:
+        // For unknown fields, write as u32 if it's a number
+        if (typeof value === 'number') {
+          if (Number.isInteger(value)) {
+            writer.writeU32(value);
+          } else {
+            writer.writeF32(value);
+          }
+        } else {
+          writer.writeString(String(value));
+        }
+    }
+  }
+
+  /**
+   * Handles an environment request from the application.
+   */
+  private handleEnvironmentRequest(data: any): void {
+    if (data.requestId !== undefined) {
+      // This is a REQUEST_ENVIRONMENT message
+      // For now, send full environment as SET_ENVIRONMENT
+      // In a full implementation, we would only send requested fields
+      this.sendEnvironmentToApplication(false); // Send full environment as SET_ENVIRONMENT
+    }
+  }
+
+  /**
+   * Sets up event listeners for environment changes.
+   */
+  private setupEnvironmentListeners(): void {
+    // Listen for resize events
+    window.addEventListener('resize', () => {
+      this.sendEnvironmentToApplication(true); // Send UPDATE_ENVIRONMENT on resize
+    });
+
+    // Listen for color scheme changes
+    const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    colorSchemeQuery.addEventListener('change', () => {
+      this.sendEnvironmentToApplication(true); // Send UPDATE_ENVIRONMENT on color scheme change
+    });
+
+    // Listen for reduced motion changes
+    const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    reducedMotionQuery.addEventListener('change', () => {
+      this.sendEnvironmentToApplication(true); // Send UPDATE_ENVIRONMENT on reduced motion change
+    });
+
+    // Listen for orientation changes
+    window.addEventListener('orientationchange', () => {
+      this.sendEnvironmentToApplication(true); // Send UPDATE_ENVIRONMENT on orientation change
+    });
+  }
+
+  /**
+   * Initializes the renderer with environment support.
+   */
+  initializeEnvironment(): void {
+    // Send initial environment state to application
+    this.sendEnvironmentToApplication(false); // Send SET_ENVIRONMENT at initialization
+    
+    // Set up listeners for environment changes
+    this.setupEnvironmentListeners();
   }
 }
 
