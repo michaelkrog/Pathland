@@ -44,7 +44,7 @@ The following principles are **fundamental** to Pathland's design:
 
 1. **Stateless Renderers**: Renderers MUST NOT maintain any internal state. A renderer is a pure function that takes command batches as input and produces render output. The renderer does not store, cache, or remember any application state between renders.
 
-2. **State Ownership**: All application state (signals, computed values, etc.) is managed **externally** by the application or framework, not by the renderer.
+2. **State Ownership**: All application state is managed **externally** by the application or framework, not by the renderer.
 
 3. **Component IDs for Event Routing**: The ONLY information a renderer retains between renders is the mapping of component IDs to their position in the rendered output, solely for the purpose of routing events back to the correct component in the application.
 
@@ -92,15 +92,15 @@ A conforming implementation MAY:
 │           │                 └────────────────────────▶                 │
 │           ▼                                                                 │
 │  ┌─────────────────┐                                                   │
-│  │   SIGNALS        │                                                   │
-│  │   (State)        │                                                   │
+│  │   STATE          │                                                   │
+│  │   (Application)  │                                                   │
 │  └─────────────────┘                                                   │
 │                                                                          │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 **KEY POINTS:**
-- State lives ONLY in the Application (Signals)
+- State lives ONLY in the Application
 - Application generates COMMANDS as binary messages, not trees
 - Renderer executes commands as a PURE FUNCTION
 - Only actual changes are transmitted (efficient)
@@ -124,7 +124,7 @@ Pathland uses **stateless command execution**:
 
 **Command Generation Flow (Application):**
 ```
-State Change (Signals) 
+State Change 
     ↓
 Application Determines What Changed 
     ↓
@@ -156,7 +156,7 @@ Renderer Maps Event to Component ID (using current ID→Element map)
     ↓
 Application Receives Event with Component ID (as binary message)
     ↓
-Application Updates State (Signals)
+Application Updates State
     ↓
 (Back to Command Generation Flow)
 ```
@@ -188,7 +188,7 @@ The renderer:
 - ❌ Does NOT store application state
 - ❌ Does NOT maintain a component tree
 - ❌ Does NOT maintain a virtual DOM or similar internal representation
-- ❌ Does NOT cache or remember signal values between command batches
+- ❌ Does NOT cache or remember any values between command batches
 - ❌ Does NOT validate command sequences
 
 The ONLY exception is that a renderer MAY maintain a temporary mapping of component IDs to rendered elements **solely for the purpose of event routing**. This mapping must be:
@@ -200,7 +200,7 @@ The ONLY exception is that a renderer MAY maintain a temporary mapping of compon
 
 The command execution process follows this stateless model:
 
-1. **Application State Change**: Application updates signal values
+1. **Application State Change**: Application updates state
 2. **Command Generation**: Application generates minimal command list based on changes
 3. **Command Encoding**: Application encodes commands as binary messages using BINARY_PROTOCOL.md
 4. **Command Transmission**: Application sends binary command batch to renderer
