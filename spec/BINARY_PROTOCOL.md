@@ -1386,6 +1386,264 @@ A compliant application **MUST NOT**:
 
 ---
 
+## Environment Context Protocol
+
+### Overview
+
+The Environment Context Protocol enables the renderer to communicate runtime environment information to the application. This is a **bidirectional extension** to the core command protocol that allows applications to make informed UI decisions based on display characteristics, platform capabilities, and user preferences.
+
+**Core Principle:** Environment context enables applications to make informed UI decisions based on the runtime environment, while keeping the command protocol focused solely on UI mutations.
+
+### Message Direction
+
+| Direction | Opcodes | Purpose |
+|-----------|---------|---------|
+| Application → Renderer | 0x01-0x1F | UI tree mutations (existing command protocol) |
+| Renderer → Application | 0x20-0x22 | Environment context |
+| Application → Renderer | 0x22 | Environment requests |
+
+### Environment Opcodes
+
+| Opcode | Value | Name | Direction | Description |
+|--------|-------|------|-----------|-------------|
+| `SET_ENVIRONMENT` | 0x20 | Full environment | Renderer → Application | Complete environment state |
+| `UPDATE_ENVIRONMENT` | 0x21 | Partial environment | Renderer → Application | Only changed fields |
+| `REQUEST_ENVIRONMENT` | 0x22 | Request environment | Application → Renderer | Application requests current environment |
+
+### Field ID Definitions
+
+Each environment field is identified by a unique ID and has a specific data type and size.
+
+| Field ID | Hex | Name | Type | Size (bytes) | Description |
+|----------|-----|------|------|--------------|-------------|
+| 1 | 0x01 | `VIEWPORT_WIDTH_PX` | u32 | 4 | Width of the viewport in device pixels |
+| 2 | 0x02 | `VIEWPORT_HEIGHT_PX` | u32 | 4 | Height of the viewport in device pixels |
+| 3 | 0x03 | `VIEWPORT_WIDTH_DP` | u32 | 4 | Logical width of the viewport (px / DPR) |
+| 4 | 0x04 | `VIEWPORT_HEIGHT_DP` | u32 | 4 | Logical height of the viewport (px / DPR) |
+| 5 | 0x05 | `DEVICE_PIXEL_RATIO` | f32 | 4 | Device pixel ratio (e.g., 1.0, 2.0, 3.0) |
+| 6 | 0x06 | `SAFE_AREA_TOP` | u32 | 4 | Top safe area inset in pixels |
+| 7 | 0x07 | `SAFE_AREA_RIGHT` | u32 | 4 | Right safe area inset in pixels |
+| 8 | 0x08 | `SAFE_AREA_BOTTOM` | u32 | 4 | Bottom safe area inset in pixels |
+| 9 | 0x09 | `SAFE_AREA_LEFT` | u32 | 4 | Left safe area inset in pixels |
+| 10 | 0x0A | `COLOR_SCHEME` | enum | 1 | Color scheme: 0=light, 1=dark, 2=system |
+| 11 | 0x0B | `TEXT_DIRECTION` | enum | 1 | Text direction: 0=ltr, 1=rtl, 2=auto |
+| 12 | 0x0C | `REDUCED_MOTION` | bool | 1 | Reduced motion preference: 0=false, 1=true |
+| 13 | 0x0D | `FONT_SCALE` | f32 | 4 | Font scale factor (1.0 = normal) |
+| 14 | 0x0E | `PLATFORM` | enum | 1 | Platform: 0=ios, 1=android, 2=web, 3=windows, 4=macos, 5=linux, 255=unknown |
+| 15 | 0x0F | `DEVICE_TYPE` | enum | 1 | Device type: 0=phone, 1=tablet, 2=desktop, 3=embedded, 255=unknown |
+| 16 | 0x10 | `POINTER_TYPE` | enum | 1 | Pointer: 0=touch, 1=mouse, 2=pen, 255=unknown |
+| 17 | 0x11 | `KEYBOARD_AVAILABLE` | bool | 1 | Keyboard availability: 0=false, 1=true |
+| 18 | 0x12 | `ORIENTATION` | enum | 1 | Orientation: 0=portrait, 1=landscape, 2=square |
+| 19 | 0x13 | `LOCALE` | string | variable | BCP 47 language tag (e.g., "en-US") |
+| 20 | 0x14 | `TIMEZONE` | string | variable | IANA timezone (e.g., "America/New_York") |
+
+**Reserved for future use:** Field IDs 0x15-0x7F
+
+### Message Formats
+
+#### SET_ENVIRONMENT (0x20)
+
+Sent by the renderer to provide the complete environment state to the application, typically at initialization.
+
+```
+SET_ENVIRONMENT Payload:
+┌─────────────────────────────────────────────────────────┐
+│ u8: opcode = 0x20 (SET_ENVIRONMENT)                        │
+│ u8: fieldCount (N)                                           │
+│                                                             │
+│ For each of N fields:                                       │
+│   ├─ u8: fieldId                                             │
+│   ├─ u8: fieldSize                                           │
+│   └─ [fieldSize bytes]: fieldValue                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Example (viewport size + DPR):**
+```
+Opcode: 0x20 (SET_ENVIRONMENT)
+fieldCount: 3
+
+Field 1:
+  fieldId: 0x01 (VIEWPORT_WIDTH_PX)
+  fieldSize: 4
+  fieldValue: 0x00000186 (390 in little-endian)
+
+Field 2:
+  fieldId: 0x02 (VIEWPORT_HEIGHT_PX)  
+  fieldSize: 4
+  fieldValue: 0x0000034C (844 in little-endian)
+
+Field 3:
+  fieldId: 0x05 (DEVICE_PIXEL_RATIO)
+  fieldSize: 4
+  fieldValue: 0x40000000 (3.0 as f32 in little-endian)
+```
+
+#### UPDATE_ENVIRONMENT (0x21)
+
+Sent by the renderer when specific environment fields change (e.g., resize, orientation change, theme change). Only includes fields that have changed since the last environment update.
+
+```
+UPDATE_ENVIRONMENT Payload:
+┌─────────────────────────────────────────────────────────┐
+│ u8: opcode = 0x21 (UPDATE_ENVIRONMENT)                      │
+│ u8: fieldCount (N)                                           │
+│                                                             │
+│ For each of N changed fields:                               │
+│   ├─ u8: fieldId                                             │
+│   ├─ u8: fieldSize                                           │
+│   └─ [fieldSize bytes]: fieldValue                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Example (resize event):**
+```
+Opcode: 0x21 (UPDATE_ENVIRONMENT)
+fieldCount: 3
+
+Field 1:
+  fieldId: 0x01 (VIEWPORT_WIDTH_PX)
+  fieldSize: 4
+  fieldValue: 0x0000034C (844)
+
+Field 2:
+  fieldId: 0x02 (VIEWPORT_HEIGHT_PX)
+  fieldSize: 4
+  fieldValue: 0x00000186 (390)
+
+Field 3:
+  fieldId: 0x12 (ORIENTATION)
+  fieldSize: 1
+  fieldValue: 0x01 (landscape)
+```
+
+#### REQUEST_ENVIRONMENT (0x22)
+
+Sent by the application to explicitly request current environment information from the renderer.
+
+```
+REQUEST_ENVIRONMENT Payload:
+┌─────────────────────────────────────────────────────────┐
+│ u8: opcode = 0x22 (REQUEST_ENVIRONMENT)                     │
+│ u8: requestId                                               │
+│ u8: fieldCount (N) or 0xFF for "all fields"                 │
+│ If fieldCount ≠ 0xFF:                                       │
+│   └─ [N bytes]: fieldIds to request (one byte each)         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Example (request viewport dimensions):**
+```
+Opcode: 0x22 (REQUEST_ENVIRONMENT)
+requestId: 0x01
+fieldCount: 2
+fieldIds: [0x01, 0x02]  // VIEWPORT_WIDTH_PX and VIEWPORT_HEIGHT_PX
+```
+
+**Renderer Response:** The renderer responds with either `SET_ENVIRONMENT` or `UPDATE_ENVIRONMENT` (depending on whether it has sent environment before) containing the requested fields.
+
+### Renderer Requirements
+
+A compliant Pathland renderer **MUST**:
+
+1. ✅ Send a `SET_ENVIRONMENT` message to the application upon initialization with the complete initial environment state
+2. ✅ Send `UPDATE_ENVIRONMENT` messages whenever environment fields change (resize, orientation change, theme change, etc.)
+3. ✅ Respond to `REQUEST_ENVIRONMENT` commands with the current environment state
+4. ✅ Support all required environment fields (marked as MUST in the field table)
+5. ✅ Use little-endian byte order for all numeric values
+6. ✅ Use UTF-8 encoding for all string values
+
+A compliant Pathland renderer **SHOULD**:
+
+1. 🔹 Debounce rapid environment changes (e.g., resize events) to avoid message flooding
+2. 🔹 Only send fields that have actually changed in `UPDATE_ENVIRONMENT` messages
+3. 🔹 Support all recommended environment fields (marked as SHOULD in the field table)
+4. 🔹 Provide platform-appropriate default values for all fields
+
+### Application Requirements
+
+A compliant Pathland application **MAY**:
+
+1. ✅ Store and use environment information for UI layout and styling decisions
+2. ✅ Request specific environment fields using `REQUEST_ENVIRONMENT`
+3. ✅ Ignore environment information if not needed
+4. ✅ Handle environment updates asynchronously
+
+A compliant Pathland application **MUST NOT**:
+
+1. ❌ Assume specific environment values without requesting them first
+2. ❌ Depend on environment information for core functionality (graceful degradation required)
+
+### Usage Examples
+
+#### Example 1: Initialization
+```
+Renderer → Application:
+  Opcode: SET_ENVIRONMENT (0x20)
+  Fields: 
+    - VIEWPORT_WIDTH_PX: 390
+    - VIEWPORT_HEIGHT_PX: 844  
+    - DEVICE_PIXEL_RATIO: 3.0
+    - COLOR_SCHEME: 0 (light)
+    - TEXT_DIRECTION: 0 (ltr)
+    - PLATFORM: 2 (web)
+    - DEVICE_TYPE: 0 (phone)
+    - ORIENTATION: 0 (portrait)
+```
+
+#### Example 2: Screen Resize
+```
+Renderer → Application:
+  Opcode: UPDATE_ENVIRONMENT (0x21)
+  Fields:
+    - VIEWPORT_WIDTH_PX: 844
+    - VIEWPORT_HEIGHT_PX: 390
+    - ORIENTATION: 1 (landscape)
+```
+
+#### Example 3: Theme Change
+```
+Renderer → Application:
+  Opcode: UPDATE_ENVIRONMENT (0x21)
+  Fields:
+    - COLOR_SCHEME: 1 (dark)
+```
+
+#### Example 4: Explicit Request
+```
+Application → Renderer:
+  Opcode: REQUEST_ENVIRONMENT (0x22)
+  requestId: 1
+  fieldCount: 2
+  fieldIds: [0x01, 0x02]  // Width and height
+
+Renderer → Application:
+  Opcode: UPDATE_ENVIRONMENT (0x21)
+  Fields:
+    - VIEWPORT_WIDTH_PX: 390
+    - VIEWPORT_HEIGHT_PX: 844
+```
+
+### Transport Considerations
+
+Environment messages share the same transport mechanism as command messages (ArrayBuffer with transferable objects). The message type is determined by the opcode:
+
+- Opcodes 0x01-0x1F: Command protocol messages
+- Opcodes 0x20-0x2F: Environment protocol messages
+- Opcodes 0x30+: Reserved for future use
+
+### Backward Compatibility
+
+Implementations that do not support the Environment Context Protocol:
+- Will ignore opcodes 0x20-0x22 (unknown opcode handling)
+- Must still function correctly, using sensible defaults for any environment-dependent behavior
+
+Applications that require environment information:
+- Should gracefully degrade if environment information is not available
+- Should provide fallback behavior (e.g., assume portrait orientation, light theme)
+
+---
+
 ## Component Type Definitions
 
 ### Component Type Table
