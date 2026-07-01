@@ -1069,130 +1069,176 @@ Renderers MUST adhere to the following color handling requirements:
 
 ## Design Token System
 
-### Overview
+### Core Principle
 
-The Pathland protocol implements a **design token system** as the foundation of all theming and visual styling. This system ensures a clean separation between:
+> **The renderer owns the defaults. The application owns the overrides.**
 
-- **Application**: Defines structure, semantic state, and token overrides
-- **Renderer**: Defines visual appearance, interaction behaviors, and theme resolution
-
-**Core Principle:** The protocol defines structure and semantic state only. Visual appearance is fully derived from design tokens in the renderer.
+This single principle ensures:
+- **Native look-and-feel by default**: No token overrides = platform-appropriate styling
+- **Cross-platform consistency when desired**: Token overrides = consistent appearance across platforms
 
 ### Responsibilities
 
-#### Application (Worker)
+| Aspect | Owner | Responsibility |
+|--------|-------|----------------|
+| **Default Token Values** | Renderer | Define platform-appropriate defaults for all standard tokens |
+| **Token Definitions** | Renderer | Maintain the complete token catalog with sensible defaults |
+| **Token Overrides** | Application | Specify overrides for cross-platform consistency |
+| **Token Resolution** | Renderer | Resolve final token values (override or default) |
+| **Platform Adaptation** | Renderer | Adapt default token values to platform conventions (Material, Cupertino, etc.) |
+
+**Application** (Worker):
 - Defines UI structure (tree mutations)
 - Defines semantic state (role, enabled, selected, etc.)
-- Optionally overrides design token values globally
+- Optionally overrides design token values globally using `SET_DESIGN_TOKEN`
 - Emits mutation stream to renderer
 
-#### Protocol
+**Protocol**:
 - Carries structure + semantic state + token overrides only
 - Does NOT carry visual rules or interaction styling
-- Supports DESIGN_TOKEN value type for referencing tokens
-- Supports SET_DESIGN_TOKEN opcode for token overrides
+- Supports `DESIGN_TOKEN` value type (0x08) for referencing tokens
+- Supports `SET_DESIGN_TOKEN` opcode (0x06) for token overrides
 
-#### Renderer
+**Renderer**:
 - Owns design token definitions and default values
 - Resolves tokens into concrete visual properties
 - Defines interaction state behaviors (hover, active, focus, etc.)
 - Applies theme logic based on component semantics
 - Renders components with appropriate styling
 
+### Two Key Behaviors
+
+| Scenario | Application | Renderer | Result |
+|----------|-------------|----------|--------|
+| **No token overrides** | Sends only structure + semantics | Uses platform-native defaults | Native look and feel |
+| **Token overrides specified** | Sends `SET_DESIGN_TOKEN` for overrides | Uses overrides, defaults for rest | Consistent brand + native fallbacks |
+
 ### Token Categories
 
-Design tokens are organized into categories representing different visual primitives:
+Design tokens are organized into categories representing different visual primitives. Tokens are identified by **dot-separated string paths**.
 
 #### 1. Color Tokens
 Tokens for color values used throughout the UI.
 
-| Token Path | Description |
-|------------|-------------|
-| `color.primary` | Primary brand/accent color |
-| `color.secondary` | Secondary color |
-| `color.background` | Primary background color |
-| `color.surface` | Surface/secondary background color |
-| `color.text.primary` | Primary text color |
-| `color.text.secondary` | Secondary text color |
-| `color.text.tertiary` | Tertiary text color |
-| `color.accent` | Accent color for interactive elements |
-| `color.danger` | Danger/error state color |
-| `color.success` | Success state color |
-| `color.warning` | Warning state color |
-| `color.info` | Informational state color |
-| `color.border` | Border color |
-| `color.separator` | Separator/divider color |
+| Token Path | Type | Description |
+|------------|------|-------------|
+| `color.primary` | Color | Primary brand/accent color |
+| `color.secondary` | Color | Secondary color |
+| `color.background` | Color | Primary background color |
+| `color.surface` | Color | Surface/secondary background color |
+| `color.text.primary` | Color | Primary text color |
+| `color.text.secondary` | Color | Secondary text color |
+| `color.text.tertiary` | Color | Tertiary text color |
+| `color.accent` | Color | Accent color for interactive elements |
+| `color.danger` | Color | Danger/error state color |
+| `color.success` | Color | Success state color |
+| `color.warning` | Color | Warning state color |
+| `color.info` | Color | Informational state color |
+| `color.border` | Color | Border color |
+| `color.separator` | Color | Separator/divider color |
 
 #### 2. Typography Tokens
 Tokens for font styling.
 
-| Token Path | Description |
-|------------|-------------|
-| `font.body` | Body text font |
-| `font.heading.1` - `font.heading.6` | Heading fonts |
-| `font.mono` | Monospace font |
-| `font.size.body` | Body text size |
-| `font.size.heading.1` - `font.size.heading.6` | Heading sizes |
-| `font.weight.body` | Body text weight |
-| `font.weight.heading` | Heading weight |
-| `font.lineHeight.body` | Body text line height |
+| Token Path | Type | Description |
+|------------|------|-------------|
+| `font.body` | String | Body text font family |
+| `font.heading.1` - `font.heading.6` | String | Heading font families |
+| `font.mono` | String | Monospace font |
+| `font.size.body` | Number | Body text size |
+| `font.size.heading.1` - `font.size.heading.6` | Number | Heading sizes |
+| `font.weight.body` | Number/Enum | Body text weight |
+| `font.weight.heading` | Number/Enum | Heading weight |
+| `font.lineHeight.body` | Number | Body text line height |
 
 #### 3. Spacing Tokens
 Tokens for spacing values.
 
-| Token Path | Description |
-|------------|-------------|
-| `space.0` | Zero spacing (0px) |
-| `space.1` - `space.12` | Incremental spacing values |
-| `space.xs` | Extra small spacing |
-| `space.sm` | Small spacing |
-| `space.md` | Medium spacing |
-| `space.lg` | Large spacing |
-| `space.xl` | Extra large spacing |
+| Token Path | Type | Description |
+|------------|------|-------------|
+| `space.0` | Number | Zero spacing (0px) |
+| `space.1` - `space.12` | Number | Incremental spacing values |
+| `space.xs` | Number | Extra small spacing |
+| `space.sm` | Number | Small spacing |
+| `space.md` | Number | Medium spacing |
+| `space.lg` | Number | Large spacing |
+| `space.xl` | Number | Extra large spacing |
 
 #### 4. Shape Tokens
 Tokens for border radius and shape values.
 
-| Token Path | Description |
-|------------|-------------|
-| `radius.none` | No radius (0px) |
-| `radius.sm` | Small radius |
-| `radius.md` | Medium radius |
-| `radius.lg` | Large radius |
-| `radius.full` | Full radius (pill shape) |
+| Token Path | Type | Description |
+|------------|------|-------------|
+| `radius.none` | Number | No radius (0px) |
+| `radius.sm` | Number | Small radius |
+| `radius.md` | Number | Medium radius |
+| `radius.lg` | Number | Large radius |
+| `radius.full` | Number | Full radius (pill shape) |
 
 #### 5. Elevation Tokens
 Tokens for shadow/elevation values.
 
-| Token Path | Description |
-|------------|-------------|
-| `elevation.none` | No elevation |
-| `elevation.low` | Low elevation |
-| `elevation.medium` | Medium elevation |
-| `elevation.high` | High elevation |
+| Token Path | Type | Description |
+|------------|------|-------------|
+| `elevation.none` | Number | No elevation |
+| `elevation.low` | Number | Low elevation |
+| `elevation.medium` | Number | Medium elevation |
+| `elevation.high` | Number | High elevation |
 
-### Token Resolution
+### Token Value Types
 
-#### Renderer-Owned Default Theme
-Each renderer MUST provide a default theme implementation that includes:
-- Default token values for all standard tokens
-- Mapping of tokens to platform-specific rendering primitives
-- Default interaction state behaviors
+Tokens can resolve to any protocol value type:
 
-Example default mappings:
-- `color.primary` → Platform accent color
-- `color.background` → Platform background color
-- `font.body` → Platform default font
-- `space.1` → Platform-standard spacing unit
+| Type | Example | Usage |
+|------|---------|-------|
+| **Color** | `{ kind: 'literal', rgba: 0xFF007AFF }` | Colors |
+| **Number** | `{ type: 'u8', value: 16 }` | Sizes, spacing, weights |
+| **String** | `{ type: 'string', value: 'Inter' }` | Font families, custom values |
+| **Enum** | `{ type: 'enum', value: 0x06 }` | Font weights (BOLD=0x06) |
+
+### Token Resolution Algorithm
+
+```
+FUNCTION resolveToken(tokenPath: string) -> PropertyValue:
+    IF applicationOverrides.has(tokenPath):
+        RETURN applicationOverrides[tokenPath]
+    ELSE IF rendererDefaults.has(tokenPath):
+        RETURN rendererDefaults[tokenPath]
+    ELSE IF hasParentToken(tokenPath):
+        RETURN resolveToken(getParentPath(tokenPath))
+    ELSE:
+        RETURN getFallbackValue(tokenPath)
+```
+
+**Renderer MUST provide default values for all standard tokens** with platform-appropriate values:
+
+```typescript
+// iOS Renderer Defaults
+color.primary = { kind: 'literal', rgba: 0xFF007AFF }  // Cupertino blue
+font.body.family = '-apple-system, San Francisco'
+space.md = 16
+
+// Android Renderer Defaults  
+color.primary = { kind: 'literal', rgba: 0xFF6200EE }  // Material purple
+font.body.family = 'Roboto, sans-serif'
+space.md = 16
+
+// Web Renderer Defaults
+color.primary = { kind: 'literal', rgba: 0xFF007AFF }
+font.body.family = '-apple-system, BlinkMacSystemFont, sans-serif'
+space.md = 16
+```
 
 #### Application Token Overrides
-Applications can override token values globally using the SET_DESIGN_TOKEN opcode. These overrides apply to all components that reference the token.
+Applications can override token values globally using the `SET_DESIGN_TOKEN` opcode. These overrides apply to all components that reference the token.
 
 #### Token Inheritance and Derivation
 Renderers MAY derive additional token values from base tokens. For example:
 - `color.onPrimary` (text color on primary background) derived from `color.primary`
 - `color.primary.hover` (hover state color) derived from `color.primary`
 - `color.primary.active` (active state color) derived from `color.primary`
+
+Renderers MAY also implement parent path fallback: `color.button.primary` falls back to `color.primary` if not explicitly defined.
 
 ### Interaction States (Renderer Responsibility)
 
@@ -1267,6 +1313,76 @@ This token system allows:
 - New token categories to be added without breaking changes
 - Theme variations to be supported at renderer level
 - Platform-specific conventions to be respected
+
+### Standard Token Catalog
+
+#### Required Core Tokens
+All compliant renderers **MUST** support these tokens with platform-appropriate defaults:
+
+| Token Path | Type | Description |
+|------------|------|-------------|
+| `color.primary` | Color | Primary brand/interaction color |
+| `color.secondary` | Color | Secondary color |
+| `color.background` | Color | Primary background |
+| `color.surface` | Color | Secondary background (cards, etc.) |
+| `color.text.primary` | Color | Primary text |
+| `color.text.secondary` | Color | Secondary text |
+| `color.border` | Color | Border color |
+| `font.body.size` | Number | Body text size |
+| `font.body.weight` | Number/Enum | Body text weight |
+| `font.body.family` | String | Body text font family |
+| `space.xs` | Number | Extra small spacing |
+| `space.sm` | Number | Small spacing |
+| `space.md` | Number | Medium spacing |
+| `space.lg` | Number | Large spacing |
+
+#### Recommended Extended Tokens
+Renderers **SHOULD** support these for richer theming:
+
+| Token Path | Type | Description |
+|------------|------|-------------|
+| `color.success` | Color | Success/positive color |
+| `color.warning` | Color | Warning color |
+| `color.danger` | Color | Danger/error color |
+| `color.info` | Color | Informational color |
+| `font.heading.1` - `font.heading.6` | String | Heading font families |
+| `font.size.heading.1` - `font.size.heading.6` | Number | Heading sizes |
+| `radius.sm` | Number | Small border radius |
+| `radius.md` | Number | Medium border radius |
+| `elevation.low` | Number | Low elevation/shadow |
+| `elevation.high` | Number | High elevation/shadow |
+| `opacity.disabled` | Number | Disabled state opacity |
+
+#### Custom Tokens
+Applications **MAY** define custom tokens for brand-specific needs:
+
+```typescript
+// Custom brand tokens
+SET_DESIGN_TOKEN("brand.color.accent", { type: 'color', kind: 'literal', rgba: 0xFF00AA55 })
+SET_DESIGN_TOKEN("brand.font.display", { type: 'string', value: "Brand Display, serif" })
+SET_DESIGN_TOKEN("brand.spacing.unit", { type: 'u8', value: 8 })
+```
+
+### Compliance Requirements
+
+#### Renderer Compliance
+A compliant renderer **MUST**:
+1. ✅ Support all required core tokens with platform-appropriate defaults
+2. ✅ Accept `SET_DESIGN_TOKEN` commands and store overrides
+3. ✅ Resolve design token references in properties
+4. ✅ Fall back to defaults when no override exists
+5. ✅ Never transmit visual styling rules in the protocol
+
+#### Application Compliance
+A compliant application **MAY**:
+1. ✅ Override any design token using `SET_DESIGN_TOKEN`
+2. ✅ Reference tokens in property values using `DESIGN_TOKEN` type
+3. ✅ Define custom tokens
+4. ✅ Mix overridden and default tokens
+
+A compliant application **MUST NOT**:
+1. ❌ Assume specific default token values (they're renderer-defined)
+2. ❌ Transmit visual styling rules in the protocol
 
 ---
 
