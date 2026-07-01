@@ -13,12 +13,79 @@ export type { EventType };
  */
 export class HTMLRenderer {
   private executor: CommandExecutor;
-  
-
+  private worker: Worker | null = null;
 
   constructor(rootContainer: HTMLElement = document.body) {
     this.executor = new CommandExecutor(rootContainer);
     this.setupDefaultStyles();
+  }
+
+  /**
+   * Sets up a worker for application logic.
+   */
+  setWorker(worker: Worker): void {
+    this.worker = worker;
+    
+    // Handle messages from worker
+    worker.onmessage = (event: MessageEvent) => {
+      const data = event.data;
+      
+      // Handle command messages (with binary data and metadata)
+      if (data && typeof data === 'object' && data.type === 'commands') {
+        this.receiveMessage(data.binary.buffer);
+        // Here we could use data.commands for inspection if needed
+      }
+      // Handle binary messages directly (for backward compatibility)
+      else if (data instanceof Uint8Array) {
+        this.receiveMessage(data.buffer);
+      }
+      // Handle other message types (ping/pong, etc.)
+      else if (data && typeof data === 'object' && data.type) {
+        if (data.type === 'pong') {
+          console.log('[Worker] Pong received');
+        }
+      }
+    };
+    
+    // Set up event forwarding to worker
+    this.executor.setOnEventCallback((event) => {
+      if (this.worker) {
+        this.worker.postMessage({ 
+          type: 'event', 
+          targetId: event.targetId, 
+          eventType: event.eventType,
+          data: event.data 
+        });
+      }
+    });
+  }
+
+  /**
+   * Sends a message to the worker to trigger a demo.
+   */
+  triggerDemo(demoNumber: string): void {
+    if (this.worker) {
+      this.worker.postMessage({ type: 'demo', demo: demoNumber });
+    }
+  }
+
+  /**
+   * Sends a clear message to the worker.
+   */
+  triggerClear(): void {
+    if (this.worker) {
+      this.worker.postMessage({ type: 'clear' });
+    }
+    this.executor.reset();
+  }
+
+  /**
+   * Sends a stop message to the worker.
+   */
+  triggerStop(demoType: string): void {
+    if (this.worker) {
+      this.worker.postMessage({ type: 'stop', demo: demoType });
+    }
   }
 
   /**
@@ -129,17 +196,27 @@ export class HTMLRenderer {
 // ============================================
 
 // The renderer runs in the main thread, while the application runs in a worker
-// This is the Phase 1 setup where we test the protocol locally
+// This is the proper Pathland architecture
 
 // Create a global renderer instance
 let renderer: HTMLRenderer | null = null;
+let worker: Worker | null = null;
 
 /**
- * Initialize the renderer in the main thread.
+ * Initialize the renderer and worker in the main thread.
  */
 export function initRenderer(rootContainer?: HTMLElement): HTMLRenderer {
   if (!renderer) {
     renderer = new HTMLRenderer(rootContainer);
+    
+    // Create and configure worker
+    try {
+      worker = new Worker(new URL('../worker.ts', import.meta.url), { type: 'module' });
+      renderer.setWorker(worker);
+      console.log('[Pathland] Worker initialized');
+    } catch (error) {
+      console.error('[Pathland] Failed to create worker:', error);
+    }
   }
   return renderer;
 }
@@ -149,6 +226,13 @@ export function initRenderer(rootContainer?: HTMLElement): HTMLRenderer {
  */
 export function getRenderer(): HTMLRenderer | null {
   return renderer;
+}
+
+/**
+ * Get the global worker instance.
+ */
+export function getWorker(): Worker | null {
+  return worker;
 }
 
 /**

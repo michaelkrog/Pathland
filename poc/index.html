@@ -256,18 +256,20 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
     
     <!-- Import the renderer and worker modules -->
     <script type="module">
-        import { initRenderer, getRenderer, SimpleApplication } from './src/renderer/htmlRenderer.ts';
-        import { encodeMessage } from './src/application/encoder.ts';
+        import { initRenderer, getRenderer, getWorker } from './src/renderer/htmlRenderer.ts';
         import { EventType } from './src/protocol/constants.ts';
         
-        // Initialize renderer
+        // Initialize renderer (this will also create the worker)
         const renderContainer = document.getElementById('renderOutput');
         const renderer = initRenderer(renderContainer);
         
-        // Stats tracking
+        // Stats tracking - these will be updated from worker messages
         let totalCommands = 0;
         let totalBytes = 0;
         let totalNodes = 0;
+        
+        // Demo state tracking (for UI only)
+        let activeDemo = null;
         
         // Helper to update stats
         function updateStats(commands, bytes, nodes) {
@@ -316,338 +318,85 @@ No commands sent yet. Click a demo button to see the binary protocol in action.
         // Demo 1: Simple VStack with Text
         window.demo1 = function() {
             clearDemo();
-            const app = new SimpleApplication();
-            const commands = app.createSimpleUI();
-            
-            // For demo purposes, encode to show protocol
-            const encoded = encodeMessage(commands);
-            updateStats(commands.length, encoded.length, 3); // 1 VStack + 2 Text
-            dumpProtocol(encoded, commands);
-            
-            // Send to renderer with timing
-            const parseRenderStart = performance.now();
-            renderer.receiveMessage(encoded.buffer);
-            const parseRenderEnd = performance.now();
-            console.log(`[Pathland Demo 1] Parsed and rendered ${commands.length} commands in ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
+            activeDemo = '1';
+            renderer.triggerDemo('1');
+            console.log(`[Pathland Demo 1] Started`);
         };
         
         // Demo 2: HStack with Spacer
         window.demo2 = function() {
             clearDemo();
-            const app = new SimpleApplication();
-            const commands = app.createHStackWithSpacer();
-            
-            const encoded = encodeMessage(commands);
-            updateStats(commands.length, encoded.length, 4); // 1 HStack + 2 Text + 1 Spacer
-            dumpProtocol(encoded, commands);
-            
-            // Send to renderer with timing
-            const parseRenderStart = performance.now();
-            renderer.receiveMessage(encoded.buffer);
-            const parseRenderEnd = performance.now();
-            console.log(`[Pathland Demo 2] Parsed and rendered ${commands.length} commands in ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
+            activeDemo = '2';
+            renderer.triggerDemo('2');
+            console.log(`[Pathland Demo 2] Started`);
         };
         
         // Demo 3: Nested Stacks
         window.demo3 = function() {
             clearDemo();
-            const app = new SimpleApplication();
-            
-            // Create VStack
-            const vstackId = app.createNode(0x0002, { // VSTACK
-                [0x0001]: 16, // spacing
-                [0x0002]: 0x01, // alignment: CENTER
-                [0x0004]: 20 // padding
-            });
-            
-            // Create HStack child
-            const hstackId = app.createNode(0x0001, { // HSTACK
-                [0x0001]: 12, // spacing
-                [0x0003]: 0x03 // justification: SPACE_BETWEEN
-            });
-            
-            // Create Text nodes
-            const text1Id = app.createNode(0x0003, { // TEXT
-                [0x000A]: 'Left',
-                [0x1007]: 14,
-                [0x100A]: { type: 'color', kind: 'semantic', tokenId: 0x0001 }
-            });
-            
-            const text2Id = app.createNode(0x0003, { // TEXT
-                [0x000A]: 'Right',
-                [0x1007]: 14,
-                [0x100A]: { type: 'color', kind: 'semantic', tokenId: 0x0002 }
-            });
-            
-            // Build hierarchy
-            app.insertIntoRoot(vstackId);
-            app.insertChild(vstackId, hstackId);
-            app.insertChild(hstackId, text1Id);
-            app.insertChild(hstackId, text2Id);
-            
-            const commands = app.flushCommands();
-            
-            const encoded = encodeMessage(commands);
-            updateStats(commands.length, encoded.length, 4);
-            dumpProtocol(encoded, commands);
-            
-            // Send to renderer with timing
-            const parseRenderStart = performance.now();
-            renderer.receiveMessage(encoded.buffer);
-            const parseRenderEnd = performance.now();
-            console.log(`[Pathland Demo 3] Parsed and rendered ${commands.length} commands in ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
+            activeDemo = '3';
+            renderer.triggerDemo('3');
+            console.log(`[Pathland Demo 3] Started`);
         };
         
         // Demo 4: With Styling
         window.demo4 = function() {
             clearDemo();
-            const app = new SimpleApplication();
-            
-            // Create VStack with background and padding
-            const vstackId = app.createNode(0x0002, { // VSTACK
-                [0x0001]: 20, // spacing
-                [0x1001]: { type: 'color', kind: 'literal', rgba: 0xFFf0f0f0 }, // background
-                [0x1006]: 30, // padding
-                [0x100D]: 1.0, // opacity
-                [0x100B]: -1 // width: FILL
-            });
-            
-            // Create Text with various styles
-            const textId = app.createNode(0x0003, { // TEXT
-                [0x000A]: 'Styled Text',
-                [0x1007]: 24, // fontSize
-                [0x1008]: 0x06, // fontWeight: BOLD
-                [0x100A]: { type: 'color', kind: 'literal', rgba: 0xFF007aff }, // color
-                [0x000C]: 0x01 // textAlignment: CENTER
-            });
-            
-            app.insertIntoRoot(vstackId);
-            app.insertChild(vstackId, textId);
-            
-            const commands = app.flushCommands();
-            
-            const encoded = encodeMessage(commands);
-            updateStats(commands.length, encoded.length, 2);
-            dumpProtocol(encoded, commands);
-            
-            // Send to renderer with timing
-            const parseRenderStart = performance.now();
-            renderer.receiveMessage(encoded.buffer);
-            const parseRenderEnd = performance.now();
-            console.log(`[Pathland Demo 4] Parsed and rendered ${commands.length} commands in ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
+            activeDemo = '4';
+            renderer.triggerDemo('4');
+            console.log(`[Pathland Demo 4] Started`);
         };
         
         // Clear demo
         window.clearDemo = function() {
-            stopClock();
-            stopCounter();
-            renderer.reset();
-            renderer.setOnEventCallback(null); // Clear event callback
+            // Stop any active demo
+            if (activeDemo === '5') {
+                renderer.triggerStop('5');
+            } else if (activeDemo === '6') {
+                renderer.triggerStop('6');
+            }
+            
+            // Clear the renderer
+            renderer.triggerClear();
+            
+            // Reset UI
+            activeDemo = null;
             const output = document.getElementById('renderOutput');
             output.innerHTML = '<p style="color: #999;">Click a demo button to render UI.</p>';
             document.getElementById('protocolDump').textContent = 'No commands sent yet. Click a demo button to see the binary protocol in action.';
         };
         
+
         // Demo 5: Live Clock
-        let clockInterval = null;
-        let clockTextId = null;
-        let clockWasBold = false;
-        
-        // Demo 6: Event Handling
-        let counterTextId = null;
-        let counterValue = 0;
-        let counterInterval = null;
-        let counterIsRed = false;
-        
-        function getCurrentTime() {
-            const now = new Date();
-            return now.toLocaleTimeString();
-        }
-        
         window.demo5 = function() {
-            stopClock();
             clearDemo();
-            const app = new SimpleApplication();
-            
-            // Create Text node for the clock
-            clockTextId = app.createNode(0x0003, { // TEXT
-                [0x000A]: getCurrentTime(), // text
-                [0x1007]: 32, // fontSize
-                [0x1008]: 0x04, // fontWeight: REGULAR (will be updated to BOLD at 0, 10, 20, 30, 40, 50 seconds)
-                [0x000C]: 0x01 // textAlignment: CENTER
-            });
-            
-            app.insertIntoRoot(clockTextId);
-            
-            const commands = app.flushCommands();
-            const encoded = encodeMessage(commands);
-            updateStats(commands.length, encoded.length, 1);
-            dumpProtocol(encoded, commands);
-            
-            // Send initial render
-            const parseRenderStart = performance.now();
-            renderer.receiveMessage(encoded.buffer);
-            const parseRenderEnd = performance.now();
-            console.log(`[Pathland Demo 5] Initial render: ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
-            
-            // Start the clock update interval
-            clockInterval = window.setInterval(() => {
-                const updateApp = new SimpleApplication();
-                const now = new Date();
-                const timeText = now.toLocaleTimeString();
-                const seconds = now.getSeconds();
-                
-                // Update the text property
-                updateApp.setProperty(clockTextId, 0x000A, timeText);
-                
-                // Make bold when seconds are 0, 10, 20, 30, 40, 50
-                const isBold = [0, 10, 20, 30, 40, 50].includes(seconds);
-                if (isBold !== clockWasBold) {
-                    updateApp.setProperty(clockTextId, 0x1008, isBold ? 0x06 : 0x04); // BOLD or REGULAR
-                    clockWasBold = isBold;
-                }
-                
-                const updateCommands = updateApp.flushCommands();
-                const updateEncoded = encodeMessage(updateCommands);
-                
-                // Update stats
-                totalCommands += updateCommands.length;
-                totalBytes += updateEncoded.length;
-                document.getElementById('commandCount').textContent = totalCommands;
-                document.getElementById('byteCount').textContent = totalBytes;
-                
-                // Update protocol dump
-                dumpProtocol(updateEncoded, updateCommands);
-                
-                // Send update to renderer
-                const updateStart = performance.now();
-                renderer.receiveMessage(updateEncoded.buffer);
-                const updateEnd = performance.now();
-                console.log(`[Pathland Demo 5] Updated time in ${(updateEnd - updateStart).toFixed(2)}ms: ${timeText} (bold: ${isBold})`);
-            }, 1000);
+            activeDemo = '5';
+            renderer.triggerDemo('5');
+            console.log(`[Pathland Demo 5] Started`);
         };
         
         window.stopClock = function() {
-            if (clockInterval !== null) {
-                clearInterval(clockInterval);
-                clockInterval = null;
-                clockTextId = null;
-                clockWasBold = false;
+            if (activeDemo === '5') {
+                renderer.triggerStop('5');
+                activeDemo = null;
                 console.log('[Pathland Demo 5] Clock stopped');
             }
         };
         
         // Demo 6: Event Handling
         window.demo6 = function() {
-            stopCounter();
             clearDemo();
-            const app = new SimpleApplication();
-            
-            // Reset counter
-            counterValue = 0;
-            counterIsRed = false;
-            
-            // Create a VStack to contain the counter
-            const vstackId = app.createNode(0x0002, { // VSTACK
-                [0x0001]: 20, // spacing
-                [0x0002]: 0x01, // alignment: CENTER
-                [0x1006]: 30, // padding
-            });
-            
-            // Create the counter text node
-            counterTextId = app.createNode(0x0003, { // TEXT
-                [0x000A]: `Counter: ${counterValue}`, // text
-                [0x1007]: 32, // fontSize
-                [0x1008]: 0x06, // fontWeight: BOLD
-                [0x100A]: { type: 'color', kind: 'literal', rgba: 0xFF007aff }, // color: blue
-                [0x000C]: 0x01 // textAlignment: CENTER
-            });
-            
-            // Create an instruction text
-            const instructionId = app.createNode(0x0003, { // TEXT
-                [0x000A]: 'Click the counter above to increment',
-                [0x1007]: 14, // fontSize
-                [0x100A]: { type: 'color', kind: 'semantic', tokenId: 0x0002 }, // SECONDARY_TEXT
-                [0x000C]: 0x01 // textAlignment: CENTER
-            });
-            
-            // Build hierarchy
-            app.insertIntoRoot(vstackId);
-            app.insertChild(vstackId, counterTextId);
-            app.insertChild(vstackId, instructionId);
-            
-            // Register click event handler on the counter text
-            app.registerEventHandler(counterTextId, EventType.CLICK, 1);
-            
-            const commands = app.flushCommands();
-            
-            const encoded = encodeMessage(commands);
-            updateStats(commands.length, encoded.length, 3); // 1 VStack + 2 Text
-            dumpProtocol(encoded, commands);
-            
-            // Send initial render
-            const parseRenderStart = performance.now();
-            renderer.receiveMessage(encoded.buffer);
-            const parseRenderEnd = performance.now();
-            console.log(`[Pathland Demo 6] Initial render: ${(parseRenderEnd - parseRenderStart).toFixed(2)}ms`);
-            
-            // Set up the event callback to handle clicks
-            renderer.setOnEventCallback(function(event) {
-                if (event.targetId === counterTextId && event.eventType === EventType.CLICK) {
-                    console.log(`[Pathland Demo 6] Click event received for counter!`);
-                    
-                    // Increment the counter
-                    counterValue++;
-                    
-                    // Create an update command to change the text
-                    const updateApp = new SimpleApplication();
-                    updateApp.setProperty(counterTextId, 0x000A, `Counter: ${counterValue}`);
-                    
-                    // Only set color when it actually changes (every 5 clicks)
-                    const shouldBeRed = counterValue % 5 === 0;
-                    if (shouldBeRed !== counterIsRed) {
-                        if (shouldBeRed) {
-                            updateApp.setProperty(counterTextId, 0x100A, { type: 'color', kind: 'literal', rgba: 0xFFff3b30 }); // red
-                        } else {
-                            updateApp.setProperty(counterTextId, 0x100A, { type: 'color', kind: 'literal', rgba: 0xFF007aff }); // blue
-                        }
-                        counterIsRed = shouldBeRed;
-                    }
-                    
-                    const updateCommands = updateApp.flushCommands();
-                    const updateEncoded = encodeMessage(updateCommands);
-                    
-                    // Update stats
-                    totalCommands += updateCommands.length;
-                    totalBytes += updateEncoded.length;
-                    document.getElementById('commandCount').textContent = totalCommands;
-                    document.getElementById('byteCount').textContent = totalBytes;
-                    
-                    // Update protocol dump
-                    dumpProtocol(updateEncoded, updateCommands, true);
-                    
-                    // Send update to renderer
-                    const updateStart = performance.now();
-                    renderer.receiveMessage(updateEncoded.buffer);
-                    const updateEnd = performance.now();
-                    console.log(`[Pathland Demo 6] Updated counter to ${counterValue} in ${(updateEnd - updateStart).toFixed(2)}ms`);
-                }
-            });
+            activeDemo = '6';
+            renderer.triggerDemo('6');
+            console.log(`[Pathland Demo 6] Started`);
         };
         
         window.stopCounter = function() {
-            if (counterInterval !== null) {
-                clearInterval(counterInterval);
-                counterInterval = null;
+            if (activeDemo === '6') {
+                renderer.triggerStop('6');
+                activeDemo = null;
+                console.log('[Pathland Demo 6] Counter stopped');
             }
-            counterTextId = null;
-            counterValue = 0;
-            counterIsRed = false;
-            
-            // Clear the event callback to prevent memory leaks
-            renderer.setOnEventCallback(null);
-            
-            console.log('[Pathland Demo 6] Counter stopped');
         };
     </script>
 </body>
