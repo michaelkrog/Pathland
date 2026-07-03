@@ -23,6 +23,10 @@
     "vitest": "^1.0.0"
   },
   "dependencies": {
-    "jsdom": "^29.1.1"
+    "@pathland/platform-browser": "file:../lib/typescript/packages/platform-browser",
+    "@pathland/view": "file:../lib/typescript/packages/view",
+    "@pathland/renderer-dom": "file:../lib/typescript/packages/renderer-dom",
+    "@pathland/protocol": "file:../lib/typescript/packages/protocol",
+    "@pathland/transport": "file:../lib/typescript/packages/transport"
   }
 }

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pathland POC Demo</title>
+    <title>Pathland POC - New Packages</title>
     <style>
         * {
             margin: 0;
@@ -15,449 +15,40 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
             background: #f5f5f5;
             min-height: 100vh;
-            padding: 20px;
         }
         
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
+        /* Pathland semantic colors mapped to CSS */
+        [data-pathland-color="primary"] { color: #0066cc; }
+        [data-pathland-color="secondary"] { color: #666666; }
+        [data-pathland-background="primary"] { background-color: #0066cc; color: white; }
+        [data-pathland-background="surface"] { background-color: white; }
+        [data-pathland-background="background"] { background-color: #f5f5f5; }
+        [data-pathland-background="success"] { background-color: #4CAF50; color: white; }
+        [data-pathland-background="error"] { background-color: #F44336; color: white; }
         
-        header {
-            margin-bottom: 30px;
+        /* For inline styles from Pathland */
+        [style*="background"] { 
+            /* Background color from inline style takes precedence */
         }
-        
-        h1 {
-            font-size: 24px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
+        [style*="color"] { 
+            /* Color from inline style takes precedence */
         }
-        
-        .subtitle {
-            color: #666;
-            font-size: 14px;
+        [style*="padding"] { 
+            /* Padding from inline style */
         }
-        
-        .demo-area {
-            background: white;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        [style*="font-size"] { 
+            /* Font size from inline style */
         }
-        
-        .demo-area h2 {
-            font-size: 18px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 20px;
-        }
-        
-        .demo-frame {
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            padding: 20px;
-            min-height: 200px;
-            background: white;
-        }
-        
-        .controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        button {
-            padding: 10px 20px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        
-        button.primary {
-            background: #007aff;
-            color: white;
-        }
-        
-        button.primary:hover {
-            background: #006ee6;
-        }
-        
-        button.secondary {
-            background: #f0f0f0;
-            color: #333;
-        }
-        
-        button.secondary:hover {
-            background: #e0e0e0;
-        }
-        
-        button.danger {
-            background: #ff3b30;
-            color: white;
-        }
-        
-        button.danger:hover {
-            background: #ff2d27;
-        }
-        
-        .stats {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            font-size: 13px;
-            color: #666;
-            margin-top: 20px;
-        }
-        
-        .stats span {
-            margin-right: 20px;
-        }
-        
-        .code-block {
-            background: #1e1e1e;
-            color: #d4d4d4;
-            padding: 15px;
-            border-radius: 6px;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 12px;
-            overflow-x: auto;
-            white-space: pre;
-        }
-        
-        .grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-        }
-        
-        .card {
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-        }
-        
-        .card h3 {
-            font-size: 14px;
-            font-weight: 600;
-            color: #333;
-            margin-bottom: 10px;
-        }
-        
-        @media (max-width: 768px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
+        [style*="margin"] { 
+            /* Margin from inline style */
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Pathland POC Demo</h1>
-            <p class="subtitle">Custom Binary UI Mutation Protocol - Phase 1</p>
-        </header>
-        
-        <div class="grid">
-            <div class="card">
-                <h3>Demo 1: Simple VStack with Text</h3>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                    Creates a VStack with two Text nodes using semantic colors.
-                </p>
-                <div class="controls">
-                    <button class="primary" onclick="demo1()">Render VStack</button>
-                    <button class="secondary" onclick="clearDemo()">Clear</button>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>Demo 2: HStack with Spacer</h3>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                    Creates an HStack with Text and Spacer components.
-                </p>
-                <div class="controls">
-                    <button class="primary" onclick="demo2()">Render HStack</button>
-                    <button class="secondary" onclick="clearDemo()">Clear</button>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>Demo 3: Nested Stacks</h3>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                    Creates nested HStack and VStack with various properties.
-                </p>
-                <div class="controls">
-                    <button class="primary" onclick="demo3()">Render Nested</button>
-                    <button class="secondary" onclick="clearDemo()">Clear</button>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>Demo 4: With Styling</h3>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                    Creates components with background, padding, and opacity.
-                </p>
-                <div class="controls">
-                    <button class="primary" onclick="demo4()">Render Styled</button>
-                    <button class="secondary" onclick="clearDemo()">Clear</button>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>Demo 5: Live Clock</h3>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                    Displays current time updating every second.
-                </p>
-                <div class="controls">
-                    <button class="primary" onclick="demo5()">Start Clock</button>
-                    <button class="danger" onclick="stopClock()">Stop Clock</button>
-                    <button class="secondary" onclick="clearDemo()">Clear</button>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>Demo 6: Event Handling</h3>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                    Clickable text that increments a counter via events. Events are sent via the protocol to the worker thread and back.
-                </p>
-                <div class="controls">
-                    <button class="primary" onclick="demo6()">Start Counter</button>
-                    <button class="danger" onclick="stopCounter()">Stop Counter</button>
-                    <button class="secondary" onclick="clearDemo()">Clear</button>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>Demo 7: Environment Context</h3>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                    Displays viewport dimensions, device info, and preferences from the Environment Context Protocol.
-                </p>
-                <div class="controls">
-                    <button class="primary" onclick="demo7()">Start Environment</button>
-                    <button class="danger" onclick="stopEnvironment()">Stop</button>
-                    <button class="secondary" onclick="clearDemo()">Clear</button>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>Demo 8: Design Tokens</h3>
-                <p style="color: #666; font-size: 13px; margin-bottom: 15px;">
-                    Demonstrates design token usage. Click the colored box to cycle through token values using SET_DESIGN_TOKEN.
-                </p>
-                <div class="controls">
-                    <button class="primary" onclick="demo8()">Start Token Demo</button>
-                    <button class="danger" onclick="stopTokens()">Stop</button>
-                    <button class="secondary" onclick="clearDemo()">Clear</button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="demo-area">
-            <h2>Render Output</h2>
-            <div id="renderOutput" class="demo-frame">
-                <p style="color: #999;">Click a demo button to render UI.</p>
-            </div>
-            <div class="stats">
-                <span>Commands Sent: <strong id="commandCount">0</strong></span>
-                <span>Bytes Transferred: <strong id="byteCount">0</strong></span>
-                <span>Nodes Created: <strong id="nodeCount">0</strong></span>
-            </div>
-        </div>
-        
-        <div class="demo-area">
-            <h2>Protocol Inspection</h2>
-            <div class="code-block" id="protocolDump">
-No commands sent yet. Click a demo button to see the binary protocol in action.
-            </div>
-        </div>
-    </div>
+    <!-- This is where Pathland will render the UI -->
+    <app-root></app-root>
     
-    <!-- Import the renderer and worker modules -->
-    <script type="module">
-        import { initRenderer, getRenderer, getWorker } from './src/renderer/htmlRenderer.ts';
-        import { EventType } from './src/protocol/constants.ts';
-        
-        // Initialize renderer (this will also create the worker)
-        const renderContainer = document.getElementById('renderOutput');
-        const renderer = initRenderer(renderContainer);
-        
-        // Stats tracking - these will be updated from worker messages
-        let totalCommands = 0;
-        let totalBytes = 0;
-        let totalNodes = 0;
-        
-        // Demo state tracking (for UI only)
-        let activeDemo = null;
-        
-        // Helper to update stats
-        function updateStats(commands, bytes, nodes) {
-            totalCommands += commands;
-            totalBytes += bytes;
-            totalNodes += nodes;
-            document.getElementById('commandCount').textContent = totalCommands;
-            document.getElementById('byteCount').textContent = totalBytes;
-            document.getElementById('nodeCount').textContent = totalNodes;
-        }
-        
-        // Helper to dump protocol
-        function dumpProtocol(message, commands, append = false) {
-            const dump = document.getElementById('protocolDump');
-            let output = `Message: ${message.length} bytes\n`;
-            output += `Commands: ${commands.length}\n\n`;
-            
-            for (let i = 0; i < commands.length; i++) {
-                const cmd = commands[i];
-                output += `${i + 1}. ${cmd.opcode}\n`;
-                if (cmd.opcode === 'CREATE_NODE') {
-                    output += `   Node ID: ${cmd.nodeId}, Type: ${cmd.componentType}\n`;
-                    output += `   Properties: ${cmd.properties.size}\n`;
-                } else if (cmd.opcode === 'SET_PROPERTY') {
-                    output += `   Node ID: ${cmd.nodeId}, Property: ${cmd.propertyId}\n`;
-                } else if (cmd.opcode === 'INSERT_CHILD') {
-                    output += `   Parent: ${cmd.parentId}, Child: ${cmd.childId}, Index: ${cmd.index}\n`;
-                } else if (cmd.opcode === 'DELETE_NODE') {
-                    output += `   Node ID: ${cmd.nodeId}\n`;
-                }
-            }
-            
-            // Show hex dump of first 100 bytes
-            const hexDump = Array.from(message.subarray(0, Math.min(100, message.length)))
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join(' ');
-            output += `\nHex Dump (first 100 bytes):\n${hexDump}\n\n`;
-            
-            if (append) {
-                dump.textContent += output;
-            } else {
-                dump.textContent = output;
-            }
-        }
-        
-        // Demo 1: Simple VStack with Text
-        window.demo1 = function() {
-            clearDemo();
-            activeDemo = '1';
-            renderer.triggerDemo('1');
-            console.log(`[Pathland Demo 1] Started`);
-        };
-        
-        // Demo 2: HStack with Spacer
-        window.demo2 = function() {
-            clearDemo();
-            activeDemo = '2';
-            renderer.triggerDemo('2');
-            console.log(`[Pathland Demo 2] Started`);
-        };
-        
-        // Demo 3: Nested Stacks
-        window.demo3 = function() {
-            clearDemo();
-            activeDemo = '3';
-            renderer.triggerDemo('3');
-            console.log(`[Pathland Demo 3] Started`);
-        };
-        
-        // Demo 4: With Styling
-        window.demo4 = function() {
-            clearDemo();
-            activeDemo = '4';
-            renderer.triggerDemo('4');
-            console.log(`[Pathland Demo 4] Started`);
-        };
-        
-        // Clear demo
-        window.clearDemo = function() {
-            // Stop any active demo
-            if (activeDemo === '5') {
-                renderer.triggerStop('5');
-            } else if (activeDemo === '6') {
-                renderer.triggerStop('6');
-            } else if (activeDemo === '7') {
-                renderer.triggerStop('7');
-            } else if (activeDemo === '8') {
-                renderer.triggerStop('8');
-            }
-            
-            // Clear the renderer
-            renderer.triggerClear();
-            
-            // Reset UI
-            activeDemo = null;
-            const output = document.getElementById('renderOutput');
-            output.innerHTML = '<p style="color: #999;">Click a demo button to render UI.</p>';
-            document.getElementById('protocolDump').textContent = 'No commands sent yet. Click a demo button to see the binary protocol in action.';
-        };
-        
-
-        // Demo 5: Live Clock
-        window.demo5 = function() {
-            clearDemo();
-            activeDemo = '5';
-            renderer.triggerDemo('5');
-            console.log(`[Pathland Demo 5] Started`);
-        };
-        
-        window.stopClock = function() {
-            if (activeDemo === '5') {
-                renderer.triggerStop('5');
-                activeDemo = null;
-                console.log('[Pathland Demo 5] Clock stopped');
-            }
-        };
-        
-        // Demo 6: Event Handling
-        window.demo6 = function() {
-            clearDemo();
-            activeDemo = '6';
-            renderer.triggerDemo('6');
-            console.log(`[Pathland Demo 6] Started`);
-        };
-        
-        window.stopCounter = function() {
-            if (activeDemo === '6') {
-                renderer.triggerStop('6');
-                activeDemo = null;
-                console.log('[Pathland Demo 6] Counter stopped');
-            }
-        };
-        
-        // Demo 7: Environment Context
-        window.demo7 = function() {
-            clearDemo();
-            activeDemo = '7';
-            renderer.triggerDemo('7');
-            console.log(`[Pathland Demo 7] Started`);
-        };
-        
-        window.stopEnvironment = function() {
-            if (activeDemo === '7') {
-                renderer.triggerStop('7');
-                activeDemo = null;
-                console.log('[Pathland Demo 7] Environment stopped');
-            }
-        };
-        
-        // Demo 8: Design Tokens
-        window.demo8 = function() {
-            clearDemo();
-            activeDemo = '8';
-            renderer.triggerDemo('8');
-            console.log(`[Pathland Demo 8] Started`);
-        };
-        
-        window.stopTokens = function() {
-            if (activeDemo === '8') {
-                renderer.triggerStop('8');
-                activeDemo = null;
-                console.log('[Pathland Demo 8] Design tokens stopped');
-            }
-        };
-    </script>
+    <!-- Import and bootstrap the application -->
+    <script type="module" src="./main.ts"></script>
 </body>
 </html>
