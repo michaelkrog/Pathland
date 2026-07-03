@@ -18,12 +18,30 @@ export default defineConfig({
     // Ensure TypeScript files are handled correctly
     target: 'es2020',
   },
+  optimizeDeps: {
+    // Include our local packages in optimization
+    include: [
+      '@pathland/protocol',
+      '@pathland/transport', 
+      '@pathland/view',
+      '@pathland/renderer-dom',
+      '@pathland/platform-browser'
+    ],
+    // Don't pre-bundle our local packages
+    exclude: [
+      '@pathland/protocol',
+      '@pathland/transport',
+      '@pathland/view',
+      '@pathland/renderer-dom',
+      '@pathland/platform-browser'
+    ]
+  },
   build: {
     outDir: 'dist',
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: path.resolve(__dirname, 'index-new.html'),
+        main: path.resolve(__dirname, 'index.html'),
       },
     },
   },

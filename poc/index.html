@@ -17,7 +17,7 @@
             min-height: 100vh;
         }
         
-        /* Pathland semantic colors mapped to CSS */
+        /* Pathland semantic colors as fallbacks */
         [data-pathland-color="primary"] { color: #0066cc; }
         [data-pathland-color="secondary"] { color: #666666; }
         [data-pathland-background="primary"] { background-color: #0066cc; color: white; }
@@ -26,21 +26,9 @@
         [data-pathland-background="success"] { background-color: #4CAF50; color: white; }
         [data-pathland-background="error"] { background-color: #F44336; color: white; }
         
-        /* For inline styles from Pathland */
-        [style*="background"] { 
-            /* Background color from inline style takes precedence */
-        }
-        [style*="color"] { 
-            /* Color from inline style takes precedence */
-        }
-        [style*="padding"] { 
-            /* Padding from inline style */
-        }
-        [style*="font-size"] { 
-            /* Font size from inline style */
-        }
-        [style*="margin"] { 
-            /* Margin from inline style */
+        /* Ensure elements are displayed correctly */
+        div, span {
+            display: inline-block;
         }
     </style>
 </head>
@@ -48,7 +36,7 @@
     <!-- This is where Pathland will render the UI -->
     <app-root></app-root>
     
-    <!-- Import and bootstrap the application -->
-    <script type="module" src="./main.ts"></script>
+    <!-- Vite will inject the compiled script here -->
+    <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
