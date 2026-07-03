@@ -6,6 +6,12 @@ export default defineConfig({
     alias: {
       // For backwards compatibility with old POC
       '@pathland': path.resolve(__dirname, './src'),
+      // Map @pathland packages to their node_modules location
+      '@pathland/platform-browser': path.resolve(__dirname, './node_modules/@pathland/platform-browser'),
+      '@pathland/view': path.resolve(__dirname, './node_modules/@pathland/view'),
+      '@pathland/renderer-dom': path.resolve(__dirname, './node_modules/@pathland/renderer-dom'),
+      '@pathland/protocol': path.resolve(__dirname, './node_modules/@pathland/protocol'),
+      '@pathland/transport': path.resolve(__dirname, './node_modules/@pathland/transport'),
     },
   },
   esbuild: {
