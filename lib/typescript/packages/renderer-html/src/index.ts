@@ -270,7 +270,7 @@ export class HTMLRenderer {
    * Render the current state to HTML string.
    */
   render(): string {
-    return this.renderNode(this.root);
+    return this.renderNode(this.root.id);
   }
 
   /**
