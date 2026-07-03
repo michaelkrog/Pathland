@@ -1,7 +1,8 @@
 /**
  * Pathland POC Main Entry Point
  * 
- * Uses relative imports to lib packages (yalc installed but Vite has resolution issues).
+ * Uses relative imports to lib packages.
+ * yalc is installed but Vite has resolution issues with bare imports from node_modules.
  */
 
 import { DOMRenderer } from '../../lib/typescript/packages/renderer-dom/src';

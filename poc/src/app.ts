@@ -1,7 +1,7 @@
 /**
  * Pathland POC Application
  * 
- * Uses the view package for creating UI.
+ * Uses view package for creating UI.
  */
 
 import { View, ViewNode, VStack, HStack, Text, Signal } from '../../lib/typescript/packages/view/src';
