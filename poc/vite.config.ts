@@ -29,13 +29,6 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'index.html'),
       },
-      external: [
-        '@pathland/protocol',
-        '@pathland/transport',
-        '@pathland/view',
-        '@pathland/renderer-dom',
-        '@pathland/platform-browser'
-      ]
     },
   },
   server: {
