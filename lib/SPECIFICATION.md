@@ -16,6 +16,7 @@ lib/typescript/                    # Monorepo root
 └── packages/
     ├── protocol/                 # Core protocol (no dependencies)
     ├── transport/                # Message transportation
+    ├── view/                    # Reactive view framework
     ├── renderer-dom/            # DOM-based rendering
     ├── renderer-html/           # HTML string rendering
     └── renderer-jsdom/          # JSDOM-based rendering for Node.js
@@ -61,7 +62,65 @@ lib/typescript/                    # Monorepo root
 
 **Depends on**: `@pathland/protocol`
 
-### 3. `@pathland/renderer-dom` - DOM Renderer
+### 3. `@pathland/view` - Reactive View Framework
+
+**Responsibility**: Provide a component-based, Angular-like API for building UI that compiles to Pathland's binary protocol with fine-grained reactivity.
+
+**Scope**: Application-level command generation with reactive state management. Core components (VStack, HStack, Text) are provided as factory functions, while custom views are implemented as classes.
+
+**Provides**:
+- `ViewNode` class - Immutable node in the virtual UI tree with chainable API
+- `Signal` class - Reactive values that directly generate SET_PROPERTY commands
+- Core component factories: `VStack()`, `HStack()`, `Text()`
+- Chainable styling methods: `.padding()`, `.background()`, `.color()`, `.fontSize()`, etc.
+- Chainable gesture methods: `.tapGesture()`, `.longPressGesture()`
+- `View` base class for custom components with `body()` method pattern
+- `initialRender()` function for compiling ViewNode trees to Pathland commands
+- `commandQueue` for batching commands before transport
+
+**Component Composition Pattern**:
+- Core components (VStack, HStack, Text) remain as **factory functions** for simplicity
+- Custom components are implemented as **classes** that create and return ViewNodes
+- This allows clean composition: custom classes use functional core components internally
+
+**Example**:
+```typescript
+// Custom Card component as a class
+class Card {
+  private expanded = new Signal(false);
+  
+  createView(): ViewNode {
+    return VStack(
+      HStack(
+        Text('Card Title'),
+        Text(this.expanded.map(e => e ? '[-]' : '[+]'))
+          .tapGesture(() => this.expanded.set(!this.expanded.get()))
+      ),
+      this.expanded.get() ? Text('Expanded content') : undefined
+    ).padding(8).background('surface');
+  }
+}
+
+// App uses custom components
+class App {
+  createView(): ViewNode {
+    return VStack(
+      new Card().createView(),
+      Text('Other content')
+    );
+  }
+}
+```
+
+**Does NOT provide**:
+- Any rendering logic (see renderer packages)
+- Any transportation logic (see transport package)
+- Virtual DOM or tree diffing algorithms
+- Platform-specific code
+
+**Depends on**: `@pathland/protocol`, `@pathland/transport`
+
+### 4. `@pathland/renderer-dom` - DOM Renderer
 
 **Responsibility**: Execute Pathland commands to create and manage live DOM elements.
 
@@ -85,7 +144,7 @@ lib/typescript/                    # Monorepo root
 
 **Statelessness**: Only maintains `Map<number, HTMLElement>` for event routing. All other state is derived from commands.
 
-### 4. `@pathland/renderer-html` - HTML String Renderer
+### 5. `@pathland/renderer-html` - HTML String Renderer
 
 **Responsibility**: Execute Pathland commands and output HTML markup strings.
 
@@ -109,7 +168,7 @@ lib/typescript/                    # Monorepo root
 
 **Statelessness**: Builds HTML from commands, no persistent state beyond the current command batch.
 
-### 5. `@pathland/renderer-jsdom` - JSDOM Renderer
+### 6. `@pathland/renderer-jsdom` - JSDOM Renderer
 
 **Responsibility**: Execute Pathland commands to create and manage a JSDOM-based DOM tree in Node.js.
 
@@ -139,19 +198,21 @@ lib/typescript/                    # Monorepo root
 
 ## Package Boundaries
 
-| From \ To | protocol | transport | renderer-dom | renderer-html | renderer-jsdom |
-|-----------|----------|-----------|--------------|---------------|----------------|
-| protocol | - | ✓ | ✓ | ✓ | ✓ |
-| transport | - | - | - | - | - |
-| renderer-dom | - | - | - | - | - |
-| renderer-html | - | - | - | - | - |
-| renderer-jsdom | - | - | - | - | - |
+| From \ To | protocol | transport | view | renderer-dom | renderer-html | renderer-jsdom |
+|-----------|----------|-----------|------|--------------|---------------|----------------|
+| protocol | - | ✓ | ✓ | ✓ | ✓ | ✓ |
+| transport | - | - | ✓ | - | - | - |
+| view | - | - | - | ✓ | ✓ | ✓ |
+| renderer-dom | - | - | - | - | - | - |
+| renderer-html | - | - | - | - | - | - |
+| renderer-jsdom | - | - | - | - | - | - |
 
 **Dependency Rule**: Packages can only depend on packages to their left in the table above.
 
 This ensures:
 - `protocol` has no dependencies
 - `transport` only depends on `protocol`
+- `view` depends on `protocol` and `transport`
 - `renderer-dom` only depends on `protocol`
 - `renderer-html` only depends on `protocol`
 - `renderer-jsdom` depends on `protocol` and `jsdom` (external)
@@ -233,6 +294,7 @@ npm run build
 # Publish (from each package directory)
 cd packages/protocol && npm publish
 cd packages/transport && npm publish
+cd packages/view && npm publish
 cd packages/renderer-dom && npm publish
 cd packages/renderer-html && npm publish
 cd packages/renderer-jsdom && npm publish
@@ -263,6 +325,17 @@ src/
 ```
 src/
 └── index.ts              # All transport exports
+```
+
+### view/
+```
+src/
+├── index.ts              # Public exports
+├── signal.ts             # Signal reactivity class
+├── view-node.ts          # ViewNode class with chainable API
+├── components.ts         # Core component factories (VStack, HStack, Text)
+├── renderer.ts           # Initial render function
+└── utils.ts              # Shared utilities (propertyNameToId, compilePropertyValue)
 ```
 
 ### renderer-dom/
