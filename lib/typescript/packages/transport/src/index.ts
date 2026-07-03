@@ -18,7 +18,7 @@ import { encodeMessage, decodeMessage, BinaryReader, BinaryWriter } from '@pathl
  */
 export function serializeMessage(commands: Command[]): ArrayBuffer {
   const buffer = encodeMessage(commands);
-  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+  return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer;
 }
 
 /**
@@ -38,8 +38,8 @@ export function deserializeMessage(buffer: ArrayBuffer | Uint8Array): DecodedMes
 export function createTransferable(commands: Command[]): { message: ArrayBuffer; transferList: ArrayBuffer[] } {
   const buffer = encodeMessage(commands);
   return {
-    message: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength),
-    transferList: [buffer.buffer],
+    message: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
+    transferList: [buffer.buffer as ArrayBuffer],
   };
 }
 
