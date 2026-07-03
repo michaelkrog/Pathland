@@ -21,5 +21,12 @@
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
     "vitest": "^1.6.1"
+  },
+  "dependencies": {
+    "@pathland/platform-browser": "file:.yalc/@pathland/platform-browser",
+    "@pathland/protocol": "file:.yalc/@pathland/protocol",
+    "@pathland/renderer-dom": "file:.yalc/@pathland/renderer-dom",
+    "@pathland/transport": "file:.yalc/@pathland/transport",
+    "@pathland/view": "file:.yalc/@pathland/view"
   }
 }
