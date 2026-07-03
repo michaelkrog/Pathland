@@ -1,0 +1,27 @@
+{
+  "name": "@pathland/renderer-dom",
+  "version": "1.0.0",
+  "description": "Pathland DOM Renderer - Renders Pathland UI to DOM elements",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "npm run build"
+  },
+  "keywords": [
+    "pathland",
+    "renderer",
+    "dom",
+    "ui",
+    "browser"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@pathland/protocol": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

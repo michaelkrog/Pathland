@@ -1,0 +1,18 @@
+{
+  "name": "pathland-typescript",
+  "version": "1.0.0",
+  "description": "Pathland TypeScript libraries - monorepo root",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "cd packages/protocol && npm run build && cd ../../packages/transport && npm run build && cd ../../packages/renderer-dom && npm run build && cd ../../packages/renderer-html && npm run build && cd ../../packages/renderer-jsdom && npm run build && cd ../../packages/view && npm run build",
+    "test": "cd packages/protocol && npm test",
+    "build:view": "cd packages/view && npm run build",
+    "watch:view": "cd packages/view && npm run watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

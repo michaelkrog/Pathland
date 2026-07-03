@@ -1,0 +1,24 @@
+{
+  "name": "@pathland/protocol",
+  "version": "1.0.0",
+  "description": "Pathland Protocol - Binary encoding and decoding for cross-platform UI",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "npm run build"
+  },
+  "keywords": [
+    "pathland",
+    "protocol",
+    "binary",
+    "ui",
+    "cross-platform"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

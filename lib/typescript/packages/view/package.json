@@ -1,0 +1,36 @@
+{
+  "name": "@pathland/view",
+  "version": "1.0.0",
+  "description": "Pathland View Framework - Reactive, declarative UI that compiles to Pathland binary protocol",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "npm run build",
+    "watch": "tsc --watch"
+  },
+  "keywords": [
+    "pathland",
+    "view",
+    "ui",
+    "framework",
+    "reactive",
+    "declarative",
+    "binary",
+    "protocol"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@pathland/protocol": "^1.0.0",
+    "@pathland/transport": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@pathland/protocol": "^1.0.0",
+    "@pathland/transport": "^1.0.0"
+  }
+}

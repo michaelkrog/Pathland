@@ -1,0 +1,270 @@
+/**
+ * @pathland/view - Renderer
+ * 
+ * Compiles ViewNode trees to Pathland binary commands.
+ * Handles initial render only - updates are handled directly by signals.
+ */
+
+import { ViewNode, Modifier, Gesture, resetNodeIdCounter } from './view-node';
+import type { PropertyValue } from '@pathland/protocol';
+import { ComponentType, StackProperty, StyleProperty, EventType } from '@pathland/protocol';
+import { commandQueue } from './signal';
+import { propertyNameToId, compilePropertyValue } from './utils';
+
+// Re-export types
+export type { PropertyValue };
+
+// ============================================
+// TYPE MAPPING
+// ============================================
+
+function mapType(type: string): number {
+  const mapping: Record<string, number> = {
+    'VStack': ComponentType.VSTACK,
+    'HStack': ComponentType.HSTACK,
+    'Text': ComponentType.TEXT,
+  };
+  return mapping[type] ?? ComponentType.HSTACK;
+}
+
+function compileColor(color: string | number): PropertyValue {
+  if (typeof color === 'number') {
+    return { type: 'u32', value: color };
+  }
+  
+  const tokens: Record<string, number> = {
+    'primary': 0x0001,
+    'secondary': 0x0002,
+    'background': 0x0004,
+    'surface': 0x0005,
+    'text': 0x0001,
+    'textsecondary': 0x0002,
+    'accent': 0x0003,
+    'error': 0x0006,
+    'warning': 0x0007,
+    'success': 0x0008,
+    'red': 0x0006,
+    'blue': 0x0003,
+    'green': 0x0008,
+    'white': 0xFFFFFFFF,
+    'black': 0xFF000000,
+    'transparent': 0x00000000,
+  };
+  
+  const normalizedColor = color.toLowerCase();
+  const tokenId = tokens[normalizedColor] ?? 0x0004;
+  return { type: 'color', kind: 'semantic', tokenId };
+}
+
+function mapGestureKind(kind: string): number {
+  const mapping: Record<string, number> = {
+    'tap': EventType.CLICK,
+    'click': EventType.CLICK,
+    'longPress': EventType.LONG_PRESS,
+    'doubleTap': EventType.DOUBLE_TAP,
+    'hover': EventType.HOVER,
+    'focus': EventType.FOCUS,
+    'blur': EventType.BLUR,
+  };
+  return mapping[kind] ?? EventType.CLICK;
+}
+
+// ============================================
+// MODIFIER COMPILATION
+// ============================================
+
+function compileModifier(nodeId: number, modifier: Modifier): { opcode: string; nodeId: number; propertyId: number; value: PropertyValue } | null {
+  const { kind, value, color } = modifier;
+  
+  switch (kind) {
+    case 'padding':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StackProperty.PADDING,
+        value: { type: 'f32', value }
+      };
+    
+    case 'background':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.BACKGROUND_COLOR,
+        value: compileColor(color)
+      };
+    
+    case 'color':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.COLOR,
+        value: compileColor(color)
+      };
+    
+    case 'fontSize':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.FONT_SIZE,
+        value: { type: 'f32', value }
+      };
+    
+    case 'fontWeight':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.FONT_WEIGHT,
+        value: { type: 'u32', value }
+      };
+    
+    case 'opacity':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.OPACITY,
+        value: { type: 'f32', value }
+      };
+    
+    case 'visible':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.VISIBLE,
+        value: { type: 'u8', value: value ? 1 : 0 }
+      };
+    
+    case 'margin':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: 0x1011,
+        value: { type: 'f32', value }
+      };
+    
+    case 'gap':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StackProperty.SPACING,
+        value: { type: 'f32', value }
+      };
+    
+    default:
+      console.warn(`Unknown modifier: ${kind}`);
+      return null;
+  }
+}
+
+// ============================================
+// GESTURE COMPILATION
+// ============================================
+
+let gestureHandlerId = 0;
+const gestureHandlers = new Map<number, Map<number, () => void>>();
+
+function compileGesture(nodeId: number, gesture: Gesture): { opcode: string; nodeId: number; eventType: number; handlerId: number } {
+  const eventType = mapGestureKind(gesture.kind);
+  const handlerId = ++gestureHandlerId;
+  
+  let handlers = gestureHandlers.get(nodeId);
+  if (!handlers) {
+    handlers = new Map();
+    gestureHandlers.set(nodeId, handlers);
+  }
+  handlers.set(eventType, gesture.handler);
+  
+  return {
+    opcode: 'REGISTER_EVENT_HANDLER',
+    nodeId,
+    eventType,
+    handlerId
+  };
+}
+
+export function handleDispatchEvent(targetId: number, eventType: number): void {
+  const handlers = gestureHandlers.get(targetId);
+  if (handlers) {
+    const handler = handlers.get(eventType);
+    if (handler) {
+      handler();
+    }
+  }
+}
+
+// ============================================
+// NODE COMPILATION
+// ============================================
+
+type InternalCommand = {
+  opcode: string;
+  nodeId?: number;
+  propertyId?: number;
+  value?: PropertyValue;
+  parentId?: number;
+  childId?: number;
+  index?: number;
+  componentType?: number;
+  properties?: Map<number, PropertyValue>;
+  eventType?: number;
+  handlerId?: number;
+};
+
+function compileNode(node: ViewNode): InternalCommand[] {
+  const commands: InternalCommand[] = [];
+  
+  const createCmd: InternalCommand = {
+    opcode: 'CREATE_NODE',
+    nodeId: node.nodeId,
+    componentType: mapType(node.type),
+    properties: new Map<number, PropertyValue>()
+  };
+  
+  for (const [key, val] of Object.entries(node.properties)) {
+    const propId = propertyNameToId(key);
+    if (propId !== undefined && createCmd.properties) {
+      createCmd.properties.set(propId, compilePropertyValue(propId, val));
+    }
+  }
+  
+  commands.push(createCmd);
+  
+  for (const modifier of node.modifiers) {
+    const cmd = compileModifier(node.nodeId, modifier);
+    if (cmd) {
+      commands.push(cmd);
+    }
+  }
+  
+  for (const gesture of node.gestures) {
+    commands.push(compileGesture(node.nodeId, gesture));
+  }
+  
+  for (let i = 0; i < node.children.length; i++) {
+    const child = node.children[i];
+    commands.push(...compileNode(child));
+    
+    commands.push({
+      opcode: 'INSERT_CHILD',
+      parentId: node.nodeId,
+      childId: child.nodeId,
+      index: i
+    });
+  }
+  
+  return commands;
+}
+
+// ============================================
+// INITIAL RENDER
+// ============================================
+
+export function initialRender(root: ViewNode, transport: any): void {
+  resetNodeIdCounter();
+  gestureHandlerId = 0;
+  gestureHandlers.clear();
+  
+  commandQueue.setTransport(transport);
+  
+  const commands = compileNode(root);
+  transport.send(commands);
+}
