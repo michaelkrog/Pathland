@@ -17,6 +17,7 @@ lib/typescript/                    # Monorepo root
     ├── protocol/                 # Core protocol (no dependencies)
     ├── transport/                # Message transportation
     ├── view/                    # Reactive view framework
+    ├── platform-browser/        # Browser platform bootstrap
     ├── renderer-dom/            # DOM-based rendering
     ├── renderer-html/           # HTML string rendering
     └── renderer-jsdom/          # JSDOM-based rendering for Node.js
@@ -120,7 +121,43 @@ class App {
 
 **Depends on**: `@pathland/protocol`, `@pathland/transport`
 
-### 4. `@pathland/renderer-dom` - DOM Renderer
+### 4. `@pathland/platform-browser` - Browser Platform Bootstrap
+
+**Responsibility**: Provide a simple, Angular-like bootstrap function for browser-based Pathland applications.
+
+**Scope**: Platform-specific entry point that coordinates view creation, rendering, and transport setup.
+
+**Provides**:
+- `bootstrapApplication(viewClass)` - Single function to bootstrap an application
+- Automatically finds `<app-root>` element as container
+- Sets up DOMRenderer automatically
+- Configures command transport between view and renderer
+- No configuration required for basic usage
+
+**Example**:
+```typescript
+import { bootstrapApplication } from '@pathland/platform-browser';
+import { App } from './app';
+
+bootstrapApplication(App);
+```
+
+**HTML Requirement**:
+```html
+<body>
+  <app-root></app-root>
+</body>
+```
+
+**Does NOT provide**:
+- Application logic (defined in view classes)
+- Custom container selection (always uses `<app-root>`)
+- Worker-based execution (single thread only in current version)
+- Server-side rendering
+
+**Depends on**: `@pathland/view`, `@pathland/renderer-dom`, `@pathland/transport`
+
+### 5. `@pathland/renderer-dom` - DOM Renderer
 
 **Responsibility**: Execute Pathland commands to create and manage live DOM elements.
 
@@ -198,14 +235,15 @@ class App {
 
 ## Package Boundaries
 
-| From \ To | protocol | transport | view | renderer-dom | renderer-html | renderer-jsdom |
-|-----------|----------|-----------|------|--------------|---------------|----------------|
-| protocol | - | ✓ | ✓ | ✓ | ✓ | ✓ |
-| transport | - | - | ✓ | - | - | - |
-| view | - | - | - | ✓ | ✓ | ✓ |
-| renderer-dom | - | - | - | - | - | - |
-| renderer-html | - | - | - | - | - | - |
-| renderer-jsdom | - | - | - | - | - | - |
+| From \ To | protocol | transport | view | platform-browser | renderer-dom | renderer-html | renderer-jsdom |
+|-----------|----------|-----------|------|-----------------|--------------|---------------|----------------|
+| protocol | - | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| transport | - | - | ✓ | ✓ | - | - | - |
+| view | - | - | - | ✓ | ✓ | ✓ | ✓ |
+| platform-browser | - | - | ✓ | - | ✓ | ✓ | ✓ |
+| renderer-dom | - | - | - | - | - | - | - |
+| renderer-html | - | - | - | - | - | - | - |
+| renderer-jsdom | - | - | - | - | - | - | - |
 
 **Dependency Rule**: Packages can only depend on packages to their left in the table above.
 
@@ -213,6 +251,7 @@ This ensures:
 - `protocol` has no dependencies
 - `transport` only depends on `protocol`
 - `view` depends on `protocol` and `transport`
+- `platform-browser` depends on `view`, `renderer-dom`, and `transport`
 - `renderer-dom` only depends on `protocol`
 - `renderer-html` only depends on `protocol`
 - `renderer-jsdom` depends on `protocol` and `jsdom` (external)
@@ -295,6 +334,7 @@ npm run build
 cd packages/protocol && npm publish
 cd packages/transport && npm publish
 cd packages/view && npm publish
+cd packages/platform-browser && npm publish
 cd packages/renderer-dom && npm publish
 cd packages/renderer-html && npm publish
 cd packages/renderer-jsdom && npm publish
@@ -336,6 +376,12 @@ src/
 ├── components.ts         # Core component factories (VStack, HStack, Text)
 ├── renderer.ts           # Initial render function
 └── utils.ts              # Shared utilities (propertyNameToId, compilePropertyValue)
+```
+
+### platform-browser/
+```
+src/
+└── bootstrap.ts          # Bootstrap function
 ```
 
 ### renderer-dom/

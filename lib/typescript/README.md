@@ -14,6 +14,7 @@ This monorepo contains the following packages:
 | [`@pathland/protocol`](packages/protocol) | Core protocol - binary encoding/decoding | None |
 | [`@pathland/transport`](packages/transport) | Message transportation (WebSocket, postMessage, etc.) | `@pathland/protocol` |
 | [`@pathland/view`](packages/view) | Reactive view framework - component-based UI with signals | `@pathland/protocol`, `@pathland/transport` |
+| [`@pathland/platform-browser`](packages/platform-browser) | Browser bootstrap - simple application entry point | `@pathland/view`, `@pathland/renderer-dom`, `@pathland/transport` |
 | [`@pathland/renderer-dom`](packages/renderer-dom) | DOM-based rendering for browsers | `@pathland/protocol` |
 | [`@pathland/renderer-html`](packages/renderer-html) | HTML string rendering for SSR | `@pathland/protocol` |
 | [`@pathland/renderer-jsdom`](packages/renderer-jsdom) | JSDOM-based rendering for Node.js | `@pathland/protocol`, `jsdom` |
@@ -44,12 +45,15 @@ npm install @pathland/transport
 
 # For reactive view framework
 npm install @pathland/view
+
+# For browser bootstrap (recommended)
+npm install @pathland/platform-browser
 ```
 
 Or install everything:
 
 ```bash
-npm install @pathland/protocol @pathland/transport @pathland/view @pathland/renderer-dom @pathland/renderer-html @pathland/renderer-jsdom
+npm install @pathland/protocol @pathland/transport @pathland/view @pathland/platform-browser @pathland/renderer-dom @pathland/renderer-html @pathland/renderer-jsdom
 ```
 
 ### Basic Usage
@@ -180,6 +184,29 @@ initialRender(root, transport);
 count.set(5); // Generates SET_PROPERTY for the text node
 ```
 
+#### 7. Use Platform Browser Bootstrap (Recommended)
+
+```typescript
+import { bootstrapApplication } from '@pathland/platform-browser';
+import { App } from './app';
+
+// Single line - that's it!
+bootstrapApplication(App);
+```
+
+With HTML:
+```html
+<body>
+  <app-root></app-root>
+</body>
+```
+
+This automatically:
+- Finds the `<app-root>` element
+- Sets up DOMRenderer
+- Configures command transport
+- Initializes your application
+
 ## Development
 
 ### Build
@@ -224,6 +251,10 @@ lib/typescript/
     │   │   ├── simple-app.ts   # Simple usage example
     │   │   └── advanced-app.ts # Angular-like example
     │   ├── README.md           # Package documentation
+    │   └── package.json
+    ├── platform-browser/
+    │   ├── src/
+    │   │   └── bootstrap.ts    # Bootstrap function
     │   └── package.json
     ├── renderer-dom/
     │   ├── src/

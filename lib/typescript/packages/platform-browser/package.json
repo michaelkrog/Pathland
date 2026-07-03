@@ -1,0 +1,35 @@
+{
+  "name": "@pathland/platform-browser",
+  "version": "1.0.0",
+  "description": "Pathland Platform Browser - Bootstrap and platform utilities for browser-based Pathland applications",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "npm run build"
+  },
+  "keywords": [
+    "pathland",
+    "platform",
+    "browser",
+    "bootstrap",
+    "ui",
+    "framework"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@pathland/view": "^1.0.0",
+    "@pathland/renderer-dom": "^1.0.0",
+    "@pathland/transport": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@pathland/view": "^1.0.0",
+    "@pathland/renderer-dom": "^1.0.0",
+    "@pathland/transport": "^1.0.0"
+  }
+}

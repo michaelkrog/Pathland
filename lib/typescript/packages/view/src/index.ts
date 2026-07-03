@@ -35,6 +35,7 @@
 // Re-export core types and functions
 export type { Modifier, Gesture } from './view-node';
 export { ViewNode, resetNodeIdCounter } from './view-node';
+export { View } from './view';
 export { Signal, commandQueue } from './signal';
 export { VStack, HStack, Text } from './components';
 export { initialRender, handleDispatchEvent } from './renderer';
