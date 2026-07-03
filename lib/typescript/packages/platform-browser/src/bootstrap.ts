@@ -46,8 +46,8 @@ export async function bootstrapApplication(
 
   // 2. Import required packages dynamically
   const [rendererModule, viewModule] = await Promise.all([
-    import('@pathland/renderer-dom'),
-    import('@pathland/view')
+    import('../../renderer-dom/dist/index'),
+    import('../../view/dist/index')
   ]);
 
   // 3. Set up renderer
