@@ -1,23 +1,50 @@
 /**
  * Pathland POC Main Entry Point
  * 
- * This uses the new @pathland/platform-browser package to bootstrap
- * the application with a simple, Angular-like API.
+ * This inlines the bootstrap logic to avoid module resolution issues.
  */
 
-import { bootstrapApplication } from '@pathland/platform-browser';
+import { DOMRenderer } from '@pathland/renderer-dom';
+import { initialRender, handleDispatchEvent, commandQueue } from '@pathland/view';
 import { POCApp } from './app';
 
-// Bootstrap the application
-// This will:
-// 1. Find the <app-root> element
-// 2. Set up the DOMRenderer
-// 3. Configure event handling (click/tap)
-// 4. Initialize the POCApp view
-bootstrapApplication(POCApp)
-  .then(() => {
-    console.log('✅ Pathland POC application started successfully!');
-  })
-  .catch((error) => {
-    console.error('❌ Failed to bootstrap Pathland application:', error);
-  });
+// Set up renderer
+const container = document.querySelector('app-root');
+if (!container) {
+  throw new Error('Could not find <app-root> element. Add <app-root></app-root> to your HTML.');
+}
+
+const renderer = new DOMRenderer(container as HTMLElement);
+
+// Set up transport - commands go directly to renderer
+const transport = {
+  send: (commands: any[]) => {
+    renderer.executeCommands(commands);
+  }
+};
+
+// Set up command queue transport
+commandQueue.setTransport(transport);
+
+// Set up event delegation on the container
+container.addEventListener('click', ((event: Event) => {
+  // Find the closest element with a pathland node ID
+  let target = event.target as HTMLElement;
+  while (target && !target.dataset.pathlandNodeId) {
+    target = target.parentElement as HTMLElement;
+  }
+  
+  if (target && target.dataset.pathlandNodeId) {
+    const nodeId = parseInt(target.dataset.pathlandNodeId, 10);
+    // Map HTML events to Pathland event types
+    // For now, map click to CLICK (0x04)
+    const eventType = 0x04; // EventType.CLICK
+    handleDispatchEvent(nodeId, eventType);
+  }
+}) as EventListener);
+
+// Create root view and initialize
+const root = POCApp.make();
+initialRender(root, transport);
+
+console.log('✅ Pathland POC application started successfully!');

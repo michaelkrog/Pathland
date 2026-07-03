@@ -38,6 +38,7 @@ async function loadViewModule() {
  * - Sets up event delegation for gestures (tap, etc.)
  *
  * @param viewClass - Your root view class with a static make() method
+ * @param commandQueue - Optional command queue to use (defaults to importing view module's commandQueue)
  * @returns Promise that resolves when the application is bootstrapped
  *
  * @example
