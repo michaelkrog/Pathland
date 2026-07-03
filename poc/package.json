@@ -6,8 +6,7 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest",
-    "dev": "vite",
-    "postinstall": "bash scripts/copy-packages.sh"
+    "dev": "vite"
   },
   "keywords": [
     "ui",

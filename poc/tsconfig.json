@@ -23,8 +23,9 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@pathland/*": ["node_modules/@pathland/*"]
-    }
+      "@pathland/*": ["../lib/typescript/packages/*"]
+    },
+    "typeRoots": ["./node_modules/@types", "../lib/typescript/packages/*/dist"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

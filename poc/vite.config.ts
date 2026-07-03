@@ -6,11 +6,11 @@ export default defineConfig({
     alias: {
       // For backwards compatibility with old POC
       '@pathland': path.resolve(__dirname, './src'),
-      // Alias to node_modules for Vite to resolve
-      '@pathland/renderer-dom': path.resolve(__dirname, './node_modules/@pathland/renderer-dom/dist/index.js'),
-      '@pathland/view': path.resolve(__dirname, './node_modules/@pathland/view/dist/index.js'),
-      '@pathland/protocol': path.resolve(__dirname, './node_modules/@pathland/protocol/dist/index.js'),
-      '@pathland/transport': path.resolve(__dirname, './node_modules/@pathland/transport/dist/index.js'),
+      // Map @pathland packages directly to lib (bypassing node_modules)
+      '@pathland/renderer-dom': path.resolve(__dirname, '../lib/typescript/packages/renderer-dom'),
+      '@pathland/view': path.resolve(__dirname, '../lib/typescript/packages/view'),
+      '@pathland/protocol': path.resolve(__dirname, '../lib/typescript/packages/protocol'),
+      '@pathland/transport': path.resolve(__dirname, '../lib/typescript/packages/transport'),
     },
   },
   esbuild: {
