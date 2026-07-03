@@ -6,8 +6,8 @@
  */
 
 import { ViewNode, Modifier, Gesture, resetNodeIdCounter } from './view-node';
-import type { PropertyValue } from '../../protocol/dist/index';
-import { ComponentType, StackProperty, StyleProperty, EventType } from '../../protocol/dist/index';
+import type { PropertyValue } from '@pathland/protocol';
+import { ComponentType, StackProperty, StyleProperty, EventType } from '@pathland/protocol';
 import { commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
@@ -269,7 +269,7 @@ export function initialRender(root: ViewNode, transport: any): void {
   // Insert the root node as a child of the container (ID 0)
   // The root node will have ID 1 (first node created after reset)
   if (root.nodeId !== 0) {
-    commands.unshift({
+    commands.push({
       opcode: 'INSERT_CHILD',
       parentId: 0,
       childId: root.nodeId,

@@ -2,10 +2,9 @@
  * Pathland POC Main Entry Point
  * 
  * Uses relative imports to lib packages.
- * yalc is installed but Vite has resolution issues with bare imports from node_modules.
  */
 
-import { DOMRenderer } from '../../lib/typescript/packages/renderer-dom/src';
+import { DOMRenderer } from '../../lib/typescript/packages/renderer-dom/src/index';
 import { initialRender, handleDispatchEvent } from '../../lib/typescript/packages/view/src';
 import { POCApp } from './app';
 
@@ -20,7 +19,9 @@ const renderer = new DOMRenderer(container as HTMLElement);
 // Set up transport - commands go directly to renderer
 const transport = {
   send: (commands: any[]) => {
+    console.log('Transport.send called with commands:', commands);
     renderer.executeCommands(commands);
+    console.log('Renderer elements after execution:', Array.from(renderer['elements'].keys()));
   }
 };
 
