@@ -47,8 +47,10 @@ export { propertyNameToId, compilePropertyValue } from './utils';
 // - .background(color: string | number): ViewNode
 // - .color(color: string | number): ViewNode
 // - .fontSize(value: number): ViewNode
+// - .fontWeight(value: number): ViewNode
 // - .margin(value: number): ViewNode
 // - .gap(value: number): ViewNode
+// - .spacing(value: number): ViewNode (alias for gap)
 // - .opacity(value: number): ViewNode
 // - .visible(value: boolean | Signal<boolean>): ViewNode
 // - .tapGesture(handler: () => void): ViewNode

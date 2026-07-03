@@ -5,8 +5,8 @@
  * Executes Pathland commands to create and manage DOM elements.
  */
 
-import type { Command, PropertyValue, DecodedMessage } from '@pathland/protocol';
-import { decodeMessage, ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT } from '@pathland/protocol';
+import type { Command, PropertyValue, DecodedMessage } from '../../protocol/dist/index';
+import { decodeMessage, ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT } from '../../protocol/dist/index';
 
 // ============================================
 // RENDER ELEMENT

@@ -6,8 +6,8 @@
  */
 
 import { ViewNode, Modifier, Gesture, resetNodeIdCounter } from './view-node';
-import type { PropertyValue } from '@pathland/protocol';
-import { ComponentType, StackProperty, StyleProperty, EventType } from '@pathland/protocol';
+import type { PropertyValue } from '../../protocol/dist/index';
+import { ComponentType, StackProperty, StyleProperty, EventType } from '../../protocol/dist/index';
 import { commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 

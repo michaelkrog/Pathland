@@ -4,7 +4,7 @@
  * Shared utility functions for the view package.
  */
 
-import type { PropertyValue } from '../../protocol/src/protocol/types';
+import type { PropertyValue } from '../../protocol/dist/index';
 
 // ============================================
 // PROPERTY MAPPING

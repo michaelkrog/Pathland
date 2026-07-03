@@ -54,11 +54,11 @@ export async function bootstrapApplication(
   const renderer = new rendererModule.DOMRenderer(container as HTMLElement);
 
   // 4. Set up transport - commands go directly to renderer
-  (viewModule.commandQueue as any).setTransport({
+  const transport = {
     send: (commands: any[]) => {
       renderer.executeCommands(commands);
     }
-  });
+  };
 
   // 5. Set up event delegation on the container
   // This captures click/tap events and dispatches them to the view
@@ -83,7 +83,7 @@ export async function bootstrapApplication(
   // 6. Create root view and initialize
   // viewClass.make() returns the ViewNode tree
   const root = viewClass.make();
-  viewModule.initialRender(root, viewModule.commandQueue);
+  viewModule.initialRender(root, transport);
 }
 
 export default bootstrapApplication;

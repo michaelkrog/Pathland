@@ -6,7 +6,7 @@
  */
 
 // Import types from protocol package
-import type { PropertyValue, Command } from '@pathland/protocol';
+import type { PropertyValue, Command } from '../../protocol/dist/index';
 
 // Re-export Command type for consistency
 export type { Command };

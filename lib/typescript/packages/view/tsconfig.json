@@ -12,6 +12,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
+    "rootDir": "./src",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
@@ -19,13 +20,8 @@
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "allowSyntheticDefaultImports": true,
-    "baseUrl": ".",
-    "paths": {
-      "@pathland/protocol": ["../../protocol/dist/index.js"],
-      "@pathland/protocol/*": ["../../protocol/dist/*"]
-    }
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*", "../../protocol/src/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

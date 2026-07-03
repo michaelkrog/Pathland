@@ -5,7 +5,7 @@
  * Each ViewNode has a unique nodeId that never changes for its lifetime.
  */
 
-import type { PropertyValue } from '@pathland/protocol';
+import type { PropertyValue } from '../../protocol/dist/index';
 import { Signal } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
@@ -161,11 +161,19 @@ export class ViewNode {
     return this.withModifier({ kind: 'fontSize', value });
   }
 
+  fontWeight(value: number): ViewNode {
+    return this.withModifier({ kind: 'fontWeight', value });
+  }
+
   margin(value: number): ViewNode {
     return this.withModifier({ kind: 'margin', value });
   }
 
   gap(value: number): ViewNode {
+    return this.withModifier({ kind: 'gap', value });
+  }
+
+  spacing(value: number): ViewNode {
     return this.withModifier({ kind: 'gap', value });
   }
 
