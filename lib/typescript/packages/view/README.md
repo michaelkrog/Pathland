@@ -22,27 +22,28 @@ npm install @pathland/view @pathland/protocol @pathland/transport
 ## Basic Usage
 
 ```typescript
-import { VStack, HStack, Text, Signal, initialRender } from '@pathland/view';
+import { VStack, HStack, Text, Signal, initialRender, View, ViewNode } from '@pathland/view';
 import { PostMessageTransport } from '@pathland/transport';
 
-// Create reactive state
-const count = new Signal(0);
+// Define your view as a class
+class App extends View {
+  count = new Signal(0);
 
-// Create your view
-function createView() {
-  return VStack(
-    Text('Counter App'),
-    Text(count.map(n => `Count: ${n}`)).fontSize(24),
-    HStack(
-      Text('-').tapGesture(() => count.set(count.get() - 1)),
-      Text('+').tapGesture(() => count.set(count.get() + 1))
-    ).spacing(8).padding(16)
-  );
+  body(): ViewNode {
+    return VStack(
+      Text('Counter App'),
+      Text(this.count.map(n => `Count: ${n}`)).fontSize(24),
+      HStack(
+        Text('-').tapGesture(() => this.count.set(this.count.get() - 1)),
+        Text('+').tapGesture(() => this.count.set(this.count.get() + 1))
+      ).spacing(8).padding(16)
+    );
+  }
 }
 
 // Initialize with a transport
 const transport = new PostMessageTransport(iframe.contentWindow);
-const root = createView();
+const root = App.make();
 initialRender(root, transport);
 
 // Later: changing the signal generates a SET_PROPERTY command
@@ -104,10 +105,22 @@ Core component factories:
 
 ## Angular-like Class Components
 
-Create reusable components with class-based syntax:
+Create reusable components with class-based syntax using the `View` base class and `make()` static factory:
 
 ```typescript
-import { View, ViewNode, VStack, Text, Signal } from '@pathland/view';
+import { View, ViewNode, VStack, HStack, Text, Signal } from '@pathland/view';
+
+// Base View class with static make() factory
+abstract class View {
+  abstract body(): ViewNode;
+
+  static make<T extends View>(
+    this: new (...args: any[]) => T,
+    ...args: ConstructorParameters<T>
+  ): ViewNode {
+    return new this(...args).body();
+  }
+}
 
 class Card extends View {
   private expanded = new Signal(false);
@@ -136,7 +149,7 @@ class Card extends View {
   }
 }
 
-// Usage
+// Usage - no 'new' required
 const card = Card.make('My Card');
 ```
 
@@ -210,11 +223,18 @@ VStack(
 The `initialRender` function compiles the entire ViewNode tree to Pathland commands and sends them via the transport:
 
 ```typescript
-import { initialRender } from '@pathland/view';
+import { initialRender, View, ViewNode } from '@pathland/view';
 import { PostMessageTransport } from '@pathland/transport';
 
+// Define your root view as a class
+class App extends View {
+  body(): ViewNode {
+    return VStack(Text('Hello World')).padding(16);
+  }
+}
+
 const transport = new PostMessageTransport(targetWindow);
-const root = createView();
+const root = App.make();
 initialRender(root, transport);
 ```
 
@@ -323,7 +343,7 @@ count.set(5);
 export { VStack, HStack, Text };
 
 // Core
-export { ViewNode, resetNodeIdCounter };
+export { ViewNode, resetNodeIdCounter, View };
 
 // Reactivity
 export { Signal, commandQueue };
@@ -337,6 +357,16 @@ export type { Modifier, Gesture, PropertyValue, Command };
 // Utilities
 export { propertyNameToId, compilePropertyValue };
 ```
+
+### View Class
+
+Base class for creating custom views with class-based syntax.
+
+#### Static Methods
+- `View.make<T extends View>(...args)` - Static factory method that creates an instance and calls `body()`
+
+#### Instance Methods
+- `abstract body()` - Must be implemented by subclasses to return the ViewNode tree
 
 ### ViewNode Methods
 

@@ -89,7 +89,7 @@ lib/typescript/                    # Monorepo root
 class Card {
   private expanded = new Signal(false);
   
-  createView(): ViewNode {
+  body(): ViewNode {
     return VStack(
       HStack(
         Text('Card Title'),
@@ -103,9 +103,9 @@ class Card {
 
 // App uses custom components
 class App {
-  createView(): ViewNode {
+  body(): ViewNode {
     return VStack(
-      new Card().createView(),
+      Card.make(),
       Text('Other content')
     );
   }
