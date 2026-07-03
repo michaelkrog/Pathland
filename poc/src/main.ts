@@ -4,6 +4,7 @@
  * This inlines the bootstrap logic to avoid module resolution issues.
  */
 
+// Use node_modules paths for proper type resolution
 import { DOMRenderer } from '@pathland/renderer-dom';
 import { initialRender, handleDispatchEvent, commandQueue } from '@pathland/view';
 import { POCApp } from './app';
