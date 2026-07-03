@@ -1,11 +1,9 @@
 /**
  * Pathland POC Main Entry Point
  * 
- * Bootstrap logic inlined to work with local packages.
- * Using relative imports until packages are published to npm.
+ * Uses relative imports to lib packages (yalc installed but Vite has resolution issues).
  */
 
-// Import from lib packages using relative paths
 import { DOMRenderer } from '../../lib/typescript/packages/renderer-dom/src';
 import { initialRender, handleDispatchEvent } from '../../lib/typescript/packages/view/src';
 import { POCApp } from './app';
