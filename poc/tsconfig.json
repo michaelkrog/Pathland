@@ -12,7 +12,6 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "./dist",
-    "rootDir": "./src",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": false,
@@ -23,7 +22,7 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@pathland/*": ["../lib/typescript/packages/*"]
+      "@pathland/*": ["../lib/typescript/packages/*/src"]
     },
     "typeRoots": ["./node_modules/@types", "../lib/typescript/packages/*/dist"]
   },

@@ -68,7 +68,7 @@ export function HStack(...children: ViewNode[]): ViewNode {
  * Text("Title").fontSize(24).color("primary")
  * ```
  */
-export function Text(content: Signal<string> | string): ViewNode {
+export function Text(content: Signal<any> | string): ViewNode {
   const node = new ViewNode('Text');
   
   if (content instanceof Signal) {
