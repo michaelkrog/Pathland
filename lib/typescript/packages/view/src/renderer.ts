@@ -266,5 +266,15 @@ export function initialRender(root: ViewNode, transport: any): void {
   commandQueue.setTransport(transport);
   
   const commands = compileNode(root);
+  // Insert the root node as a child of the container (ID 0)
+  // The root node will have ID 1 (first node created after reset)
+  if (root.nodeId !== 0) {
+    commands.unshift({
+      opcode: 'INSERT_CHILD',
+      parentId: 0,
+      childId: root.nodeId,
+      index: 0
+    });
+  }
   transport.send(commands);
 }

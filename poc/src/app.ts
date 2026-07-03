@@ -1,10 +1,11 @@
 /**
  * Pathland POC Application
  * 
- * Uses the new @pathland/view package for creating UI.
+ * Uses the new view package for creating UI.
+ * Using relative imports until packages are published to npm.
  */
 
-import { View, ViewNode, VStack, HStack, Text, Signal } from '@pathland/view';
+import { View, ViewNode, VStack, HStack, Text, Signal } from '../../lib/typescript/packages/view/src';
 
 // ============================================
 // DEMO 1: Simple VStack with Text (semantic colors)

@@ -1,12 +1,13 @@
 /**
  * Pathland POC Main Entry Point
  * 
- * This inlines the bootstrap logic to avoid module resolution issues.
+ * Bootstrap logic inlined to work with local packages.
+ * Using relative imports until packages are published to npm.
  */
 
-// Use node_modules paths for proper type resolution
-import { DOMRenderer } from '@pathland/renderer-dom';
-import { initialRender, handleDispatchEvent, commandQueue } from '@pathland/view';
+// Import from lib packages using relative paths
+import { DOMRenderer } from '../../lib/typescript/packages/renderer-dom/src';
+import { initialRender, handleDispatchEvent } from '../../lib/typescript/packages/view/src';
 import { POCApp } from './app';
 
 // Set up renderer
@@ -23,9 +24,6 @@ const transport = {
     renderer.executeCommands(commands);
   }
 };
-
-// Set up command queue transport
-commandQueue.setTransport(transport);
 
 // Set up event delegation on the container
 container.addEventListener('click', ((event: Event) => {

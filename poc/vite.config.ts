@@ -6,18 +6,21 @@ export default defineConfig({
     alias: {
       // For backwards compatibility with old POC
       '@pathland': path.resolve(__dirname, './src'),
-      // Map @pathland packages directly to lib (bypassing node_modules)
-      '@pathland/renderer-dom': path.resolve(__dirname, '../lib/typescript/packages/renderer-dom'),
-      '@pathland/view': path.resolve(__dirname, '../lib/typescript/packages/view'),
-      '@pathland/protocol': path.resolve(__dirname, '../lib/typescript/packages/protocol'),
-      '@pathland/transport': path.resolve(__dirname, '../lib/typescript/packages/transport'),
+      // Map @pathland packages to their source directories for future use
+      '@pathland/view': path.resolve(__dirname, '../lib/typescript/packages/view/src'),
+      '@pathland/renderer-dom': path.resolve(__dirname, '../lib/typescript/packages/renderer-dom/src'),
+      '@pathland/protocol': path.resolve(__dirname, '../lib/typescript/packages/protocol/src'),
+      '@pathland/transport': path.resolve(__dirname, '../lib/typescript/packages/transport/src'),
+      '@pathland/platform-browser': path.resolve(__dirname, '../lib/typescript/packages/platform-browser/src'),
     },
+  },
+  server: {
+    port: 3000,
   },
   esbuild: {
     // Ensure TypeScript files are handled correctly
     target: 'es2020',
   },
-  optimizeDeps: {},
   build: {
     outDir: 'dist',
     emptyOutDir: true,
@@ -26,8 +29,5 @@ export default defineConfig({
         main: path.resolve(__dirname, 'index.html'),
       },
     },
-  },
-  server: {
-    port: 3000,
   },
 });
