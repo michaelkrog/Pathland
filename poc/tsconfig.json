@@ -23,7 +23,7 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@pathland/*": ["src/*", "node_modules/@pathland/*"]
+      "@pathland/*": ["node_modules/@pathland/*"]
     }
   },
   "include": ["src/**/*"],

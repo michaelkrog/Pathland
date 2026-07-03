@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest",
-    "dev": "vite"
+    "dev": "vite",
+    "postinstall": "bash scripts/copy-packages.sh"
   },
   "keywords": [
     "ui",
@@ -21,12 +22,5 @@
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
     "vitest": "^1.6.1"
-  },
-  "dependencies": {
-    "@pathland/platform-browser": "file:../lib/typescript/packages/platform-browser",
-    "@pathland/protocol": "file:../lib/typescript/packages/protocol",
-    "@pathland/renderer-dom": "file:../lib/typescript/packages/renderer-dom",
-    "@pathland/transport": "file:../lib/typescript/packages/transport",
-    "@pathland/view": "file:../lib/typescript/packages/view"
   }
 }
