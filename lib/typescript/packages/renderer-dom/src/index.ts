@@ -48,6 +48,15 @@ class RenderElement {
     this.element.dataset.pathlandNodeId = nodeId.toString();
     this.element.dataset.pathlandComponentType = componentType.toString();
 
+    // Setup flex layout for stack containers
+    if (componentType === ComponentType.HSTACK) {
+      this.element.style.display = 'flex';
+      this.element.style.flexDirection = 'row';
+    } else if (componentType === ComponentType.VSTACK) {
+      this.element.style.display = 'flex';
+      this.element.style.flexDirection = 'column';
+    }
+
     // Special setup for certain components
     if (componentType === ComponentType.SWITCH) {
       (this.element as HTMLInputElement).type = 'checkbox';
