@@ -4,7 +4,7 @@
  * Shared utility functions for the view package.
  */
 
-import type { PropertyValue } from '@pathland/protocol';
+import type { PropertyValue } from '../../protocol/src';
 
 // ============================================
 // PROPERTY MAPPING

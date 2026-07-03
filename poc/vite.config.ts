@@ -10,6 +10,13 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    fs: {
+      // Allow serving files from parent directory (lib packages) and POC itself
+      allow: [
+        path.resolve(__dirname),
+        path.resolve(__dirname, '../lib/typescript/packages'),
+      ],
+    },
   },
   esbuild: {
     // Ensure TypeScript files are handled correctly

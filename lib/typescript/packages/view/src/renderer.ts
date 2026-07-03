@@ -5,9 +5,9 @@
  * Handles initial render only - updates are handled directly by signals.
  */
 
-import { ViewNode, Modifier, Gesture, resetNodeIdCounter } from './view-node';
-import type { PropertyValue } from '@pathland/protocol';
-import { ComponentType, StackProperty, StyleProperty, EventType } from '@pathland/protocol';
+import { ViewNode, Modifier, Gesture } from './view-node';
+import type { PropertyValue } from '../../protocol/src';
+import { ComponentType, StackProperty, StyleProperty, EventType } from '../../protocol/src';
 import { commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
@@ -259,7 +259,6 @@ function compileNode(node: ViewNode): InternalCommand[] {
 // ============================================
 
 export function initialRender(root: ViewNode, transport: any): void {
-  resetNodeIdCounter();
   gestureHandlerId = 0;
   gestureHandlers.clear();
   

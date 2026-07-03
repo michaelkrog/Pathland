@@ -5,8 +5,8 @@
  * Provides abstractions for sending/receiving messages over various transports.
  */
 
-import type { Command, DecodedMessage } from '@pathland/protocol';
-import { encodeMessage, decodeMessage, BinaryReader, BinaryWriter } from '@pathland/protocol';
+import type { Command, DecodedMessage } from '../../protocol/src';
+import { encodeMessage, decodeMessage, BinaryReader, BinaryWriter } from '../../protocol/src';
 
 // ============================================
 // MESSAGE SERIALIZATION

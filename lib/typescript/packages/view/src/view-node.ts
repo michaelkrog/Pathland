@@ -5,7 +5,7 @@
  * Each ViewNode has a unique nodeId that never changes for its lifetime.
  */
 
-import type { PropertyValue } from '@pathland/protocol';
+import type { PropertyValue } from '../../protocol/src';
 import { Signal } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
