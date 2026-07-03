@@ -6,7 +6,7 @@ export default defineConfig({
     alias: {
       // For backwards compatibility with old POC
       '@pathland': path.resolve(__dirname, './src'),
-      // Alias @pathland packages to lib for direct imports
+      // Map @pathland packages
       '@pathland/platform-browser': path.resolve(__dirname, '../lib/typescript/packages/platform-browser'),
       '@pathland/view': path.resolve(__dirname, '../lib/typescript/packages/view'),
       '@pathland/renderer-dom': path.resolve(__dirname, '../lib/typescript/packages/renderer-dom'),
@@ -18,16 +18,7 @@ export default defineConfig({
     // Ensure TypeScript files are handled correctly
     target: 'es2020',
   },
-  optimizeDeps: {
-    // Don't pre-bundle our local packages
-    exclude: [
-      '@pathland/protocol',
-      '@pathland/transport', 
-      '@pathland/view',
-      '@pathland/renderer-dom',
-      '@pathland/platform-browser'
-    ]
-  },
+  optimizeDeps: {},
   build: {
     outDir: 'dist',
     emptyOutDir: true,

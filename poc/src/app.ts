@@ -4,7 +4,7 @@
  * Uses the new @pathland/view package for creating UI.
  */
 
-import { View, ViewNode, VStack, HStack, Text, Signal } from '../../lib/typescript/packages/view';
+import { View, ViewNode, VStack, HStack, Text, Signal } from '@pathland/view';
 
 // ============================================
 // DEMO 1: Simple VStack with Text (semantic colors)

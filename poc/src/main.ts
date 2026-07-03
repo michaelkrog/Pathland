@@ -5,7 +5,7 @@
  * the application with a simple, Angular-like API.
  */
 
-import { bootstrapApplication } from '../../lib/typescript/packages/platform-browser';
+import { bootstrapApplication } from '@pathland/platform-browser';
 import { POCApp } from './app';
 
 // Bootstrap the application

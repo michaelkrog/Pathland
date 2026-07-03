@@ -6,6 +6,27 @@
  * renderer setup, transport configuration, view initialization, and event handling.
  */
 
+// Lazy load the actual modules - these will be resolved by Vite at build time
+// using the alias configuration
+let rendererModule: any = null;
+let viewModule: any = null;
+
+async function loadRendererModule() {
+  if (!rendererModule) {
+    // Use relative path to sibling package to work around Vite symlink issues
+    rendererModule = await import('../../renderer-dom/dist/index.js');
+  }
+  return rendererModule;
+}
+
+async function loadViewModule() {
+  if (!viewModule) {
+    // Use relative path to sibling package to work around Vite symlink issues
+    viewModule = await import('../../view/dist/index.js');
+  }
+  return viewModule;
+}
+
 /**
  * Bootstrap a Pathland application in the browser.
  * 
@@ -44,14 +65,14 @@ export async function bootstrapApplication(
     throw new Error('Could not find <app-root> element. Add <app-root></app-root> to your HTML.');
   }
 
-  // 2. Import required packages dynamically
-  const [rendererModule, viewModule] = await Promise.all([
-    import('../../renderer-dom/dist/index'),
-    import('../../view/dist/index')
+  // 2. Lazy load required packages
+  const [rendererMod, viewMod] = await Promise.all([
+    loadRendererModule(),
+    loadViewModule()
   ]);
 
   // 3. Set up renderer
-  const renderer = new rendererModule.DOMRenderer(container as HTMLElement);
+  const renderer = new rendererMod.DOMRenderer(container as HTMLElement);
 
   // 4. Set up transport - commands go directly to renderer
   const transport = {
@@ -74,7 +95,7 @@ export async function bootstrapApplication(
       // Map HTML events to Pathland event types
       // For now, map click to CLICK (0x04) and TAP (0x01)
       const eventType = 0x04; // EventType.CLICK
-      viewModule.handleDispatchEvent(nodeId, eventType);
+      viewMod.handleDispatchEvent(nodeId, eventType);
     }
   }) as EventListener);
 
@@ -83,7 +104,7 @@ export async function bootstrapApplication(
   // 6. Create root view and initialize
   // viewClass.make() returns the ViewNode tree
   const root = viewClass.make();
-  viewModule.initialRender(root, transport);
+  viewMod.initialRender(root, transport);
 }
 
 export default bootstrapApplication;
