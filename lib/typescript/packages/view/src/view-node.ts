@@ -9,6 +9,7 @@ import type { PropertyValue } from '@pathland/protocol';
 import { Signal, commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
+
 // ============================================
 // TYPES
 // ============================================
@@ -236,24 +237,35 @@ export class ViewNode {
     let contentNode: ViewNode | null = null;
     const placeholder = new ViewNode('if', []);
 
+    // For initial render, create content if condition is true
+    if (condition.get()) {
+      contentNode = createContent();
+      placeholder.children = [contentNode];
+    }
+
     // Subscribe to condition changes using the Signal's binding mechanism
-    // We'll use a dummy property binding to hook into the signal change detection
     condition.bind(placeholder.nodeId, 0, (visible: boolean) => {
       if (visible && !contentNode) {
         // Create the content node
         contentNode = createContent();
         
-        // Generate CREATE_NODE command
-        // Note: This is a simplified version - in practice we'd need to compile
-        // the entire subtree, but this demonstrates the concept
+        // Map node type to component type
+        let componentType = 0;
+        if (contentNode.type === 'VStack') componentType = 0x0002;
+        else if (contentNode.type === 'HStack') componentType = 0x0001;
+        else if (contentNode.type === 'Text') componentType = 0x0003;
+        else if (contentNode.type === 'Button') componentType = 0x0004;
+        else if (contentNode.type === 'Spacer') componentType = 0x0008;
+        
+        // Send CREATE_NODE command
         commandQueue.add({
           opcode: 'CREATE_NODE',
           nodeId: contentNode.nodeId,
-          componentType: 0, // Will be determined by renderer
-          properties: new Map()
+          componentType: componentType,
+          properties: new Map<number, any>()
         });
         
-        // Insert as child of placeholder
+        // Send INSERT_CHILD command
         commandQueue.add({
           opcode: 'INSERT_CHILD',
           parentId: placeholder.nodeId,
@@ -261,7 +273,18 @@ export class ViewNode {
           index: 0
         });
         
-        // TODO: Compile and apply properties, children of contentNode
+        // Apply properties
+        for (const [key, val] of Object.entries(contentNode.properties)) {
+          const propId = propertyNameToId(key);
+          if (propId !== undefined) {
+            commandQueue.add({
+              opcode: 'SET_PROPERTY',
+              nodeId: contentNode.nodeId,
+              propertyId: propId,
+              value: compilePropertyValue(propId, val)
+            });
+          }
+        }
         
       } else if (!visible && contentNode) {
         // Delete the content node
@@ -274,14 +297,6 @@ export class ViewNode {
       
       return { type: 'u8', value: 0 }; // Dummy return for binding
     });
-
-    // Handle initial state
-    if (condition.get()) {
-      contentNode = createContent();
-      // For initial render, the content will be compiled as part of the normal
-      // tree compilation, so we need to include it in the placeholder's children
-      placeholder.children = [contentNode];
-    }
 
     return placeholder;
   }
