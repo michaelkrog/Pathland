@@ -155,6 +155,32 @@ export class Signal<T> {
   }
 
   /**
+   * Subscribe to signal changes with a custom callback.
+   * This allows for arbitrary side effects when the signal changes,
+   * such as structural tree modifications (CREATE_NODE, DELETE_NODE, etc.).
+   * 
+   * @param callback Function to call when the signal changes
+   * @returns Unsubscribe function
+   */
+  subscribe(callback: (value: T) => void): () => void {
+    // Create a dummy binding that calls our callback
+    const binding: any = {
+      nodeId: -1,
+      propertyId: 0,
+      compile: (value: T) => {
+        callback(value);
+        return { type: 'u8', value: 0 }; // Dummy return
+      }
+    };
+    this.bindings.push(binding);
+    
+    return () => {
+      const index = this.bindings.indexOf(binding);
+      if (index !== -1) this.bindings.splice(index, 1);
+    };
+  }
+
+  /**
    * Create a derived signal that maps this signal's value through a function.
    * The derived signal automatically updates when this signal changes.
    * 

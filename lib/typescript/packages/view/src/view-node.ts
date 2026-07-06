@@ -6,7 +6,7 @@
  */
 
 import type { PropertyValue } from '@pathland/protocol';
-import { Signal } from './signal';
+import { Signal, commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
 // ============================================
@@ -214,6 +214,76 @@ export class ViewNode {
   // Corner radius modifier
   cornerRadius(value: number): ViewNode {
     return this.withModifier({ kind: 'cornerRadius', value });
+  }
+
+  // ============================================
+  // CONDITIONAL RENDERING
+  // ============================================
+
+  /**
+   * Create a ViewNode that conditionally renders its content based on a signal.
+   * When the signal is true, the content is shown. When false, the content is removed from the tree.
+   * 
+   * This method creates a special conditional node that manages the lifecycle of its content.
+   * The content is created lazily when the signal becomes true, and deleted when false.
+   * 
+   * @param condition The boolean signal that controls whether content is shown
+   * @param createContent Function that creates the content ViewNode
+   * @returns A ViewNode that represents the conditional content
+   */
+  static if(condition: Signal<boolean>, createContent: () => ViewNode): ViewNode {
+    // Track the created content node
+    let contentNode: ViewNode | null = null;
+    const placeholder = new ViewNode('if', []);
+
+    // Subscribe to condition changes using the Signal's binding mechanism
+    // We'll use a dummy property binding to hook into the signal change detection
+    condition.bind(placeholder.nodeId, 0, (visible: boolean) => {
+      if (visible && !contentNode) {
+        // Create the content node
+        contentNode = createContent();
+        
+        // Generate CREATE_NODE command
+        // Note: This is a simplified version - in practice we'd need to compile
+        // the entire subtree, but this demonstrates the concept
+        commandQueue.add({
+          opcode: 'CREATE_NODE',
+          nodeId: contentNode.nodeId,
+          componentType: 0, // Will be determined by renderer
+          properties: new Map()
+        });
+        
+        // Insert as child of placeholder
+        commandQueue.add({
+          opcode: 'INSERT_CHILD',
+          parentId: placeholder.nodeId,
+          childId: contentNode.nodeId,
+          index: 0
+        });
+        
+        // TODO: Compile and apply properties, children of contentNode
+        
+      } else if (!visible && contentNode) {
+        // Delete the content node
+        commandQueue.add({
+          opcode: 'DELETE_NODE',
+          nodeId: contentNode.nodeId
+        });
+        contentNode = null;
+      }
+      
+      return { type: 'u8', value: 0 }; // Dummy return for binding
+    });
+
+    // Handle initial state
+    if (condition.get()) {
+      contentNode = createContent();
+      // For initial render, the content will be compiled as part of the normal
+      // tree compilation, so we need to include it in the placeholder's children
+      placeholder.children = [contentNode];
+    }
+
+    return placeholder;
   }
 }
 
