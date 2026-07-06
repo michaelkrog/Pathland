@@ -42,6 +42,7 @@ export const ComponentType = {
   SCROLLVIEW: 0x0009,
   LIST: 0x000A,
   GRID: 0x000B,
+  COMMENT: 0x000C,
 } as const;
 
 // Property IDs - Stack

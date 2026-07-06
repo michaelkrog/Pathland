@@ -6,6 +6,7 @@
  */
 
 import type { PropertyValue } from '@pathland/protocol';
+import { ComponentType } from '@pathland/protocol';
 import { Signal, commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
@@ -225,77 +226,128 @@ export class ViewNode {
    * Create a ViewNode that conditionally renders its content based on a signal.
    * When the signal is true, the content is shown. When false, the content is removed from the tree.
    * 
-   * This method creates a special conditional node that manages the lifecycle of its content.
-   * The content is created lazily when the signal becomes true, and deleted when false.
+   * Uses a COMMENT component type for the placeholder, which renders as a DOM comment
+   * and avoids adding extra visible DOM elements. The conditional content is inserted
+   * as a sibling after the comment node.
    * 
    * @param condition The boolean signal that controls whether content is shown
    * @param createContent Function that creates the content ViewNode
-   * @returns A ViewNode that represents the conditional content
+   * @returns A ViewNode that represents the conditional placeholder (comment node)
    */
   static if(condition: Signal<boolean>, createContent: () => ViewNode): ViewNode {
     // Track the created content node
     let contentNode: ViewNode | null = null;
-    const placeholder = new ViewNode('if', []);
+    
+    // Create a COMMENT placeholder node - this will render as <!--pathland-conditional-->
+    // and won't add any visible DOM element
+    // We use a dummy type 'comment' that will be mapped to ComponentType.COMMENT
+    const placeholder = new ViewNode('comment', []);
 
-    // For initial render, create content if condition is true
+    // Map ViewNode type to Pathland ComponentType
+    function getComponentType(node: ViewNode): number {
+      switch (node.type) {
+        case 'VStack': return ComponentType.VSTACK;
+        case 'HStack': return ComponentType.HSTACK;
+        case 'Text': return ComponentType.TEXT;
+        case 'Button': return ComponentType.BUTTON;
+        case 'Spacer': return ComponentType.SPACER;
+        case 'Image': return ComponentType.IMAGE;
+        case 'ScrollView': return ComponentType.SCROLLVIEW;
+        case 'List': return ComponentType.LIST;
+        case 'Grid': return ComponentType.GRID;
+        case 'Switch': return ComponentType.SWITCH;
+        case 'TextField': return ComponentType.TEXT_FIELD;
+        case 'comment': return ComponentType.COMMENT;
+        default: return 0; // Unknown component type
+      }
+    }
+
+    // Function to recursively create and send commands for a node and its children
+    function sendCreateNodeWithChildren(node: ViewNode, parentId: number, index: number): void {
+      // Send CREATE_NODE for this node
+      const componentType = getComponentType(node);
+      commandQueue.add({
+        opcode: 'CREATE_NODE',
+        nodeId: node.nodeId,
+        componentType: componentType,
+        properties: new Map<number, any>()
+      });
+      
+      // Apply properties
+      for (const [key, val] of Object.entries(node.properties)) {
+        const propId = propertyNameToId(key);
+        if (propId !== undefined) {
+          commandQueue.add({
+            opcode: 'SET_PROPERTY',
+            nodeId: node.nodeId,
+            propertyId: propId,
+            value: compilePropertyValue(propId, val)
+          });
+        }
+      }
+      
+      // Send INSERT_CHILD to add this node to parent
+      commandQueue.add({
+        opcode: 'INSERT_CHILD',
+        parentId: parentId,
+        childId: node.nodeId,
+        index: index
+      });
+      
+      // Recursively create children
+      for (let i = 0; i < node.children.length; i++) {
+        sendCreateNodeWithChildren(node.children[i], node.nodeId, i);
+      }
+    }
+
+    // Function to send delete command for a node and its children
+    function sendDeleteNode(node: ViewNode): void {
+      // Recursively delete children first
+      for (const child of node.children) {
+        sendDeleteNode(child);
+      }
+      
+      // Then delete this node
+      commandQueue.add({
+        opcode: 'DELETE_NODE',
+        nodeId: node.nodeId
+      });
+    }
+
+    // For initial render, create placeholder and content if condition is true
+    // Send CREATE_NODE for placeholder (comment node)
+    commandQueue.add({
+      opcode: 'CREATE_NODE',
+      nodeId: placeholder.nodeId,
+      componentType: ComponentType.COMMENT,
+      properties: new Map<number, any>()
+    });
+
     if (condition.get()) {
       contentNode = createContent();
       placeholder.children = [contentNode];
+      
+      // Send commands to create the content node as child of placeholder
+      // The renderer will handle COMMENT nodes specially by inserting as siblings
+      sendCreateNodeWithChildren(contentNode, placeholder.nodeId, 0);
     }
 
-    // Subscribe to condition changes using the Signal's binding mechanism
-    condition.bind(placeholder.nodeId, 0, (visible: boolean) => {
+    // Subscribe to condition changes
+    condition.subscribe((visible: boolean) => {
       if (visible && !contentNode) {
         // Create the content node
         contentNode = createContent();
+        placeholder.children = [contentNode];
         
-        // Map node type to component type
-        let componentType = 0;
-        if (contentNode.type === 'VStack') componentType = 0x0002;
-        else if (contentNode.type === 'HStack') componentType = 0x0001;
-        else if (contentNode.type === 'Text') componentType = 0x0003;
-        else if (contentNode.type === 'Button') componentType = 0x0004;
-        else if (contentNode.type === 'Spacer') componentType = 0x0008;
-        
-        // Send CREATE_NODE command
-        commandQueue.add({
-          opcode: 'CREATE_NODE',
-          nodeId: contentNode.nodeId,
-          componentType: componentType,
-          properties: new Map<number, any>()
-        });
-        
-        // Send INSERT_CHILD command
-        commandQueue.add({
-          opcode: 'INSERT_CHILD',
-          parentId: placeholder.nodeId,
-          childId: contentNode.nodeId,
-          index: 0
-        });
-        
-        // Apply properties
-        for (const [key, val] of Object.entries(contentNode.properties)) {
-          const propId = propertyNameToId(key);
-          if (propId !== undefined) {
-            commandQueue.add({
-              opcode: 'SET_PROPERTY',
-              nodeId: contentNode.nodeId,
-              propertyId: propId,
-              value: compilePropertyValue(propId, val)
-            });
-          }
-        }
+        // Send commands to create and insert the content
+        sendCreateNodeWithChildren(contentNode, placeholder.nodeId, 0);
         
       } else if (!visible && contentNode) {
-        // Delete the content node
-        commandQueue.add({
-          opcode: 'DELETE_NODE',
-          nodeId: contentNode.nodeId
-        });
+        // Delete the content node and all its children
+        sendDeleteNode(contentNode);
         contentNode = null;
+        placeholder.children = [];
       }
-      
-      return { type: 'u8', value: 0 }; // Dummy return for binding
     });
 
     return placeholder;

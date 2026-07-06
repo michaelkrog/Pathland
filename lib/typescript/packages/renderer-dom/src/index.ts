@@ -15,8 +15,9 @@ import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CO
 
 /**
  * DOM element type that works with both browser DOM and JSDOM
+ * Includes regular elements and comment nodes
  */
-type DOMElement = Element | HTMLElement;
+type DOMNode = Element | HTMLElement | Comment;
 
 /**
  * Document type that works with both browser and JSDOM
@@ -31,10 +32,24 @@ function isDocument(obj: any): obj is DOMDocument {
 }
 
 /**
- * Type guard to check if an object is an Element
+ * Type guard to check if an object is an Element (nodeType 1)
  */
-function isElement(obj: any): obj is DOMElement {
+function isElement(obj: any): obj is Element {
   return obj && typeof obj.appendChild === 'function' && obj.nodeType === 1;
+}
+
+/**
+ * Type guard to check if an object is a Comment (nodeType 8)
+ */
+function isComment(obj: any): obj is Comment {
+  return obj && obj.nodeType === 8;
+}
+
+/**
+ * Type guard to check if an object is a DOM node (Element or Comment)
+ */
+function isDOMNode(obj: any): obj is DOMNode {
+  return obj && (obj.nodeType === 1 || obj.nodeType === 8);
 }
 
 // ============================================
@@ -43,6 +58,7 @@ function isElement(obj: any): obj is DOMElement {
 
 /**
  * Maps Pathland component types to DOM element tag names.
+ * COMMENT maps to 'comment' which is handled specially to create DOM comment nodes.
  */
 const COMPONENT_TO_TAG: Record<number, string> = {
   [ComponentType.HSTACK]: 'div',
@@ -56,50 +72,59 @@ const COMPONENT_TO_TAG: Record<number, string> = {
   [ComponentType.GRID]: 'div',
   [ComponentType.SWITCH]: 'input',
   [ComponentType.TEXT_FIELD]: 'input',
+  [ComponentType.COMMENT]: 'comment',
 };
 
 /**
  * Helper to set data attributes that works with both DOM and JSDOM.
+ * Note: Comment nodes don't support setAttribute, so this should only be called on Elements.
  */
-function setDataAttribute(element: DOMElement, name: string, value: string): void {
+function setDataAttribute(element: Element, name: string, value: string): void {
   element.setAttribute(`data-pathland-${name}`, value);
 }
 
 /**
- * A render element wraps a DOM element and handles property application.
- * Works with both browser HTMLElement and JSDOM Element.
+ * A render element wraps a DOM node (Element or Comment) and handles property application.
+ * Works with both browser HTMLElement and JSDOM Element, and Comment nodes.
  */
 class RenderElement {
   readonly id: number;
   readonly componentType: number;
-  readonly element: DOMElement;
+  readonly element: DOMNode;
   children: RenderElement[] = [];
   parent: RenderElement | null = null;
 
-  constructor(nodeId: number, componentType: number, document: DOMDocument, container?: DOMElement) {
+  constructor(nodeId: number, componentType: number, document: DOMDocument, container?: DOMNode) {
     this.id = nodeId;
     this.componentType = componentType;
     
-    const tag = COMPONENT_TO_TAG[componentType] || 'div';
-    this.element = document.createElement(tag);
-    setDataAttribute(this.element, 'node-id', nodeId.toString());
-    setDataAttribute(this.element, 'component-type', componentType.toString());
+    // Special handling for COMMENT component type
+    if (componentType === ComponentType.COMMENT) {
+      this.element = document.createComment('pathland-conditional');
+      // Note: Comment nodes don't support setAttribute, so we use a different approach
+      // For now, we'll skip data attributes on comments as they're not standard
+    } else {
+      const tag = COMPONENT_TO_TAG[componentType] || 'div';
+      this.element = document.createElement(tag);
+      setDataAttribute(this.element, 'node-id', nodeId.toString());
+      setDataAttribute(this.element, 'component-type', componentType.toString());
 
-    // Setup flex layout for stack containers
-    if (componentType === ComponentType.HSTACK) {
-      (this.element as HTMLElement).style.display = 'flex';
-      (this.element as HTMLElement).style.flexDirection = 'row';
-    } else if (componentType === ComponentType.VSTACK) {
-      (this.element as HTMLElement).style.display = 'flex';
-      (this.element as HTMLElement).style.flexDirection = 'column';
-    }
+      // Setup flex layout for stack containers
+      if (componentType === ComponentType.HSTACK) {
+        (this.element as HTMLElement).style.display = 'flex';
+        (this.element as HTMLElement).style.flexDirection = 'row';
+      } else if (componentType === ComponentType.VSTACK) {
+        (this.element as HTMLElement).style.display = 'flex';
+        (this.element as HTMLElement).style.flexDirection = 'column';
+      }
 
-    // Special setup for certain components
-    if (componentType === ComponentType.SWITCH) {
-      (this.element as HTMLInputElement).type = 'checkbox';
-    }
-    if (componentType === ComponentType.TEXT_FIELD) {
-      (this.element as HTMLInputElement).type = 'text';
+      // Special setup for certain components
+      if (componentType === ComponentType.SWITCH) {
+        (this.element as HTMLInputElement).type = 'checkbox';
+      }
+      if (componentType === ComponentType.TEXT_FIELD) {
+        (this.element as HTMLInputElement).type = 'text';
+      }
     }
 
     if (container) {
@@ -238,31 +263,70 @@ class RenderElement {
   }
 
   insertChild(child: RenderElement, index: number): void {
-    if (index >= this.children.length) {
-      this.element.appendChild(child.element);
-      this.children.push(child);
+    // Special handling for COMMENT nodes: insert as sibling after the comment
+    if (this.componentType === ComponentType.COMMENT) {
+      // For comment nodes, we insert the child as a sibling after the comment
+      if (this.element.parentNode) {
+        if (index >= this.children.length) {
+          this.element.parentNode.insertBefore(child.element, this.element.nextSibling);
+          this.children.push(child);
+        } else {
+          // Find the reference node (next sibling after comment that is our child)
+          let refNode = this.element.nextSibling;
+          for (let i = 0; i < index && refNode; i++) {
+            refNode = refNode.nextSibling;
+          }
+          this.element.parentNode.insertBefore(child.element, refNode);
+          this.children.splice(index, 0, child);
+        }
+      }
+      child.parent = this.parent; // Comment's parent becomes child's parent
     } else {
-      const nextSibling = this.children[index].element;
-      this.element.insertBefore(child.element, nextSibling);
-      this.children.splice(index, 0, child);
+      if (index >= this.children.length) {
+        this.element.appendChild(child.element);
+        this.children.push(child);
+      } else {
+        const nextSibling = this.children[index].element;
+        this.element.insertBefore(child.element, nextSibling);
+        this.children.splice(index, 0, child);
+      }
+      child.parent = this;
     }
-    child.parent = this;
   }
 
   removeChild(child: RenderElement): void {
-    this.element.removeChild(child.element);
-    const index = this.children.indexOf(child);
-    if (index !== -1) {
-      this.children.splice(index, 1);
+    // Special handling for COMMENT nodes: remove sibling
+    if (this.componentType === ComponentType.COMMENT) {
+      if (child.element.parentNode) {
+        child.element.parentNode.removeChild(child.element);
+      }
+      const index = this.children.indexOf(child);
+      if (index !== -1) {
+        this.children.splice(index, 1);
+      }
+      child.parent = null;
+    } else {
+      this.element.removeChild(child.element);
+      const index = this.children.indexOf(child);
+      if (index !== -1) {
+        this.children.splice(index, 1);
+      }
+      child.parent = null;
     }
-    child.parent = null;
   }
 
   remove(): void {
+    // For COMMENT nodes, remove from parent's children list and from DOM
     if (this.parent) {
       this.parent.removeChild(this);
     } else if (this.element.parentNode) {
       this.element.parentNode.removeChild(this.element);
+    }
+    // Also remove all children (siblings for comment nodes)
+    for (const child of [...this.children]) {
+      if (child.element.parentNode) {
+        child.element.parentNode.removeChild(child.element);
+      }
     }
     this.children = [];
   }
@@ -280,22 +344,22 @@ class RenderElement {
 export class DOMRenderer {
   private root: RenderElement;
   private elements: Map<number, RenderElement> = new Map();
-  private container: DOMElement;
+  private container: DOMNode;
   private document: DOMDocument;
 
   /**
    * Create a new DOMRenderer.
-   * @param containerOrDocument The DOM element to render into, or a Document for JSDOM
+   * @param containerOrDocument The DOM node to render into, or a Document for JSDOM
    * @param optionalDocument Optional document to use (for JSDOM when first param is a container element)
    */
-  constructor(containerOrDocument: DOMElement | DOMDocument = (typeof document !== 'undefined' ? document.body : undefined) as DOMElement | DOMDocument, optionalDocument?: DOMDocument) {
+  constructor(containerOrDocument: DOMNode | DOMDocument = (typeof document !== 'undefined' ? document.body : undefined) as DOMNode | DOMDocument, optionalDocument?: DOMDocument) {
     // Determine document and container from parameters
     if (isDocument(containerOrDocument)) {
       // First parameter is a document (JSDOM case)
       this.document = containerOrDocument;
-      this.container = this.document.body as DOMElement;
-    } else if (isElement(containerOrDocument)) {
-      // First parameter is a container element
+      this.container = this.document.body as DOMNode;
+    } else if (isDOMNode(containerOrDocument)) {
+      // First parameter is a container node (element or comment)
       this.container = containerOrDocument;
       this.document = optionalDocument || (typeof document !== 'undefined' ? document : undefined) as DOMDocument;
     } else {
@@ -313,7 +377,7 @@ export class DOMRenderer {
     }
     
     if (!this.container) {
-      throw new Error('No container element available.');
+      throw new Error('No container node available.');
     }
     
     // Create root container
@@ -447,7 +511,7 @@ export class DOMRenderer {
   /**
    * Get the DOM container.
    */
-  getContainer(): DOMElement {
+  getContainer(): DOMNode {
     return this.container;
   }
 
@@ -467,8 +531,11 @@ export class DOMRenderer {
       // JSDOM
       return (this.document as any).serialize();
     }
-    // Browser - can only get innerHTML
-    return this.container.innerHTML;
+    // Browser - can only get innerHTML (only works for Element nodes, not Comment)
+    if (isElement(this.container)) {
+      return this.container.innerHTML;
+    }
+    return undefined;
   }
 
   /**
@@ -497,9 +564,9 @@ export class DOMRenderer {
   }
 
   /**
-   * Get the DOM element for a node.
+   * Get the DOM node for a node.
    */
-  getDOMElement(nodeId: number): DOMElement | undefined {
+  getDOMElement(nodeId: number): DOMNode | undefined {
     return this.elements.get(nodeId)?.element;
   }
 
@@ -511,7 +578,7 @@ export class DOMRenderer {
     // Dynamic import for ESM compatibility
     const { JSDOM } = await import('jsdom');
     const dom = new JSDOM(html || '<!DOCTYPE html><html><body></body></html>');
-    return new DOMRenderer(dom.window.document.body as unknown as DOMElement, dom.window.document);
+    return new DOMRenderer(dom.window.document.body as unknown as Element, dom.window.document);
   }
 }
 
