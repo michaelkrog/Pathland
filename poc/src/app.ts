@@ -158,9 +158,8 @@ class Demo7 extends View {
   body(): ViewNode {
     return VStack(
       Text('Demo 7: Conditional Rendering'),
-      this.visible.get() ? 
-        Text('I am visible!').background('success').padding(16) :
-        Text('I am hidden!').background('error').padding(16),
+      Text('I am visible!').background('success').padding(16).visibleSignal(this.visible),
+      Text('I am hidden!').background('error').padding(16).visibleSignal(this.visible.map(v => !v)),
       Text(this.visible.map(v => v ? 'Hide' : 'Show'))
         .tapGesture(() => this.visible.set(!this.visible.get()))
         .padding(8)
