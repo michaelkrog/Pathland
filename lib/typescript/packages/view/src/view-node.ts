@@ -5,7 +5,7 @@
  * Each ViewNode has a unique nodeId that never changes for its lifetime.
  */
 
-import type { PropertyValue } from '../../protocol/src';
+import type { PropertyValue } from '@pathland/protocol';
 import { Signal } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
@@ -196,6 +196,24 @@ export class ViewNode {
 
   longPressGesture(handler: () => void): ViewNode {
     return this.withGesture({ kind: 'longPress', handler });
+  }
+
+  // Border modifiers
+  border(width: number, color?: string | number): ViewNode {
+    return this.withModifier({ kind: 'border', width, color });
+  }
+
+  borderWidth(width: number): ViewNode {
+    return this.withModifier({ kind: 'borderWidth', width });
+  }
+
+  borderColor(color: string | number): ViewNode {
+    return this.withModifier({ kind: 'borderColor', color });
+  }
+
+  // Corner radius modifier
+  cornerRadius(value: number): ViewNode {
+    return this.withModifier({ kind: 'cornerRadius', value });
   }
 }
 

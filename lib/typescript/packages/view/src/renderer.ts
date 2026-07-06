@@ -6,8 +6,8 @@
  */
 
 import { ViewNode, Modifier, Gesture } from './view-node';
-import type { PropertyValue } from '../../protocol/src';
-import { ComponentType, StackProperty, StyleProperty, EventType } from '../../protocol/src';
+import type { PropertyValue } from '@pathland/protocol';
+import { ComponentType, StackProperty, StyleProperty, EventType } from '@pathland/protocol';
 import { commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
@@ -73,7 +73,10 @@ function mapGestureKind(kind: string): number {
 // MODIFIER COMPILATION
 // ============================================
 
-function compileModifier(nodeId: number, modifier: Modifier): { opcode: string; nodeId: number; propertyId: number; value: PropertyValue } | null {
+function compileModifier(nodeId: number, modifier: Modifier): 
+  | { opcode: string; nodeId: number; propertyId: number; value: PropertyValue }
+  | { opcode: string; nodeId: number; propertyId: number; value: PropertyValue }[]
+  | null {
   const { kind, value, color } = modifier;
   
   switch (kind) {
@@ -149,6 +152,51 @@ function compileModifier(nodeId: number, modifier: Modifier): { opcode: string; 
         value: { type: 'f32', value }
       };
     
+    case 'border': {
+      // Border with both width and color
+      const commands: any[] = [
+        {
+          opcode: 'SET_PROPERTY',
+          nodeId,
+          propertyId: StyleProperty.BORDER_WIDTH,
+          value: { type: 'f32', value: modifier.width }
+        }
+      ];
+      if (modifier.color) {
+        commands.push({
+          opcode: 'SET_PROPERTY',
+          nodeId,
+          propertyId: StyleProperty.BORDER_COLOR,
+          value: compileColor(modifier.color)
+        });
+      }
+      return commands;
+    }
+
+    case 'borderWidth':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.BORDER_WIDTH,
+        value: { type: 'f32', value: modifier.value }
+      };
+
+    case 'borderColor':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.BORDER_COLOR,
+        value: compileColor(modifier.value)
+      };
+
+    case 'cornerRadius':
+      return {
+        opcode: 'SET_PROPERTY',
+        nodeId,
+        propertyId: StyleProperty.BORDER_RADIUS,
+        value: { type: 'f32', value: modifier.value }
+      };
+
     default:
       console.warn(`Unknown modifier: ${kind}`);
       return null;
@@ -229,9 +277,13 @@ function compileNode(node: ViewNode): InternalCommand[] {
   commands.push(createCmd);
   
   for (const modifier of node.modifiers) {
-    const cmd = compileModifier(node.nodeId, modifier);
-    if (cmd) {
-      commands.push(cmd);
+    const cmdOrCmds = compileModifier(node.nodeId, modifier);
+    if (cmdOrCmds) {
+      if (Array.isArray(cmdOrCmds)) {
+        commands.push(...cmdOrCmds);
+      } else {
+        commands.push(cmdOrCmds);
+      }
     }
   }
   

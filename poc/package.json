@@ -17,16 +17,18 @@
   ],
   "author": "Pathland Team",
   "license": "MIT",
+
+
+  "dependencies": {
+    "@pathland/protocol": "file:../lib/typescript/packages/protocol",
+    "@pathland/transport": "file:../lib/typescript/packages/transport",
+    "@pathland/view": "file:../lib/typescript/packages/view",
+    "@pathland/platform-browser": "file:../lib/typescript/packages/platform-browser",
+    "@pathland/renderer-dom": "file:../lib/typescript/packages/renderer-dom"
+  },
   "devDependencies": {
     "typescript": "^5.9.3",
     "vite": "^5.4.21",
     "vitest": "^1.6.1"
-  },
-  "dependencies": {
-    "@pathland/platform-browser": "file:.yalc/@pathland/platform-browser",
-    "@pathland/protocol": "file:.yalc/@pathland/protocol",
-    "@pathland/renderer-dom": "file:.yalc/@pathland/renderer-dom",
-    "@pathland/transport": "file:.yalc/@pathland/transport",
-    "@pathland/view": "file:.yalc/@pathland/view"
   }
 }

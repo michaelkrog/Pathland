@@ -13,16 +13,16 @@ let viewModule: any = null;
 
 async function loadRendererModule() {
   if (!rendererModule) {
-    // Use relative path to sibling package to work around Vite symlink issues
-    rendererModule = await import('../../renderer-dom/dist/index.js');
+    // Use package import for @pathland/renderer-dom
+    rendererModule = await import('@pathland/renderer-dom');
   }
   return rendererModule;
 }
 
 async function loadViewModule() {
   if (!viewModule) {
-    // Use relative path to sibling package to work around Vite symlink issues
-    viewModule = await import('../../view/dist/index.js');
+    // Use package import for @pathland/view
+    viewModule = await import('@pathland/view');
   }
   return viewModule;
 }

@@ -5,7 +5,7 @@
  * Only changed elements generate Pathland commands - no tree diffing
  */
 
-import { VStack, HStack, Text, Signal, initialRender, ViewNode } from '../dist/index';
+import { VStack, HStack, Text, Signal, initialRender, ViewNode } from '@pathland/view';
 
 // Create a simple transport that logs commands to console
 class ConsoleTransport {

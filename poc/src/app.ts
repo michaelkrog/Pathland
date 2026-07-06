@@ -4,7 +4,7 @@
  * Uses view package for creating UI.
  */
 
-import { View, ViewNode, VStack, HStack, Text, Signal } from '../../lib/typescript/packages/view/src';
+import { View, ViewNode, VStack, HStack, Text, Signal } from '@pathland/view';
 
 // ============================================
 // DEMO 1: Simple VStack with Text (semantic colors)
@@ -17,7 +17,7 @@ class Demo1 extends View {
       Text('This demonstrates a vertical stack with semantic color tokens.')
     )
       .padding(16)
-      .background('surface');
+      .background(0xFF00FF9F);
   }
 }
 
@@ -35,7 +35,7 @@ class Demo2 extends View {
       )
         .spacing(16)
         .padding(16)
-        .background('surface')
+        .background(0xFF00FF9F)
     );
   }
 }
@@ -60,7 +60,7 @@ class Demo3 extends View {
       )
         .spacing(8)
         .padding(16)
-        .background('surface')
+        .background(0xFF00FF9F)
     );
   }
 }
@@ -80,7 +80,7 @@ class Demo4 extends View {
       )
         .spacing(8)
         .padding(16)
-        .background('surface')
+        .background(0xFF00FF9F)
     );
   }
 }
@@ -117,7 +117,7 @@ class Demo5 extends View {
         .padding(16)
     )
       .padding(16)
-      .background('surface');
+      .background(0xFF00FF9F);
   }
 }
 
@@ -144,7 +144,7 @@ class Demo6 extends View {
     )
       .spacing(16)
       .padding(16)
-      .background('surface');
+      .background(0xFF00FF9F);
   }
 }
 
@@ -168,7 +168,7 @@ class Demo7 extends View {
     )
       .spacing(16)
       .padding(16)
-      .background('surface');
+      .background(0xFF00FF9F);
   }
 }
 
@@ -191,7 +191,7 @@ class Demo8 extends View {
     )
       .spacing(16)
       .padding(16)
-      .background('surface');
+      .background(0xFF00FF9F);
   }
 }
 
@@ -214,7 +214,7 @@ class POCApp extends View {
     )
       .spacing(16)
       .padding(16)
-      .background('background');
+      .background(0xFFFF00FF);
   }
 }
 

@@ -18,9 +18,8 @@ lib/typescript/                    # Monorepo root
     ├── transport/                # Message transportation
     ├── view/                    # Reactive view framework
     ├── platform-browser/        # Browser platform bootstrap
-    ├── renderer-dom/            # DOM-based rendering
-    ├── renderer-html/           # HTML string rendering
-    └── renderer-jsdom/          # JSDOM-based rendering for Node.js
+    ├── renderer-dom/            # Unified DOM rendering (browser + JSDOM)
+    └── renderer-html/           # HTML string rendering
 ```
 
 ## Packages
@@ -205,45 +204,44 @@ bootstrapApplication(App);
 
 **Statelessness**: Builds HTML from commands, no persistent state beyond the current command batch.
 
-### 6. `@pathland/renderer-jsdom` - JSDOM Renderer
+### 5. `@pathland/renderer-dom` - Unified DOM Renderer
 
-**Responsibility**: Execute Pathland commands to create and manage a JSDOM-based DOM tree in Node.js.
+**Responsibility**: Execute Pathland commands to create and manage DOM elements in both browser and Node.js (via JSDOM).
 
-**Scope**: Node.js environments requiring DOM APIs (testing, SSR, snapshots).
+**Scope**: Any environment with DOM APIs - browsers, Node.js with JSDOM, testing, SSR.
 
 **Provides**:
-- `JSDOMRenderer` class
-- Uses jsdom to provide full DOM APIs in Node.js
+- `DOMRenderer` class - unified for all DOM environments
+- Uses `document.createElement` from provided or global document
 - Creates appropriate DOM elements for each component type
 - Applies properties as CSS styles and attributes
-- Maintains nodeId → JSDOM element mapping for event routing
-- `getHTML()` → full document HTML string
-- `getBodyHTML()` → body content HTML string
-- `getJSDOM()` → access to JSDOM instance
-- `getWindow()` / `getDocument()` → access to DOM APIs
-- DOM query methods (`querySelector`, `querySelectorAll`)
+- Maintains nodeId → element mapping for event routing
+- `getHTML()` → full document HTML string (JSDOM only)
+- `getBodyHTML()` → body content HTML string (JSDOM only)
+- `getDocument()` → access to the document being used
+- `createJSDOMRenderer()` → static factory for Node.js/JSDOM
+- Flex layout for HStack (row) and VStack (column)
 
 **Does NOT provide**:
-- Simple HTML string generation (see renderer-html for lighter alternative)
-- Browser-specific rendering (see renderer-dom)
+- Simple HTML string generation without DOM (see renderer-html for that)
 - Transportation
 - Application logic
 
-**Depends on**: `@pathland/protocol`, `jsdom`
+**Depends on**: `@pathland/protocol`
+**Optional peer dependency**: `jsdom` (for Node.js environments)
 
-**Statelessness**: Only maintains `Map<number, JSDOMRenderElement>` for event routing. All other state is derived from commands.
+**Statelessness**: Only maintains `Map<number, RenderElement>` for event routing. All other state is derived from commands.
 
 ## Package Boundaries
 
-| From \ To | protocol | transport | view | platform-browser | renderer-dom | renderer-html | renderer-jsdom |
-|-----------|----------|-----------|------|-----------------|--------------|---------------|----------------|
-| protocol | - | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| transport | - | - | ✓ | ✓ | - | - | - |
-| view | - | - | - | ✓ | ✓ | ✓ | ✓ |
-| platform-browser | - | - | ✓ | - | ✓ | ✓ | ✓ |
-| renderer-dom | - | - | - | - | - | - | - |
-| renderer-html | - | - | - | - | - | - | - |
-| renderer-jsdom | - | - | - | - | - | - | - |
+| From \ To | protocol | transport | view | platform-browser | renderer-dom | renderer-html |
+|-----------|----------|-----------|------|-----------------|--------------|---------------|
+| protocol | - | ✓ | ✓ | ✓ | ✓ | ✓ |
+| transport | - | - | ✓ | ✓ | - | - |
+| view | - | - | - | ✓ | ✓ | ✓ |
+| platform-browser | - | - | ✓ | - | ✓ | ✓ |
+| renderer-dom | - | - | - | - | - | - |
+| renderer-html | - | - | - | - | - | - |
 
 **Dependency Rule**: Packages can only depend on packages to their left in the table above.
 
@@ -252,9 +250,8 @@ This ensures:
 - `transport` only depends on `protocol`
 - `view` depends on `protocol` and `transport`
 - `platform-browser` depends on `view`, `renderer-dom`, and `transport`
-- `renderer-dom` only depends on `protocol`
+- `renderer-dom` only depends on `protocol` (with optional `jsdom` peer dependency)
 - `renderer-html` only depends on `protocol`
-- `renderer-jsdom` depends on `protocol` and `jsdom` (external)
 
 ## Usage Patterns
 
@@ -337,7 +334,6 @@ cd packages/view && npm publish
 cd packages/platform-browser && npm publish
 cd packages/renderer-dom && npm publish
 cd packages/renderer-html && npm publish
-cd packages/renderer-jsdom && npm publish
 ```
 
 ## Versioning
@@ -396,8 +392,4 @@ src/
 └── index.ts              # HTMLRenderer class
 ```
 
-### renderer-jsdom/
-```
-src/
-└── index.ts              # JSDOMRenderer class
-```
+

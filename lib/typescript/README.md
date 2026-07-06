@@ -15,9 +15,7 @@ This monorepo contains the following packages:
 | [`@pathland/transport`](packages/transport) | Message transportation (WebSocket, postMessage, etc.) | `@pathland/protocol` |
 | [`@pathland/view`](packages/view) | Reactive view framework - component-based UI with signals | `@pathland/protocol`, `@pathland/transport` |
 | [`@pathland/platform-browser`](packages/platform-browser) | Browser bootstrap - simple application entry point | `@pathland/view`, `@pathland/renderer-dom`, `@pathland/transport` |
-| [`@pathland/renderer-dom`](packages/renderer-dom) | DOM-based rendering for browsers | `@pathland/protocol` |
-| [`@pathland/renderer-html`](packages/renderer-html) | HTML string rendering for SSR | `@pathland/protocol` |
-| [`@pathland/renderer-jsdom`](packages/renderer-jsdom) | JSDOM-based rendering for Node.js | `@pathland/protocol`, `jsdom` |
+| [`@pathland/renderer-dom`](packages/renderer-dom) | Unified DOM rendering for browsers and Node.js (JSDOM) | `@pathland/protocol` (peer: `jsdom`) |
 
 See the full [../SPECIFICATION.md](../SPECIFICATION.md) for detailed package boundaries and responsibilities.
 
@@ -34,12 +32,6 @@ npm install @pathland/protocol
 # For browser DOM rendering
 npm install @pathland/renderer-dom
 
-# For HTML string generation (SSR)
-npm install @pathland/renderer-html
-
-# For JSDOM rendering (Node.js testing/SSR)
-npm install @pathland/renderer-jsdom
-
 # For message transportation
 npm install @pathland/transport
 
@@ -53,7 +45,7 @@ npm install @pathland/platform-browser
 Or install everything:
 
 ```bash
-npm install @pathland/protocol @pathland/transport @pathland/view @pathland/platform-browser @pathland/renderer-dom @pathland/renderer-html @pathland/renderer-jsdom
+npm install @pathland/protocol @pathland/transport @pathland/view @pathland/platform-browser @pathland/renderer-dom
 ```
 
 ### Basic Usage
@@ -110,14 +102,7 @@ function handleMessage(binaryBuffer: Uint8Array) {
 }
 ```
 
-#### 3. Render to HTML String (SSR)
 
-```typescript
-import { decodeMessage } from '@pathland/protocol';
-import { HTMLRenderer } from '@pathland/renderer-html';
-
-const renderer = new HTMLRenderer();
-const { commands } = decodeMessage(binaryBuffer);
 
 renderer.executeCommands(commands);
 const html = renderer.render();
@@ -127,9 +112,9 @@ const html = renderer.render();
 
 ```typescript
 import { decodeMessage } from '@pathland/protocol';
-import { JSDOMRenderer } from '@pathland/renderer-jsdom';
+import { DOMRenderer } from '@pathland/renderer-dom';
 
-const renderer = new JSDOMRenderer();
+const renderer = DOMRenderer.createJSDOMRenderer();
 const { commands } = decodeMessage(binaryBuffer);
 
 renderer.executeCommands(commands);
@@ -139,7 +124,6 @@ const html = renderer.getBodyHTML();
 
 // Access DOM APIs
 const document = renderer.getDocument();
-const element = renderer.querySelector('[data-pathland-id="2"]');
 ```
 
 #### 5. Use Transportation
@@ -260,14 +244,7 @@ lib/typescript/
     │   ├── src/
     │   │   └── index.ts
     │   └── package.json
-    ├── renderer-html/
-    │   ├── src/
-    │   │   └── index.ts
-    │   └── package.json
-    └── renderer-jsdom/
-        ├── src/
-        │   └── index.ts
-        └── package.json
+
 ```
 
 ### Adding a New Package

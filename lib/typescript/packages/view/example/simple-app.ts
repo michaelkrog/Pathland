@@ -4,7 +4,7 @@
  * Demonstrates creating a simple UI with VStack, HStack, Text, and gesture handling
  */
 
-import { VStack, HStack, Text, Signal, initialRender, commandQueue } from '../dist/index';
+import { VStack, HStack, Text, Signal, initialRender, commandQueue } from '@pathland/view';
 
 // Create a simple transport that logs commands to console
 class ConsoleTransport {

@@ -1,12 +1,41 @@
 /**
  * @pathland/renderer-dom
  * 
- * DOM-based renderer for Pathland protocol.
+ * Unified DOM-based renderer for Pathland protocol.
+ * Works with both browser DOM and JSDOM (Node.js).
  * Executes Pathland commands to create and manage DOM elements.
  */
 
-import type { Command, PropertyValue } from '../../protocol/src';
-import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, decodeMessage } from '../../protocol/src';
+import type { Command, PropertyValue } from '@pathland/protocol';
+import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, decodeMessage } from '@pathland/protocol';
+
+// ============================================
+// TYPE DEFINITIONS
+// ============================================
+
+/**
+ * DOM element type that works with both browser DOM and JSDOM
+ */
+type DOMElement = Element | HTMLElement;
+
+/**
+ * Document type that works with both browser and JSDOM
+ */
+type DOMDocument = Document;
+
+/**
+ * Type guard to check if an object is a Document
+ */
+function isDocument(obj: any): obj is DOMDocument {
+  return obj && typeof obj.createElement === 'function' && obj.nodeType === 9;
+}
+
+/**
+ * Type guard to check if an object is an Element
+ */
+function isElement(obj: any): obj is DOMElement {
+  return obj && typeof obj.appendChild === 'function' && obj.nodeType === 1;
+}
 
 // ============================================
 // RENDER ELEMENT
@@ -30,31 +59,39 @@ const COMPONENT_TO_TAG: Record<number, string> = {
 };
 
 /**
+ * Helper to set data attributes that works with both DOM and JSDOM.
+ */
+function setDataAttribute(element: DOMElement, name: string, value: string): void {
+  element.setAttribute(`data-pathland-${name}`, value);
+}
+
+/**
  * A render element wraps a DOM element and handles property application.
+ * Works with both browser HTMLElement and JSDOM Element.
  */
 class RenderElement {
   readonly id: number;
   readonly componentType: number;
-  readonly element: HTMLElement;
+  readonly element: DOMElement;
   children: RenderElement[] = [];
   parent: RenderElement | null = null;
 
-  constructor(nodeId: number, componentType: number, container?: HTMLElement) {
+  constructor(nodeId: number, componentType: number, document: DOMDocument, container?: DOMElement) {
     this.id = nodeId;
     this.componentType = componentType;
     
     const tag = COMPONENT_TO_TAG[componentType] || 'div';
     this.element = document.createElement(tag);
-    this.element.dataset.pathlandNodeId = nodeId.toString();
-    this.element.dataset.pathlandComponentType = componentType.toString();
+    setDataAttribute(this.element, 'node-id', nodeId.toString());
+    setDataAttribute(this.element, 'component-type', componentType.toString());
 
     // Setup flex layout for stack containers
     if (componentType === ComponentType.HSTACK) {
-      this.element.style.display = 'flex';
-      this.element.style.flexDirection = 'row';
+      (this.element as HTMLElement).style.display = 'flex';
+      (this.element as HTMLElement).style.flexDirection = 'row';
     } else if (componentType === ComponentType.VSTACK) {
-      this.element.style.display = 'flex';
-      this.element.style.flexDirection = 'column';
+      (this.element as HTMLElement).style.display = 'flex';
+      (this.element as HTMLElement).style.flexDirection = 'column';
     }
 
     // Special setup for certain components
@@ -87,37 +124,37 @@ class RenderElement {
       case StyleProperty.BACKGROUND_COLOR:
         if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
           const rgba = value.type === 'u32' ? value.value : value.rgba;
-          this.element.style.backgroundColor = rgbaToCss(rgba);
+          (this.element as HTMLElement).style.backgroundColor = rgbaToCss(rgba);
         }
         break;
 
       case StyleProperty.COLOR:
         if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
           const rgba = value.type === 'u32' ? value.value : value.rgba;
-          this.element.style.color = rgbaToCss(rgba);
+          (this.element as HTMLElement).style.color = rgbaToCss(rgba);
         }
         break;
 
       case StyleProperty.FONT_SIZE:
         if (value.type === 'f32') {
-          this.element.style.fontSize = `${value.value}px`;
+          (this.element as HTMLElement).style.fontSize = `${value.value}px`;
         }
         break;
 
       case StyleProperty.FONT_WEIGHT:
         if (value.type === 'u8' || value.type === 'u32') {
-          this.element.style.fontWeight = String(value.value);
+          (this.element as HTMLElement).style.fontWeight = String(value.value);
         }
         break;
 
       case StyleProperty.WIDTH:
         if (value.type === 'f32') {
           if (value.value === FILL) {
-            this.element.style.width = '100%';
+            (this.element as HTMLElement).style.width = '100%';
           } else if (value.value === HUG_CONTENT) {
-            this.element.style.width = 'fit-content';
+            (this.element as HTMLElement).style.width = 'fit-content';
           } else {
-            this.element.style.width = `${value.value}px`;
+            (this.element as HTMLElement).style.width = `${value.value}px`;
           }
         }
         break;
@@ -125,75 +162,75 @@ class RenderElement {
       case StyleProperty.HEIGHT:
         if (value.type === 'f32') {
           if (value.value === FILL) {
-            this.element.style.height = '100%';
+            (this.element as HTMLElement).style.height = '100%';
           } else if (value.value === HUG_CONTENT) {
-            this.element.style.height = 'fit-content';
+            (this.element as HTMLElement).style.height = 'fit-content';
           } else {
-            this.element.style.height = `${value.value}px`;
+            (this.element as HTMLElement).style.height = `${value.value}px`;
           }
         }
         break;
 
       case StyleProperty.OPACITY:
         if (value.type === 'f32') {
-          this.element.style.opacity = String(value.value);
+          (this.element as HTMLElement).style.opacity = String(value.value);
         }
         break;
 
       case StyleProperty.VISIBLE:
         if (value.type === 'u8') {
-          this.element.style.display = value.value ? '' : 'none';
+          (this.element as HTMLElement).style.display = value.value ? '' : 'none';
         }
         break;
 
       case StyleProperty.PADDING:
         if (value.type === 'f32') {
-          this.element.style.padding = `${value.value}px`;
+          (this.element as HTMLElement).style.padding = `${value.value}px`;
         }
         break;
 
       case StyleProperty.BORDER_WIDTH:
         if (value.type === 'f32') {
-          this.element.style.borderWidth = `${value.value}px`;
+          (this.element as HTMLElement).style.borderWidth = `${value.value}px`;
         }
         break;
 
       case StyleProperty.BORDER_COLOR:
         if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
           const rgba = value.type === 'u32' ? value.value : value.rgba;
-          this.element.style.borderColor = rgbaToCss(rgba);
+          (this.element as HTMLElement).style.borderColor = rgbaToCss(rgba);
         }
         break;
 
       case StyleProperty.BORDER_RADIUS:
         if (value.type === 'f32') {
-          this.element.style.borderRadius = `${value.value}px`;
+          (this.element as HTMLElement).style.borderRadius = `${value.value}px`;
         }
         break;
 
       // Stack properties
       case StackProperty.SPACING:
         if (value.type === 'f32') {
-          this.element.style.gap = `${value.value}px`;
+          (this.element as HTMLElement).style.gap = `${value.value}px`;
         }
         break;
 
       case StackProperty.ALIGNMENT:
         if (value.type === 'enum') {
-          this.element.style.alignItems = enumToAlignItems(value.value);
+          (this.element as HTMLElement).style.alignItems = enumToAlignItems(value.value);
         }
         break;
 
       case StackProperty.JUSTIFICATION:
         if (value.type === 'enum') {
-          this.element.style.justifyContent = enumToJustifyContent(value.value);
+          (this.element as HTMLElement).style.justifyContent = enumToJustifyContent(value.value);
         }
         break;
 
       // Special handling for HSTACK/VSTACK
       case StackProperty.PADDING:
         if (value.type === 'f32') {
-          this.element.style.padding = `${value.value}px`;
+          (this.element as HTMLElement).style.padding = `${value.value}px`;
         }
         break;
     }
@@ -236,22 +273,50 @@ class RenderElement {
 
 /**
  * DOM-based renderer for Pathland protocol.
+ * Works with both browser DOM and JSDOM.
  * Maintains only nodeId -> RenderElement mapping for event routing.
  */
 export class DOMRenderer {
   private root: RenderElement;
   private elements: Map<number, RenderElement> = new Map();
-  private container: HTMLElement;
+  private container: DOMElement;
+  private document: DOMDocument;
 
   /**
    * Create a new DOMRenderer.
-   * @param container The DOM element to render into (defaults to document.body)
+   * @param containerOrDocument The DOM element to render into, or a Document for JSDOM
+   * @param optionalDocument Optional document to use (for JSDOM when first param is a container element)
    */
-  constructor(container: HTMLElement = document.body) {
-    this.container = container;
+  constructor(containerOrDocument: DOMElement | DOMDocument = (typeof document !== 'undefined' ? document.body : undefined) as DOMElement | DOMDocument, optionalDocument?: DOMDocument) {
+    // Determine document and container from parameters
+    if (isDocument(containerOrDocument)) {
+      // First parameter is a document (JSDOM case)
+      this.document = containerOrDocument;
+      this.container = this.document.body as DOMElement;
+    } else if (isElement(containerOrDocument)) {
+      // First parameter is a container element
+      this.container = containerOrDocument;
+      this.document = optionalDocument || (typeof document !== 'undefined' ? document : undefined) as DOMDocument;
+    } else {
+      // Fallback for default parameter
+      if (typeof document !== 'undefined') {
+        this.document = document;
+        this.container = document.body;
+      } else {
+        throw new Error('No valid container or document provided and no global document available. For JSDOM, pass the document parameter or use DOMRenderer.createJSDOMRenderer().');
+      }
+    }
+    
+    if (!this.document) {
+      throw new Error('No document provided and no global document available. For JSDOM, pass the document parameter or use DOMRenderer.createJSDOMRenderer().');
+    }
+    
+    if (!this.container) {
+      throw new Error('No container element available.');
+    }
     
     // Create root container
-    this.root = new RenderElement(0, 0, this.container);
+    this.root = new RenderElement(0, 0, this.document, this.container);
     this.elements.set(0, this.root);
   }
 
@@ -306,7 +371,7 @@ export class DOMRenderer {
       return;
     }
 
-    const element = new RenderElement(command.nodeId, command.componentType);
+    const element = new RenderElement(command.nodeId, command.componentType, this.document);
     this.elements.set(command.nodeId, element);
 
     // Apply initial properties
@@ -381,8 +446,39 @@ export class DOMRenderer {
   /**
    * Get the DOM container.
    */
-  getContainer(): HTMLElement {
+  getContainer(): DOMElement {
     return this.container;
+  }
+
+  /**
+   * Get the document being used.
+   */
+  getDocument(): DOMDocument | undefined {
+    return this.document;
+  }
+
+  /**
+   * Get the HTML string of the container.
+   * Only works with JSDOM or if container is a complete document.
+   */
+  getHTML(): string | undefined {
+    if (this.document && 'serialize' in this.document) {
+      // JSDOM
+      return (this.document as any).serialize();
+    }
+    // Browser - can only get innerHTML
+    return this.container.innerHTML;
+  }
+
+  /**
+   * Get the HTML string of the body content.
+   * Only works with JSDOM.
+   */
+  getBodyHTML(): string | undefined {
+    if (this.document && this.document.body) {
+      return this.document.body.innerHTML;
+    }
+    return undefined;
   }
 
   /**
@@ -395,15 +491,26 @@ export class DOMRenderer {
       }
     }
     this.elements.clear();
-    this.root = new RenderElement(0, 0, this.container);
+    this.root = new RenderElement(0, 0, this.document, this.container);
     this.elements.set(0, this.root);
   }
 
   /**
    * Get the DOM element for a node.
    */
-  getDOMElement(nodeId: number): HTMLElement | undefined {
+  getDOMElement(nodeId: number): DOMElement | undefined {
     return this.elements.get(nodeId)?.element;
+  }
+
+  /**
+   * Create a new JSDOM renderer for server-side use.
+   * This is a convenience factory for Node.js environments.
+   */
+  static async createJSDOMRenderer(html?: string): Promise<DOMRenderer> {
+    // Dynamic import for ESM compatibility
+    const { JSDOM } = await import('jsdom');
+    const dom = new JSDOM(html || '<!DOCTYPE html><html><body></body></html>');
+    return new DOMRenderer(dom.window.document.body as unknown as DOMElement, dom.window.document);
   }
 }
 
@@ -441,4 +548,5 @@ function enumToJustifyContent(value: number): string {
   return mapping[value] || 'flex-start';
 }
 
+export type { RenderElement };
 export { DOMRenderer as default };

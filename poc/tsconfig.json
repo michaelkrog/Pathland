@@ -22,9 +22,9 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
-      "@pathland/*": ["../lib/typescript/packages/*/src"]
+      "@pathland/*": ["../lib/typescript/packages/*/dist"]
     },
-    "typeRoots": ["./node_modules/@types", "../lib/typescript/packages/*/dist"]
+    "typeRoots": ["./node_modules/@types"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

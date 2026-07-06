@@ -294,11 +294,11 @@ This architecture provides:
 
 ```typescript
 // main.ts (main thread - renderer)
-import { HTMLRenderer } from '@pathland/renderer-html';
+import { DOMRenderer } from '@pathland/renderer-dom';
 
-const renderer = new HTMLRenderer();
+const renderer = new DOMRenderer(document.getElementById('app'));
 const transport = {
-  send: (commands) => renderer.execute(commands)
+  send: (commands) => renderer.executeCommands(commands)
 };
 
 // Set up message handler from worker
