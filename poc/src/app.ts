@@ -203,7 +203,8 @@ class POCApp extends View {
   body(): ViewNode {
     return VStack(
       Text('Pathland POC Demos').fontSize(28).fontWeight(700).padding(24),
-      Demo1.make(),
+      Demo1.make()
+      .border(1, 0x000000FF).cornerRadius(8),
       Demo2.make(),
       Demo3.make(),
       Demo4.make(),
@@ -214,7 +215,9 @@ class POCApp extends View {
     )
       .spacing(16)
       .padding(16)
-      .background(0xFFFF00FF);
+      .background(0xDFDFEFFF)
+      .border(1, 0x000000FF)
+      .cornerRadius(12);
   }
 }
 

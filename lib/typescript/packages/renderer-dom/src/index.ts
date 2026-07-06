@@ -192,6 +192,7 @@ class RenderElement {
       case StyleProperty.BORDER_WIDTH:
         if (value.type === 'f32') {
           (this.element as HTMLElement).style.borderWidth = `${value.value}px`;
+          (this.element as HTMLElement).style.borderStyle = `solid`;
         }
         break;
 
