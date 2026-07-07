@@ -38,7 +38,7 @@ export { ViewNode, resetNodeIdCounter } from './view-node';
 export { View } from './view';
 export { Signal, commandQueue } from './signal';
 export { VStack, HStack, Text } from './components';
-export { initialRender, handleDispatchEvent } from './renderer';
+export { initialRender, handleDispatchEvent, getConditionalParent } from './renderer';
 export { propertyNameToId, compilePropertyValue } from './utils';
 
 // Chainable methods are added to ViewNode.prototype in view-node.ts

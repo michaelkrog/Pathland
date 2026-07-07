@@ -6,9 +6,24 @@
  */
 
 import type { PropertyValue } from '@pathland/protocol';
-import { ComponentType } from '@pathland/protocol';
 import { Signal, commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
+import { getConditionalParent } from './renderer';
+
+// Local component type constants (avoid protocol import to prevent circular dependency)
+const COMPONENT_TYPES = {
+  VSTACK: 0x0002,
+  HSTACK: 0x0001,
+  TEXT: 0x0003,
+  BUTTON: 0x0004,
+  SPACER: 0x0008,
+  IMAGE: 0x0005,
+  SCROLLVIEW: 0x0009,
+  LIST: 0x000A,
+  GRID: 0x000B,
+  SWITCH: 0x0006,
+  TEXT_FIELD: 0x0007,
+} as const;
 
 
 // ============================================
@@ -226,46 +241,51 @@ export class ViewNode {
    * Create a ViewNode that conditionally renders its content based on a signal.
    * When the signal is true, the content is shown. When false, the content is removed from the tree.
    * 
-   * Uses a COMMENT component type for the placeholder, which renders as a DOM comment
-   * and avoids adding extra visible DOM elements. The conditional content is inserted
-   * as a sibling after the comment node.
+   * This method creates a placeholder node that is skipped during compilation (no CREATE_NODE sent).
+   * The content is inserted directly into the placeholder's parent at the placeholder's index position.
    * 
    * @param condition The boolean signal that controls whether content is shown
    * @param createContent Function that creates the content ViewNode
-   * @returns A ViewNode that represents the conditional placeholder (comment node)
+   * @returns A ViewNode that serves as a placeholder (type 'if') - not rendered to DOM
    */
   static if(condition: Signal<boolean>, createContent: () => ViewNode): ViewNode {
     // Track the created content node
     let contentNode: ViewNode | null = null;
+    const placeholder = new ViewNode('if', []);
     
-    // Create a COMMENT placeholder node - this will render as <!--pathland-conditional-->
-    // and won't add any visible DOM element
-    // We use a dummy type 'comment' that will be mapped to ComponentType.COMMENT
-    const placeholder = new ViewNode('comment', []);
+    // Store contentNode reference on the placeholder for access during compileNode
+    (placeholder as any)._contentNode = null;
 
-    // Map ViewNode type to Pathland ComponentType
-    function getComponentType(node: ViewNode): number {
-      switch (node.type) {
-        case 'VStack': return ComponentType.VSTACK;
-        case 'HStack': return ComponentType.HSTACK;
-        case 'Text': return ComponentType.TEXT;
-        case 'Button': return ComponentType.BUTTON;
-        case 'Spacer': return ComponentType.SPACER;
-        case 'Image': return ComponentType.IMAGE;
-        case 'ScrollView': return ComponentType.SCROLLVIEW;
-        case 'List': return ComponentType.LIST;
-        case 'Grid': return ComponentType.GRID;
-        case 'Switch': return ComponentType.SWITCH;
-        case 'TextField': return ComponentType.TEXT_FIELD;
-        case 'comment': return ComponentType.COMMENT;
-        default: return 0; // Unknown component type
-      }
+    // For initial render, create content if condition is true
+    if (condition.get()) {
+      contentNode = createContent();
+      // Store on placeholder for compileNode to access
+      (placeholder as any)._contentNode = contentNode;
     }
 
-    // Function to recursively create and send commands for a node and its children
-    function sendCreateNodeWithChildren(node: ViewNode, parentId: number, index: number): void {
-      // Send CREATE_NODE for this node
-      const componentType = getComponentType(node);
+    // Function to get component type from node type
+    function getComponentType(nodeType: string): number {
+      const types: Record<string, number> = {
+        'VStack': COMPONENT_TYPES.VSTACK,
+        'HStack': COMPONENT_TYPES.HSTACK,
+        'Text': COMPONENT_TYPES.TEXT,
+        'Button': COMPONENT_TYPES.BUTTON,
+        'Spacer': COMPONENT_TYPES.SPACER,
+        'Image': COMPONENT_TYPES.IMAGE,
+        'ScrollView': COMPONENT_TYPES.SCROLLVIEW,
+        'List': COMPONENT_TYPES.LIST,
+        'Grid': COMPONENT_TYPES.GRID,
+        'Switch': COMPONENT_TYPES.SWITCH,
+        'TextField': COMPONENT_TYPES.TEXT_FIELD,
+      };
+      return types[nodeType] ?? 0;
+    }
+
+    // Function to recursively send CREATE_NODE commands for a node and its children
+    function sendCreateNodeRecursive(node: ViewNode, parentId: number, index: number): void {
+      const componentType = getComponentType(node.type);
+      
+      // Send CREATE_NODE command
       commandQueue.add({
         opcode: 'CREATE_NODE',
         nodeId: node.nodeId,
@@ -286,7 +306,7 @@ export class ViewNode {
         }
       }
       
-      // Send INSERT_CHILD to add this node to parent
+      // Send INSERT_CHILD command to add to parent
       commandQueue.add({
         opcode: 'INSERT_CHILD',
         parentId: parentId,
@@ -296,15 +316,15 @@ export class ViewNode {
       
       // Recursively create children
       for (let i = 0; i < node.children.length; i++) {
-        sendCreateNodeWithChildren(node.children[i], node.nodeId, i);
+        sendCreateNodeRecursive(node.children[i], node.nodeId, i);
       }
     }
 
-    // Function to send delete command for a node and its children
-    function sendDeleteNode(node: ViewNode): void {
-      // Recursively delete children first
+    // Function to recursively send DELETE_NODE commands for a node and its children
+    function sendDeleteNodeRecursive(node: ViewNode): void {
+      // Delete children first (bottom-up)
       for (const child of node.children) {
-        sendDeleteNode(child);
+        sendDeleteNodeRecursive(child);
       }
       
       // Then delete this node
@@ -314,37 +334,24 @@ export class ViewNode {
       });
     }
 
-    // For initial render, create placeholder and content if condition is true
-    // Send CREATE_NODE for placeholder (comment node)
-    commandQueue.add({
-      opcode: 'CREATE_NODE',
-      nodeId: placeholder.nodeId,
-      componentType: ComponentType.COMMENT,
-      properties: new Map<number, any>()
-    });
-
-    if (condition.get()) {
-      contentNode = createContent();
-      placeholder.children = [contentNode];
-      
-      // Send commands to create the content node as child of placeholder
-      // The renderer will handle COMMENT nodes specially by inserting as siblings
-      sendCreateNodeWithChildren(contentNode, placeholder.nodeId, 0);
-    }
-
     // Subscribe to condition changes
     condition.subscribe((visible: boolean) => {
+      // Get parent context from registry (populated during compileNode)
+      const parentContext = getConditionalParent(placeholder.nodeId);
+      
       if (visible && !contentNode) {
         // Create the content node
         contentNode = createContent();
         placeholder.children = [contentNode];
         
-        // Send commands to create and insert the content
-        sendCreateNodeWithChildren(contentNode, placeholder.nodeId, 0);
+        // Send commands to create and insert the content into the parent
+        if (parentContext) {
+          sendCreateNodeRecursive(contentNode, parentContext.parentId, parentContext.index);
+        }
         
       } else if (!visible && contentNode) {
         // Delete the content node and all its children
-        sendDeleteNode(contentNode);
+        sendDeleteNodeRecursive(contentNode);
         contentNode = null;
         placeholder.children = [];
       }

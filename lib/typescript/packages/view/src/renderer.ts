@@ -239,6 +239,19 @@ export function handleDispatchEvent(targetId: number, eventType: number): void {
   }
 }
 
+// Registry to store parent context for conditional placeholder nodes
+// Key: placeholder nodeId, Value: { parentId: number, index: number }
+const conditionalParentContext = new Map<number, { parentId: number; index: number }>();
+
+// Export for use by ViewNode.if()
+export function registerConditionalParent(nodeId: number, parentId: number, index: number): void {
+  conditionalParentContext.set(nodeId, { parentId, index });
+}
+
+export function getConditionalParent(nodeId: number): { parentId: number; index: number } | undefined {
+  return conditionalParentContext.get(nodeId);
+}
+
 // ============================================
 // NODE COMPILATION
 // ============================================
@@ -257,8 +270,30 @@ type InternalCommand = {
   handlerId?: number;
 };
 
-function compileNode(node: ViewNode): InternalCommand[] {
+function compileNode(node: ViewNode, parentId?: number, index?: number): InternalCommand[] {
   const commands: InternalCommand[] = [];
+  
+  // Skip conditional placeholder nodes - they are handled entirely by Signal subscriptions
+  // and should not generate any CREATE_NODE command
+  if (node.type === 'if') {
+    // Register parent context for this placeholder so Signal subscription can use it
+    if (parentId !== undefined) {
+      registerConditionalParent(node.nodeId, parentId, index ?? 0);
+    }
+    
+    // For conditional nodes, if there is initial content (condition was true during tree construction),
+    // we need to compile it. The content is stored in a special property by ViewNode.if()
+    // We access it via the internal _contentNode property
+    const contentNode = (node as any)._contentNode as ViewNode | undefined;
+    
+    if (contentNode) {
+      // Compile the content node as if it's a direct child of the parent
+      const childCommands = compileNode(contentNode, parentId, index ?? 0);
+      commands.push(...childCommands);
+    }
+    
+    return commands;
+  }
   
   const createCmd: InternalCommand = {
     opcode: 'CREATE_NODE',
@@ -293,14 +328,17 @@ function compileNode(node: ViewNode): InternalCommand[] {
   
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
-    commands.push(...compileNode(child));
+    commands.push(...compileNode(child, node.nodeId, i));
     
-    commands.push({
-      opcode: 'INSERT_CHILD',
-      parentId: node.nodeId,
-      childId: child.nodeId,
-      index: i
-    });
+    // Only add INSERT_CHILD for non-conditional children
+    if (child.type !== 'if') {
+      commands.push({
+        opcode: 'INSERT_CHILD',
+        parentId: node.nodeId,
+        childId: child.nodeId,
+        index: i
+      });
+    }
   }
   
   return commands;
