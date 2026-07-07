@@ -41,6 +41,10 @@ export { VStack, HStack, Text } from './components';
 export { initialRender, handleDispatchEvent, getConditionalParent } from './renderer';
 export { propertyNameToId, compilePropertyValue } from './utils';
 
+// Re-export control flow functions
+export { If, For, Switch } from './control-flow';
+export type { ForRenderFn, SwitchCaseValue, SwitchCaseHandler, SwitchCases } from './control-flow';
+
 // Chainable methods are added to ViewNode.prototype in view-node.ts
 // Available on any ViewNode:
 // - .padding(value: number): ViewNode

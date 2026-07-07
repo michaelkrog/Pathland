@@ -8,7 +8,7 @@
 import { ViewNode, Modifier, Gesture } from './view-node';
 import type { PropertyValue } from '@pathland/protocol';
 import { ComponentType, StackProperty, StyleProperty, EventType } from '@pathland/protocol';
-import { commandQueue } from './signal';
+import { commandQueue, Signal } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 
 // Re-export types
@@ -273,31 +273,67 @@ type InternalCommand = {
 function compileNode(node: ViewNode, parentId?: number, index?: number): InternalCommand[] {
   const commands: InternalCommand[] = [];
   
-  // Skip conditional placeholder nodes - they are handled entirely by Signal subscriptions
+  // Skip control flow placeholder nodes - they are handled entirely by Signal subscriptions
   // and should not generate any CREATE_NODE command
-  if (node.type === 'if') {
+  if (node.type === 'if' || node.type === 'for' || node.type === 'switch') {
     // Register parent context for this placeholder so Signal subscription can use it
     if (parentId !== undefined) {
       registerConditionalParent(node.nodeId, parentId, index ?? 0);
     }
     
-    // For conditional nodes, if there is initial content (condition was true during tree construction),
-    // we need to compile it. The content is stored in a special property by ViewNode.if()
-    // We access it via the internal _contentNode property
-    const contentNode = (node as any)._contentNode as ViewNode | undefined;
-    
-    if (contentNode && parentId !== undefined) {
-      // Compile the content node as if it's a direct child of the parent
-      const childCommands = compileNode(contentNode, parentId, index ?? 0);
-      commands.push(...childCommands);
+    // For 'if' nodes, check for initial content
+    if (node.type === 'if') {
+      const contentNode = (node as any)._contentNode as ViewNode | undefined;
       
-      // Also add INSERT_CHILD command since compileNode doesn't do it for conditional content
-      commands.push({
-        opcode: 'INSERT_CHILD',
-        parentId: parentId,
-        childId: contentNode.nodeId,
-        index: index ?? 0
-      });
+      if (contentNode && parentId !== undefined) {
+        // Compile the content node as if it's a direct child of the parent
+        const childCommands = compileNode(contentNode, parentId, index ?? 0);
+        commands.push(...childCommands);
+        
+        // Also add INSERT_CHILD command since compileNode doesn't do it for conditional content
+        commands.push({
+          opcode: 'INSERT_CHILD',
+          parentId: parentId,
+          childId: contentNode.nodeId,
+          index: index ?? 0
+        });
+      }
+    }
+    
+    // For 'for' nodes, compile initial items
+    if (node.type === 'for' && parentId !== undefined) {
+      const initialItems = (node as any)._forInitialItems as any[] | undefined;
+      const renderItem = (node as any)._forRenderItem as ((item: any, index: number, array: any[]) => ViewNode) | undefined;
+      const itemNodes = (node as any)._forItemNodes as Map<number, { node: ViewNode; item: any }> | undefined;
+      
+      if (initialItems && renderItem && itemNodes && initialItems.length > 0) {
+        // Get the items from the signal
+        const signal = (node as any)._forItems as Signal<any[]>;
+        const currentItems = signal.get();
+        
+        for (let i = 0; i < currentItems.length; i++) {
+          const entry = itemNodes.get(node.nodeId * 10000 + i);
+          if (entry) {
+            const childCommands = compileNode(entry.node, parentId, index! + i);
+            commands.push(...childCommands);
+            
+            // INSERT_CHILD is already added by compileNode
+          }
+        }
+      }
+    }
+    
+    // For 'switch' nodes, compile initial active content
+    if (node.type === 'switch' && parentId !== undefined) {
+      const initialNode = (node as any)._switchActiveNode as ViewNode | undefined;
+      
+      if (initialNode) {
+        // Compile the active node as if it's a direct child of the parent
+        const childCommands = compileNode(initialNode, parentId, index ?? 0);
+        commands.push(...childCommands);
+        
+        // INSERT_CHILD is already added by compileNode
+      }
     }
     
     return commands;
