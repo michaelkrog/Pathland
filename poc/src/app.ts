@@ -4,7 +4,7 @@
  * Uses view package for creating UI.
  */
 
-import { View, ViewNode, VStack, HStack, Text, Signal } from '@pathland/view';
+import { View, ViewNode, VStack, HStack, Text, Signal, If, For, Switch } from '@pathland/view';
 
 // ============================================
 // DEMO 1: Simple VStack with Text (semantic colors)
@@ -149,7 +149,7 @@ class Demo6 extends View {
 }
 
 // ============================================
-// DEMO 7: Conditional Rendering
+// DEMO 7: Conditional Rendering (using If)
 // ============================================
 
 class Demo7 extends View {
@@ -158,7 +158,7 @@ class Demo7 extends View {
   body(): ViewNode {
     return VStack(
       Text('Demo 7: Conditional Rendering'),
-      ViewNode.if(
+      If(
         this.visible,
         () => Text('I am visible!').background('success').padding(16)
       ),
@@ -174,21 +174,77 @@ class Demo7 extends View {
 }
 
 // ============================================
-// DEMO 8: Event Handling
+// DEMO 8: For Loop - List Rendering
 // ============================================
 
 class Demo8 extends View {
-  private clicked = new Signal(false);
+  private items = new Signal(['Apple', 'Banana', 'Cherry']);
+  private newItem = new Signal('');
 
   body(): ViewNode {
     return VStack(
-      Text('Demo 8: Event Handling'),
-      Text(this.clicked.map(c => c ? 'Clicked!' : 'Click the box below'))
-        .padding(8),
-      Text('Click Me')
-        .tapGesture(() => this.clicked.set(true))
-        .padding(16)
-        .background('primary')
+      Text('Demo 8: For Loop - List Rendering'),
+      For(
+        this.items,
+        (item, index) => HStack(
+          Text(`${index + 1}.`),
+          Text(item).padding(8)
+        )
+          .spacing(8)
+          .padding(8)
+          .background(0xFF00FF9F)
+          .cornerRadius(4)
+      ),
+      HStack(
+        Text('Add:'),
+        Text(this.newItem.map(v => v || 'Type here...')).padding(8).background(0xFFFFFFEE),
+        Text('+').tapGesture(() => {
+          if (this.newItem.get().trim()) {
+            this.items.set([...this.items.get(), this.newItem.get()]);
+            this.newItem.set('');
+          }
+        }).padding(8).background('success')
+      ).spacing(8).padding(8),
+      HStack(
+        Text('Remove Last').tapGesture(() => {
+          const current = this.items.get();
+          if (current.length > 0) {
+            this.items.set(current.slice(0, -1));
+          }
+        }).padding(8).background('error')
+      )
+    )
+      .spacing(16)
+      .padding(16)
+      .background(0xFF00FF9F);
+  }
+}
+
+// ============================================
+// DEMO 9: Switch - Multi-way Branch
+// ============================================
+
+class Demo9 extends View {
+  private status = new Signal<'loading' | 'error' | 'success'>('loading');
+
+  body(): ViewNode {
+    return VStack(
+      Text('Demo 9: Switch - Multi-way Branch'),
+      Text('Current status:').padding(8),
+      Switch(
+        this.status,
+        {
+          loading: () => Text('Loading...').color('blue').fontSize(24),
+          error: () => Text('Error occurred!').color('error').fontSize(24),
+          success: () => Text('Success!').color('success').fontSize(24)
+        }
+      ),
+      Text('').padding(16), // Spacer
+      HStack(
+        Text('Set Loading').tapGesture(() => this.status.set('loading')).padding(8).background('primary'),
+        Text('Set Error').tapGesture(() => this.status.set('error')).padding(8).background('error'),
+        Text('Set Success').tapGesture(() => this.status.set('success')).padding(8).background('success')
+      ).spacing(8)
     )
       .spacing(16)
       .padding(16)
@@ -212,7 +268,8 @@ class POCApp extends View {
       Demo5.make(),
       Demo6.make(),
       Demo7.make(),
-      Demo8.make()
+      Demo8.make(),
+      Demo9.make()
     )
       .spacing(16)
       .padding(16)
