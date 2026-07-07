@@ -286,10 +286,18 @@ function compileNode(node: ViewNode, parentId?: number, index?: number): Interna
     // We access it via the internal _contentNode property
     const contentNode = (node as any)._contentNode as ViewNode | undefined;
     
-    if (contentNode) {
+    if (contentNode && parentId !== undefined) {
       // Compile the content node as if it's a direct child of the parent
       const childCommands = compileNode(contentNode, parentId, index ?? 0);
       commands.push(...childCommands);
+      
+      // Also add INSERT_CHILD command since compileNode doesn't do it for conditional content
+      commands.push({
+        opcode: 'INSERT_CHILD',
+        parentId: parentId,
+        childId: contentNode.nodeId,
+        index: index ?? 0
+      });
     }
     
     return commands;
