@@ -9,4 +9,4 @@ export type { BootstrapOptions } from './bootstrap';
 export { bootstrapApplication as default } from './bootstrap';
 
 // Re-export types for convenience
-export type { Renderer, ExtendedRenderer } from '@pathland/renderer';
+export type { Renderer } from '@pathland/renderer';

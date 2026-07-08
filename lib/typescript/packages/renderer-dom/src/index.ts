@@ -8,7 +8,7 @@
 
 import type { Command, PropertyValue } from '@pathland/protocol';
 import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, decodeMessage } from '@pathland/protocol';
-import type { Renderer, ExtendedRenderer } from '@pathland/renderer';
+import type { Renderer } from '@pathland/renderer';
 
 // ============================================
 // LOGGING CONFIGURATION
@@ -356,13 +356,14 @@ class RenderElement {
  * Works with both browser DOM and JSDOM.
  * Maintains only nodeId -> RenderElement mapping for event routing.
  */
-export class DOMRenderer implements Renderer, ExtendedRenderer {
+export class DOMRenderer implements Renderer {
   private root: RenderElement;
   private elements: Map<number, RenderElement> = new Map();
   private container: DOMNode;
   private document: DOMDocument;
   private config: DOMRendererConfig = {};
   private logger: (message: string) => void;
+  private dispatchEvent: (nodeId: number, eventType: number) => void = () => {};
 
   /**
    * Create a new DOMRenderer.
@@ -458,6 +459,31 @@ export class DOMRenderer implements Renderer, ExtendedRenderer {
    */
   setLogger(logger: (message: string) => void): void {
     this.logger = logger;
+  }
+
+  /**
+   * Set up event handling for this renderer.
+   * Sets up DOM event listeners and calls dispatchEvent when events occur.
+   * 
+   * @param dispatchEvent Callback: (nodeId, eventType) => void
+   */
+  setupEvents(dispatchEvent: (nodeId: number, eventType: number) => void): void {
+    this.dispatchEvent = dispatchEvent;
+    
+    // Set up event delegation on the container for DOM events
+    if (isElement(this.container)) {
+      // Click events
+      this.container.addEventListener('click', (event: Event) => {
+        let target = event.target as HTMLElement;
+        while (target && !target.dataset.pathlandNodeId) {
+          target = target.parentElement as HTMLElement;
+        }
+        if (target?.dataset.pathlandNodeId) {
+          const nodeId = parseInt(target.dataset.pathlandNodeId, 10);
+          this.dispatchEvent(nodeId, 0x04); // EventType.CLICK
+        }
+      });
+    }
   }
 
   private executeCommand(command: Command): void {
@@ -809,5 +835,5 @@ function enumToJustifyContent(value: number): string {
   return mapping[value] || 'flex-start';
 }
 
-export type { RenderElement, DOMRendererConfig, Renderer, ExtendedRenderer };
+export type { RenderElement, DOMRendererConfig, Renderer };
 export { DOMRenderer as default };
