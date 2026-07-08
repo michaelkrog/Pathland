@@ -10,6 +10,20 @@ import type { Command, PropertyValue } from '@pathland/protocol';
 import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, decodeMessage } from '@pathland/protocol';
 
 // ============================================
+// LOGGING CONFIGURATION
+// ============================================
+
+/**
+ * Configuration options for the DOMRenderer.
+ */
+interface DOMRendererConfig {
+  /** Enable verbose command logging to console */
+  debug?: boolean;
+  /** Custom logger function (defaults to console.log) */
+  logger?: (message: string) => void;
+}
+
+// ============================================
 // TYPE DEFINITIONS
 // ============================================
 
@@ -346,13 +360,23 @@ export class DOMRenderer {
   private elements: Map<number, RenderElement> = new Map();
   private container: DOMNode;
   private document: DOMDocument;
+  private config: DOMRendererConfig = {};
+  private logger: (message: string) => void;
 
   /**
    * Create a new DOMRenderer.
    * @param containerOrDocument The DOM node to render into, or a Document for JSDOM
+   * @param config Optional configuration options
    * @param optionalDocument Optional document to use (for JSDOM when first param is a container element)
    */
-  constructor(containerOrDocument: DOMNode | DOMDocument = (typeof document !== 'undefined' ? document.body : undefined) as DOMNode | DOMDocument, optionalDocument?: DOMDocument) {
+  constructor(
+    containerOrDocument: DOMNode | DOMDocument = (typeof document !== 'undefined' ? document.body : undefined) as DOMNode | DOMDocument,
+    config: DOMRendererConfig = {},
+    optionalDocument?: DOMDocument
+  ) {
+    this.config = config;
+    this.logger = config.logger || console.log;
+    
     // Determine document and container from parameters
     if (isDocument(containerOrDocument)) {
       // First parameter is a document (JSDOM case)
@@ -409,7 +433,36 @@ export class DOMRenderer {
     this.executeCommands(commands);
   }
 
+  /**
+   * Log a command in human-readable format.
+   * Only logs if debug mode is enabled.
+   */
+  private logCommand(command: Command): void {
+    if (this.config.debug) {
+      this.logger(`[Pathland] ${formatCommand(command)}`);
+    }
+  }
+
+  /**
+   * Set debug mode on/off.
+   * @param enabled Whether to enable debug logging
+   */
+  setDebug(enabled: boolean): void {
+    this.config.debug = enabled;
+  }
+
+  /**
+   * Set a custom logger function.
+   * @param logger Function to use for logging
+   */
+  setLogger(logger: (message: string) => void): void {
+    this.logger = logger;
+  }
+
   private executeCommand(command: Command): void {
+    // Log command if debug mode is enabled
+    this.logCommand(command);
+    
     switch (command.opcode) {
       case 'CREATE_NODE':
         this.createNode(command);
@@ -574,11 +627,150 @@ export class DOMRenderer {
    * Create a new JSDOM renderer for server-side use.
    * This is a convenience factory for Node.js environments.
    */
-  static async createJSDOMRenderer(html?: string): Promise<DOMRenderer> {
+  static async createJSDOMRenderer(html?: string, config: DOMRendererConfig = {}): Promise<DOMRenderer> {
     // Dynamic import for ESM compatibility
     const { JSDOM } = await import('jsdom');
     const dom = new JSDOM(html || '<!DOCTYPE html><html><body></body></html>');
-    return new DOMRenderer(dom.window.document.body as unknown as Element, dom.window.document);
+    return new DOMRenderer(dom.window.document.body as unknown as Element, config, dom.window.document);
+  }
+}
+
+// ============================================
+// COMMAND LOGGING
+// ============================================
+
+/**
+ * Maps opcode to human-readable string.
+ */
+const OPCODE_NAMES: Record<string, string> = {
+  'CREATE_NODE': 'CREATE_NODE',
+  'DELETE_NODE': 'DELETE_NODE',
+  'INSERT_CHILD': 'INSERT_CHILD',
+  'REMOVE_CHILD': 'REMOVE_CHILD',
+  'SET_PROPERTY': 'SET_PROPERTY',
+  'SET_DESIGN_TOKEN': 'SET_DESIGN_TOKEN',
+  'REGISTER_EVENT_HANDLER': 'REGISTER_EVENT_HANDLER'
+};
+
+/**
+ * Maps component type ID to human-readable string.
+ */
+const COMPONENT_TYPE_NAMES: Record<number, string> = {
+  [ComponentType.HSTACK]: 'HSTACK',
+  [ComponentType.VSTACK]: 'VSTACK',
+  [ComponentType.TEXT]: 'TEXT',
+  [ComponentType.BUTTON]: 'BUTTON',
+  [ComponentType.SPACER]: 'SPACER',
+  [ComponentType.IMAGE]: 'IMAGE',
+  [ComponentType.SCROLLVIEW]: 'SCROLLVIEW',
+  [ComponentType.LIST]: 'LIST',
+  [ComponentType.GRID]: 'GRID',
+  [ComponentType.SWITCH]: 'SWITCH',
+  [ComponentType.TEXT_FIELD]: 'TEXT_FIELD',
+  [ComponentType.COMMENT]: 'COMMENT'
+};
+
+/**
+ * Maps property ID to human-readable string.
+ */
+const PROPERTY_NAMES: Record<number, string> = {
+  // Stack properties
+  [StackProperty.SPACING]: 'SPACING',
+  [StackProperty.ALIGNMENT]: 'ALIGNMENT',
+  [StackProperty.JUSTIFICATION]: 'JUSTIFICATION',
+  [StackProperty.PADDING]: 'PADDING',
+  
+  // Text properties
+  [TextProperty.TEXT]: 'TEXT',
+  [TextProperty.TEXT_ALIGNMENT]: 'TEXT_ALIGNMENT',
+  [TextProperty.LINE_LIMIT]: 'LINE_LIMIT',
+  
+  // Style properties
+  [StyleProperty.COLOR]: 'COLOR',
+  [StyleProperty.BACKGROUND_COLOR]: 'BACKGROUND_COLOR',
+  [StyleProperty.FONT_SIZE]: 'FONT_SIZE',
+  [StyleProperty.FONT_WEIGHT]: 'FONT_WEIGHT',
+  [StyleProperty.FONT_FAMILY]: 'FONT_FAMILY',
+  [StyleProperty.WIDTH]: 'WIDTH',
+  [StyleProperty.HEIGHT]: 'HEIGHT',
+  [StyleProperty.OPACITY]: 'OPACITY',
+  [StyleProperty.VISIBLE]: 'VISIBLE',
+  [StyleProperty.BORDER_WIDTH]: 'BORDER_WIDTH',
+  [StyleProperty.BORDER_COLOR]: 'BORDER_COLOR',
+  [StyleProperty.BORDER_RADIUS]: 'BORDER_RADIUS',
+  [StyleProperty.PADDING]: 'PADDING'
+};
+
+/**
+ * Format a property value for logging.
+ */
+function formatPropertyValue(value: any): string {
+  if (!value) {
+    return 'undefined';
+  }
+  
+  if (value.type === 'string') {
+    return `"${value.value}"`;
+  }
+  if (value.type === 'u8' || value.type === 'u16' || value.type === 'u32' || value.type === 'i32') {
+    return String(value.value);
+  }
+  if (value.type === 'f32') {
+    return value.value.toFixed(2);
+  }
+  if (value.type === 'color') {
+    if (value.kind === 'semantic') {
+      return `semantic(${value.tokenId})`;
+    }
+    if (value.kind === 'literal') {
+      return `0x${value.rgba.toString(16).padStart(8, '0').toUpperCase()}`;
+    }
+  }
+  if (value.type === 'enum') {
+    return `enum(${value.value})`;
+  }
+  if (value.type === 'bool') {
+    return value.value ? 'true' : 'false';
+  }
+  if (value.type === 'designToken') {
+    return `designToken(${value.path})`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Format a command for human-readable logging.
+ */
+function formatCommand(command: Command): string {
+  const opcodeName = OPCODE_NAMES[command.opcode] || command.opcode;
+  
+  switch (command.opcode) {
+    case 'CREATE_NODE':
+      const componentName = COMPONENT_TYPE_NAMES[command.componentType] || command.componentType;
+      return `[${opcodeName}] nodeId=${command.nodeId}, componentType=${componentName}`;
+    
+    case 'DELETE_NODE':
+      return `[${opcodeName}] nodeId=${command.nodeId}`;
+    
+    case 'INSERT_CHILD':
+      return `[${opcodeName}] parentId=${command.parentId}, childId=${command.childId}, index=${command.index}`;
+    
+    case 'REMOVE_CHILD':
+      return `[${opcodeName}] parentId=${command.parentId}, childId=${command.childId}`;
+    
+    case 'SET_PROPERTY':
+      const propertyName = PROPERTY_NAMES[command.propertyId] || command.propertyId;
+      return `[${opcodeName}] nodeId=${command.nodeId}, property=${propertyName}, value=${formatPropertyValue(command.value)}`;
+    
+    case 'SET_DESIGN_TOKEN':
+      const setTokenCmd = command as any;
+      return `[${opcodeName}] tokenPath="${setTokenCmd.tokenPath}", value=${formatPropertyValue(setTokenCmd.value)}`;
+    
+    case 'REGISTER_EVENT_HANDLER':
+      return `[${opcodeName}] nodeId=${command.nodeId}, eventType=${command.eventType}, handlerId=${command.handlerId}`;
+    
+    default:
+      return `[${opcodeName}] ${JSON.stringify(command)}`;
   }
 }
 
@@ -616,5 +808,5 @@ function enumToJustifyContent(value: number): string {
   return mapping[value] || 'flex-start';
 }
 
-export type { RenderElement };
+export type { RenderElement, DOMRendererConfig };
 export { DOMRenderer as default };
