@@ -240,9 +240,9 @@ class Demo9 extends View {
       ),
       Text('').padding(16), // Spacer
       HStack(
-        Text('Set Loading').tapGesture(() => this.status.set('loading')).padding(8).background('primary'),
-        Text('Set Error').tapGesture(() => this.status.set('error')).padding(8).background('error'),
-        Text('Set Success').tapGesture(() => this.status.set('success')).padding(8).background('success')
+        Text('Set Loading').tapGesture(() => this.status.set('loading')).padding(8).background(0x0000FFFF),
+        Text('Set Error').tapGesture(() => this.status.set('error')).padding(8).background(0xFF0000FF),
+        Text('Set Success').tapGesture(() => this.status.set('success')).padding(8).background(0x00FF00FF)
       ).spacing(8)
     )
       .spacing(16)
