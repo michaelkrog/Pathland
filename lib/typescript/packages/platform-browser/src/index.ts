@@ -5,7 +5,8 @@
  */
 
 export { bootstrapApplication } from './bootstrap';
+export type { BootstrapOptions } from './bootstrap';
 export { bootstrapApplication as default } from './bootstrap';
 
-// Re-export Renderer type for convenience
-export type { Renderer } from '@pathland/renderer';
+// Re-export types for convenience
+export type { Renderer, ExtendedRenderer } from '@pathland/renderer';
