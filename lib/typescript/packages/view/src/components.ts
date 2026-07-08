@@ -61,7 +61,7 @@ export function HStack(...children: ViewNode[]): ViewNode {
  * Text("Hello World")
  * 
  * // Dynamic text with signal
- * const count = new Signal(0);
+ * const count = signal(0);
  * Text(count.map(n => `Count: ${n}`))
  * 
  * // With modifiers

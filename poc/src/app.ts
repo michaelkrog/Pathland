@@ -4,7 +4,7 @@
  * Uses view package for creating UI.
  */
 
-import { View, ViewNode, VStack, HStack, Text, Signal, If, For, Switch } from '@pathland/view';
+import { View, ViewNode, VStack, HStack, Text, signal, If, For, Switch } from '@pathland/view';
 
 // ============================================
 // DEMO 1: Simple VStack with Text (semantic colors)
@@ -90,7 +90,7 @@ class Demo4 extends View {
 // ============================================
 
 class Demo5 extends View {
-  private time = new Signal(new Date());
+  private time = signal(new Date());
   private interval: number | null = null;
 
   constructor() {
@@ -126,7 +126,7 @@ class Demo5 extends View {
 // ============================================
 
 class Demo6 extends View {
-  private count = new Signal(0);
+  private count = signal(0);
 
   body(): ViewNode {
     return VStack(
@@ -153,13 +153,12 @@ class Demo6 extends View {
 // ============================================
 
 class Demo7 extends View {
-  private visible = new Signal(true);
+  private visible = signal(true);
 
   body(): ViewNode {
     return VStack(
       Text('Demo 7: Conditional Rendering'),
-      If(
-        this.visible,
+      If(this.visible,
         () => Text('I am visible!').background('success').padding(16)
       ),
       Text(this.visible.map(v => v ? 'Hide' : 'Show'))
@@ -178,8 +177,8 @@ class Demo7 extends View {
 // ============================================
 
 class Demo8 extends View {
-  private items = new Signal(['Apple', 'Banana', 'Cherry']);
-  private newItem = new Signal('');
+  private items = signal(['Apple', 'Banana', 'Cherry']);
+  private newItem = signal('');
 
   body(): ViewNode {
     return VStack(
@@ -225,7 +224,7 @@ class Demo8 extends View {
 // ============================================
 
 class Demo9 extends View {
-  private status = new Signal<'loading' | 'error' | 'success'>('loading');
+  private status = signal<'loading' | 'error' | 'success'>('loading');
 
   body(): ViewNode {
     return VStack(

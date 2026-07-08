@@ -9,11 +9,11 @@
  * 
  * @example
  * ```typescript
- * import { VStack, HStack, Text, Signal, initialRender } from '@pathland/view';
+ * import { VStack, HStack, Text, signal, initialRender } from '@pathland/view';
  * import { PostMessageTransport } from '@pathland/transport';
  * 
  * class App {
- *   count = new Signal(0);
+ *   count = signal(0);
  *   
  *   createView() {
  *     return VStack(
@@ -36,7 +36,7 @@
 export type { Modifier, Gesture } from './view-node';
 export { ViewNode, resetNodeIdCounter } from './view-node';
 export { View } from './view';
-export { Signal, commandQueue } from './signal';
+export { Signal, signal, commandQueue } from './signal';
 export { VStack, HStack, Text } from './components';
 export { initialRender, handleDispatchEvent, getConditionalParent } from './renderer';
 export { propertyNameToId, compilePropertyValue } from './utils';

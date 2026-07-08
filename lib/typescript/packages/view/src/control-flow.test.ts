@@ -5,7 +5,7 @@
  * Run with: npx tsx src/control-flow.test.ts
  */
 
-import { If, For, Switch, Signal, commandQueue, initialRender, resetNodeIdCounter } from './index';
+import { If, For, Switch, signal, commandQueue, initialRender, resetNodeIdCounter } from './index';
 import { VStack, Text } from './components';
 
 // ============================================
@@ -101,7 +101,7 @@ suite.add('If: should not render content when condition is initially false', () 
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const condition = new Signal(false);
+  const condition = signal(false);
   const root = VStack(
     If(condition, () => Text("Conditional"))
   );
@@ -123,7 +123,7 @@ suite.add('If: should render content when condition is initially true', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const condition = new Signal(true);
+  const condition = signal(true);
   const root = VStack(
     If(condition, () => Text("Conditional"))
   );
@@ -150,7 +150,7 @@ suite.add('If: should remove content when condition changes from true to false',
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const condition = new Signal(true);
+  const condition = signal(true);
   const root = VStack(
     If(condition, () => Text("Conditional"))
   );
@@ -173,7 +173,7 @@ suite.add('If: should recreate content when condition changes from false to true
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const condition = new Signal(false);
+  const condition = signal(false);
   const root = VStack(
     If(condition, () => Text("Conditional"))
   );
@@ -224,7 +224,7 @@ suite.add('For: should render all items in array', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const items = new Signal(['A', 'B', 'C']);
+  const items = signal(['A', 'B', 'C']);
   const root = VStack(
     For(items, (item) => Text(item))
   );
@@ -244,7 +244,7 @@ suite.add('For: should render nothing for empty array', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const items = new Signal<string[]>([]);
+  const items = signal<string[]>([]);
   const root = VStack(
     For(items, (item) => Text(item))
   );
@@ -265,7 +265,7 @@ suite.add('For: should handle array changes by recreating nodes', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const items = new Signal(['A', 'B']);
+  const items = signal(['A', 'B']);
   const root = VStack(
     For(items, (item) => Text(item))
   );
@@ -315,7 +315,7 @@ suite.add('Switch: should render matching case', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const status = new Signal('loading');
+  const status = signal('loading');
   const root = VStack(
     Switch(status, {
       loading: () => Text("Loading..."),
@@ -339,7 +339,7 @@ suite.add('Switch: should render default case with _ key', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const status = new Signal('unknown');
+  const status = signal('unknown');
   const root = VStack(
     Switch(status, {
       loading: () => Text("Loading..."),
@@ -362,7 +362,7 @@ suite.add('Switch: should render default case with default key', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const status = new Signal('unknown');
+  const status = signal('unknown');
   const root = VStack(
     Switch(status, {
       loading: () => Text("Loading..."),
@@ -385,7 +385,7 @@ suite.add('Switch: should update when signal changes', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const status = new Signal('loading');
+  const status = signal('loading');
   const root = VStack(
     Switch(status, {
       loading: () => Text("Loading..."),
@@ -415,7 +415,7 @@ suite.add('Switch: should handle numeric values', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const count = new Signal(0);
+  const count = signal(0);
   const root = VStack(
     Switch(count, {
       0: () => Text("Zero"),
@@ -443,8 +443,8 @@ suite.add('Integration: nested control flow', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const showDetails = new Signal(true);
-  const items = new Signal(['A', 'B']);
+  const showDetails = signal(true);
+  const items = signal(['A', 'B']);
   
   const root = VStack(
     If(showDetails, () =>
@@ -467,8 +467,8 @@ suite.add('Integration: multiple control flows in same container', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const cond1 = new Signal(true);
-  const cond2 = new Signal(false);
+  const cond1 = signal(true);
+  const cond2 = signal(false);
   
   const root = VStack(
     If(cond1, () => Text("First")),
