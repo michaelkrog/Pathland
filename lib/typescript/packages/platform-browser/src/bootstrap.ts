@@ -27,12 +27,15 @@ async function loadViewModule() {
   return viewModule;
 }
 
+// Import Renderer type for type safety
+import type { Renderer } from '@pathland/renderer';
+
 /**
  * Bootstrap a Pathland application in the browser.
  * 
  * This is the main entry point for Pathland applications. It automatically:
  * - Finds the <app-root> element as the rendering container
- * - Sets up the DOMRenderer
+ * - Sets up the renderer (DOMRenderer by default)
  * - Configures the command transport
  * - Initializes the root view
  * - Sets up event delegation for gestures (tap, etc.)
@@ -73,7 +76,7 @@ export async function bootstrapApplication(
   ]);
 
   // 3. Set up renderer
-  const renderer = new rendererMod.DOMRenderer(container as HTMLElement);
+  const renderer: Renderer = new rendererMod.DOMRenderer(container as HTMLElement);
 
   // 4. Set up transport - commands go directly to renderer
   const transport = {

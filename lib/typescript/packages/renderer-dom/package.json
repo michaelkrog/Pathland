@@ -28,7 +28,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@pathland/protocol": "^1.0.0"
+    "@pathland/protocol": "^1.0.0",
+    "@pathland/renderer": "^1.0.0"
   },
   "peerDependencies": {
     "jsdom": "^20.0.0 || ^21.0.0 || ^22.0.0 || ^23.0.0 || ^24.0.0 || ^25.0.0"

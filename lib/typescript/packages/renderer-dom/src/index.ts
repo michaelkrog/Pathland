@@ -8,6 +8,7 @@
 
 import type { Command, PropertyValue } from '@pathland/protocol';
 import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, decodeMessage } from '@pathland/protocol';
+import type { Renderer, ExtendedRenderer } from '@pathland/renderer';
 
 // ============================================
 // LOGGING CONFIGURATION
@@ -355,7 +356,7 @@ class RenderElement {
  * Works with both browser DOM and JSDOM.
  * Maintains only nodeId -> RenderElement mapping for event routing.
  */
-export class DOMRenderer {
+export class DOMRenderer implements Renderer, ExtendedRenderer {
   private root: RenderElement;
   private elements: Map<number, RenderElement> = new Map();
   private container: DOMNode;
@@ -808,5 +809,5 @@ function enumToJustifyContent(value: number): string {
   return mapping[value] || 'flex-start';
 }
 
-export type { RenderElement, DOMRendererConfig };
+export type { RenderElement, DOMRendererConfig, Renderer, ExtendedRenderer };
 export { DOMRenderer as default };
