@@ -381,7 +381,7 @@ function compileNode(node: ViewNode, parentId?: number, index?: number): Interna
     commands.push(...compileNode(child, node.nodeId, i));
     
     // Only add INSERT_CHILD for non-conditional children
-    if (child.type !== 'if') {
+    if (child.type !== 'if' && child.type !== 'for' && child.type !== 'switch') {
       commands.push({
         opcode: 'INSERT_CHILD',
         parentId: node.nodeId,
