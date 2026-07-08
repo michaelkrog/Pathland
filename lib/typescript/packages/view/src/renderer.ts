@@ -328,11 +328,17 @@ function compileNode(node: ViewNode, parentId?: number, index?: number): Interna
       const initialNode = (node as any)._switchActiveNode as ViewNode | undefined;
       
       if (initialNode) {
-        // Compile the active node as a child of the switch placeholder
-        const childCommands = compileNode(initialNode, node.nodeId, 0);
+        // Compile the active node as if it's a direct child of the parent
+        const childCommands = compileNode(initialNode, parentId, index ?? 0);
         commands.push(...childCommands);
         
-        // INSERT_CHILD is already added by compileNode
+        // Also add INSERT_CHILD command since compileNode doesn't do it for conditional content
+        commands.push({
+          opcode: 'INSERT_CHILD',
+          parentId: parentId,
+          childId: initialNode.nodeId,
+          index: index ?? 0
+        });
       }
     }
     
