@@ -37,7 +37,7 @@ async function loadViewModule() {
  * - Sets up the renderer (DOMRenderer by default, or a custom renderer)
  * - Configures the command transport
  * - Initializes the root view
- * - Sets up event delegation for gestures (tap, etc.)
+ * - Connects renderer events to the view's event handlers
  *
  * @param viewClass - Your root view class with a static make() method
  * @param options - Optional bootstrap options including custom renderer
@@ -113,8 +113,6 @@ export async function bootstrapApplication(
   renderer.setupEvents((nodeId: number, eventType: number) => {
     viewMod.handleDispatchEvent(nodeId, eventType);
   });
-
-  // TODO: Add support for other event types (long press, hover, etc.)
 
   // 6. Create root view and initialize
   // viewClass.make() returns the ViewNode tree
