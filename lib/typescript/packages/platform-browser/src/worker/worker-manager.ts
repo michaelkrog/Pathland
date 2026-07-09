@@ -60,7 +60,8 @@ export class WorkerManager {
 
     try {
       console.log('[WorkerManager] Creating worker with URL:', workerUrl);
-      this.worker = new Worker(workerUrl);
+      // Use module type to support ES module syntax in workers
+      this.worker = new Worker(workerUrl, { type: 'module' });
 
       // Set up message handler from worker
       this.worker.onmessage = (event: MessageEvent) => {

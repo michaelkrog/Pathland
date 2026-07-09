@@ -4,6 +4,8 @@
  * This worker file is processed by Vite and can import view classes correctly.
  * It contains the actual worker logic that would normally be in the platform-browser
  * worker entry, but with the correct module resolution for the POC.
+ * 
+ * Note: This file must not use ES module exports as it runs in a worker context.
  */
 
 // Store reference to the event handler from view package
