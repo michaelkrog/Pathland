@@ -22,6 +22,18 @@ interface DOMRendererConfig {
   debug?: boolean;
   /** Custom logger function (defaults to console.log) */
   logger?: (message: string) => void;
+  /** 
+   * Container element to render into.
+   * If not provided, will look for <app-root> or use document.body.
+   * For JSDOM: can be a JSDOM Element or Document.
+   */
+  container?: DOMNode | DOMDocument;
+  /** 
+   * Document to use for rendering.
+   * Required when using JSDOM with a container element.
+   * When not provided, uses the global document (browser) or derived from container.
+   */
+  document?: DOMDocument;
 }
 
 // ============================================
@@ -367,34 +379,38 @@ export class DOMRenderer implements Renderer {
 
   /**
    * Create a new DOMRenderer.
-   * @param containerOrDocument The DOM node to render into, or a Document for JSDOM
-   * @param config Optional configuration options
-   * @param optionalDocument Optional document to use (for JSDOM when first param is a container element)
+   * @param config Configuration options including container and document
    */
-  constructor(
-    containerOrDocument: DOMNode | DOMDocument = (typeof document !== 'undefined' ? document.body : undefined) as DOMNode | DOMDocument,
-    config: DOMRendererConfig = {},
-    optionalDocument?: DOMDocument
-  ) {
+  constructor(config: DOMRendererConfig = {}) {
     this.config = config;
     this.logger = config.logger || console.log;
     
-    // Determine document and container from parameters
-    if (isDocument(containerOrDocument)) {
-      // First parameter is a document (JSDOM case)
-      this.document = containerOrDocument;
-      this.container = this.document.body as DOMNode;
-    } else if (isDOMNode(containerOrDocument)) {
-      // First parameter is a container node (element or comment)
-      this.container = containerOrDocument;
-      this.document = optionalDocument || (typeof document !== 'undefined' ? document : undefined) as DOMDocument;
+    // Determine document and container from config
+    if (config.container !== undefined) {
+      if (isDocument(config.container)) {
+        // Container is a document (JSDOM case)
+        this.document = config.container;
+        this.container = this.document.body as DOMNode;
+      } else if (isDOMNode(config.container)) {
+        // Container is a DOM node (element or comment)
+        this.container = config.container;
+        this.document = config.document || (typeof document !== 'undefined' ? document : undefined) as DOMDocument;
+      } else {
+        throw new Error('Invalid container provided.');
+      }
     } else {
-      // Fallback for default parameter
+      // No container provided - use default logic
       if (typeof document !== 'undefined') {
         this.document = document;
-        this.container = document.body;
+        // Look for <app-root> first, then fall back to document.body
+        const appRoot = document.querySelector('app-root');
+        this.container = (appRoot || document.body) as DOMNode;
+      } else if (config.document) {
+        // JSDOM case with document provided but no container
+        this.document = config.document;
+        this.container = this.document.body as DOMNode;
       } else {
-        throw new Error('No valid container or document provided and no global document available. For JSDOM, pass the document parameter or use DOMRenderer.createJSDOMRenderer().');
+        throw new Error('No container or document provided. For JSDOM, pass the document in config or use DOMRenderer.createJSDOMRenderer().');
       }
     }
     
@@ -658,7 +674,11 @@ export class DOMRenderer implements Renderer {
     // Dynamic import for ESM compatibility
     const { JSDOM } = await import('jsdom');
     const dom = new JSDOM(html || '<!DOCTYPE html><html><body></body></html>');
-    return new DOMRenderer(dom.window.document.body as unknown as Element, config, dom.window.document);
+    return new DOMRenderer({ 
+      ...config, 
+      document: dom.window.document,
+      container: dom.window.document.body as unknown as DOMNode
+    });
   }
 }
 

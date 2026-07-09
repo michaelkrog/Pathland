@@ -93,7 +93,7 @@ import { decodeMessage } from '@pathland/protocol';
 import { DOMRenderer } from '@pathland/renderer-dom';
 
 // Create renderer attached to a DOM element
-const renderer = new DOMRenderer(document.getElementById('app'));
+const renderer = new DOMRenderer({ container: document.getElementById('app') });
 
 // Receive and render binary messages
 function handleMessage(binaryBuffer: Uint8Array) {

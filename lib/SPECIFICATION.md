@@ -283,7 +283,7 @@ transport.send(commands);
 import { decodeMessage } from '@pathland/protocol';
 import { DOMRenderer } from '@pathland/renderer-dom';
 
-const renderer = new DOMRenderer(document.getElementById('app'));
+const renderer = new DOMRenderer({ container: document.getElementById('app') });
 
 // Receive binary message
 const message = decodeMessage(binaryBuffer);

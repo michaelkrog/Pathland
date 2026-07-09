@@ -3,7 +3,11 @@ import path from 'path';
 
 export default defineConfig({
   resolve: {
-
+    alias: {
+      // Alias for the worker entry point
+      '@pathland/platform-browser/worker-entry': 
+        path.resolve(__dirname, '../lib/typescript/packages/platform-browser/src/worker/worker-entry.ts'),
+    }
   },
   server: {
     port: 3000,
@@ -36,6 +40,14 @@ export default defineConfig({
       input: {
         main: path.resolve(__dirname, 'index.html'),
       },
+    },
+  },
+  worker: {
+    // Configure worker bundling
+    format: 'es',
+    rollupOptions: {
+      // Ensure worker files can access the @pathland packages
+      external: [],
     },
   },
 });

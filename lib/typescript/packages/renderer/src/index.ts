@@ -18,7 +18,7 @@ import type { Command } from '@pathland/protocol';
  * import { Renderer } from '@pathland/renderer';
  * import { DOMRenderer } from '@pathland/renderer-dom';
  * 
- * const renderer: Renderer = new DOMRenderer(container);
+ * const renderer: Renderer = new DOMRenderer({ container });
  * 
  * // Set up event dispatching
  * renderer.setupEvents((nodeId, eventType) => {
