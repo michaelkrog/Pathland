@@ -161,7 +161,11 @@ export async function bootstrapApplication(
   let viewModulePath: string;
   let viewClassName: string;
   
-  if (typeof viewClassOrProvider === 'function') {
+  // Check if it's a lazy import function (returns Promise<ViewClass>)
+  // vs a direct ViewClass constructor
+  // Both are functions in JavaScript, but ViewClass has a 'make' static method
+  if (typeof viewClassOrProvider === 'function' && 
+      typeof (viewClassOrProvider as any).make !== 'function') {
     // Lazy import mode - the function returns a promise of the view class
     const viewClassProvider = viewClassOrProvider as ViewClassProvider;
     const viewClassPromise = viewClassProvider();
@@ -174,7 +178,7 @@ export async function bootstrapApplication(
     viewClassName = viewClass.name;
   } else {
     // Direct class mode
-    viewClass = viewClassOrProvider;
+    viewClass = viewClassOrProvider as ViewClass;
     viewModulePath = options.viewModulePath || resolveViewModulePath(viewClass);
     viewClassName = viewClass.name;
   }
