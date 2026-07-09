@@ -7,11 +7,17 @@
  */
 
 import type { Renderer } from '@pathland/renderer';
+import type { ViewNode } from '@pathland/view';
+import type { Command } from '@pathland/protocol';
+import type { Transport } from '@pathland/transport';
 
 // Lazy load the actual modules - these will be resolved by Vite at build time
 // using the alias configuration
-let rendererModule: any = null;
-let viewModule: any = null;
+let rendererModule: { DOMRenderer: new (...args: any[]) => Renderer } | null = null;
+let viewModule: { 
+  initialRender: (root: ViewNode, transport: Transport) => void;
+  handleDispatchEvent: (nodeId: number, eventType: number) => void;
+} | null = null;
 
 async function loadRendererModule() {
   if (!rendererModule) {
@@ -82,7 +88,7 @@ export interface BootstrapOptions {
 }
 
 export async function bootstrapApplication(
-  viewClass: { make(...args: any[]): any },
+  viewClass: { make(...args: any[]): ViewNode },
   options: BootstrapOptions = {}
 ): Promise<void> {
   // 1. Find <app-root> - always the same, no configuration needed
@@ -93,20 +99,24 @@ export async function bootstrapApplication(
 
   // 2. Lazy load required packages
   const [rendererMod, viewMod] = await Promise.all([
-    options.renderer ? Promise.resolve({}) : loadRendererModule(),
+    options.renderer ? Promise.resolve(null) : loadRendererModule(),
     loadViewModule()
   ]);
 
   // 3. Set up renderer - use custom renderer if provided, otherwise create DOMRenderer
   const renderer: Renderer = options.renderer 
     ? options.renderer 
-    : new rendererMod.DOMRenderer(container as HTMLElement);
+    : new (rendererMod as { DOMRenderer: new (...args: any[]) => Renderer }).DOMRenderer(container as HTMLElement);
 
   // 4. Set up transport - commands go directly to renderer
-  const transport = {
-    send: (commands: any[]) => {
+  const transport: Transport = {
+    send: (commands: Command[]) => {
       renderer.executeCommands(commands);
-    }
+    },
+    sendBinary: () => {},
+    close: () => {},
+    onMessage: () => () => {},
+    onError: () => () => {}
   };
 
   // 5. Set up event handling - renderer sets up its own event listeners
