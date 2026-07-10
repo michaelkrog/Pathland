@@ -13,7 +13,7 @@ import type { Renderer } from '@pathland/renderer';
 import type { View, ViewNode } from '@pathland/view';
 import type { Command } from '@pathland/protocol';
 import type { Transport } from '@pathland/transport';
-import { WorkerManager, generateWorkerBundleUrl, resolveViewModulePath } from './worker';
+import { startWorker } from './worker';
 
 // Type representing a View class with a static make() method
 type ViewClass = { new (...args: any[]): View } & { make(...args: any[]): ViewNode };
@@ -29,8 +29,7 @@ let viewModule: {
   handleDispatchEvent: (nodeId: number, eventType: number) => void;
 } | null = null;
 
-// Cache for worker manager instances
-let workerManager: WorkerManager | null = null;
+
 
 async function loadRendererModule() {
   if (!rendererModule) {
@@ -139,20 +138,46 @@ export async function bootstrapApplication(
 
   if (useWorker) {
     // WORKER MODE: appSource is a module path
-    const workerUrl = generateWorkerBundleUrl();
+    // Generate worker script dynamically using Blob
+    // This avoids needing the developer to configure bundler for worker files
     
-    // Create worker manager to handle communication
-    workerManager = new WorkerManager(renderer);
+    // The worker script imports the app module and passes the View class to startWorker
+    // This way, the dynamic import uses a literal string that bundlers can understand
+    const workerScript = `
+      import { startWorker } from '@pathland/platform-browser/worker';
+      import App from '${appSource}';
+      startWorker(undefined, App.default);
+    `;
     
-    // Start the worker with the view module information
-    workerManager.startWorker(workerUrl, {
-      viewModulePath: appSource,
-      viewClassName: 'default'
-    });
+    const blob = new Blob([workerScript], { type: 'application/javascript' });
+    const workerUrl = URL.createObjectURL(blob);
+    
+    // Create the worker with the generated script
+    const worker = new Worker(workerUrl, { type: 'module' });
+    
+    // Set up message handler from worker
+    worker.onmessage = (event) => {
+      const message = event.data;
+      if (message.type === 'COMMANDS') {
+        // Forward commands to renderer
+        if (message.commands) {
+          renderer.executeCommands(message.commands);
+        }
+      } else if (message.type === 'BINARY') {
+        // Handle binary data (if needed)
+        // For now, we assume commands are already decoded
+      } else if (message.type === 'ERROR') {
+        console.error('[Pathland] Worker initialization error:', message.error);
+      }
+    };
+    
+    worker.onerror = (error) => {
+      console.error('[Pathland] Worker error:', error);
+    };
     
     // Set up event handling - renderer events go to worker thread
     renderer.setupEvents((nodeId: number, eventType: number) => {
-      workerManager?.sendEventToWorker(nodeId, eventType);
+      worker.postMessage({ type: 'EVENT', nodeId, eventType });
     });
   } else {
     // NON-WORKER MODE: appSource is a ViewClass

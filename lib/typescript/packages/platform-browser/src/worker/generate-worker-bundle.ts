@@ -5,16 +5,14 @@
  * Uses standard paths that work with any bundler.
  */
 
-// Global variable set by Vite in development
-declare const __DEV__: boolean;
-
 /**
  * Generate the URL for the worker bundle.
- * Returns a path to the worker entry file in the platform-browser package.
+ * Returns a path to the worker entry file.
  * 
- * The bundler is responsible for:
+ * The application's bundler is responsible for:
  * - Processing this file as a worker
  * - Making the view module path importable by the worker
+ * - Serving the worker file at the returned URL
  * 
  * @param appName - Optional application name for multi-app support (unused currently)
  * @returns The URL to the worker bundle
@@ -22,12 +20,7 @@ declare const __DEV__: boolean;
 export function generateWorkerBundleUrl(appName?: string): string {
   // In browser environment, return path to worker entry
   if (typeof document !== 'undefined') {
-    // For development with Vite, use a path that Vite can serve
-    // In production, use a standard path
-    // The actual worker file path depends on the app's configuration
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      return '/src/pathland-worker.ts';
-    }
+    // The application must configure their bundler to serve the worker at this path
     return '/pathland-worker.js';
   }
   
