@@ -4,9 +4,9 @@ import path from 'path';
 export default defineConfig({
   resolve: {
     alias: {
-      // Alias for the worker entry point
-      '@pathland/platform-browser/worker-entry': 
-        path.resolve(__dirname, '../lib/typescript/packages/platform-browser/src/worker/worker-entry.ts'),
+      // Alias for platform-browser worker entry so it can be imported
+      '@pathland/platform-browser/src/worker/entry':
+        path.resolve(__dirname, '../lib/typescript/packages/platform-browser/src/worker/entry.ts'),
     }
   },
   server: {
