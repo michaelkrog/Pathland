@@ -2,70 +2,46 @@
  * @pathland/platform-browser
  * 
  * Generates worker bundle URLs for Pathland applications.
- * Handles both development and production environments.
+ * Uses standard paths that work with any bundler.
  */
-
-// Type for import.meta.env in Vite
-interface ImportMetaEnv {
-  DEV: boolean;
-  PROD: boolean;
-  MODE: string;
-}
-
-interface ImportMeta {
-  url: string;
-  env: ImportMetaEnv;
-}
-
-declare const __DEV__: boolean;
 
 /**
  * Generate the URL for the worker bundle.
- * In development with Vite, uses a virtual worker URL that Vite can process.
- * In production, uses a pre-built worker bundle path.
+ * Returns a path to the worker entry file in the platform-browser package.
  * 
- * @param appName - Optional application name for multi-app support
+ * The bundler is responsible for:
+ * - Processing this file as a worker
+ * - Making the view module path importable by the worker
+ * 
+ * @param appName - Optional application name for multi-app support (unused currently)
  * @returns The URL to the worker bundle
  */
 export function generateWorkerBundleUrl(appName?: string): string {
-  // Check if we're in a browser environment
+  // In browser environment, return path to worker entry
   if (typeof document !== 'undefined') {
-    // Browser environment
-    if (typeof __DEV__ !== 'undefined' && __DEV__) {
-      // Development mode with Vite
-      // In development, we use a virtual worker path that Vite can resolve
-      return new URL(
-        '/@id/__x00__/@pathland/platform-browser/src/worker/entry.ts',
-        window.location.origin
-      ).toString();
-    }
-    
-    // Production mode
-    // Assume worker bundle is at a standard location
-    return `/pathland-worker${appName ? `-${appName}` : ''}.js`;
+    // Use a path relative to the origin
+    // The bundler should configure this to point to the correct worker file
+    return '/pathland-worker.js';
   }
   
-  // Fallback for non-browser environments (shouldn't happen in practice)
+  // Fallback for non-browser environments
   return '/pathland-worker.js';
 }
 
 /**
  * Resolve the path to the view module for a given view class.
- * This is used by the main thread to tell the worker which module to import.
+ * This is used as a fallback when the developer doesn't provide a module path.
+ * 
+ * Note: This is a best-effort fallback. For worker mode, developers should
+ * provide the module path explicitly for reliable results across bundlers.
  * 
  * @param viewClass - The view class to resolve
  * @returns The module path as a string that can be dynamically imported
  */
 export function resolveViewModulePath(viewClass: { name: string }): string {
-  // In production, the view classes are bundled together
-  if (typeof __DEV__ === 'undefined' || !__DEV__) {
-    return '/views-bundle.js';
-  }
-  
-  // In development with Vite, we need to resolve the actual module path.
-  // The default behavior uses a relative path, but users should provide
-  // the correct path via BootstrapOptions.viewModulePath for their specific setup.
-  // This is a placeholder that should be overridden by users.
+  // This is a placeholder - developers should provide the module path explicitly
+  // for worker mode to ensure it works across all bundlers.
+  // In non-worker mode, this isn't used.
   return './app';
 }
 

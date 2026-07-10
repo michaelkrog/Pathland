@@ -18,8 +18,8 @@ import { WorkerManager, generateWorkerBundleUrl, resolveViewModulePath } from '.
 // Type representing a View class with a static make() method
 type ViewClass = { new (...args: any[]): View } & { make(...args: any[]): ViewNode };
 
-// Type representing either a View class, a lazy import function, or a module path string
-type ViewSource = ViewClass | (() => Promise<ViewClass>) | string;
+// Type for the first parameter - can be a ViewClass (non-worker) or module path string (worker)
+type AppSource = ViewClass | string;
 
 // Lazy load the actual modules - these will be resolved by Vite at build time
 // using the alias configuration
@@ -62,11 +62,13 @@ async function loadViewModule() {
  * 
  * By default, runs in worker mode for better performance. Set useWorker: false
  * to run everything on the main thread.
- *
- * @param viewSource - Your root view. Can be one of:
- *                    - A View class (extends View) e.g., class MyApp extends View
- *                    - A lazy import function: () => import('./app').then(m => m.App)
- *                    - A module path string: '/src/app.ts' (exports the view as default)
+ * 
+ * For worker mode, pass a module path string that exports your view as default.
+ * For non-worker mode, pass your View class directly.
+ * 
+ * @param appSource - Your root view. Can be one of:
+ *                    - A View class (extends View) for non-worker mode
+ *                    - A module path string (e.g., '/src/app.ts') for worker mode
  * @param options - Optional bootstrap options including custom renderer
  * @returns Promise that resolves when the application is bootstrapped
  *
@@ -75,21 +77,13 @@ async function loadViewModule() {
  * import { bootstrapApplication } from '@pathland/platform-browser';
  * import { App } from './app';
  *
- * // Direct class reference
- * bootstrapApplication(App);
+ * // Non-worker mode: pass View class directly
+ * bootstrapApplication(App, { useWorker: false });
  * ```
  *
  * @example
  * ```typescript
- * // With lazy import
- * import { bootstrapApplication } from '@pathland/platform-browser';
- *
- * bootstrapApplication(() => import('./app').then(m => m.App));
- * ```
- *
- * @example
- * ```typescript
- * // With module path (view exported as default)
+ * // Worker mode: pass module path (bundler handles the import)
  * import { bootstrapApplication } from '@pathland/platform-browser';
  *
  * bootstrapApplication('/src/app.ts');
@@ -97,21 +91,15 @@ async function loadViewModule() {
  *
  * @example
  * ```typescript
- * // With a custom renderer
+ * // With a custom renderer (non-worker mode)
  * import { bootstrapApplication } from '@pathland/platform-browser';
  * import { MyCustomRenderer } from './my-renderer';
  * import { App } from './app';
  *
- * bootstrapApplication(App, { renderer: new MyCustomRenderer(container) });
- * ```
- *
- * @example
- * ```typescript
- * // Disable worker mode
- * import { bootstrapApplication } from '@pathland/platform-browser';
- * import { App } from './app';
- *
- * bootstrapApplication(App, { useWorker: false });
+ * bootstrapApplication(App, { 
+ *   useWorker: false,
+ *   renderer: new MyCustomRenderer(container) 
+ * });
  * ```
  *
  * @example
@@ -142,43 +130,46 @@ export interface BootstrapOptions {
 }
 
 export async function bootstrapApplication(
-  viewSource: ViewSource,
+  appSource: AppSource,
   options: BootstrapOptions = {}
 ): Promise<void> {
   // Use worker by default for better performance
   const useWorker = options.useWorker !== false;
   
-  // 1. Resolve the view class and determine module information
-  let viewClass: ViewClass | undefined;
+  // 1. Resolve the view class and module information
+  let viewClass: ViewClass;
   let viewModulePath: string;
   let viewClassName: string;
   
-  if (typeof viewSource === 'string') {
-    // Module path mode - viewSource is a path to a module that exports the view
-    viewModulePath = viewSource;
+  if (typeof appSource === 'string') {
+    // Worker mode: appSource is a module path
+    // The worker will import and instantiate the view class
+    viewModulePath = appSource;
     viewClassName = 'default';
     
-    // In non-worker mode, we need to load the module here
     if (!useWorker) {
-      // Load the module directly in main thread mode
-      const module = await import(/* @vite-ignore */ viewSource);
+      // If not using worker, load the module directly
+      const module = await import(/* @vite-ignore */ appSource);
       viewClass = module.default;
+    } else {
+      // In worker mode, viewClass is not needed in main thread
+      // It will be loaded by the worker
+      viewClass = {} as ViewClass; // Placeholder, not used
     }
-  } else if (typeof viewSource === 'function' && 
-             typeof (viewSource as any).make !== 'function') {
-    // Lazy import mode - the function returns a promise of the view class
-    const viewClassProvider = viewSource as () => Promise<ViewClass>;
-    const viewClassPromise = viewClassProvider();
-    
-    // Resolve the view class (needed for non-worker mode and for class name)
-    viewClass = await viewClassPromise;
-    viewModulePath = '/src/app.ts';
-    viewClassName = viewClass.name;
   } else {
-    // Direct class mode
-    viewClass = viewSource as ViewClass;
-    viewModulePath = resolveViewModulePath(viewClass);
-    viewClassName = viewClass.name;
+    // Non-worker mode or direct class: appSource is a ViewClass
+    viewClass = appSource;
+    
+    if (useWorker) {
+      // In worker mode, we need to pass the module path to the worker
+      // Try to resolve it, but this is best effort
+      viewModulePath = resolveViewModulePath(viewClass);
+      viewClassName = viewClass.name;
+    } else {
+      // Non-worker mode: everything runs in main thread
+      viewModulePath = '';
+      viewClassName = '';
+    }
   }
 
   // 2. Lazy load required packages

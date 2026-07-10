@@ -16,27 +16,23 @@ self.onmessage = async (event) => {
   if (data.type === 'INIT') {
     try {
       // Dynamically import the view module
-      // The viewModulePath is resolved by the main thread and passed to the worker
-      let viewModulePath = data.viewModulePath;
+      // The viewModulePath is passed from the main thread and should be
+      // a path that the bundler can resolve (e.g., '/src/app.ts')
+      const viewModulePath = data.viewModulePath;
       
-      // In browser environment with Vite dev, we need to resolve the path properly
-      if (typeof window !== 'undefined' && typeof location !== 'undefined') {
-        // If the path doesn't start with / or http, make it relative to origin
-        if (!viewModulePath.startsWith('/') && !viewModulePath.startsWith('http')) {
-          // Remove any leading ./ or ../ 
-          viewModulePath = viewModulePath.replace(/^\.\/|^\.\.\//, '');
-          viewModulePath = new URL(viewModulePath, window.location.origin).toString();
-        } else if (viewModulePath.startsWith('/')) {
-          // Ensure absolute paths have the correct origin
-          viewModulePath = new URL(viewModulePath, window.location.origin).toString();
-        }
-      }
-      
+      // Import the view module using the provided path
+      // The bundler is responsible for making this work
       const viewModule = await import(/* @vite-ignore */ viewModulePath);
-      const ViewClass = viewModule[data.viewClassName];
+      
+      // Get the View class from the module
+      // Try both default export and named export
+      let ViewClass = viewModule.default;
+      if (!ViewClass && data.viewClassName) {
+        ViewClass = viewModule[data.viewClassName];
+      }
 
       if (!ViewClass) {
-        throw new Error(`View class ${data.viewClassName} not found in module ${viewModulePath}`);
+        throw new Error(`View class ${data.viewClassName || 'default'} not found in module ${viewModulePath}`);
       }
 
       // Import view utilities
@@ -75,5 +71,3 @@ self.onmessage = async (event) => {
     }
   }
 };
-
-export {}; // Make this a module
