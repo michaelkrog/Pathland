@@ -64,4 +64,45 @@ describe('worker boundary integration', () => {
     );
     expect(update).toBeDefined();
   });
+
+  it('round-trips a long-press event to its handler', async () => {
+    // Message channel: binary buffers flowing worker -> main.
+    const mainBatches: Command[][] = [];
+
+    const presses = signal(0);
+    const root = VStack(
+      Text('Hold me').longPressGesture(() => presses.set(presses.get() + 1)),
+      Text(presses.map(n => `Pressed: ${n}`))
+    );
+
+    // ---- Worker side ----
+    const workerTransport = {
+      send: (commands: Command[]) => {
+        const buffer = encodeMessage(commands);
+        mainBatches.push(decodeMessage(buffer).commands);
+      },
+      sendBinary: () => {},
+      close: () => {},
+      onMessage: () => () => {},
+      onError: () => () => {},
+    };
+    initialRender(root, workerTransport);
+
+    const initialCommands = mainBatches.flat();
+    const holdNode = initialCommands.find(
+      c => c.opcode === 'CREATE_NODE' && (c.properties.get(0x000A) as any)?.value === 'Hold me'
+    ) as Extract<Command, { opcode: 'CREATE_NODE' }> & { nodeId: number };
+    expect(holdNode).toBeDefined();
+
+    // ---- Main -> worker: renderer emits a long-press on the 'Hold me' node ----
+    handleDispatchEvent(holdNode.nodeId, 0x03); // LONG_PRESS
+
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    const allCommands = mainBatches.flat();
+    const update = allCommands.find(
+      c => c.opcode === 'SET_PROPERTY' && (c.value as any)?.value === 'Pressed: 1'
+    );
+    expect(update).toBeDefined();
+  });
 });

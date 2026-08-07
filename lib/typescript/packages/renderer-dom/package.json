@@ -14,7 +14,9 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc",
-    "prepublish": "npm run build"
+    "prepublish": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [
     "pathland",
@@ -42,6 +44,7 @@
   "devDependencies": {
     "typescript": "^5.0.0",
     "jsdom": "^24.0.0",
-    "@types/jsdom": "^21.1.7"
+    "@types/jsdom": "^21.1.7",
+    "vitest": "^1.6.1"
   }
 }

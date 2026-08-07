@@ -215,6 +215,18 @@ export class ViewNode {
     return this.withGesture({ kind: 'longPress', handler });
   }
 
+  hoverGesture(handler: () => void): ViewNode {
+    return this.withGesture({ kind: 'hover', handler });
+  }
+
+  focusGesture(handler: () => void): ViewNode {
+    return this.withGesture({ kind: 'focus', handler });
+  }
+
+  blurGesture(handler: () => void): ViewNode {
+    return this.withGesture({ kind: 'blur', handler });
+  }
+
   // Border modifiers
   border(width: number, color?: string | number): ViewNode {
     return this.withModifier({ kind: 'border', width, color });
