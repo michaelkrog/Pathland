@@ -62,6 +62,12 @@ export type SetDesignTokenCommand = {
   value: PropertyValue;
 };
 
+/**
+ * Event/gesture payload data, matching the binary protocol's event and
+ * gesture payload layouts (coordinates as numbers, booleans as 0/1).
+ */
+export type EventData = Record<string, number | boolean>;
+
 export type RegisterEventHandlerCommand = {
   opcode: 'REGISTER_EVENT_HANDLER';
   nodeId: number;
@@ -73,7 +79,32 @@ export type DispatchEventCommand = {
   opcode: 'DISPATCH_EVENT';
   targetId: number;
   eventType: number;
-  data?: unknown;
+  timestamp?: number;
+  /** 0=capture, 1=target, 2=bubble */
+  phase?: number;
+  data?: EventData;
+};
+
+export type AttachGestureCommand = {
+  opcode: 'ATTACH_GESTURE';
+  nodeId: number;
+  gestureType: number;
+  gestureRecognizerId: number;
+  handlerPhase?: number;
+  onBeganHandler?: number;
+  onChangedHandler?: number;
+  onEndedHandler?: number;
+  onCancelledHandler?: number;
+};
+
+export type GestureUpdateCommand = {
+  opcode: 'GESTURE_UPDATE';
+  targetId: number;
+  gestureType: number;
+  gestureState: number;
+  timestamp?: number;
+  gestureId: number;
+  data?: EventData;
 };
 
 export type SetEnvironmentCommand = {
@@ -107,6 +138,8 @@ export type Command =
   | SetDesignTokenCommand
   | RegisterEventHandlerCommand
   | DispatchEventCommand
+  | AttachGestureCommand
+  | GestureUpdateCommand
   | SetEnvironmentCommand
   | UpdateEnvironmentCommand
   | RequestEnvironmentCommand;

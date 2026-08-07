@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { encodeMessage, decodeMessage, BinaryWriter } from './binary';
-import { PROTOCOL_VERSION, Opcode, ComponentType, TextProperty, StackProperty, SemanticColorToken } from './constants';
+import { PROTOCOL_VERSION, Opcode, ComponentType, TextProperty, StackProperty, SemanticColorToken, EventType, GestureType, GestureState } from './constants';
 import type { Command, PropertyValue } from './types';
 
 function extractInstructions(commands: Command[]): Uint8Array {
@@ -111,6 +111,65 @@ describe('round-trip: event opcodes', () => {
     const decoded = decodeMessage(encodeMessage(commands));
     expect(decoded.commands).toHaveLength(1);
     expect(decoded.commands[0]).toMatchObject({ opcode: 'DISPATCH_EVENT', targetId: 42, eventType: 0x01 });
+  });
+
+  it('DISPATCH_EVENT with event data payloads', () => {
+    const commands: Command[] = [
+      { opcode: 'DISPATCH_EVENT', targetId: 1, eventType: EventType.TAP, timestamp: 0, phase: 0x01, data: { x: 10, y: 20, tapCount: 2 } },
+      { opcode: 'DISPATCH_EVENT', targetId: 2, eventType: EventType.HOVER, timestamp: 0, phase: 0x01, data: { isHovering: true, x: 5, y: 6 } },
+      { opcode: 'DISPATCH_EVENT', targetId: 3, eventType: EventType.KEY_DOWN, timestamp: 0, phase: 0x01, data: { keyCode: 65, modifiers: 1, repeat: false } },
+      { opcode: 'DISPATCH_EVENT', targetId: 4, eventType: EventType.CLICK, timestamp: 0, phase: 0x01, data: { x: 1, y: 2, button: 0, clickCount: 1, modifiers: 0 } },
+      { opcode: 'DISPATCH_EVENT', targetId: 5, eventType: EventType.FOCUS, timestamp: 0, phase: 0x01, data: { isFocused: true } },
+    ];
+    expect(decodeMessage(encodeMessage(commands)).commands).toEqual(commands);
+  });
+
+  it('ATTACH_GESTURE', () => {
+    const commands: Command[] = [{
+      opcode: 'ATTACH_GESTURE',
+      nodeId: 10,
+      gestureType: GestureType.DRAG,
+      gestureRecognizerId: 3,
+      handlerPhase: 0x01,
+      onBeganHandler: 5,
+      onChangedHandler: 6,
+      onEndedHandler: 7,
+      onCancelledHandler: 0,
+    }];
+    expect(decodeMessage(encodeMessage(commands)).commands).toEqual(commands);
+  });
+
+  it('GESTURE_UPDATE with per-state payloads', () => {
+    const commands: Command[] = [
+      {
+        opcode: 'GESTURE_UPDATE',
+        targetId: 1,
+        gestureType: GestureType.DRAG,
+        gestureState: GestureState.BEGAN,
+        timestamp: 0,
+        gestureId: 9,
+        data: { startX: 1, startY: 2 },
+      },
+      {
+        opcode: 'GESTURE_UPDATE',
+        targetId: 1,
+        gestureType: GestureType.DRAG,
+        gestureState: GestureState.ENDED,
+        timestamp: 0,
+        gestureId: 9,
+        data: { startX: 1, startY: 2, locationX: 30, locationY: 40, translationX: 29, translationY: 38, velocityX: 100, velocityY: 200 },
+      },
+      {
+        opcode: 'GESTURE_UPDATE',
+        targetId: 2,
+        gestureType: GestureType.LONG_PRESS,
+        gestureState: GestureState.ENDED,
+        timestamp: 0,
+        gestureId: 10,
+        data: { startX: 0, startY: 0, locationX: 0, locationY: 0, duration: 500, pressure: 1 },
+      },
+    ];
+    expect(decodeMessage(encodeMessage(commands)).commands).toEqual(commands);
   });
 });
 

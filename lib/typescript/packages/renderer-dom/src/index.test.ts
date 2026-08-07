@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DOMRenderer } from './index';
 import { createJSDOMRenderer } from './jsdom';
-import { ComponentType, TextProperty, EventType } from '@pathland/protocol';
+import { ComponentType, TextProperty, EventType, GestureType, GestureState } from '@pathland/protocol';
 import type { Command } from '@pathland/protocol';
 
 type DispatchCall = [nodeId: number, eventType: number];
@@ -85,6 +85,22 @@ describe('DOMRenderer event dispatch', () => {
 
     el.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: null }));
     expect(dispatched).toContainEqual([1, EventType.HOVER]);
+  });
+
+  it('attaches event payload data', () => {
+    const events: any[] = [];
+    renderer.setupEvents((nodeId, eventType, data) => events.push({ nodeId, eventType, data }));
+
+    el.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 15, clientY: 25 }));
+    expect(events[0]).toMatchObject({ nodeId: 1, eventType: EventType.CLICK, data: { x: 15, y: 25 } });
+
+    events.length = 0;
+    el.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+    expect(events[0]).toMatchObject({ nodeId: 1, eventType: EventType.HOVER, data: { isHovering: true } });
+
+    events.length = 0;
+    el.dispatchEvent(new MouseEvent('mouseout', { bubbles: true, relatedTarget: null }));
+    expect(events[0]).toMatchObject({ nodeId: 1, eventType: EventType.HOVER, data: { isHovering: false } });
   });
 
   it('dispatches FOCUS and BLUR', () => {
@@ -186,5 +202,107 @@ describe('DOMRenderer tree mutation', () => {
     expect(el.style.paddingRight).toBe('16px');
     expect(el.style.paddingBottom).toBe('24px');
     expect(el.style.paddingLeft).toBe('32px');
+  });
+});
+
+describe('DOMRenderer gesture recognition', () => {
+  let renderer: DOMRenderer;
+  let document: Document;
+  let el: HTMLElement;
+  let gestures: any[];
+
+  beforeEach(async () => {
+    renderer = await createJSDOMRenderer();
+    gestures = [];
+    renderer.setupGestures((nodeId, gestureType, gestureState, data) =>
+      gestures.push({ nodeId, gestureType, gestureState, data })
+    );
+    renderer.executeCommands(COMMANDS);
+    document = renderer.getDocument() as Document;
+    el = renderer.getDOMElement(1) as HTMLElement;
+  });
+
+  const attach = (gestureType: number) => {
+    renderer.executeCommands([
+      { opcode: 'ATTACH_GESTURE', nodeId: 1, gestureType, gestureRecognizerId: 1 },
+    ]);
+  };
+
+  it('recognizes a drag lifecycle (began -> changed -> ended)', () => {
+    attach(GestureType.DRAG);
+
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 10 }));
+    el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 30, clientY: 40 }));
+    expect(gestures[0]).toMatchObject({
+      nodeId: 1,
+      gestureType: GestureType.DRAG,
+      gestureState: GestureState.BEGAN,
+      data: { startX: 10, startY: 10 },
+    });
+
+    el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 40, clientY: 50 }));
+    expect(gestures[1]).toMatchObject({
+      gestureType: GestureType.DRAG,
+      gestureState: GestureState.CHANGED,
+      data: { translationX: 30, translationY: 40 },
+    });
+
+    el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(gestures[2]).toMatchObject({
+      gestureType: GestureType.DRAG,
+      gestureState: GestureState.ENDED,
+      data: { translationX: 30, translationY: 40 },
+    });
+  });
+
+  it('cancels a drag when the pointer leaves the container', () => {
+    attach(GestureType.DRAG);
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 10 }));
+    el.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 40, clientY: 50 }));
+    el.dispatchEvent(new MouseEvent('mouseleave', { bubbles: true }));
+
+    expect(gestures[gestures.length - 1]).toMatchObject({
+      gestureType: GestureType.DRAG,
+      gestureState: GestureState.CANCELLED,
+    });
+  });
+
+  it('recognizes a long-press lifecycle', () => {
+    attach(GestureType.LONG_PRESS);
+    vi.useFakeTimers();
+
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 10 }));
+    vi.advanceTimersByTime(501);
+    expect(gestures[0]).toMatchObject({
+      nodeId: 1,
+      gestureType: GestureType.LONG_PRESS,
+      gestureState: GestureState.BEGAN,
+    });
+
+    el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(gestures[1]).toMatchObject({
+      gestureType: GestureType.LONG_PRESS,
+      gestureState: GestureState.ENDED,
+    });
+
+    vi.useRealTimers();
+  });
+
+  it('recognizes a simple tap', () => {
+    attach(GestureType.TAP);
+
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 10, clientY: 10 }));
+    expect(gestures[0]).toMatchObject({
+      nodeId: 1,
+      gestureType: GestureType.TAP,
+      gestureState: GestureState.BEGAN,
+    });
+
+    el.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(gestures[1]).toMatchObject({
+      gestureType: GestureType.TAP,
+      gestureState: GestureState.ENDED,
+      data: { tapCount: 1 },
+    });
   });
 });

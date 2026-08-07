@@ -5,7 +5,7 @@
  * All Pathland renderers (DOM, Canvas, WebGL, etc.) implement this interface.
  */
 
-import type { Command } from '@pathland/protocol';
+import type { Command, EventData } from '@pathland/protocol';
 
 /**
  * Minimal renderer interface for Pathland protocol.
@@ -21,9 +21,14 @@ import type { Command } from '@pathland/protocol';
  * const renderer: Renderer = new DOMRenderer({ container });
  * 
  * // Set up event dispatching
- * renderer.setupEvents((nodeId, eventType) => {
+ * renderer.setupEvents((nodeId, eventType, data) => {
  *   // Handle events from the renderer
- *   handleDispatchEvent(nodeId, eventType);
+ *   handleDispatchEvent(nodeId, eventType, data);
+ * });
+ * 
+ * // Set up gesture dispatching
+ * renderer.setupGestures((nodeId, gestureType, gestureState, data) => {
+ *   handleGestureUpdate(nodeId, gestureType, gestureState, data);
  * });
  * 
  * // Execute commands
@@ -44,12 +49,26 @@ export interface Renderer {
    * The renderer sets up its own event listeners (on DOM elements, canvas, etc.)
    * and calls the dispatchEvent callback when events occur.
    * 
-   * @param dispatchEvent Callback function: (nodeId, eventType) => void
+   * @param dispatchEvent Callback: (nodeId, eventType, data?) => void
    *   - nodeId: The Pathland node ID that was the target of the event
    *   - eventType: The Pathland event type (e.g., 0x04 for CLICK)
+   *   - data: The event payload (matches the protocol's DISPATCH_EVENT data)
    */
-  setupEvents(dispatchEvent: (nodeId: number, eventType: number) => void): void;
+  setupEvents(dispatchEvent: (nodeId: number, eventType: number, data?: EventData) => void): void;
+
+  /**
+   * Set up gesture handling for this renderer.
+   * The renderer runs gesture recognizers and calls dispatchGesture when a
+   * recognized gesture changes state (began/changed/ended/cancelled).
+   * 
+   * @param dispatchGesture Callback: (nodeId, gestureType, gestureState, data?) => void
+   *   - nodeId: The Pathland node ID the gesture was attached to
+   *   - gestureType: The Pathland gesture type (e.g., 0x12 for DRAG)
+   *   - gestureState: 0=began, 1=changed, 2=ended, 3=cancelled
+   *   - data: The gesture payload (matches the protocol's GESTURE_UPDATE data)
+   */
+  setupGestures(dispatchGesture: (nodeId: number, gestureType: number, gestureState: number, data?: EventData) => void): void;
 }
 
 // Re-export Command type for convenience
-export type { Command };
+export type { Command, EventData };
