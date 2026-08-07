@@ -189,6 +189,14 @@ export const GestureType = {
   ROTATE: 0x15,
 } as const;
 
+// Gesture States
+export const GestureState = {
+  BEGAN: 0x00,
+  CHANGED: 0x01,
+  ENDED: 0x02,
+  CANCELLED: 0x03,
+} as const;
+
 // Event Phases
 export const EventPhase = {
   CAPTURE: 0x00,

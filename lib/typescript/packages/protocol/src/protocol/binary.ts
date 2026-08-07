@@ -2,8 +2,8 @@
  * Pathland Binary Encoding/Decoding
  */
 
-import { LITTLE_ENDIAN, Opcode, PROTOCOL_VERSION } from './constants';
-import type { Command, PropertyValue, DecodedMessage } from './types';
+import { LITTLE_ENDIAN, Opcode, PROTOCOL_VERSION, EventType, GestureType, GestureState } from './constants';
+import type { Command, PropertyValue, DecodedMessage, EventData } from './types';
 
 // ============================================
 // BINARY WRITER
@@ -196,6 +196,8 @@ function getOpcode(command: Command): number {
     case 'SET_DESIGN_TOKEN': return Opcode.SET_DESIGN_TOKEN;
     case 'REGISTER_EVENT_HANDLER': return Opcode.REGISTER_EVENT_HANDLER;
     case 'DISPATCH_EVENT': return Opcode.DISPATCH_EVENT;
+    case 'ATTACH_GESTURE': return Opcode.ATTACH_GESTURE;
+    case 'GESTURE_UPDATE': return Opcode.GESTURE_UPDATE;
     case 'SET_ENVIRONMENT': return Opcode.SET_ENVIRONMENT;
     case 'UPDATE_ENVIRONMENT': return Opcode.UPDATE_ENVIRONMENT;
     case 'REQUEST_ENVIRONMENT': return Opcode.REQUEST_ENVIRONMENT;
@@ -256,8 +258,27 @@ function encodeCommandPayload(writer: BinaryWriter, command: Command): void {
     case 'DISPATCH_EVENT':
       writer.writeU32(command.targetId);
       writer.writeU8(command.eventType);
-      writer.writeU32(Math.floor(Date.now() / 1000));
-      writer.writeU8(0x01);
+      writer.writeU32(command.timestamp ?? Math.floor(Date.now() / 1000));
+      writer.writeU8(command.phase ?? 0x01);
+      writeEventData(writer, command.eventType, command.data ?? {});
+      break;
+    case 'ATTACH_GESTURE':
+      writer.writeU32(command.nodeId);
+      writer.writeU8(command.gestureType);
+      writer.writeU32(command.gestureRecognizerId);
+      writer.writeU8(command.handlerPhase ?? 0x01);
+      writer.writeU32(command.onBeganHandler ?? 0);
+      writer.writeU32(command.onChangedHandler ?? 0);
+      writer.writeU32(command.onEndedHandler ?? 0);
+      writer.writeU32(command.onCancelledHandler ?? 0);
+      break;
+    case 'GESTURE_UPDATE':
+      writer.writeU32(command.targetId);
+      writer.writeU8(command.gestureType);
+      writer.writeU8(command.gestureState);
+      writer.writeU32(command.timestamp ?? Math.floor(Date.now() / 1000));
+      writer.writeU32(command.gestureId);
+      writeGestureData(writer, command.gestureType, command.gestureState, command.data ?? {});
       break;
     case 'SET_ENVIRONMENT':
       writeEnvironmentFields(writer, command.fields);
@@ -277,6 +298,125 @@ function encodeCommandPayload(writer: BinaryWriter, command: Command): void {
           writer.writeU8(id);
         }
       }
+      break;
+  }
+}
+
+// Event payload data per event type (matches BINARY_PROTOCOL.md Event Type table).
+function writeEventData(writer: BinaryWriter, eventType: number, data: Record<string, any>): void {
+  switch (eventType) {
+    case EventType.TAP:
+    case EventType.DOUBLE_TAP:
+      writer.writeF32(data.x ?? 0);
+      writer.writeF32(data.y ?? 0);
+      writer.writeU8(data.tapCount ?? 1);
+      break;
+    case EventType.LONG_PRESS:
+      writer.writeF32(data.x ?? 0);
+      writer.writeF32(data.y ?? 0);
+      writer.writeF32(data.duration ?? 0);
+      writer.writeF32(data.pressure ?? 0);
+      break;
+    case EventType.CLICK:
+      writer.writeF32(data.x ?? 0);
+      writer.writeF32(data.y ?? 0);
+      writer.writeU8(data.button ?? 0);
+      writer.writeU8(data.clickCount ?? 1);
+      writer.writeU8(data.modifiers ?? 0);
+      break;
+    case EventType.HOVER:
+      writer.writeU8(data.isHovering ? 1 : 0);
+      writer.writeF32(data.x ?? 0);
+      writer.writeF32(data.y ?? 0);
+      break;
+    case EventType.FOCUS:
+    case EventType.BLUR:
+      writer.writeU8(data.isFocused ? 1 : 0);
+      break;
+    case EventType.KEY_DOWN:
+      writer.writeU16(data.keyCode ?? 0);
+      writer.writeU8(data.modifiers ?? 0);
+      writer.writeU8(data.repeat ? 1 : 0);
+      break;
+    case EventType.KEY_UP:
+      writer.writeU16(data.keyCode ?? 0);
+      writer.writeU8(data.modifiers ?? 0);
+      break;
+    case EventType.SCROLL:
+      writer.writeF32(data.deltaX ?? 0);
+      writer.writeF32(data.deltaY ?? 0);
+      writer.writeF32(data.contentOffsetX ?? 0);
+      writer.writeF32(data.contentOffsetY ?? 0);
+      break;
+    case EventType.SWIPE:
+      writer.writeU8(data.direction ?? 0);
+      writer.writeF32(data.velocity ?? 0);
+      writer.writeF32(data.distance ?? 0);
+      break;
+    default:
+      // ON_APPEAR / ON_DISAPPEAR / ON_CHANGE / unknown: no fixed payload.
+      break;
+  }
+}
+
+// Gesture payload data per gesture type and state (matches BINARY_PROTOCOL.md Gesture System).
+function writeGestureData(writer: BinaryWriter, gestureType: number, gestureState: number, data: Record<string, any>): void {
+  switch (gestureType) {
+    case GestureType.TAP:
+      if (gestureState === GestureState.BEGAN) {
+        writer.writeF32(data.startX ?? 0);
+        writer.writeF32(data.startY ?? 0);
+      } else if (gestureState === GestureState.ENDED) {
+        writer.writeF32(data.startX ?? 0);
+        writer.writeF32(data.startY ?? 0);
+        writer.writeF32(data.locationX ?? 0);
+        writer.writeF32(data.locationY ?? 0);
+        writer.writeU8(data.tapCount ?? 1);
+      }
+      break;
+    case GestureType.LONG_PRESS:
+      if (gestureState === GestureState.BEGAN) {
+        writer.writeF32(data.startX ?? 0);
+        writer.writeF32(data.startY ?? 0);
+      } else if (gestureState === GestureState.CHANGED || gestureState === GestureState.CANCELLED) {
+        writer.writeF32(data.startX ?? 0);
+        writer.writeF32(data.startY ?? 0);
+        writer.writeF32(data.locationX ?? 0);
+        writer.writeF32(data.locationY ?? 0);
+        writer.writeF32(data.duration ?? 0);
+      } else if (gestureState === GestureState.ENDED) {
+        writer.writeF32(data.startX ?? 0);
+        writer.writeF32(data.startY ?? 0);
+        writer.writeF32(data.locationX ?? 0);
+        writer.writeF32(data.locationY ?? 0);
+        writer.writeF32(data.duration ?? 0);
+        writer.writeF32(data.pressure ?? 0);
+      }
+      break;
+    case GestureType.DRAG:
+      if (gestureState === GestureState.BEGAN) {
+        writer.writeF32(data.startX ?? 0);
+        writer.writeF32(data.startY ?? 0);
+      } else if (gestureState === GestureState.CHANGED || gestureState === GestureState.ENDED) {
+        writer.writeF32(data.startX ?? 0);
+        writer.writeF32(data.startY ?? 0);
+        writer.writeF32(data.locationX ?? 0);
+        writer.writeF32(data.locationY ?? 0);
+        writer.writeF32(data.translationX ?? 0);
+        writer.writeF32(data.translationY ?? 0);
+        writer.writeF32(data.velocityX ?? 0);
+        writer.writeF32(data.velocityY ?? 0);
+      } else if (gestureState === GestureState.CANCELLED) {
+        writer.writeF32(data.startX ?? 0);
+        writer.writeF32(data.startY ?? 0);
+        writer.writeF32(data.locationX ?? 0);
+        writer.writeF32(data.locationY ?? 0);
+        writer.writeF32(data.translationX ?? 0);
+        writer.writeF32(data.translationY ?? 0);
+      }
+      break;
+    default:
+      // SWIPE / PINCH / ROTATE / unknown: not implemented this round.
       break;
   }
 }
@@ -402,6 +542,10 @@ function decodeCommand(reader: BinaryReader, opcode: number): Command | null {
       return decodeRegisterEventHandler(reader);
     case Opcode.DISPATCH_EVENT:
       return decodeDispatchEvent(reader);
+    case Opcode.ATTACH_GESTURE:
+      return decodeAttachGesture(reader);
+    case Opcode.GESTURE_UPDATE:
+      return decodeGestureUpdate(reader);
     case Opcode.SET_ENVIRONMENT:
       return decodeSetEnvironment(reader);
     case Opcode.UPDATE_ENVIRONMENT:
@@ -461,9 +605,160 @@ function decodeRegisterEventHandler(reader: BinaryReader): Command {
 function decodeDispatchEvent(reader: BinaryReader): Command {
   const targetId = reader.readU32();
   const eventType = reader.readU8();
-  reader.readU32();
-  reader.readU8();
-  return { opcode: 'DISPATCH_EVENT', targetId, eventType };
+  const timestamp = reader.readU32();
+  const phase = reader.readU8();
+  const data = readEventData(reader, eventType);
+  return { opcode: 'DISPATCH_EVENT', targetId, eventType, timestamp, phase, data };
+}
+
+function decodeAttachGesture(reader: BinaryReader): Command {
+  const nodeId = reader.readU32();
+  const gestureType = reader.readU8();
+  const gestureRecognizerId = reader.readU32();
+  const handlerPhase = reader.readU8();
+  const onBeganHandler = reader.readU32();
+  const onChangedHandler = reader.readU32();
+  const onEndedHandler = reader.readU32();
+  const onCancelledHandler = reader.readU32();
+  return {
+    opcode: 'ATTACH_GESTURE',
+    nodeId,
+    gestureType,
+    gestureRecognizerId,
+    handlerPhase,
+    onBeganHandler,
+    onChangedHandler,
+    onEndedHandler,
+    onCancelledHandler,
+  };
+}
+
+function decodeGestureUpdate(reader: BinaryReader): Command {
+  const targetId = reader.readU32();
+  const gestureType = reader.readU8();
+  const gestureState = reader.readU8();
+  const timestamp = reader.readU32();
+  const gestureId = reader.readU32();
+  const data = readGestureData(reader, gestureType, gestureState);
+  return {
+    opcode: 'GESTURE_UPDATE',
+    targetId,
+    gestureType,
+    gestureState,
+    timestamp,
+    gestureId,
+    data,
+  };
+}
+
+function readEventData(reader: BinaryReader, eventType: number): EventData {
+  switch (eventType) {
+    case EventType.TAP:
+    case EventType.DOUBLE_TAP:
+      return { x: reader.readF32(), y: reader.readF32(), tapCount: reader.readU8() };
+    case EventType.LONG_PRESS:
+      return { x: reader.readF32(), y: reader.readF32(), duration: reader.readF32(), pressure: reader.readF32() };
+    case EventType.CLICK:
+      return {
+        x: reader.readF32(),
+        y: reader.readF32(),
+        button: reader.readU8(),
+        clickCount: reader.readU8(),
+        modifiers: reader.readU8(),
+      };
+    case EventType.HOVER:
+      return { isHovering: reader.readU8() === 1, x: reader.readF32(), y: reader.readF32() };
+    case EventType.FOCUS:
+    case EventType.BLUR:
+      return { isFocused: reader.readU8() === 1 };
+    case EventType.KEY_DOWN:
+      return { keyCode: reader.readU16(), modifiers: reader.readU8(), repeat: reader.readU8() === 1 };
+    case EventType.KEY_UP:
+      return { keyCode: reader.readU16(), modifiers: reader.readU8() };
+    case EventType.SCROLL:
+      return {
+        deltaX: reader.readF32(),
+        deltaY: reader.readF32(),
+        contentOffsetX: reader.readF32(),
+        contentOffsetY: reader.readF32(),
+      };
+    case EventType.SWIPE:
+      return { direction: reader.readU8(), velocity: reader.readF32(), distance: reader.readF32() };
+    default:
+      return {};
+  }
+}
+
+function readGestureData(reader: BinaryReader, gestureType: number, gestureState: number): EventData {
+  switch (gestureType) {
+    case GestureType.TAP:
+      if (gestureState === GestureState.BEGAN) {
+        return { startX: reader.readF32(), startY: reader.readF32() };
+      }
+      if (gestureState === GestureState.ENDED) {
+        return {
+          startX: reader.readF32(),
+          startY: reader.readF32(),
+          locationX: reader.readF32(),
+          locationY: reader.readF32(),
+          tapCount: reader.readU8(),
+        };
+      }
+      return {};
+    case GestureType.LONG_PRESS:
+      if (gestureState === GestureState.BEGAN) {
+        return { startX: reader.readF32(), startY: reader.readF32() };
+      }
+      if (gestureState === GestureState.CHANGED || gestureState === GestureState.CANCELLED) {
+        return {
+          startX: reader.readF32(),
+          startY: reader.readF32(),
+          locationX: reader.readF32(),
+          locationY: reader.readF32(),
+          duration: reader.readF32(),
+        };
+      }
+      if (gestureState === GestureState.ENDED) {
+        return {
+          startX: reader.readF32(),
+          startY: reader.readF32(),
+          locationX: reader.readF32(),
+          locationY: reader.readF32(),
+          duration: reader.readF32(),
+          pressure: reader.readF32(),
+        };
+      }
+      return {};
+    case GestureType.DRAG:
+      if (gestureState === GestureState.BEGAN) {
+        return { startX: reader.readF32(), startY: reader.readF32() };
+      }
+      if (gestureState === GestureState.CHANGED || gestureState === GestureState.ENDED) {
+        return {
+          startX: reader.readF32(),
+          startY: reader.readF32(),
+          locationX: reader.readF32(),
+          locationY: reader.readF32(),
+          translationX: reader.readF32(),
+          translationY: reader.readF32(),
+          velocityX: reader.readF32(),
+          velocityY: reader.readF32(),
+        };
+      }
+      if (gestureState === GestureState.CANCELLED) {
+        return {
+          startX: reader.readF32(),
+          startY: reader.readF32(),
+          locationX: reader.readF32(),
+          locationY: reader.readF32(),
+          translationX: reader.readF32(),
+          translationY: reader.readF32(),
+        };
+      }
+      return {};
+    default:
+      return {};
+  }
 }
 
 function decodeSetEnvironment(reader: BinaryReader): Command {

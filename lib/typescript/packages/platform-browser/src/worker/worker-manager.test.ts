@@ -12,13 +12,18 @@ import type { Renderer } from '@pathland/renderer';
 class MockRenderer implements Renderer {
   executeCommandsMock = vi.fn();
   setupEventsMock = vi.fn();
+  setupGesturesMock = vi.fn();
 
   executeCommands(commands: any[]): void {
     this.executeCommandsMock(commands);
   }
 
-  setupEvents(dispatchEvent: (nodeId: number, eventType: number) => void): void {
+  setupEvents(dispatchEvent: (nodeId: number, eventType: number, data?: any) => void): void {
     this.setupEventsMock(dispatchEvent);
+  }
+
+  setupGestures(dispatchGesture: (nodeId: number, gestureType: number, gestureState: number, data?: any) => void): void {
+    this.setupGesturesMock(dispatchGesture);
   }
 }
 
