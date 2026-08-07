@@ -194,36 +194,68 @@ export function For<T>(
   
   // Store initial items on placeholder for compileNode
   (placeholder as any)._forInitialItems = initialItems;
-  
-  // Subscribe to array changes
+
+  // Last array this For rendered, used to diff against on updates.
+  let lastItems = initialItems;
+
+  // Subscribe to array changes.
+  // Uses positional identity diffing: items whose reference is unchanged at
+  // the same index are reused (no commands), and only removed/replaced items
+  // are deleted and new items created. Items that persist but shift position
+  // are recreated (a keyed reconciliation with moves is a future enhancement).
   signal.subscribe((newItems: T[]) => {
     const parentContext = getConditionalParent(placeholder.nodeId);
     if (!parentContext) return;
-    
+
     const { parentId, index: parentIndex } = parentContext;
-    
-    // Process changes: for simplicity, we'll delete all and recreate
-    // (A more sophisticated implementation would diff and only update changed items)
-    
-    // Delete old nodes
-    for (const [, entry] of itemNodes) {
-      sendDeleteNodeRecursive(entry.node);
+
+    // Fast path: identical arrays (same length, same item references) -> no-op.
+    if (
+      newItems.length === lastItems.length &&
+      newItems.every((item, i) => item === lastItems[i])
+    ) {
+      lastItems = newItems;
+      return;
     }
+
+    // Capture existing nodes before rebuilding the map.
+    const oldNodes = new Map(itemNodes);
+
+    // Delete nodes for items that were removed or replaced.
+    for (let i = 0; i < lastItems.length; i++) {
+      const reused = i < newItems.length && lastItems[i] === newItems[i];
+      if (!reused) {
+        const entry = oldNodes.get(getItemKey(i));
+        if (entry) sendDeleteNodeRecursive(entry.node);
+      }
+    }
+
+    // Reuse unchanged items and create nodes for new items.
+    const nextChildren: ViewNode[] = [];
     itemNodes.clear();
-    placeholder.children = [];
-    
-    // Create new nodes
     for (let i = 0; i < newItems.length; i++) {
-      const item = newItems[i];
-      const node = renderItem(item, i, newItems);
+      const reused = i < lastItems.length && lastItems[i] === newItems[i];
       const key = getItemKey(i);
-      itemNodes.set(key, { node, item });
-      placeholder.children.push(node);
-      
+
+      if (reused) {
+        const entry = oldNodes.get(key);
+        if (entry) {
+          itemNodes.set(key, { node: entry.node, item: newItems[i] });
+          nextChildren.push(entry.node);
+          continue;
+        }
+      }
+
+      const node = renderItem(newItems[i], i, newItems);
+      itemNodes.set(key, { node, item: newItems[i] });
+      nextChildren.push(node);
       sendCreateNodeRecursive(node, parentId, parentIndex + i);
     }
+
+    placeholder.children = nextChildren;
+    lastItems = newItems;
   });
-  
+
   return placeholder;
 }
 

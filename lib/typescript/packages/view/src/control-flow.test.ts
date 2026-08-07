@@ -308,6 +308,144 @@ suite.add('For: should work with plain arrays', () => {
 });
 
 // ============================================
+// FOR DIFFING TESTS
+// ============================================
+
+suite.add('For: appending an item only creates the new node', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  const items = signal(['A', 'B']);
+  const root = VStack(
+    For(items, (item) => Text(item))
+  );
+
+  initialRender(root, transport);
+  transport.reset();
+
+  items.set(['A', 'B', 'C']);
+  commandQueue.flush();
+
+  const commands = transport.getCommands();
+  const deletes = commands.filter(c => c.opcode === 'DELETE_NODE');
+  const creates = commands.filter(c => c.opcode === 'CREATE_NODE');
+  const inserts = commands.filter(c => c.opcode === 'INSERT_CHILD');
+
+  assert(deletes.length === 0, `Expected 0 DELETE_NODE, got ${deletes.length}`);
+  assert(creates.length === 1, `Expected 1 CREATE_NODE (for C), got ${creates.length}`);
+  assert(inserts.length === 1, `Expected 1 INSERT_CHILD, got ${inserts.length}`);
+  assert(inserts[0].index === 2, `Expected append at index 2, got ${inserts[0].index}`);
+});
+
+suite.add('For: removing the last item only deletes that node', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  const items = signal(['A', 'B', 'C']);
+  const root = VStack(
+    For(items, (item) => Text(item))
+  );
+
+  initialRender(root, transport);
+  transport.reset();
+
+  items.set(['A', 'B']);
+  commandQueue.flush();
+
+  const commands = transport.getCommands();
+  const deletes = commands.filter(c => c.opcode === 'DELETE_NODE');
+  const creates = commands.filter(c => c.opcode === 'CREATE_NODE');
+
+  assert(deletes.length === 1, `Expected 1 DELETE_NODE (for C), got ${deletes.length}`);
+  assert(creates.length === 0, `Expected 0 CREATE_NODE, got ${creates.length}`);
+});
+
+suite.add('For: setting an identical array produces no commands', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  const items = signal(['A', 'B']);
+  const root = VStack(
+    For(items, (item) => Text(item))
+  );
+
+  initialRender(root, transport);
+  transport.reset();
+
+  items.set(['A', 'B']); // new array, same item references
+  commandQueue.flush();
+
+  assert(transport.getCommands().length === 0, 'Expected no commands for an unchanged array');
+});
+
+suite.add('For: replacing an item deletes it and creates a new node at its index', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  const items = signal(['A', 'B']);
+  const root = VStack(
+    For(items, (item) => Text(item))
+  );
+
+  initialRender(root, transport);
+  transport.reset();
+
+  items.set(['A', 'X']);
+  commandQueue.flush();
+
+  const commands = transport.getCommands();
+  const deletes = commands.filter(c => c.opcode === 'DELETE_NODE');
+  const creates = commands.filter(c => c.opcode === 'CREATE_NODE');
+  const inserts = commands.filter(c => c.opcode === 'INSERT_CHILD');
+
+  assert(deletes.length === 1, `Expected 1 DELETE_NODE (for B), got ${deletes.length}`);
+  assert(creates.length === 1, `Expected 1 CREATE_NODE (for X), got ${creates.length}`);
+  assert(inserts.length === 1, `Expected 1 INSERT_CHILD, got ${inserts.length}`);
+  assert(inserts[0].index === 1, `Expected insert at index 1, got ${inserts[0].index}`);
+});
+
+suite.add('For: reuses node ids for unchanged items', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  const items = signal(['A', 'B']);
+  const root = VStack(
+    For(items, (item) => Text(item))
+  );
+
+  initialRender(root, transport);
+  const initial = transport.getCommands();
+  const aNode = initial.find(
+    c => c.opcode === 'CREATE_NODE' && (c.properties as any).get(0x000A)?.value === 'A'
+  );
+  assert(aNode, 'Expected node for A on initial render');
+
+  transport.reset();
+  items.set(['A', 'B', 'C']);
+  commandQueue.flush();
+
+  const after = transport.getCommands();
+
+  // The update path emits text via SET_PROPERTY (separate from CREATE_NODE).
+  const aRecreated = after.find(
+    c =>
+      (c.opcode === 'CREATE_NODE' && (c.properties as any)?.get?.(0x000A)?.value === 'A') ||
+      (c.opcode === 'SET_PROPERTY' && c.propertyId === 0x000A && (c.value as any)?.value === 'A')
+  );
+  assert(!aRecreated, 'A should not be recreated on append');
+
+  const cSet = after.find(
+    c => c.opcode === 'SET_PROPERTY' && c.propertyId === 0x000A && (c.value as any)?.value === 'C'
+  );
+  assert(cSet && cSet.nodeId !== aNode.nodeId, 'C should get a fresh node id');
+});
+
+// ============================================
 // SWITCH TESTS
 // ============================================
 
