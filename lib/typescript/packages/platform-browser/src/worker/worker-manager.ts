@@ -13,9 +13,9 @@
  * initialized its view and flushed the initial command batch.
  */
 
-import type { Command } from '@pathland/protocol';
+import type { Command, EventData } from '@pathland/protocol';
 import type { Renderer } from '@pathland/renderer';
-import { deserializeMessage } from '@pathland/transport';
+import { deserializeMessage, createTransferable } from '@pathland/transport';
 
 export type WorkerState = 'init' | 'starting' | 'ready' | 'error' | 'terminated';
 
@@ -90,15 +90,36 @@ export class WorkerManager {
   }
 
   /**
-   * Send an event from the renderer to the worker for handling.
+   * Send a DISPATCH_EVENT instruction to the worker for handling, encoded as
+   * a binary message (the protocol is the wire contract between threads).
    */
-  sendEventToWorker(nodeId: number, eventType: number): void {
+  sendEventToWorker(nodeId: number, eventType: number, data?: EventData): void {
+    this.sendBinaryToWorker([{ opcode: 'DISPATCH_EVENT', targetId: nodeId, eventType, data }]);
+  }
+
+  /**
+   * Send a GESTURE_UPDATE instruction to the worker for handling, encoded as
+   * a binary message.
+   */
+  sendGestureToWorker(
+    nodeId: number,
+    gestureType: number,
+    gestureState: number,
+    data?: EventData
+  ): void {
+    this.sendBinaryToWorker([
+      { opcode: 'GESTURE_UPDATE', targetId: nodeId, gestureType, gestureState, gestureId: 0, data },
+    ]);
+  }
+
+  private sendBinaryToWorker(commands: Command[]): void {
     if (this.state === 'ready' && this.worker) {
-      this.worker.postMessage({ type: 'EVENT', nodeId, eventType });
+      const { message, transferList } = createTransferable(commands);
+      this.worker.postMessage({ type: 'BINARY', buffer: message }, transferList);
     } else if (this.state === 'starting') {
-      console.warn('[Pathland] Cannot send event before worker is ready');
+      console.warn('[Pathland] Cannot send to worker before it is ready');
     } else if (this.state === 'error') {
-      console.error('[Pathland] Cannot send event - worker is in error state');
+      console.error('[Pathland] Cannot send to worker - worker is in error state');
     }
   }
 

@@ -5,8 +5,9 @@
  *
  * The application runs in a worker thread: it builds its view tree and emits
  * binary command messages to the main thread, where the renderer executes
- * them. The renderer sends events back to the worker, which routes them to
- * the application's gesture handlers.
+ * them. The renderer sends events and gestures back to the worker as binary
+ * protocol instructions (DISPATCH_EVENT / GESTURE_UPDATE), which are routed to
+ * the application's handlers.
  *
  * This file is intended to run inside a worker bundled by the application
  * (e.g. `new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' })`).
@@ -14,7 +15,7 @@
 
 import type { Command } from '@pathland/protocol';
 import type { Transport } from '@pathland/transport';
-import { createTransferable } from '@pathland/transport';
+import { createTransferable, deserializeMessage } from '@pathland/transport';
 import type { View, ViewNode } from '@pathland/view';
 
 // The DOM lib types `self` as `Window`; inside a worker it is a
@@ -60,21 +61,31 @@ function createWorkerTransport(): Transport {
  *                   provided by the application's worker entry.
  */
 export function startWorker(loadView: ViewLoader): void {
-  let handleDispatchEventRef: ((nodeId: number, eventType: number) => void) | null = null;
+  let handleDispatchEventRef: ((nodeId: number, eventType: number, data?: any) => void) | null = null;
+  let handleGestureUpdateRef: ((nodeId: number, gestureType: number, gestureState: number, data?: any) => void) | null = null;
 
-  // Handle events coming from the renderer on the main thread.
+  // Handle binary instructions coming from the renderer on the main thread:
+  // DISPATCH_EVENT and GESTURE_UPDATE are routed to the view.
   scope.onmessage = (event: MessageEvent) => {
     const data = event.data;
-    if (data && data.type === 'EVENT') {
-      handleDispatchEventRef?.(data.nodeId, data.eventType);
+    if (data && data.type === 'BINARY' && data.buffer) {
+      const { commands } = deserializeMessage(data.buffer);
+      for (const command of commands) {
+        if (command.opcode === 'DISPATCH_EVENT') {
+          handleDispatchEventRef?.(command.targetId, command.eventType, command.data);
+        } else if (command.opcode === 'GESTURE_UPDATE') {
+          handleGestureUpdateRef?.(command.targetId, command.gestureType, command.gestureState, command.data);
+        }
+      }
     }
   };
 
   // Initialize immediately: the loader is already in scope (bundled with the app).
   (async () => {
     try {
-      const { initialRender, handleDispatchEvent } = await import('@pathland/view');
+      const { initialRender, handleDispatchEvent, handleGestureUpdate } = await import('@pathland/view');
       handleDispatchEventRef = handleDispatchEvent;
+      handleGestureUpdateRef = handleGestureUpdate;
 
       const viewClass = await loadView();
       const root = viewClass.make();

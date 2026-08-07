@@ -104,10 +104,14 @@ export async function bootstrapApplication(
     const worker = createWorker(appSource);
     const manager = new WorkerManager(renderer);
 
-    // Renderer events are forwarded to the worker, which routes them to the
-    // application's gesture handlers.
-    renderer.setupEvents((nodeId: number, eventType: number) => {
-      manager.sendEventToWorker(nodeId, eventType);
+    // Renderer events and gestures are forwarded to the worker (as binary
+    // DISPATCH_EVENT / GESTURE_UPDATE instructions), which routes them to the
+    // application's handlers.
+    renderer.setupEvents((nodeId: number, eventType: number, data) => {
+      manager.sendEventToWorker(nodeId, eventType, data);
+    });
+    renderer.setupGestures((nodeId: number, gestureType: number, gestureState: number, data) => {
+      manager.sendGestureToWorker(nodeId, gestureType, gestureState, data);
     });
 
     // Resolves once the worker reports READY (initial render executed).
@@ -129,8 +133,11 @@ export async function bootstrapApplication(
     onError: () => () => {},
   };
 
-  renderer.setupEvents((nodeId: number, eventType: number) => {
-    viewModule.handleDispatchEvent(nodeId, eventType);
+  renderer.setupEvents((nodeId: number, eventType: number, data) => {
+    viewModule.handleDispatchEvent(nodeId, eventType, data);
+  });
+  renderer.setupGestures((nodeId: number, gestureType: number, gestureState: number, data) => {
+    viewModule.handleGestureUpdate(nodeId, gestureType, gestureState, data);
   });
 
   const root = viewClass.make();

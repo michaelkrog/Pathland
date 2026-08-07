@@ -9,6 +9,8 @@ import type { PropertyValue } from '@pathland/protocol';
 import { Signal, commandQueue } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
 import { getConditionalParent } from './renderer';
+import { TapGesture, LongPressGesture } from './gestures';
+import type { Gesture } from './gestures';
 
 // Local component type constants (avoid protocol import to prevent circular dependency)
 const COMPONENT_TYPES = {
@@ -40,10 +42,10 @@ interface Modifier {
 }
 
 /**
- * A gesture that can be attached to a ViewNode.
- * Gestures represent interaction handlers.
+ * A discrete gesture registration (kind + handler), mapped to a single event
+ * type (e.g. tap -> CLICK). Lifecycle gestures use the `Gesture` class instead.
  */
-interface Gesture {
+export interface GestureSpec {
   kind: string;
   handler: () => void;
   [key: string]: any;
@@ -76,7 +78,8 @@ export class ViewNode {
   type: string;
   children: ViewNode[];
   modifiers: Modifier[];
-  gestures: Gesture[];
+  gestures: GestureSpec[];
+  attachedGestures: Gesture[];
   properties: Record<string, any>;
   nodeId: number;
 
@@ -85,13 +88,15 @@ export class ViewNode {
     children: ViewNode[] = [],
     properties: Record<string, any> = {},
     modifiers: Modifier[] = [],
-    gestures: Gesture[] = []
+    gestures: GestureSpec[] = [],
+    attachedGestures: Gesture[] = []
   ) {
     this.type = type;
     this.children = children;
     this.properties = { ...properties };
     this.modifiers = [...modifiers];
     this.gestures = [...gestures];
+    this.attachedGestures = [...attachedGestures];
     this.nodeId = ++nodeIdCounter;
   }
 
@@ -119,7 +124,8 @@ export class ViewNode {
       [...this.children, ...additionalChildren],
       { ...this.properties },
       [...this.modifiers],
-      [...this.gestures]
+      [...this.gestures],
+      [...this.attachedGestures]
     );
     newNode.nodeId = this.nodeId;
     return newNode;
@@ -131,19 +137,34 @@ export class ViewNode {
       [...this.children],
       { ...this.properties },
       [...this.modifiers, modifier],
-      [...this.gestures]
+      [...this.gestures],
+      [...this.attachedGestures]
     );
     newNode.nodeId = this.nodeId;
     return newNode;
   }
 
-  withGesture(gesture: Gesture): ViewNode {
+  withGesture(gesture: GestureSpec): ViewNode {
     const newNode = new ViewNode(
       this.type,
       [...this.children],
       { ...this.properties },
       [...this.modifiers],
-      [...this.gestures, gesture]
+      [...this.gestures, gesture],
+      [...this.attachedGestures]
+    );
+    newNode.nodeId = this.nodeId;
+    return newNode;
+  }
+
+  withAttachedGesture(gesture: Gesture): ViewNode {
+    const newNode = new ViewNode(
+      this.type,
+      [...this.children],
+      { ...this.properties },
+      [...this.modifiers],
+      [...this.gestures],
+      [...this.attachedGestures, gesture]
     );
     newNode.nodeId = this.nodeId;
     return newNode;
@@ -155,7 +176,8 @@ export class ViewNode {
       [...this.children],
       { ...this.properties, [key]: value },
       [...this.modifiers],
-      [...this.gestures]
+      [...this.gestures],
+      [...this.attachedGestures]
     );
     newNode.nodeId = this.nodeId;
     return newNode;
@@ -231,6 +253,20 @@ export class ViewNode {
 
   blurGesture(handler: () => void): ViewNode {
     return this.withGesture({ kind: 'blur', handler });
+  }
+
+  // Lifecycle gestures (SwiftUI-style). Attach a Gesture builder:
+  //   .gesture(DragGesture().onChanged(v => ...).onEnded(v => ...))
+  gesture(gesture: Gesture): ViewNode {
+    return this.withAttachedGesture(gesture);
+  }
+
+  onTapGesture(handler: () => void): ViewNode {
+    return this.gesture(TapGesture().onEnded(handler));
+  }
+
+  onLongPressGesture(handler: () => void): ViewNode {
+    return this.gesture(LongPressGesture().onEnded(handler));
   }
 
   // Border modifiers

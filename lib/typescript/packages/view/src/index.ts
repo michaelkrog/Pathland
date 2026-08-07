@@ -33,13 +33,17 @@
  */
 
 // Re-export core types and functions
-export type { Modifier, Gesture } from './view-node';
+export type { Modifier, GestureSpec } from './view-node';
 export { ViewNode, resetNodeIdCounter } from './view-node';
 export { View } from './view';
 export { Signal, signal, commandQueue } from './signal';
 export { VStack, HStack, Text } from './components';
-export { initialRender, handleDispatchEvent, getConditionalParent } from './renderer';
+export { initialRender, handleDispatchEvent, handleGestureUpdate, getConditionalParent } from './renderer';
 export { propertyNameToId, compilePropertyValue } from './utils';
+
+// Lifecycle gesture builders (SwiftUI-style)
+export { Gesture, TapGesture, LongPressGesture, DragGesture } from './gestures';
+export type { GestureValue, GestureHandlers } from './gestures';
 
 // Re-export control flow functions
 export { If, For, Switch } from './control-flow';

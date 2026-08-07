@@ -6,7 +6,7 @@
  */
 
 import { it } from 'vitest';
-import { If, For, Switch, signal, commandQueue, initialRender, resetNodeIdCounter } from './index';
+import { If, For, Switch, signal, commandQueue, initialRender, resetNodeIdCounter, DragGesture, handleGestureUpdate } from './index';
 import { VStack, Text } from './components';
 
 // ============================================
@@ -462,6 +462,63 @@ suite.add('padding(top,right,bottom,left) emits per-edge SET_PROPERTY commands',
   assert(paddings.some(c => c.propertyId === 0x1013 && c.value.value === 2), 'expected right=2');
   assert(paddings.some(c => c.propertyId === 0x1014 && c.value.value === 3), 'expected bottom=3');
   assert(paddings.some(c => c.propertyId === 0x1015 && c.value.value === 4), 'expected left=4');
+});
+
+suite.add('gesture: DragGesture emits ATTACH_GESTURE and routes updates', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  let changedValue: any = null;
+  let endedCount = 0;
+
+  const root = Text('Drag me').gesture(
+    DragGesture()
+      .onChanged(v => { changedValue = v; })
+      .onEnded(() => { endedCount++; })
+  );
+
+  initialRender(root, transport);
+
+  const commands = transport.getCommands();
+  const attach = commands.find(c => c.opcode === 'ATTACH_GESTURE');
+  assert(attach, 'Expected ATTACH_GESTURE command');
+  assert(attach.nodeId === root.nodeId, 'ATTACH_GESTURE should target the node');
+  assert(attach.gestureType === 0x12, 'Expected DRAG gesture type');
+
+  handleGestureUpdate(root.nodeId, 0x12, 0x01, { translationX: 30, translationY: 40 });
+  assert(changedValue && changedValue.translationX === 30, 'onChanged should receive the value');
+  handleGestureUpdate(root.nodeId, 0x12, 0x02, { translationX: 30, translationY: 40 });
+  assert(endedCount === 1, 'onEnded should be called once');
+});
+
+suite.add('gesture: onTapGesture sugar attaches a TAP gesture', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  let tapped = 0;
+  const root = Text('Tap').onTapGesture(() => { tapped++; });
+
+  initialRender(root, transport);
+
+  const attach = transport.getCommands().find(c => c.opcode === 'ATTACH_GESTURE');
+  assert(attach && attach.gestureType === 0x10, 'Expected TAP ATTACH_GESTURE');
+
+  handleGestureUpdate(root.nodeId, 0x10, 0x02, { tapCount: 1 });
+  assert(tapped === 1, 'tap handler should run on ENDED');
+});
+
+suite.add('gesture: unknown gesture updates are ignored', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  const root = Text('No gesture').onTapGesture(() => {});
+  initialRender(root, transport);
+
+  // A gesture that was never attached must not throw or call anything.
+  handleGestureUpdate(root.nodeId, 0x12, 0x01, { translationX: 1, translationY: 2 });
 });
 
 // ============================================
