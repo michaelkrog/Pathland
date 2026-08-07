@@ -1,0 +1,39 @@
+{
+  "name": "@pathland/renderer-canvas",
+  "version": "1.0.0",
+  "description": "Pathland Canvas Renderer - Canvas 2D rendering of the Pathland protocol",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc",
+    "prepublish": "npm run build",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "pathland",
+    "renderer",
+    "canvas",
+    "ui",
+    "2d",
+    "protocol"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@pathland/protocol": "^1.0.0",
+    "@pathland/renderer": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vitest": "^1.6.1"
+  }
+}

@@ -72,3 +72,7 @@ export interface Renderer {
 
 // Re-export Command type for convenience
 export type { Command, EventData };
+
+// Re-export the shared pointer-interaction recognizer
+export { PointerInteraction } from './interaction';
+export type { PointerInput, PointerInputType, PointerInteractionOptions } from './interaction';

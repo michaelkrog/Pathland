@@ -7,8 +7,9 @@
  */
 
 import type { Command, PropertyValue, EventData } from '@pathland/protocol';
-import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, SemanticColorToken, EventType, GestureType, GestureState, decodeMessage } from '@pathland/protocol';
-import type { Renderer } from '@pathland/renderer';
+import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, SemanticColorToken, EventType, decodeMessage } from '@pathland/protocol';
+import type { Renderer, PointerInput } from '@pathland/renderer';
+import { PointerInteraction } from '@pathland/renderer';
 
 // ============================================
 // LOGGING CONFIGURATION
@@ -656,8 +657,8 @@ export class DOMRenderer implements Renderer {
 
   /**
    * Set up gesture handling for this renderer.
-   * Runs pointer-based gesture recognizers (tap, long-press, drag) for nodes
-   * with an ATTACH_GESTURE registration, dispatching GESTURE_UPDATE callbacks.
+   * Feeds DOM pointer events into the shared PointerInteraction recognizer,
+   * dispatching GESTURE_UPDATE callbacks for attached gestures.
    * 
    * @param dispatchGesture Callback: (nodeId, gestureType, gestureState, data?) => void
    */
@@ -669,7 +670,8 @@ export class DOMRenderer implements Renderer {
     if (!isElement(this.container)) return;
     const container = this.container as HTMLElement;
 
-    const resolveNodeId = (target: EventTarget | null): number | null => {
+    // Hit-test from a DOM target (walk up to the nearest Pathland node).
+    const resolveNodeIdFromTarget = (target: EventTarget | null): number | null => {
       let el = target as HTMLElement | null;
       while (el && !el.dataset?.pathlandNodeId) {
         el = el.parentElement;
@@ -678,196 +680,25 @@ export class DOMRenderer implements Renderer {
       return id !== undefined && id !== '' ? parseInt(id, 10) : null;
     };
 
-    const hasGesture = (nodeId: number, gestureType: number): boolean =>
-      !!this.attachedGestures.get(nodeId)?.has(gestureType);
+    const interaction = new PointerInteraction({
+      hitTest: (input: PointerInput) => resolveNodeIdFromTarget(input.target as EventTarget | null),
+      attachedGestures: (nodeId: number) => this.attachedGestures.get(nodeId),
+      onGesture: (nodeId, gestureType, gestureState, data) =>
+        this.dispatchGesture(nodeId, gestureType, gestureState, data),
+    });
 
-    const emit = (
-      nodeId: number,
-      gestureType: number,
-      gestureState: number,
-      data?: EventData
-    ): void => {
-      this.dispatchGesture(nodeId, gestureType, gestureState, data);
-    };
+    const toInput = (type: PointerInput['type'], event: MouseEvent): PointerInput => ({
+      type,
+      x: event.clientX,
+      y: event.clientY,
+      timestamp: event.timeStamp,
+      target: event.target,
+    });
 
-    const LONG_PRESS_DURATION = 0.5; // seconds
-    const LONG_PRESS_MOVE_TOLERANCE = 10;
-    const MIN_DRAG_DISTANCE = 3;
-
-    interface PointerSession {
-      nodeId: number;
-      startX: number;
-      startY: number;
-      lastX: number;
-      lastY: number;
-      prevX: number;
-      prevY: number;
-      prevTime: number;
-      dragActive: boolean;
-      longPressActive: boolean;
-      longPressTimer: ReturnType<typeof setTimeout> | null;
-    }
-
-    let session: PointerSession | null = null;
-
-    const begin = (event: MouseEvent): void => {
-      const nodeId = resolveNodeId(event.target);
-      if (nodeId === null) return;
-      const types = this.attachedGestures.get(nodeId);
-      if (!types || types.size === 0) return;
-
-      session = {
-        nodeId,
-        startX: event.clientX,
-        startY: event.clientY,
-        lastX: event.clientX,
-        lastY: event.clientY,
-        prevX: event.clientX,
-        prevY: event.clientY,
-        prevTime: event.timeStamp,
-        dragActive: false,
-        longPressActive: false,
-        longPressTimer: null,
-      };
-
-      if (types.has(GestureType.TAP)) {
-        emit(nodeId, GestureType.TAP, GestureState.BEGAN, { startX: event.clientX, startY: event.clientY });
-      }
-      if (types.has(GestureType.LONG_PRESS)) {
-        session.longPressTimer = setTimeout(() => {
-          if (session) {
-            session.longPressActive = true;
-            emit(session.nodeId, GestureType.LONG_PRESS, GestureState.BEGAN, {
-              startX: session.startX,
-              startY: session.startY,
-            });
-          }
-        }, LONG_PRESS_DURATION * 1000);
-      }
-    };
-
-    const move = (event: MouseEvent): void => {
-      if (!session) return;
-      const s = session;
-
-      const dt = Math.max(event.timeStamp - s.prevTime, 1);
-      const velocityX = ((event.clientX - s.prevX) / dt) * 1000;
-      const velocityY = ((event.clientY - s.prevY) / dt) * 1000;
-      s.prevX = event.clientX;
-      s.prevY = event.clientY;
-      s.prevTime = event.timeStamp;
-      s.lastX = event.clientX;
-      s.lastY = event.clientY;
-
-      const dx = s.lastX - s.startX;
-      const dy = s.lastY - s.startY;
-
-      if (!s.dragActive && hasGesture(s.nodeId, GestureType.DRAG) &&
-          (Math.abs(dx) > MIN_DRAG_DISTANCE || Math.abs(dy) > MIN_DRAG_DISTANCE)) {
-        // Drag claims the pointer before the long-press timer fires.
-        if (s.longPressTimer) {
-          clearTimeout(s.longPressTimer);
-          s.longPressTimer = null;
-        }
-        s.dragActive = true;
-        emit(s.nodeId, GestureType.DRAG, GestureState.BEGAN, { startX: s.startX, startY: s.startY });
-        return;
-      }
-
-      if (s.dragActive) {
-        emit(s.nodeId, GestureType.DRAG, GestureState.CHANGED, {
-          startX: s.startX,
-          startY: s.startY,
-          locationX: s.lastX,
-          locationY: s.lastY,
-          translationX: dx,
-          translationY: dy,
-          velocityX,
-          velocityY,
-        });
-        return;
-      }
-
-      // Cancel a pending long-press if the pointer moves too far before it begins.
-      if (!s.longPressActive && s.longPressTimer &&
-          (Math.abs(dx) > LONG_PRESS_MOVE_TOLERANCE || Math.abs(dy) > LONG_PRESS_MOVE_TOLERANCE)) {
-        clearTimeout(s.longPressTimer);
-        s.longPressTimer = null;
-      }
-    };
-
-    const end = (): void => {
-      if (!session) return;
-      const s = session;
-
-      if (s.dragActive) {
-        emit(s.nodeId, GestureType.DRAG, GestureState.ENDED, {
-          startX: s.startX,
-          startY: s.startY,
-          locationX: s.lastX,
-          locationY: s.lastY,
-          translationX: s.lastX - s.startX,
-          translationY: s.lastY - s.startY,
-          velocityX: 0,
-          velocityY: 0,
-        });
-      } else if (s.longPressActive) {
-        emit(s.nodeId, GestureType.LONG_PRESS, GestureState.ENDED, {
-          startX: s.startX,
-          startY: s.startY,
-          locationX: s.lastX,
-          locationY: s.lastY,
-          duration: LONG_PRESS_DURATION,
-          pressure: 1,
-        });
-      } else if (hasGesture(s.nodeId, GestureType.TAP)) {
-        const moved = Math.abs(s.lastX - s.startX) + Math.abs(s.lastY - s.startY);
-        if (moved <= LONG_PRESS_MOVE_TOLERANCE) {
-          emit(s.nodeId, GestureType.TAP, GestureState.ENDED, {
-            startX: s.startX,
-            startY: s.startY,
-            locationX: s.lastX,
-            locationY: s.lastY,
-            tapCount: 1,
-          });
-        }
-      }
-
-      if (s.longPressTimer) clearTimeout(s.longPressTimer);
-      session = null;
-    };
-
-    const cancel = (): void => {
-      if (!session) return;
-      const s = session;
-
-      if (s.dragActive) {
-        emit(s.nodeId, GestureType.DRAG, GestureState.CANCELLED, {
-          startX: s.startX,
-          startY: s.startY,
-          locationX: s.lastX,
-          locationY: s.lastY,
-          translationX: s.lastX - s.startX,
-          translationY: s.lastY - s.startY,
-        });
-      } else if (s.longPressActive) {
-        emit(s.nodeId, GestureType.LONG_PRESS, GestureState.CANCELLED, {
-          startX: s.startX,
-          startY: s.startY,
-          locationX: s.lastX,
-          locationY: s.lastY,
-          duration: LONG_PRESS_DURATION,
-        });
-      }
-
-      if (s.longPressTimer) clearTimeout(s.longPressTimer);
-      session = null;
-    };
-
-    container.addEventListener('mousedown', begin);
-    container.addEventListener('mousemove', move);
-    container.addEventListener('mouseup', end);
-    container.addEventListener('mouseleave', cancel);
+    container.addEventListener('mousedown', (event: MouseEvent) => interaction.handle(toInput('down', event)));
+    container.addEventListener('mousemove', (event: MouseEvent) => interaction.handle(toInput('move', event)));
+    container.addEventListener('mouseup', (event: MouseEvent) => interaction.handle(toInput('up', event)));
+    container.addEventListener('mouseleave', () => interaction.cancel());
   }
 
   private attachGesture(command: Extract<Command, { opcode: 'ATTACH_GESTURE' }>): void {
