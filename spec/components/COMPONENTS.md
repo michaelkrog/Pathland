@@ -372,6 +372,10 @@ All components support the following **style properties** (ID range 0x1000-0x10F
 | `visible` | 0x100E | U8 (0x01) | Visibility (0 = hidden, 1 = visible) |
 | `zIndex` | 0x100F | F32 (0x04) | Stacking order (higher values appear on top) |
 | `clipsToBounds` | 0x1010 | U8 (0x01) | Clip content that overflows (0 = false, 1 = true) |
+| `paddingTop` | 0x1012 | F32 or DESIGN_TOKEN | Top padding (EdgeInsets) |
+| `paddingRight` | 0x1013 | F32 or DESIGN_TOKEN | Right padding (EdgeInsets) |
+| `paddingBottom` | 0x1014 | F32 or DESIGN_TOKEN | Bottom padding (EdgeInsets) |
+| `paddingLeft` | 0x1015 | F32 or DESIGN_TOKEN | Left padding (EdgeInsets) |
 
 **Special Width/Height Values:**
 - `-1.0` = Fill available space

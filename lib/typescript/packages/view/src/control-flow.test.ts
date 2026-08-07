@@ -445,6 +445,25 @@ suite.add('For: reuses node ids for unchanged items', () => {
   assert(cSet && cSet.nodeId !== aNode.nodeId, 'C should get a fresh node id');
 });
 
+suite.add('padding(top,right,bottom,left) emits per-edge SET_PROPERTY commands', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+
+  const root = Text('Hi').padding(1, 2, 3, 4);
+  initialRender(root, transport);
+
+  const commands = transport.getCommands();
+  const paddings = commands.filter(
+    c => c.opcode === 'SET_PROPERTY' && [0x1012, 0x1013, 0x1014, 0x1015].includes(c.propertyId)
+  );
+  assert(paddings.length === 4, `Expected 4 per-edge padding commands, got ${paddings.length}`);
+  assert(paddings.some(c => c.propertyId === 0x1012 && c.value.value === 1), 'expected top=1');
+  assert(paddings.some(c => c.propertyId === 0x1013 && c.value.value === 2), 'expected right=2');
+  assert(paddings.some(c => c.propertyId === 0x1014 && c.value.value === 3), 'expected bottom=3');
+  assert(paddings.some(c => c.propertyId === 0x1015 && c.value.value === 4), 'expected left=4');
+});
+
 // ============================================
 // SWITCH TESTS
 // ============================================

@@ -102,6 +102,34 @@ function compileModifier(nodeId: number, modifier: Modifier):
         value: { type: 'f32', value }
       };
     
+    case 'paddingInsets':
+      return [
+        {
+          opcode: 'SET_PROPERTY',
+          nodeId,
+          propertyId: StyleProperty.PADDING_TOP,
+          value: { type: 'f32', value: modifier.top }
+        },
+        {
+          opcode: 'SET_PROPERTY',
+          nodeId,
+          propertyId: StyleProperty.PADDING_RIGHT,
+          value: { type: 'f32', value: modifier.right }
+        },
+        {
+          opcode: 'SET_PROPERTY',
+          nodeId,
+          propertyId: StyleProperty.PADDING_BOTTOM,
+          value: { type: 'f32', value: modifier.bottom }
+        },
+        {
+          opcode: 'SET_PROPERTY',
+          nodeId,
+          propertyId: StyleProperty.PADDING_LEFT,
+          value: { type: 'f32', value: modifier.left }
+        },
+      ];
+    
     case 'background':
       return {
         opcode: 'SET_PROPERTY',
