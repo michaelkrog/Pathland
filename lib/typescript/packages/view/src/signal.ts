@@ -120,8 +120,14 @@ export class Signal<T> {
     if (this.value === value) return;
     this.value = value;
     
-    // Generate commands for each binding
+    // Generate commands for each binding. Bindings with a negative nodeId
+    // are side-effect-only (subscribe/map) and MUST NOT emit SET_PROPERTY
+    // commands; their compile function runs for its side effects only.
     for (const binding of this.bindings) {
+      if (binding.nodeId < 0) {
+        binding.compile(value);
+        continue;
+      }
       commandQueue.add({
         opcode: 'SET_PROPERTY',
         nodeId: binding.nodeId,

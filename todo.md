@@ -8,7 +8,8 @@ Rolling task list of candidate next steps. Each workstream links to its detail p
 - [x] Worker-thread bootstrap with binary command transport — `262e524`
 - [x] POC worker-safe clock — `0636e06`
 - [x] Complete the interaction system — `dac6a91` (branch: feature/interaction-system)
-- [x] Test suite green: protocol 17, view 19, renderer-dom 8, platform-browser 25
+- [x] For-loop positional identity diffing — `006a4cb` (branch: feature/for-loop-diffing)
+- [x] Test suite green: protocol 17, view 24, renderer-dom 8, platform-browser 25
 
 ## Workstreams
 
@@ -23,11 +24,17 @@ Rolling task list of candidate next steps. Each workstream links to its detail p
   - Gesture lifecycle (GESTURE_UPDATE / ATTACH_GESTURE / COMBINE_GESTURES)
   - Payload-rich events (coordinates, keyCode, hover enter/leave flag)
 
-### 2. For-loop diffing
+### 2. For-loop diffing — DONE (positional identity diff)
 
-- Replace delete-all + recreate in `For` with keyed diffing
-  (INSERT_CHILD / REMOVE_CHILD / SET_PROPERTY)
-- No protocol change; self-contained in `@pathland/view`
+- Replace delete-all + recreate in `For` with positional identity diffing:
+  items whose reference is unchanged at the same index are reused (no commands);
+  removed/replaced items are deleted; new items are created + inserted.
+- Also fixed `Signal.set` to skip side-effect-only (subscribe/map) bindings so
+  they no longer emit spurious SET_PROPERTY nodeId=-1 commands.
+- Tests: 5 new diffing tests (append, remove-last, no-op, replace, node-id reuse)
+- Follow-up (not done):
+  - Keyed reconciliation with moves (optional key fn; reorder via REMOVE+INSERT)
+  - Content updates for in-place-mutated items (re-render + property diff)
 
 ### 3. Protocol gaps
 
