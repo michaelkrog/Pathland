@@ -10,9 +10,9 @@
       "import": "./dist/index.js",
       "require": "./dist/index.js"
     },
-    "./worker-entry": {
-      "import": "./dist/worker/worker-entry.js",
-      "require": "./dist/worker/worker-entry.js"
+    "./worker": {
+      "import": "./dist/worker/index.js",
+      "require": "./dist/worker/index.js"
     }
   },
   "files": ["dist"],

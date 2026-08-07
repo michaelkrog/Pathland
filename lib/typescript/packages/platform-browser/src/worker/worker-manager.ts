@@ -1,174 +1,105 @@
 /**
  * @pathland/platform-browser
- * 
- * Manages communication between main thread and worker thread.
- * Handles worker lifecycle, command dispatch, and event routing.
+ *
+ * Main-thread manager for a Pathland worker.
+ *
+ * Owns the worker ↔ main-thread message routing:
+ * - Worker → main: binary command batches are decoded and executed by the
+ *   renderer (protocol-first boundary).
+ * - Main → worker: renderer events are forwarded to the worker, where the
+ *   application handles them.
+ *
+ * A READY handshake resolves the start() promise once the worker has
+ * initialized its view and flushed the initial command batch.
  */
 
 import type { Command } from '@pathland/protocol';
 import type { Renderer } from '@pathland/renderer';
+import { deserializeMessage } from '@pathland/transport';
 
-interface WorkerMessage {
-  type: 'INIT' | 'EVENT' | 'COMMANDS' | 'BINARY' | 'READY' | 'ERROR';
-  viewModulePath?: string;
-  viewClassName?: string;
-  nodeId?: number;
-  eventType?: number;
-  commands?: Command[];
-  buffer?: Uint8Array;
-  error?: string;
-}
-
-interface WorkerConfig {
-  viewModulePath: string;
-  viewClassName: string;
-}
+export type WorkerState = 'init' | 'starting' | 'ready' | 'error' | 'terminated';
 
 /**
- * Worker state
- */
-type WorkerState = 'init' | 'starting' | 'ready' | 'error' | 'terminated';
-
-/**
- * Manages a worker thread for running Pathland application logic.
- * The worker runs view classes and generates commands, while the main thread
- * runs the renderer to execute those commands.
+ * Manages a worker thread that runs Pathland application logic.
  */
 export class WorkerManager {
   private worker: Worker | null = null;
   private renderer: Renderer;
   private state: WorkerState = 'init';
-  private pendingCommands: Command[] = [];
-  private pendingEvents: Array<{ nodeId: number; eventType: number }> = [];
+  private resolveReady: (() => void) | null = null;
+  private rejectError: ((error: Error) => void) | null = null;
 
   constructor(renderer: Renderer) {
     this.renderer = renderer;
   }
 
   /**
-   * Start the worker thread with the given configuration.
-   * @param workerUrl - URL to the worker entry point
-   * @param config - Configuration for initializing the worker
+   * Attach to a worker and begin routing messages.
+   * Resolves once the worker reports READY (its view initialized and the
+   * initial command batch was executed); rejects if the worker errors.
+   *
+   * @param worker - The worker running the application
    */
-  startWorker(workerUrl: string, config: WorkerConfig): void {
+  start(worker: Worker): Promise<void> {
     if (this.state !== 'init') {
-      console.warn('[Pathland] Worker is already started or in an invalid state');
-      return;
+      return Promise.reject(new Error('[Pathland] WorkerManager is already started'));
     }
 
+    this.worker = worker;
     this.state = 'starting';
 
-    try {
-      console.log('[WorkerManager] Creating worker with URL:', workerUrl);
-      // Use module type to support ES module syntax in workers
-      this.worker = new Worker(workerUrl, { type: 'module' });
+    return new Promise<void>((resolve, reject) => {
+      this.resolveReady = resolve;
+      this.rejectError = reject;
 
-      // Set up message handler from worker
-      this.worker.onmessage = (event: MessageEvent) => {
-        const message = event.data as WorkerMessage;
-        console.log('[WorkerManager] Received message from worker:', message.type);
-        this.handleWorkerMessage(message);
-      };
+      worker.onmessage = (event: MessageEvent) => {
+        const message = event.data as { type: string; buffer?: ArrayBuffer; error?: string };
+        if (!message) return;
 
-      // Set up error handler
-      this.worker.onerror = (error: ErrorEvent) => {
-        console.error('[Pathland] Worker error:', error);
-        this.state = 'error';
-      };
+        switch (message.type) {
+          case 'BINARY':
+            if (message.buffer) {
+              const decoded = deserializeMessage(message.buffer);
+              this.renderer.executeCommands(decoded.commands);
+            }
+            break;
 
-      // Send initialization message to worker
-      this.worker.postMessage({
-        type: 'INIT',
-        viewModulePath: config.viewModulePath,
-        viewClassName: config.viewClassName
-      } as any);
+          case 'READY':
+            this.state = 'ready';
+            this.resolveReady?.();
+            this.resolveReady = null;
+            break;
 
-    } catch (error) {
-      console.error('[Pathland] Failed to create worker:', error);
-      this.state = 'error';
-      throw error;
-    }
-  }
+          case 'ERROR':
+            this.state = 'error';
+            this.rejectError?.(new Error(message.error || 'Unknown worker error'));
+            this.rejectError = null;
+            break;
 
-  /**
-   * Handle messages received from the worker thread.
-   */
-  private handleWorkerMessage(message: WorkerMessage): void {
-    switch (message.type) {
-      case 'READY':
-        this.state = 'ready';
-        // Flush pending commands
-        this.pendingCommands.forEach(cmd => this.sendCommandToWorker(cmd));
-        this.pendingCommands = [];
-        // Flush pending events
-        this.pendingEvents.forEach(event => this.sendEventToWorker(event.nodeId, event.eventType));
-        this.pendingEvents = [];
-        break;
-
-      case 'COMMANDS':
-        // Forward commands to renderer
-        if (message.commands) {
-          this.renderer.executeCommands(message.commands);
+          default:
+            console.warn(`[Pathland] Unknown worker message type: ${message.type}`);
         }
-        break;
+      };
 
-      case 'BINARY':
-        // Handle binary data (if needed)
-        // For now, we assume commands are already decoded
-        break;
-
-      case 'ERROR':
-        console.error('[Pathland] Worker initialization error:', message.error);
+      worker.onerror = (event: ErrorEvent) => {
         this.state = 'error';
-        break;
-
-      default:
-        console.warn('[Pathland] Unknown worker message type:', message.type);
-    }
+        this.rejectError?.(new Error(event.message || 'Worker error'));
+        this.rejectError = null;
+      };
+    });
   }
 
   /**
-   * Send a command to the worker for processing.
-   * If worker is not ready, queues the command.
-   */
-  sendCommandToWorker(command: Command): void {
-    if (this.state === 'ready' && this.worker) {
-      this.worker.postMessage({
-        type: 'COMMANDS',
-        commands: [command]
-      });
-    } else if (this.state === 'starting') {
-      // Queue command until worker is ready
-      this.pendingCommands.push(command);
-    } else if (this.state === 'error') {
-      console.error('[Pathland] Cannot send command - worker is in error state');
-    }
-  }
-
-  /**
-   * Send an event to the worker for handling.
-   * If worker is not ready, queues the event.
+   * Send an event from the renderer to the worker for handling.
    */
   sendEventToWorker(nodeId: number, eventType: number): void {
     if (this.state === 'ready' && this.worker) {
-      this.worker.postMessage({
-        type: 'EVENT',
-        nodeId,
-        eventType
-      });
+      this.worker.postMessage({ type: 'EVENT', nodeId, eventType });
     } else if (this.state === 'starting') {
-      // Queue event until worker is ready
-      this.pendingEvents.push({ nodeId, eventType });
+      console.warn('[Pathland] Cannot send event before worker is ready');
     } else if (this.state === 'error') {
       console.error('[Pathland] Cannot send event - worker is in error state');
     }
-  }
-
-  /**
-   * Get the current state of the worker.
-   */
-  getState(): WorkerState {
-    return this.state;
   }
 
   /**
@@ -180,21 +111,21 @@ export class WorkerManager {
       this.worker = null;
     }
     this.state = 'terminated';
+    this.resolveReady = null;
+    this.rejectError = null;
   }
 
-  /**
-   * Check if the worker is ready to receive commands.
-   */
+  getState(): WorkerState {
+    return this.state;
+  }
+
   isReady(): boolean {
     return this.state === 'ready';
   }
 
-  /**
-   * Check if the worker is in an error state.
-   */
   hasError(): boolean {
     return this.state === 'error';
   }
 }
 
-export type { WorkerConfig, WorkerMessage, WorkerState };
+export type { Command };

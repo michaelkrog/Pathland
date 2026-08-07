@@ -139,22 +139,38 @@ class App {
 
 **Scope**: Platform-specific entry point that coordinates view creation, rendering, and transport setup.
 
+**Worker mode (default)**: The application runs in a worker thread; only rendering happens on the main thread:
+- The application builds its view tree and emits **binary command batches** to the main thread.
+- The main thread decodes and executes them with the renderer.
+- The renderer forwards **events** back to the worker, where the application handles them.
+
+The library stays **bundler-independent**: the application provides a worker entry module (bundled by its own bundler) that calls `startWorker(() => App)`. `bootstrapApplication` accepts the worker URL (or a pre-built `Worker`). Passing a `View` class instead runs everything on the main thread.
+
 **Provides**:
-- `bootstrapApplication(viewClass)` - Single function to bootstrap an application
+- `bootstrapApplication(viewClass | workerUrl | worker)` - Single function to bootstrap an application
+- `startWorker(loadView)` - Worker-side entry point
+- `WorkerManager` - Main-thread worker lifecycle and message routing
 - Automatically finds `<app-root>` element as container
 - Sets up DOMRenderer automatically
 - Configures command transport between view and renderer
 - No configuration required for basic usage
 
-**Example**:
+**Example (worker mode):**
 ```typescript
-import { bootstrapApplication } from '@pathland/platform-browser';
-import { App } from './app';
-
-bootstrapApplication(App);
+// worker.ts (bundled as the worker by the application)
+import { startWorker } from '@pathland/platform-browser/worker';
+import App from './app';
+startWorker(() => App);
 ```
 
-**HTML Requirement**:
+```typescript
+// main.ts
+import { bootstrapApplication } from '@pathland/platform-browser';
+import workerUrl from './worker?worker&url';
+bootstrapApplication(workerUrl);
+```
+
+**HTML Requirement:**
 ```html
 <body>
   <app-root></app-root>
@@ -164,7 +180,6 @@ bootstrapApplication(App);
 **Does NOT provide**:
 - Application logic (defined in view classes)
 - Custom container selection (always uses `<app-root>`)
-- Worker-based execution (single thread only in current version)
 - Server-side rendering
 
 **Depends on**: `@pathland/view`, `@pathland/renderer-dom`, `@pathland/transport`

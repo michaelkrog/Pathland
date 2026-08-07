@@ -5,6 +5,7 @@
  * Run with: npx tsx src/control-flow.test.ts
  */
 
+import { it } from 'vitest';
 import { If, For, Switch, signal, commandQueue, initialRender, resetNodeIdCounter } from './index';
 import { VStack, Text } from './components';
 
@@ -62,7 +63,7 @@ interface TestCase {
 }
 
 class TestSuite {
-  private tests: TestCase[] = [];
+  tests: TestCase[] = [];
   private passed = 0;
   private failed = 0;
   
@@ -86,7 +87,7 @@ class TestSuite {
     }
     
     console.log(`\n${this.passed} passed, ${this.failed} failed\n`);
-    process.exit(this.failed > 0 ? 1 : 0);
+    if (this.failed > 0) process.exit(1);
   }
 }
 
@@ -522,13 +523,13 @@ suite.add('Switch - initial render with loading state', () => {
   const insertCommands = commands.filter(c => c.opcode === 'INSERT_CHILD');
   assert(insertCommands.length >= 1, `Expected at least 1 INSERT_CHILD command, got ${insertCommands.length}`);
   
-  // Verify the Text node has the correct text via SET_PROPERTY
-  const setPropertyCommands = commands.filter(c => c.opcode === 'SET_PROPERTY');
-  const textPropertyCommands = setPropertyCommands.filter(
-    (c: any) => c.propertyId === 0x000A && c.value && c.value.value === 'Loading...'
+  // The Text content is carried as an inline property on CREATE_NODE
+  // (the protocol allows initial property values to avoid separate SET_PROPERTY).
+  const loadingTextNodes = commands.filter(
+    (c: any) => c.opcode === 'CREATE_NODE' && c.componentType === 0x0003 && c.properties?.get(0x000A)?.value === 'Loading...'
   );
-  assert(textPropertyCommands.length >= 1, 
-    `Expected at least 1 SET_PROPERTY with text 'Loading...', got ${textPropertyCommands.length}`);
+  assert(loadingTextNodes.length >= 1,
+    `Expected at least 1 CREATE_NODE with inline text 'Loading...', got ${loadingTextNodes.length}`);
 });
 
 suite.add('Switch - initial render with error state', () => {
@@ -549,12 +550,11 @@ suite.add('Switch - initial render with error state', () => {
   initialRender(root, transport);
   
   const commands = transport.getCommands();
-  const setPropertyCommands = commands.filter((c: any) => c.opcode === 'SET_PROPERTY');
-  const errorTextCommands = setPropertyCommands.filter(
-    (c: any) => c.propertyId === 0x000A && c.value && c.value.value === 'Error occurred!'
+  const errorTextNodes = commands.filter(
+    (c: any) => c.opcode === 'CREATE_NODE' && c.componentType === 0x0003 && c.properties?.get(0x000A)?.value === 'Error occurred!'
   );
-  assert(errorTextCommands.length >= 1, 
-    `Expected at least 1 SET_PROPERTY with text 'Error occurred!', got ${errorTextCommands.length}`);
+  assert(errorTextNodes.length >= 1,
+    `Expected at least 1 CREATE_NODE with inline text 'Error occurred!', got ${errorTextNodes.length}`);
 });
 
 suite.add('Switch - value change updates rendered content', () => {
@@ -604,4 +604,7 @@ suite.add('Switch - value change updates rendered content', () => {
 // RUN TESTS
 // ============================================
 
-suite.run();
+// Register each test case with vitest (globals are enabled in vitest.config.ts).
+for (const test of suite.tests) {
+  it(test.name, test.fn);
+}

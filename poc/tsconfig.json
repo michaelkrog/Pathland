@@ -22,6 +22,7 @@
     "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
+      "@pathland/platform-browser/worker": ["../lib/typescript/packages/platform-browser/dist/worker"],
       "@pathland/*": ["../lib/typescript/packages/*/dist"]
     },
     "typeRoots": ["./node_modules/@types"]

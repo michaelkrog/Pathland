@@ -9,7 +9,7 @@ import path from 'path';
 
 // Resolve package paths for tests
 const resolvePackagePath = (packageName: string) => {
-  return path.resolve(__dirname, '../../..', 'packages', packageName, 'src');
+  return path.resolve(__dirname, '../..', 'packages', packageName, 'src');
 };
 
 export default defineConfig({
