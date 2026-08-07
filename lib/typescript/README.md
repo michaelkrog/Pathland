@@ -112,9 +112,9 @@ const html = renderer.render();
 
 ```typescript
 import { decodeMessage } from '@pathland/protocol';
-import { DOMRenderer } from '@pathland/renderer-dom';
+import { createJSDOMRenderer } from '@pathland/renderer-dom/jsdom';
 
-const renderer = DOMRenderer.createJSDOMRenderer();
+const renderer = await createJSDOMRenderer();
 const { commands } = decodeMessage(binaryBuffer);
 
 renderer.executeCommands(commands);
