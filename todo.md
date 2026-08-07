@@ -7,17 +7,19 @@ Rolling task list of candidate next steps. Each workstream links to its detail p
 - [x] Protocol spec/implementation alignment — merged to main
 - [x] Worker-thread bootstrap with binary command transport — `262e524`
 - [x] POC worker-safe clock — `0636e06`
-- [x] Test suite green: protocol 17, view 19, platform-browser 24
+- [x] Complete the interaction system — `dac6a91` (branch: feature/interaction-system)
+- [x] Test suite green: protocol 17, view 19, renderer-dom 8, platform-browser 25
 
 ## Workstreams
 
-### 1. Complete the interaction system  ← IN PROGRESS (branch: feature/interaction-system)
+### 1. Complete the interaction system — DONE
 
-- renderer-dom: wire long-press, hover, focus/blur, key events via the existing
+- renderer-dom: long-press, hover, focus/blur, key events wired via
   `data-pathland-node-id` delegation -> `dispatchEvent(nodeId, eventType)`
-- Tests: renderer-dom event suite (jsdom + vitest), extend worker-boundary integration test
-- POC: demonstrate a non-click gesture (long-press / hover)
-- Later (out of scope this pass):
+- view: `hoverGesture` / `focusGesture` / `blurGesture` builders
+- Tests: renderer-dom event suite (8), worker-boundary long-press round-trip
+- POC: Demo 10 (long-press counter + hover toggle)
+- Follow-up (not done):
   - Gesture lifecycle (GESTURE_UPDATE / ATTACH_GESTURE / COMBINE_GESTURES)
   - Payload-rich events (coordinates, keyCode, hover enter/leave flag)
 
