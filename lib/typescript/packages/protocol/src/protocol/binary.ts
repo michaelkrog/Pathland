@@ -2,7 +2,7 @@
  * Pathland Binary Encoding/Decoding
  */
 
-import { LITTLE_ENDIAN, Opcode } from './constants';
+import { LITTLE_ENDIAN, Opcode, PROTOCOL_VERSION } from './constants';
 import type { Command, PropertyValue, DecodedMessage } from './types';
 
 // ============================================
@@ -167,18 +167,44 @@ export class BinaryReader {
 
 export function encodeMessage(commands: Command[]): Uint8Array {
   const writer = new BinaryWriter();
-  writer.writeU16(1);
+  writer.writeU16(PROTOCOL_VERSION);
   writer.writeU32(commands.length);
   for (const command of commands) {
-    encodeCommand(writer, command);
+    const payload = new BinaryWriter();
+    encodeCommandPayload(payload, command);
+    if (payload.length > 0xFFFF) {
+      throw new Error(
+        `Instruction payload exceeds 65535 bytes (opcode ${getOpcode(command)}): ${payload.length} bytes`
+      );
+    }
+    writer.writeU8(getOpcode(command));
+    writer.writeU16(payload.length);
+    writer.writeBytes(payload.toArray());
   }
   return writer.toArray();
 }
 
-function encodeCommand(writer: BinaryWriter, command: Command): void {
+function getOpcode(command: Command): number {
+  switch (command.opcode) {
+    case 'CREATE_NODE': return Opcode.CREATE_NODE;
+    case 'DELETE_NODE': return Opcode.DELETE_NODE;
+    case 'INSERT_CHILD': return Opcode.INSERT_CHILD;
+    case 'REMOVE_CHILD': return Opcode.REMOVE_CHILD;
+    case 'SET_PROPERTY': return Opcode.SET_PROPERTY;
+    case 'SET_DESIGN_TOKEN': return Opcode.SET_DESIGN_TOKEN;
+    case 'REGISTER_EVENT_HANDLER': return Opcode.REGISTER_EVENT_HANDLER;
+    case 'DISPATCH_EVENT': return Opcode.DISPATCH_EVENT;
+    case 'SET_ENVIRONMENT': return Opcode.SET_ENVIRONMENT;
+    case 'UPDATE_ENVIRONMENT': return Opcode.UPDATE_ENVIRONMENT;
+    case 'REQUEST_ENVIRONMENT': return Opcode.REQUEST_ENVIRONMENT;
+    default:
+      throw new Error(`Unknown command opcode: ${(command as any).opcode}`);
+  }
+}
+
+function encodeCommandPayload(writer: BinaryWriter, command: Command): void {
   switch (command.opcode) {
     case 'CREATE_NODE':
-      writer.writeU8(Opcode.CREATE_NODE);
       writer.writeU32(command.nodeId);
       writer.writeU16(command.componentType);
       if (command.properties.size > 255) {
@@ -191,56 +217,45 @@ function encodeCommand(writer: BinaryWriter, command: Command): void {
       }
       break;
     case 'DELETE_NODE':
-      writer.writeU8(Opcode.DELETE_NODE);
       writer.writeU32(command.nodeId);
       break;
     case 'INSERT_CHILD':
-      writer.writeU8(Opcode.INSERT_CHILD);
       writer.writeU32(command.parentId);
       writer.writeU32(command.childId);
       writer.writeU32(command.index);
       break;
     case 'REMOVE_CHILD':
-      writer.writeU8(Opcode.REMOVE_CHILD);
       writer.writeU32(command.parentId);
       writer.writeU32(command.childId);
       break;
     case 'SET_PROPERTY':
-      writer.writeU8(Opcode.SET_PROPERTY);
       writer.writeU32(command.nodeId);
       writer.writeU16(command.propertyId);
       encodePropertyValue(writer, command.value);
       break;
     case 'SET_DESIGN_TOKEN':
-      writer.writeU8(Opcode.SET_DESIGN_TOKEN);
-      writer.writeU32(0);
       writer.writeString(command.tokenPath);
       encodePropertyValue(writer, command.value);
       break;
     case 'REGISTER_EVENT_HANDLER':
-      writer.writeU8(Opcode.REGISTER_EVENT_HANDLER);
       writer.writeU32(command.nodeId);
       writer.writeU8(command.eventType);
       writer.writeU8(0x01);
       writer.writeU32(command.handlerId);
       break;
     case 'DISPATCH_EVENT':
-      writer.writeU8(Opcode.DISPATCH_EVENT);
       writer.writeU32(command.targetId);
       writer.writeU8(command.eventType);
       writer.writeU32(Math.floor(Date.now() / 1000));
       writer.writeU8(0x01);
       break;
     case 'SET_ENVIRONMENT':
-      writer.writeU8(Opcode.SET_ENVIRONMENT);
       writeEnvironmentFields(writer, command.fields);
       break;
     case 'UPDATE_ENVIRONMENT':
-      writer.writeU8(Opcode.UPDATE_ENVIRONMENT);
       writeEnvironmentFields(writer, command.fields);
       break;
     case 'REQUEST_ENVIRONMENT':
-      writer.writeU8(Opcode.REQUEST_ENVIRONMENT);
       writer.writeU8(command.requestId);
       if (command.fieldIds.length === 0) {
         writer.writeU8(0xFF);
@@ -251,8 +266,6 @@ function encodeCommand(writer: BinaryWriter, command: Command): void {
         }
       }
       break;
-    default:
-      throw new Error(`Unknown command opcode: ${(command as any).opcode}`);
   }
 }
 
@@ -261,9 +274,22 @@ function writeEnvironmentFields(writer: BinaryWriter, fields: Map<number, Proper
   for (const [id, value] of fields) {
     writer.writeU8(id);
     const temp = new BinaryWriter();
-    encodePropertyValue(temp, value);
+    writeRawEnvFieldValue(temp, value);
     writer.writeU8(temp.length);
     writer.writeBytes(temp.toArray());
+  }
+}
+
+// Environment fields carry raw bytes of the type implied by their field ID
+// (see the Environment Field table); no valueType byte is written.
+function writeRawEnvFieldValue(writer: BinaryWriter, value: PropertyValue): void {
+  switch (value.type) {
+    case 'u32': writer.writeU32(value.value); break;
+    case 'f32': writer.writeF32(value.value); break;
+    case 'u8': writer.writeU8(value.value); break;
+    case 'string': writer.writeString(value.value); break;
+    default:
+      throw new Error(`Unsupported environment field value type: ${(value as PropertyValue).type}`);
   }
 }
 
@@ -321,9 +347,23 @@ export function decodeMessage(buffer: Uint8Array): DecodedMessage {
   const commands: Command[] = [];
   for (let i = 0; i < count; i++) {
     const opcode = reader.readU8();
+    const length = reader.readU16();
+    const payloadStart = reader.position;
     const cmd = decodeCommand(reader, opcode);
-    if (cmd) commands.push(cmd);
-    else console.warn(`Skipping unknown opcode: ${opcode} at position ${reader.position}`);
+    if (cmd) {
+      commands.push(cmd);
+    } else {
+      console.warn(`Skipping unknown opcode: ${opcode} at position ${payloadStart - 3}`);
+    }
+    // The declared length is authoritative: realign for forward compatibility
+    // (unknown opcodes are skipped by their length, and malformed known
+    // instructions cannot silently desynchronize the stream).
+    const consumed = reader.position - payloadStart;
+    if (consumed <= length) {
+      reader.skip(length - consumed);
+    } else {
+      throw new Error(`Instruction opcode ${opcode} overran its declared payload length`);
+    }
   }
   return { version, commands };
 }
@@ -387,7 +427,6 @@ function decodeSetProperty(reader: BinaryReader): Command {
 }
 
 function decodeSetDesignToken(reader: BinaryReader): Command {
-  reader.readU32();
   return { opcode: 'SET_DESIGN_TOKEN', tokenPath: reader.readString(), value: decodePropertyValue(reader) };
 }
 

@@ -79,8 +79,10 @@ Each message begins with a header:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `version` | u16 | Protocol version (currently 1) |
+| `version` | u16 | **Wire protocol version (currently 1)** |
 | `instructionCount` | u32 | Number of instructions in this message |
+
+> **Note**: The `version` field identifies the **wire format** and is independent of this document's own version (currently 2.2.0-alpha). The wire format is currently version **1**. Breaking changes to the binary format MUST bump the wire `version` field.
 
 ### Message Structure
 
@@ -103,13 +105,21 @@ Each message begins with a header:
 
 ## Instruction Format
 
-Each instruction begins with an opcode:
+Each instruction is **length-prefixed** so that a decoder can always skip instructions it does not understand (forward compatibility) and can validate each instruction's bounds:
 
 ```
-[u8 opcode][payload...]
+[u8 opcode][u16 payloadLength][payload...]
 ```
 
-The payload structure depends on the opcode.
+| Field | Type | Description |
+|-------|------|-------------|
+| `opcode` | u8 | Instruction opcode (see Opcode Table) |
+| `payloadLength` | u16 | Byte length of the payload that follows (max 65535) |
+| `payload` | Variable | Instruction payload; structure depends on the opcode |
+
+The `payloadLength` counts only the payload bytes — not the opcode byte or the length field itself. An instruction payload MUST NOT exceed 65535 bytes; encoders SHOULD reject larger payloads.
+
+**Forward compatibility**: Because every instruction carries its length, a receiver that encounters an unknown opcode can skip exactly its payload and continue decoding the rest of the message. The Decoding Algorithm MUST use this length to realign after every instruction.
 
 ---
 
@@ -169,17 +179,17 @@ Creates a new node in the UI tree. **Optionally includes initial property values
 
 **Binary Layout:**
 ```
-01  ID(4B)  Type(2B)  PropCount(1B)  [PropID(2B)  ValueType(1B)  Value(...)]...
+01  Len(2B)  ID(4B)  Type(2B)  PropCount(1B)  [PropID(2B)  ValueType(1B)  Value(...)]...
 ```
 
 **Example:** Create a Text node with ID 42 (no properties)
 ```
-01 2A 00 00 00 03 00 00
+01 07 00 2A 00 00 00 03 00 00
 ```
 
 **Example:** Create a Text node with ID 42 and initial text
 ```
-01 2A 00 00 00 03 00 01    # nodeId=42, type=TEXT, 1 property
+01 13 00 2A 00 00 00 03 00 01    # len=19, nodeId=42, type=TEXT, 1 property
 0A 00                 # propertyId=TEXT (0x000A)
 05                     # valueType=STRING (0x05)
 05 00 00 00            # string length=5
@@ -188,9 +198,9 @@ Creates a new node in the UI tree. **Optionally includes initial property values
 
 **Example:** Create a Text node with ID 42, text, and color
 ```
-01 2A 00 00 00 03 00 02    # nodeId=42, type=TEXT, 2 properties
+01 19 00 2A 00 00 00 03 00 02    # len=25, nodeId=42, type=TEXT, 2 properties
 0A 00 05 05 00 00 00 48 65 6C 6C 6F  # text="Hello"
-10 0A 07 01 06 00        # color=PRIMARY_TEXT (SEMANTIC_TOKEN)
+10 0A 07 01 06 00        # color=ACCENT (SEMANTIC_TOKEN 0x0006)
 ```
 
 ---
@@ -210,12 +220,12 @@ Deletes a node and all its children from the UI tree.
 
 **Binary Layout:**
 ```
-02  ID(4B)
+02  Len(2B)  ID(4B)
 ```
 
 **Example:** Delete node with ID 42
 ```
-02 2A 00 00 00
+02 04 00 2A 00 00 00
 ```
 
 ---
@@ -237,12 +247,12 @@ Inserts a child into a parent node at a specific index.
 
 **Binary Layout:**
 ```
-03  ParentID(4B)  ChildID(4B)  Index(4B)
+03  Len(2B)  ParentID(4B)  ChildID(4B)  Index(4B)
 ```
 
 **Example:** Insert node 42 into node 1 at index 0
 ```
-03 01 00 00 00 2A 00 00 00 00 00 00 00
+03 0C 00 01 00 00 00 2A 00 00 00 00 00 00 00
 ```
 
 **Note:** If `index` equals `UINT32_MAX` (0xFFFFFFFF), the child is appended to the end.
@@ -265,12 +275,12 @@ Removes a child from its parent.
 
 **Binary Layout:**
 ```
-04  ParentID(4B)  ChildID(4B)
+04  Len(2B)  ParentID(4B)  ChildID(4B)
 ```
 
 **Example:** Remove node 42 from node 1
 ```
-04 01 00 00 00 2A 00 00 00
+04 08 00 01 00 00 00 2A 00 00 00
 ```
 
 ---
@@ -295,15 +305,16 @@ Sets or updates a property on an **existing node**.
 
 **Binary Layout:**
 ```
-05  NodeID(4B)  PropID(2B)  ValueType(1B)  Value(...)
+05  Len(2B)  NodeID(4B)  PropID(2B)  ValueType(1B)  Value(...)
 ```
 
 **Example:** Set text property on node 42 to "Hello"
 ```
-05 2A 00 00 00 0A 00 05 05 00 00 00 48 65 6C 6C 6F
+05 10 00 2A 00 00 00 0A 00 05 05 00 00 00 48 65 6C 6C 6F
 ```
 Breakdown:
 - `05` - SET_PROPERTY opcode
+- `10 00` - payloadLength = 16
 - `2A 00 00 00` - nodeId = 42
 - `0A 00` - propertyId = 10 (TEXT)
 - `05` - valueType = STRING (5)
@@ -470,50 +481,49 @@ Sets a design token value globally, overriding the renderer's default theme.
 
 **Payload:**
 ```
-[u32 tokenId][u16 valueType][value...]
+[u32 pathLength][utf8 tokenPath][u8 valueType][value...]
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `tokenId` | u32 | Unique identifier for the token override |
-| `valueType` | u16 | Type of the token value (see Token Value Types) |
+| `pathLength` | u32 | Byte length of the UTF-8 token path |
+| `tokenPath` | utf8 | Dot-separated token path (e.g. `color.primary`) |
+| `valueType` | u8 | Type of the value (see Value Type Table) |
 | `value` | Variable | The token value, encoded according to valueType |
+
+The token path and value use the **same encodings as everywhere else** in the protocol: paths are length-prefixed UTF-8 strings (identical to the `string` value type) and values use the standard u8 `valueType` table (0x01-0x08). There is **no separate token value type system** — `DESIGN_TOKEN` (0x08), `COLOR` (0x07), `F32` (0x04), `U32` (0x02), `STRING` (0x05), and `ENUM` (0x06) values are all valid.
 
 **Binary Layout:**
 ```
-06  TokenID(4B)  ValueType(2B)  Value(...)
+06  Len(2B)  PathLen(4B)  Path(...)  ValueType(1B)  Value(...)
 ```
 
-**Token Value Types:**
-- `0x0001`: COLOR (uses COLOR value type encoding)
-- `0x0002`: F32 (for spacing, sizes, etc.)
-- `0x0003`: STRING (for font families, etc.)
-- `0x0004`: U32 (for discrete values)
-
-**Example:** Set color.primary token to a semantic token
+**Example:** Set `color.primary` token to the ACCENT semantic token
 ```
-06 01 00 00 00 00 01 07 01 06 00
+06 15 00 0D 00 00 00 63 6F 6C 6F 72 2E 70 72 69 6D 61 72 79 07 01 06 00
 ```
 Breakdown:
 - `06` - SET_DESIGN_TOKEN opcode
-- `01 00 00 00` - tokenId = 1
-- `00 01` - valueType = COLOR (0x0001)
-- `07` - COLOR value type
+- `15 00` - payloadLength = 21
+- `0D 00 00 00` - pathLength = 13
+- `63 6F 6C 6F 72 2E 70 72 69 6D 61 72 79` - "color.primary"
+- `07` - valueType = COLOR (0x07)
 - `01` - colorKind = SEMANTIC_TOKEN
 - `06 00` - tokenId = ACCENT (0x0006)
 
-**Example:** Set space.2 token to 8.0
+**Example:** Set `space.2` token to 8.0
 ```
-06 02 00 00 00 00 02 04 00 00 00 40 41
+06 10 00 07 00 00 00 73 70 61 63 65 2E 32 04 00 00 00 41
 ```
 Breakdown:
 - `06` - SET_DESIGN_TOKEN opcode
-- `02 00 00 00` - tokenId = 2
-- `00 02` - valueType = F32 (0x0002)
-- `04` - F32 value type
-- `00 00 00 40 41` - f32 value 8.0 (0x41000000 in LE)
+- `10 00` - payloadLength = 16
+- `07 00 00 00` - pathLength = 7
+- `73 70 61 63 65 2E 32` - "space.2"
+- `04` - valueType = F32 (0x04)
+- `00 00 00 41` - f32 value 8.0 (0x41000000 in LE)
 
-**Note:** Token IDs are assigned by the application and used for reference. The actual token path resolution is handled by the renderer's theme system.
+**Note:** The token path is resolved by the renderer's theme system. The application defines the override; the renderer owns the defaults and the resolution algorithm (see [Design Token System](#design-token-system)).
 
 ---
 
@@ -535,21 +545,23 @@ Dispatches an event to a component in the UI tree.
 
 **Binary Layout:**
 ```
-07  TargetID(4B)  EventType(1B)  Timestamp(4B)  Phase(1B)  [EventData...]
+07  Len(2B)  TargetID(4B)  EventType(1B)  Timestamp(4B)  Phase(1B)  [EventData...]
 ```
 
 **Example:** Dispatch a tap event to node 42 in target phase
 ```
-07 2A 00 00 00 01 60 6E 9A 01 01 00 00 00 80 3F 00 00 80 3F
+07 13 00 2A 00 00 00 01 60 6E 9A 01 01 00 00 80 3F 00 00 80 3F 01
 ```
 Breakdown:
 - `07` - DISPATCH_EVENT opcode
+- `13 00` - payloadLength = 19
 - `2A 00 00 00` - targetId = 42
 - `01` - eventType = TAP (0x01)
 - `60 6E 9A 01` - timestamp (example: 1699911200 = 2023-11-15)
 - `01` - phase = TARGET (0x01)
 - `00 00 80 3F` - x = 1.0 (f32)
 - `00 00 80 3F` - y = 1.0 (f32)
+- `01` - tapCount = 1
 
 ---
 
@@ -571,15 +583,16 @@ Registers an event handler on a component.
 
 **Binary Layout:**
 ```
-08  NodeID(4B)  EventType(1B)  Phase(1B)  HandlerID(4B)
+08  Len(2B)  NodeID(4B)  EventType(1B)  Phase(1B)  HandlerID(4B)
 ```
 
 **Example:** Register a tap handler on node 42 for target phase
 ```
-08 2A 00 00 00 01 01 05 00 00 00
+08 0A 00 2A 00 00 00 01 01 05 00 00 00
 ```
 Breakdown:
 - `08` - REGISTER_EVENT_HANDLER opcode
+- `0A 00` - payloadLength = 10
 - `2A 00 00 00` - nodeId = 42
 - `01` - eventType = TAP (0x01)
 - `01` - handlerPhase = TARGET (0x01)
@@ -779,15 +792,16 @@ Dispatches a gesture state update to a component.
 
 **Binary Layout:**
 ```
-09  TargetID(4B)  GestureType(1B)  GestureState(1B)  Timestamp(4B)  GestureID(4B)  [Data...]
+09  Len(2B)  TargetID(4B)  GestureType(1B)  GestureState(1B)  Timestamp(4B)  GestureID(4B)  [Data...]
 ```
 
 **Example:** Drag gesture began on node 42
 ```
-09 2A 00 00 00 12 00 60 6E 9A 01 01 00 00 00 00 80 3F 00 00 00 00
+09 16 00 2A 00 00 00 12 00 60 6E 9A 01 01 00 00 00 00 80 3F 00 00 00 00
 ```
 Breakdown:
 - `09` - GESTURE_UPDATE opcode
+- `16 00` - payloadLength = 22
 - `2A 00 00 00` - targetId = 42
 - `12` - gestureType = DRAG (0x12)
 - `00` - gestureState = BEGAN (0x00)
@@ -820,15 +834,16 @@ Attaches a gesture recognizer to a component.
 
 **Binary Layout:**
 ```
-0A  NodeID(4B)  GestureType(1B)  RecognizerID(4B)  Phase(1B)  OnBegan(4B)  OnChanged(4B)  OnEnded(4B)  OnCancelled(4B)
+0A  Len(2B)  NodeID(4B)  GestureType(1B)  RecognizerID(4B)  Phase(1B)  OnBegan(4B)  OnChanged(4B)  OnEnded(4B)  OnCancelled(4B)
 ```
 
 **Example:** Attach drag gesture to node 42
 ```
-0A 2A 00 00 00 12 01 00 00 00 01 05 00 00 00 06 00 00 00 07 00 00 00
+0A 1A 00 2A 00 00 00 12 01 00 00 00 01 05 00 00 00 06 00 00 00 07 00 00 00
 ```
 Breakdown:
 - `0A` - ATTACH_GESTURE opcode
+- `1A 00` - payloadLength = 26
 - `2A 00 00 00` - nodeId = 42
 - `12` - gestureType = DRAG (0x12)
 - `01 00 00 00` - gestureRecognizerId = 1
@@ -870,15 +885,16 @@ This allows creating complex gestures like:
 
 **Binary Layout:**
 ```
-0B  CombinationType(1B)  FirstID(4B)  SecondID(4B)  CombinedID(4B)
+0B  Len(2B)  CombinationType(1B)  FirstID(4B)  SecondID(4B)  CombinedID(4B)
 ```
 
 **Example:** Combine pinch and rotate simultaneously
 ```
-0B 00 01 00 00 00 02 00 00 00 03 00 00 00
+0B 0D 00 00 01 00 00 00 02 00 00 00 03 00 00 00
 ```
 Breakdown:
 - `0B` - COMBINE_GESTURES opcode
+- `0D 00` - payloadLength = 13
 - `00` - combinationType = SIMULTANEOUS
 - `01 00 00 00` - firstGestureId = 1 (pinch)
 - `02 00 00 00` - secondGestureId = 2 (rotate)
@@ -1449,6 +1465,7 @@ Sent by the renderer to provide the complete environment state to the applicatio
 SET_ENVIRONMENT Payload:
 ┌─────────────────────────────────────────────────────────┐
 │ u8: opcode = 0x20 (SET_ENVIRONMENT)                        │
+│ u16: payloadLength                                          │
 │ u8: fieldCount (N)                                           │
 │                                                             │
 │ For each of N fields:                                       │
@@ -1487,6 +1504,7 @@ Sent by the renderer when specific environment fields change (e.g., resize, orie
 UPDATE_ENVIRONMENT Payload:
 ┌─────────────────────────────────────────────────────────┐
 │ u8: opcode = 0x21 (UPDATE_ENVIRONMENT)                      │
+│ u16: payloadLength                                          │
 │ u8: fieldCount (N)                                           │
 │                                                             │
 │ For each of N changed fields:                               │
@@ -1525,6 +1543,7 @@ Sent by the application to explicitly request current environment information fr
 REQUEST_ENVIRONMENT Payload:
 ┌─────────────────────────────────────────────────────────┐
 │ u8: opcode = 0x22 (REQUEST_ENVIRONMENT)                     │
+│ u16: payloadLength                                          │
 │ u8: requestId                                               │
 │ u8: fieldCount (N) or 0xFF for "all fields"                 │
 │ If fieldCount ≠ 0xFF:                                       │
@@ -1658,12 +1677,18 @@ Applications that require environment information:
 | SWITCH | 0x0006 | Toggle switch component |
 | TEXT_FIELD | 0x0007 | Text input field component |
 | SPACER | 0x0008 | Flexible space that expands to fill available space |
+| SCROLLVIEW | 0x0009 | Scrollable container (experimental) |
+| LIST | 0x000A | Virtualized list container (experimental) |
+| GRID | 0x000B | Grid container (experimental) |
+| COMMENT | 0x000C | Non-rendered comment/marker node (experimental) |
+
+**Note**: Components marked *experimental* (0x0009-0x000C) are implemented in the TypeScript renderers but their property sets and behavior are not yet fully specified; renderers MAY support them.
 
 ### Reserved Component Types
 
 | Range | Purpose |
 |-------|---------|
-| 0x0009-0x7FFF | Future core components |
+| 0x000D-0x7FFF | Future core components |
 | 0x8000-0xFFFF | Custom/experimental components |
 
 Implementations SHOULD ignore nodes with unknown component types.
@@ -1876,10 +1901,10 @@ This creates a VStack with a Text child displaying "Hello":
 03 00 00 00    # instructionCount = 3 (reduced from 5)
 
 # Instruction 1: CREATE_NODE (VSTACK with ID 1, no properties)
-01 01 00 00 00 02 00 00    # nodeId=1, type=VSTACK, propertyCount=0
+01 07 00 01 00 00 00 02 00 00    # len=7, nodeId=1, type=VSTACK, propertyCount=0
 
 # Instruction 2: CREATE_NODE (TEXT with ID 2, with inline properties)
-01 02 00 00 00 03 00 02    # nodeId=2, type=TEXT, propertyCount=2
+01 1A 00 02 00 00 00 03 00 02    # len=26, nodeId=2, type=TEXT, propertyCount=2
 0A 00                 # propertyId=TEXT (0x000A)
 05                     # valueType=STRING (0x05)
 05 00 00 00            # string length=5
@@ -1889,7 +1914,7 @@ This creates a VStack with a Text child displaying "Hello":
 00 00 80 41           # value=24.0 (f32: 0x41800000 in LE)
 
 # Instruction 3: INSERT_CHILD (node 2 into node 1 at index 0)
-03 01 00 00 00 02 00 00 00 00 00 00 00
+03 0C 00 01 00 00 00 02 00 00 00 00 00 00 00
 ```
 
 ### Example 2: Tap Event
@@ -1899,11 +1924,11 @@ This creates a VStack with a Text child displaying "Hello":
 01 00          # version = 1
 01 00 00 00    # instructionCount = 1
 
-# Note: Events use the same message format but with event-specific instructions
-# This would be handled by a separate event protocol
+# Events are dispatched with the same message framing. See the Event System
+# section for DISPATCH_EVENT (0x07) / REGISTER_EVENT_HANDLER (0x08) encodings.
 ```
 
-**Note:** Event handling is currently out of scope for this protocol version. The protocol focuses on tree mutations from application to renderer. Events from renderer to application will be defined in a future version.
+**Note:** Event instructions use the same message format as tree mutations. See the [Event System](#event-system) and [Gesture System](#gesture-system) sections for the authoritative encodings.
 
 ---
 
@@ -1926,6 +1951,9 @@ function decodeMessage(buffer: Uint8Array): Instruction[] {
   for (let i = 0; i < instructionCount; i++) {
     const opcode = view.getUint8(cursor);
     cursor += 1;
+    const payloadLength = view.getUint16(cursor, true);
+    cursor += 2;
+    const payloadStart = cursor;
     
     switch (opcode) {
       case 0x01: // CREATE_NODE
@@ -2026,13 +2054,16 @@ function decodeMessage(buffer: Uint8Array): Instruction[] {
         break;
         
       default:
-        // Unknown opcode - skip payload based on opcode
-        // For forward compatibility, we need to know how to skip
-        // This requires a payload length field or fixed payload sizes
-        // For now, we'll skip 1 byte and continue (this is a limitation)
-        cursor += 1;
+        // Unknown opcode: do not attempt to parse the payload. The
+        // payloadLength-driven realign below skips it and continues with the
+        // next instruction, preserving forward compatibility.
         break;
     }
+    
+    // The declared payloadLength is authoritative: realign the cursor. This
+    // skips unknown-opcode payloads and prevents a malformed known
+    // instruction from desynchronizing the rest of the stream.
+    cursor = payloadStart + payloadLength;
   }
   
   return instructions;
@@ -2097,6 +2128,8 @@ socket.on('message', (buffer) => {
 - Defines component types 1-3
 - Defines property IDs for HSTACK/VSTACK and TEXT
 - Defines basic value types
+- Length-prefixed instructions (`[u8 opcode][u16 payloadLength][payload...]`)
+- `SET_DESIGN_TOKEN` uses string token paths
 
 ### Future Versions
 
@@ -2119,8 +2152,8 @@ The version field in the message header allows receivers to:
 
 ### Unknown Opcodes
 
-Implementations SHOULD:
-1. Skip unknown opcodes
+Every instruction carries its payload length, so unknown opcodes can always be skipped without desynchronizing the stream. Implementations SHOULD:
+1. Skip the unknown opcode's payload using its `payloadLength`
 2. Continue processing remaining instructions
 3. Log a warning for debugging
 
@@ -2170,7 +2203,7 @@ Implementations SHOULD:
 A conforming Pathland implementation MUST:
 
 1. Support the binary format as defined in this specification
-2. Accept messages with version 2
+2. Accept messages with version 1
 3. Handle all defined opcodes (1-6)
 4. Handle all defined component types (1-7)
 5. Handle all defined property IDs
@@ -2305,6 +2338,10 @@ IMAGE = 0x0005
 SWITCH = 0x0006
 TEXT_FIELD = 0x0007
 SPACER = 0x0008
+SCROLLVIEW = 0x0009
+LIST = 0x000A
+GRID = 0x000B
+COMMENT = 0x000C
 ```
 
 ### HSTACK/VSTACK Properties
@@ -2439,11 +2476,8 @@ FOCUS = 0x03
 DISABLED = 0x04
 LOADING = 0x05
 
-// Token Value Types
-TOKEN_VALUE_COLOR = 0x0001
-TOKEN_VALUE_F32 = 0x0002
-TOKEN_VALUE_STRING = 0x0003
-TOKEN_VALUE_U32 = 0x0004
+// Note: SET_DESIGN_TOKEN uses the standard Value Type table (U8..DESIGN_TOKEN).
+// There is no separate token value type system.
 ```
 
 ### Color Constants
@@ -2501,7 +2535,11 @@ const COMPONENT_TYPES = {
   IMAGE: 0x0005,
   SWITCH: 0x0006,
   TEXT_FIELD: 0x0007,
-  SPACER: 0x0008
+  SPACER: 0x0008,
+  SCROLLVIEW: 0x0009,
+  LIST: 0x000A,
+  GRID: 0x000B,
+  COMMENT: 0x000C
 };
 
 // Event Types
@@ -2613,13 +2651,8 @@ const SEMANTIC_COLOR_TOKENS = {
   SEPARATOR: 0x000C
 };
 
-// Token Value Types (for SET_DESIGN_TOKEN)
-const TOKEN_VALUE_TYPES = {
-  COLOR: 0x0001,
-  F32: 0x0002,
-  STRING: 0x0003,
-  U32: 0x0004
-};
+// SET_DESIGN_TOKEN values use the same VALUE_TYPES table; no separate
+// token value type system exists.
 
 // Properties
 const PROPERTIES = {
@@ -2819,7 +2852,8 @@ class BinaryEncoder {
     // Calculate total size needed
     let totalSize = 6; // header: 2 + 4 bytes
     for (const inst of instructions) {
-      totalSize += this.calculateInstructionSize(inst);
+      // +2 for the payloadLength field of each instruction
+      totalSize += this.calculateInstructionSize(inst) + 2;
     }
     
     // Reset and ensure capacity
@@ -2858,7 +2892,8 @@ class BinaryEncoder {
       case 'SET_PROPERTY':
         return 1 + 4 + 2 + 1 + this.calculateValueSize(inst.valueType, inst.value);
       case 'SET_DESIGN_TOKEN':
-        return 1 + 4 + 2 + this.calculateTokenValueSize(inst.tokenValueType, inst.value);
+        // opcode + pathLength + path + valueType + value
+        return 1 + 4 + inst.tokenPath.length + 1 + this.calculateValueSize(inst.valueType, inst.value);
       case 'DISPATCH_EVENT':
         // opcode + targetId + eventType + timestamp + phase + eventData
         return 1 + 4 + 1 + 4 + 1 + this.calculateEventDataSize(inst.eventType, inst.data);
@@ -2968,19 +3003,16 @@ class BinaryEncoder {
     }
   }
 
-  calculateTokenValueSize(tokenValueType, value) {
-    switch (tokenValueType) {
-      case TOKEN_VALUE_TYPES.COLOR: return 1 + (value.tokenId !== undefined ? 2 : 4); // colorKind + (tokenId or rgba)
-      case TOKEN_VALUE_TYPES.F32: return 4;
-      case TOKEN_VALUE_TYPES.STRING: return 4 + value.length;
-      case TOKEN_VALUE_TYPES.U32: return 4;
-      default: return 0;
-    }
+  writeInstruction(inst) {
+    // Frame: opcode + payloadLength + payload. calculateInstructionSize
+    // includes the opcode byte, so the payload length is size - 1.
+    const payloadLength = this.calculateInstructionSize(inst) - 1;
+    this.writeU8(OPCODES[inst.opcode]);
+    this.writeU16(payloadLength);
+    this.writeInstructionPayload(inst);
   }
 
-  writeInstruction(inst) {
-    this.writeU8(OPCODES[inst.opcode]);
-    
+  writeInstructionPayload(inst) {
     switch (inst.opcode) {
       case 'CREATE_NODE':
         this.writeU32(inst.nodeId);
@@ -3013,9 +3045,9 @@ class BinaryEncoder {
         this.writeValue(inst.valueType, inst.value);
         break;
       case 'SET_DESIGN_TOKEN':
-        this.writeU32(inst.tokenId);
-        this.writeU16(inst.tokenValueType);
-        this.writeTokenValue(inst.tokenValueType, inst.value);
+        this.writeString(inst.tokenPath);
+        this.writeU8(inst.valueType);
+        this.writeValue(inst.valueType, inst.value);
         break;
       case 'DISPATCH_EVENT':
         this.writeU32(inst.targetId);
@@ -3250,23 +3282,6 @@ class BinaryEncoder {
     this.writeU8(VALUE_TYPES.DESIGN_TOKEN);
     this.writeString(tokenPath);
   }
-
-  writeTokenValue(tokenValueType, value) {
-    switch (tokenValueType) {
-      case TOKEN_VALUE_TYPES.COLOR:
-        this.writeColor(value);
-        break;
-      case TOKEN_VALUE_TYPES.F32:
-        this.writeF32(value);
-        break;
-      case TOKEN_VALUE_TYPES.STRING:
-        this.writeString(value);
-        break;
-      case TOKEN_VALUE_TYPES.U32:
-        this.writeU32(value);
-        break;
-    }
-  }
 }
 
 // ============================================
@@ -3285,7 +3300,22 @@ class BinaryDecoder {
     
     const instructions = [];
     for (let i = 0; i < instructionCount; i++) {
-      instructions.push(this.decodeInstruction());
+      const opcode = this.readU8();
+      const payloadLength = this.readU16();
+      const payloadStart = this.cursor;
+      
+      const inst = this.decodeInstructionPayload(opcode);
+      if (inst) {
+        instructions.push(inst);
+      }
+      // Unknown opcodes return null from decodeInstructionPayload; the
+      // declared payloadLength realigns the cursor so decoding can continue.
+      const consumed = this.cursor - payloadStart;
+      if (consumed <= payloadLength) {
+        this.cursor = payloadStart + payloadLength;
+      } else {
+        throw new Error('Instruction overran its declared payload length');
+      }
     }
     
     return { version, instructions };
@@ -3351,9 +3381,7 @@ class BinaryDecoder {
     return null;
   }
 
-  decodeInstruction() {
-    const opcode = this.readU8();
-    
+  decodeInstructionPayload(opcode) {
     switch (opcode) {
       case OPCODES.CREATE_NODE: {
         const nodeId = this.readU32();
@@ -3405,13 +3433,13 @@ class BinaryDecoder {
         };
       }
       case OPCODES.SET_DESIGN_TOKEN: {
-        const tokenId = this.readU32();
-        const tokenValueType = this.readU16();
-        const value = this.readTokenValue(tokenValueType);
+        const tokenPath = this.readString();
+        const valueType = this.readU8();
+        const value = this.readValue(valueType);
         return {
           opcode: 'SET_DESIGN_TOKEN',
-          tokenId,
-          tokenValueType,
+          tokenPath,
+          valueType,
           value
         };
       }
@@ -3476,8 +3504,8 @@ class BinaryDecoder {
           combinedGestureId: this.readU32()
         };
       default:
-        // Unknown opcode - skip and continue
-        return { opcode: 'UNKNOWN', opcodeValue: opcode };
+        // Unknown opcode - the caller skips the payload by length
+        return null;
     }
   }
 
@@ -3693,16 +3721,6 @@ class BinaryDecoder {
     // Read the token path string (already read the DESIGN_TOKEN type byte)
     return this.readString();
   }
-
-  readTokenValue(tokenValueType) {
-    switch (tokenValueType) {
-      case TOKEN_VALUE_TYPES.COLOR: return this.readColor();
-      case TOKEN_VALUE_TYPES.F32: return this.readF32();
-      case TOKEN_VALUE_TYPES.STRING: return this.readString();
-      case TOKEN_VALUE_TYPES.U32: return this.readU32();
-      default: return null;
-    }
-  }
 }
 
 // ============================================
@@ -3762,9 +3780,9 @@ for (const inst of decoded) {
 |--------|---------|
 | **Format** | Custom binary instruction protocol |
 | **Endianness** | Little-endian |
-| **Version** | 2 |
+| **Wire version** | 1 |
 | **Opcodes** | 11 defined, 121 reserved |
-| **Component Types** | 8 defined, 32,761 reserved |
+| **Component Types** | 12 defined, 65,524 reserved |
 | **Properties** | 25 defined, 65,510 reserved |
 | **Value Types** | 8 defined, 119 reserved |
 | **Event Types** | 15 defined, 240 reserved |
@@ -3782,3 +3800,4 @@ for (const inst of decoded) {
 | 2.0.0-alpha | 2026-06-26 | Added Design Token System: DESIGN_TOKEN value type, SET_DESIGN_TOKEN opcode, semantic component types (BUTTON, IMAGE, SWITCH, TEXT_FIELD), semantic properties (role, state, enabled, selected), comprehensive token categories and resolution rules |
 | 2.1.0-alpha | 2026-06-26 | Added Event System Phase 1: DISPATCH_EVENT and REGISTER_EVENT_HANDLER opcodes, binary event encoding, ON_APPEAR (0x0C), ON_DISAPPEAR (0x0D), ON_CHANGE (0x0E) event types, event phase support (capture, target, bubble), comprehensive event payload definitions for all event types |
 | 2.2.0-alpha | 2026-06-26 | Added Gesture System: GESTURE_UPDATE (0x09), ATTACH_GESTURE (0x0A), COMBINE_GESTURES (0x0B) opcodes, 6 gesture types (TAP, LONG_PRESS, DRAG, SWIPE, PINCH, ROTATE), gesture states (began, changed, ended, cancelled), gesture combination types (simultaneous, sequenced, exclusive), comprehensive binary encoding for all gesture states and data payloads |
+| 2.3.0-alpha | 2026-08-07 | **Wire format change (still version 1, pre-release)**: every instruction is now length-prefixed `[u8 opcode][u16 payloadLength][payload...]` for forward compatibility (unknown opcodes are skippable). SET_DESIGN_TOKEN payload redefined to `[u32 pathLength][utf8 path][u8 valueType][value...]`, eliminating the numeric tokenId and the separate u16 token value type system. Clarified that the wire `version` field is 1, independent of this document's version. |

@@ -1,0 +1,27 @@
+{
+  "name": "@pathland/renderer",
+  "version": "1.0.0",
+  "description": "Pathland Renderer Interface - Base interface for all Pathland renderers",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@pathland/protocol": "^1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "pathland",
+    "renderer",
+    "interface",
+    "ui",
+    "protocol"
+  ],
+  "author": "",
+  "license": "MIT"
+}

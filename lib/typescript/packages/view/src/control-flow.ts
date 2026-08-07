@@ -39,7 +39,7 @@ const COMPONENT_TYPES = {
  * 
  * @example
  * ```typescript
- * const visible = new Signal(true);
+ * const visible = signal(true);
  * 
  * VStack(
  *   If(visible, () => Text("Show when visible")),
@@ -76,7 +76,7 @@ export type ForRenderFn<T> = (item: T, index: number, array: T[]) => ViewNode;
  * 
  * @example
  * ```typescript
- * const items = new Signal(["A", "B", "C"]);
+ * const items = signal(["A", "B", "C"]);
  * 
  * VStack(
  *   For(items, (item, index) => Text(`${index}: ${item}`))
@@ -86,7 +86,7 @@ export type ForRenderFn<T> = (item: T, index: number, array: T[]) => ViewNode;
  * @example
  * ```typescript
  * // With objects
- * const users = new Signal<User[]>([]);
+ * const users = signal<User[]>([]);
  * For(users, (user, i) => 
  *   HStack(
  *     Text(user.name),
@@ -262,7 +262,7 @@ export type SwitchCases = {
  * 
  * @example
  * ```typescript
- * const status = new Signal<"loading" | "error" | "success">("loading");
+ * const status = signal<"loading" | "error" | "success">("loading");
  * 
  * VStack(
  *   Switch(status, {

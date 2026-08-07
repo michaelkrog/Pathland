@@ -9,11 +9,17 @@
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/index.js"
+    },
+    "./worker-entry": {
+      "import": "./dist/worker/worker-entry.js",
+      "require": "./dist/worker/worker-entry.js"
     }
   },
   "files": ["dist"],
   "scripts": {
     "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prepublish": "npm run build"
   },
   "keywords": [
@@ -28,14 +34,18 @@
   "license": "MIT",
   "dependencies": {
     "@pathland/view": "^1.0.0",
+    "@pathland/renderer": "^1.0.0",
     "@pathland/renderer-dom": "^1.0.0",
     "@pathland/transport": "^1.0.0"
   },
   "devDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "vitest": "^1.6.1",
+    "jsdom": "^24.0.0"
   },
   "peerDependencies": {
     "@pathland/view": "^1.0.0",
+    "@pathland/renderer": "^1.0.0",
     "@pathland/renderer-dom": "^1.0.0",
     "@pathland/transport": "^1.0.0"
   }

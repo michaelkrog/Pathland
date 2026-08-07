@@ -135,7 +135,7 @@ The protocol supports a comprehensive event system with binary encoding. Event t
 
 For complete event specifications, see [EVENTS.md](./spec/events/EVENTS.md).
 
-**Note**: Event handling in the POC HTML renderer is not yet implemented - this is planned for a future phase.
+**Note**: The TypeScript `view` framework and `renderer-dom` implement basic event handling (e.g. `tapGesture`, which emits `REGISTER_EVENT_HANDLER`); the full event/gesture system from EVENTS.md is progressively being implemented.
 
 ## State Management
 

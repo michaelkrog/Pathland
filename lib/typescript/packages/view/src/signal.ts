@@ -83,7 +83,7 @@ interface SignalBinding<T> {
  * 
  * @example
  * ```typescript
- * const count = new Signal(0);
+ * const count = signal(0);
  * 
  * // Bind to a Text node's text property
  * Text(count.map(n => `Count: ${n}`)).bindSignal(count, 'text');
@@ -221,4 +221,31 @@ function defaultCompile(value: any): PropertyValue {
     return { type: 'u8', value: value ? 1 : 0 };
   }
   return { type: 'string', value: String(value) };
+}
+
+// ============================================
+// SIGNAL FACTORY FUNCTION
+// ============================================
+
+/**
+ * Factory function to create a new Signal.
+ * 
+ * This is the recommended way to create signals, providing a function-based API
+ * similar to Angular's signal() function.
+ * 
+ * @example
+ * ```typescript
+ * const count = signal(0);
+ * const name = signal('John');
+ * const isActive = signal(true);
+ * 
+ * // With type annotation
+ * const color = signal<ColorEnum>('Blue');
+ * ```
+ * 
+ * @param initialValue The initial value of the signal
+ * @returns A new Signal instance
+ */
+export function signal<T>(initialValue: T): Signal<T> {
+  return new Signal<T>(initialValue);
 }

@@ -5,7 +5,7 @@
  * Run with: npx tsx src/control-flow.test.ts
  */
 
-import { If, For, Switch, Signal, commandQueue, initialRender, resetNodeIdCounter } from './index';
+import { If, For, Switch, signal, commandQueue, initialRender, resetNodeIdCounter } from './index';
 import { VStack, Text } from './components';
 
 // ============================================
@@ -101,7 +101,7 @@ suite.add('If: should not render content when condition is initially false', () 
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const condition = new Signal(false);
+  const condition = signal(false);
   const root = VStack(
     If(condition, () => Text("Conditional"))
   );
@@ -123,7 +123,7 @@ suite.add('If: should render content when condition is initially true', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const condition = new Signal(true);
+  const condition = signal(true);
   const root = VStack(
     If(condition, () => Text("Conditional"))
   );
@@ -150,7 +150,7 @@ suite.add('If: should remove content when condition changes from true to false',
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const condition = new Signal(true);
+  const condition = signal(true);
   const root = VStack(
     If(condition, () => Text("Conditional"))
   );
@@ -173,7 +173,7 @@ suite.add('If: should recreate content when condition changes from false to true
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const condition = new Signal(false);
+  const condition = signal(false);
   const root = VStack(
     If(condition, () => Text("Conditional"))
   );
@@ -224,7 +224,7 @@ suite.add('For: should render all items in array', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const items = new Signal(['A', 'B', 'C']);
+  const items = signal(['A', 'B', 'C']);
   const root = VStack(
     For(items, (item) => Text(item))
   );
@@ -244,7 +244,7 @@ suite.add('For: should render nothing for empty array', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const items = new Signal<string[]>([]);
+  const items = signal<string[]>([]);
   const root = VStack(
     For(items, (item) => Text(item))
   );
@@ -265,7 +265,7 @@ suite.add('For: should handle array changes by recreating nodes', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const items = new Signal(['A', 'B']);
+  const items = signal(['A', 'B']);
   const root = VStack(
     For(items, (item) => Text(item))
   );
@@ -315,7 +315,7 @@ suite.add('Switch: should render matching case', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const status = new Signal('loading');
+  const status = signal('loading');
   const root = VStack(
     Switch(status, {
       loading: () => Text("Loading..."),
@@ -339,7 +339,7 @@ suite.add('Switch: should render default case with _ key', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const status = new Signal('unknown');
+  const status = signal('unknown');
   const root = VStack(
     Switch(status, {
       loading: () => Text("Loading..."),
@@ -362,7 +362,7 @@ suite.add('Switch: should render default case with default key', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const status = new Signal('unknown');
+  const status = signal('unknown');
   const root = VStack(
     Switch(status, {
       loading: () => Text("Loading..."),
@@ -385,7 +385,7 @@ suite.add('Switch: should update when signal changes', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const status = new Signal('loading');
+  const status = signal('loading');
   const root = VStack(
     Switch(status, {
       loading: () => Text("Loading..."),
@@ -415,7 +415,7 @@ suite.add('Switch: should handle numeric values', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const count = new Signal(0);
+  const count = signal(0);
   const root = VStack(
     Switch(count, {
       0: () => Text("Zero"),
@@ -443,8 +443,8 @@ suite.add('Integration: nested control flow', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const showDetails = new Signal(true);
-  const items = new Signal(['A', 'B']);
+  const showDetails = signal(true);
+  const items = signal(['A', 'B']);
   
   const root = VStack(
     If(showDetails, () =>
@@ -467,8 +467,8 @@ suite.add('Integration: multiple control flows in same container', () => {
   const transport = new MockTransport();
   commandQueue.setTransport(transport);
   
-  const cond1 = new Signal(true);
-  const cond2 = new Signal(false);
+  const cond1 = signal(true);
+  const cond2 = signal(false);
   
   const root = VStack(
     If(cond1, () => Text("First")),
@@ -484,6 +484,120 @@ suite.add('Integration: multiple control flows in same container', () => {
   
   assert(textNodes.length === 2, 
     `Expected exactly 2 Text nodes (First and Third), got ${textNodes.length}`);
+});
+
+// ============================================
+// SWITCH TESTS
+// ============================================
+
+suite.add('Switch - initial render with loading state', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+  
+  // Test that Switch initial render shows the correct case
+  const status = signal<'loading' | 'error' | 'success'>('loading');
+  
+  const root = VStack(
+    Switch(status, {
+      loading: () => Text('Loading...').color('blue'),
+      error: () => Text('Error!').color('red'),
+      success: () => Text('Success!').color('green')
+    })
+  );
+  
+  initialRender(root, transport);
+  
+  const commands = transport.getCommands();
+  
+  // Should have CREATE_NODE for VStack
+  const vstackNodes = commands.filter(c => c.opcode === 'CREATE_NODE' && c.componentType === 0x0002);
+  assert(vstackNodes.length >= 1, `Expected at least 1 VStack node, got ${vstackNodes.length}`);
+  
+  // Should have CREATE_NODE for Text with "Loading..."
+  const textNodes = commands.filter(c => c.opcode === 'CREATE_NODE' && c.componentType === 0x0003);
+  assert(textNodes.length >= 1, `Expected at least 1 Text node, got ${textNodes.length}`);
+  
+  // Should have INSERT_CHILD commands connecting the Text to the VStack
+  const insertCommands = commands.filter(c => c.opcode === 'INSERT_CHILD');
+  assert(insertCommands.length >= 1, `Expected at least 1 INSERT_CHILD command, got ${insertCommands.length}`);
+  
+  // Verify the Text node has the correct text via SET_PROPERTY
+  const setPropertyCommands = commands.filter(c => c.opcode === 'SET_PROPERTY');
+  const textPropertyCommands = setPropertyCommands.filter(
+    (c: any) => c.propertyId === 0x000A && c.value && c.value.value === 'Loading...'
+  );
+  assert(textPropertyCommands.length >= 1, 
+    `Expected at least 1 SET_PROPERTY with text 'Loading...', got ${textPropertyCommands.length}`);
+});
+
+suite.add('Switch - initial render with error state', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+  
+  const status = signal<'loading' | 'error' | 'success'>('error');
+  
+  const root = VStack(
+    Switch(status, {
+      loading: () => Text('Loading...'),
+      error: () => Text('Error occurred!'),
+      success: () => Text('Success!')
+    })
+  );
+  
+  initialRender(root, transport);
+  
+  const commands = transport.getCommands();
+  const setPropertyCommands = commands.filter((c: any) => c.opcode === 'SET_PROPERTY');
+  const errorTextCommands = setPropertyCommands.filter(
+    (c: any) => c.propertyId === 0x000A && c.value && c.value.value === 'Error occurred!'
+  );
+  assert(errorTextCommands.length >= 1, 
+    `Expected at least 1 SET_PROPERTY with text 'Error occurred!', got ${errorTextCommands.length}`);
+});
+
+suite.add('Switch - value change updates rendered content', () => {
+  resetTestState();
+  const transport = new MockTransport();
+  commandQueue.setTransport(transport);
+  
+  const status = signal<'loading' | 'error'>('loading');
+  
+  const root = VStack(
+    Switch(status, {
+      loading: () => Text('Loading...'),
+      error: () => Text('Error!')
+    })
+  );
+  
+  initialRender(root, transport);
+  
+  // Change from loading to error
+  status.set('error');
+  
+  // Need to flush the command queue
+  // In real usage, this would be done by the microtask queue
+  // For testing, we need to manually flush
+  commandQueue.flush();
+  
+  const commands = transport.getCommands();
+  
+  // Should have DELETE_NODE for the Loading... text
+  const deleteCommands = commands.filter(c => c.opcode === 'DELETE_NODE');
+  assert(deleteCommands.length >= 1, `Expected at least 1 DELETE_NODE command, got ${deleteCommands.length}`);
+  
+  // Should have CREATE_NODE for the Error! text
+  const textNodes = commands.filter(c => c.opcode === 'CREATE_NODE' && c.componentType === 0x0003);
+  assert(textNodes.length >= 2, `Expected at least 2 Text nodes (initial + update), got ${textNodes.length}`);
+  
+  // Should have SET_PROPERTY for Error! text
+  const setPropertyCommands = commands.filter((c: any) => c.opcode === 'SET_PROPERTY');
+  const errorTextCommands = setPropertyCommands.filter(
+    (c: any) => c.propertyId === 0x000A && c.value && c.value.value === 'Error!'
+  );
+  assert(errorTextCommands.length >= 1, 
+    `Expected at least 1 SET_PROPERTY with text 'Error!', got ${errorTextCommands.length}`);
 });
 
 // ============================================

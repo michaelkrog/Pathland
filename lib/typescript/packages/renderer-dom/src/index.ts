@@ -7,7 +7,34 @@
  */
 
 import type { Command, PropertyValue } from '@pathland/protocol';
-import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, decodeMessage } from '@pathland/protocol';
+import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, SemanticColorToken, decodeMessage } from '@pathland/protocol';
+import type { Renderer } from '@pathland/renderer';
+
+// ============================================
+// LOGGING CONFIGURATION
+// ============================================
+
+/**
+ * Configuration options for the DOMRenderer.
+ */
+interface DOMRendererConfig {
+  /** Enable verbose command logging to console */
+  debug?: boolean;
+  /** Custom logger function (defaults to console.log) */
+  logger?: (message: string) => void;
+  /** 
+   * Container element to render into.
+   * If not provided, will look for <app-root> or use document.body.
+   * For JSDOM: can be a JSDOM Element or Document.
+   */
+  container?: DOMNode | DOMDocument;
+  /** 
+   * Document to use for rendering.
+   * Required when using JSDOM with a container element.
+   * When not provided, uses the global document (browser) or derived from container.
+   */
+  document?: DOMDocument;
+}
 
 // ============================================
 // TYPE DEFINITIONS
@@ -146,19 +173,21 @@ class RenderElement {
         break;
 
       // Style properties
-      case StyleProperty.BACKGROUND_COLOR:
-        if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
-          const rgba = value.type === 'u32' ? value.value : value.rgba;
-          (this.element as HTMLElement).style.backgroundColor = rgbaToCss(rgba);
+      case StyleProperty.BACKGROUND_COLOR: {
+        const bgRgba = resolveColor(value);
+        if (bgRgba !== null) {
+          (this.element as HTMLElement).style.backgroundColor = rgbaToCss(bgRgba);
         }
         break;
+      }
 
-      case StyleProperty.COLOR:
-        if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
-          const rgba = value.type === 'u32' ? value.value : value.rgba;
-          (this.element as HTMLElement).style.color = rgbaToCss(rgba);
+      case StyleProperty.COLOR: {
+        const fgRgba = resolveColor(value);
+        if (fgRgba !== null) {
+          (this.element as HTMLElement).style.color = rgbaToCss(fgRgba);
         }
         break;
+      }
 
       case StyleProperty.FONT_SIZE:
         if (value.type === 'f32') {
@@ -221,12 +250,13 @@ class RenderElement {
         }
         break;
 
-      case StyleProperty.BORDER_COLOR:
-        if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
-          const rgba = value.type === 'u32' ? value.value : value.rgba;
-          (this.element as HTMLElement).style.borderColor = rgbaToCss(rgba);
+      case StyleProperty.BORDER_COLOR: {
+        const borderRgba = resolveColor(value);
+        if (borderRgba !== null) {
+          (this.element as HTMLElement).style.borderColor = rgbaToCss(borderRgba);
         }
         break;
+      }
 
       case StyleProperty.BORDER_RADIUS:
         if (value.type === 'f32') {
@@ -341,34 +371,49 @@ class RenderElement {
  * Works with both browser DOM and JSDOM.
  * Maintains only nodeId -> RenderElement mapping for event routing.
  */
-export class DOMRenderer {
+export class DOMRenderer implements Renderer {
   private root: RenderElement;
   private elements: Map<number, RenderElement> = new Map();
   private container: DOMNode;
   private document: DOMDocument;
+  private config: DOMRendererConfig = {};
+  private logger: (message: string) => void;
+  private dispatchEvent: (nodeId: number, eventType: number) => void = () => {};
 
   /**
    * Create a new DOMRenderer.
-   * @param containerOrDocument The DOM node to render into, or a Document for JSDOM
-   * @param optionalDocument Optional document to use (for JSDOM when first param is a container element)
+   * @param config Configuration options including container and document
    */
-  constructor(containerOrDocument: DOMNode | DOMDocument = (typeof document !== 'undefined' ? document.body : undefined) as DOMNode | DOMDocument, optionalDocument?: DOMDocument) {
-    // Determine document and container from parameters
-    if (isDocument(containerOrDocument)) {
-      // First parameter is a document (JSDOM case)
-      this.document = containerOrDocument;
-      this.container = this.document.body as DOMNode;
-    } else if (isDOMNode(containerOrDocument)) {
-      // First parameter is a container node (element or comment)
-      this.container = containerOrDocument;
-      this.document = optionalDocument || (typeof document !== 'undefined' ? document : undefined) as DOMDocument;
+  constructor(config: DOMRendererConfig = {}) {
+    this.config = config;
+    this.logger = config.logger || console.log;
+    
+    // Determine document and container from config
+    if (config.container !== undefined) {
+      if (isDocument(config.container)) {
+        // Container is a document (JSDOM case)
+        this.document = config.container;
+        this.container = this.document.body as DOMNode;
+      } else if (isDOMNode(config.container)) {
+        // Container is a DOM node (element or comment)
+        this.container = config.container;
+        this.document = config.document || (typeof document !== 'undefined' ? document : undefined) as DOMDocument;
+      } else {
+        throw new Error('Invalid container provided.');
+      }
     } else {
-      // Fallback for default parameter
+      // No container provided - use default logic
       if (typeof document !== 'undefined') {
         this.document = document;
-        this.container = document.body;
+        // Look for <app-root> first, then fall back to document.body
+        const appRoot = document.querySelector('app-root');
+        this.container = (appRoot || document.body) as DOMNode;
+      } else if (config.document) {
+        // JSDOM case with document provided but no container
+        this.document = config.document;
+        this.container = this.document.body as DOMNode;
       } else {
-        throw new Error('No valid container or document provided and no global document available. For JSDOM, pass the document parameter or use DOMRenderer.createJSDOMRenderer().');
+        throw new Error('No container or document provided. For JSDOM, pass the document in config or use DOMRenderer.createJSDOMRenderer().');
       }
     }
     
@@ -409,7 +454,61 @@ export class DOMRenderer {
     this.executeCommands(commands);
   }
 
+  /**
+   * Log a command in human-readable format.
+   * Only logs if debug mode is enabled.
+   */
+  private logCommand(command: Command): void {
+    if (this.config.debug) {
+      this.logger(`[Pathland] ${formatCommand(command)}`);
+    }
+  }
+
+  /**
+   * Set debug mode on/off.
+   * @param enabled Whether to enable debug logging
+   */
+  setDebug(enabled: boolean): void {
+    this.config.debug = enabled;
+  }
+
+  /**
+   * Set a custom logger function.
+   * @param logger Function to use for logging
+   */
+  setLogger(logger: (message: string) => void): void {
+    this.logger = logger;
+  }
+
+  /**
+   * Set up event handling for this renderer.
+   * Sets up DOM event listeners and calls dispatchEvent when events occur.
+   * 
+   * @param dispatchEvent Callback: (nodeId, eventType) => void
+   */
+  setupEvents(dispatchEvent: (nodeId: number, eventType: number) => void): void {
+    this.dispatchEvent = dispatchEvent;
+    
+    // Set up event delegation on the container for DOM events
+    if (isElement(this.container)) {
+      // Click events
+      this.container.addEventListener('click', (event: Event) => {
+        let target = event.target as HTMLElement;
+        while (target && !target.dataset.pathlandNodeId) {
+          target = target.parentElement as HTMLElement;
+        }
+        if (target?.dataset.pathlandNodeId) {
+          const nodeId = parseInt(target.dataset.pathlandNodeId, 10);
+          this.dispatchEvent(nodeId, 0x04); // EventType.CLICK
+        }
+      });
+    }
+  }
+
   private executeCommand(command: Command): void {
+    // Log command if debug mode is enabled
+    this.logCommand(command);
+    
     switch (command.opcode) {
       case 'CREATE_NODE':
         this.createNode(command);
@@ -574,11 +673,154 @@ export class DOMRenderer {
    * Create a new JSDOM renderer for server-side use.
    * This is a convenience factory for Node.js environments.
    */
-  static async createJSDOMRenderer(html?: string): Promise<DOMRenderer> {
+  static async createJSDOMRenderer(html?: string, config: DOMRendererConfig = {}): Promise<DOMRenderer> {
     // Dynamic import for ESM compatibility
     const { JSDOM } = await import('jsdom');
     const dom = new JSDOM(html || '<!DOCTYPE html><html><body></body></html>');
-    return new DOMRenderer(dom.window.document.body as unknown as Element, dom.window.document);
+    return new DOMRenderer({ 
+      ...config, 
+      document: dom.window.document,
+      container: dom.window.document.body as unknown as DOMNode
+    });
+  }
+}
+
+// ============================================
+// COMMAND LOGGING
+// ============================================
+
+/**
+ * Maps opcode to human-readable string.
+ */
+const OPCODE_NAMES: Record<string, string> = {
+  'CREATE_NODE': 'CREATE_NODE',
+  'DELETE_NODE': 'DELETE_NODE',
+  'INSERT_CHILD': 'INSERT_CHILD',
+  'REMOVE_CHILD': 'REMOVE_CHILD',
+  'SET_PROPERTY': 'SET_PROPERTY',
+  'SET_DESIGN_TOKEN': 'SET_DESIGN_TOKEN',
+  'REGISTER_EVENT_HANDLER': 'REGISTER_EVENT_HANDLER'
+};
+
+/**
+ * Maps component type ID to human-readable string.
+ */
+const COMPONENT_TYPE_NAMES: Record<number, string> = {
+  [ComponentType.HSTACK]: 'HSTACK',
+  [ComponentType.VSTACK]: 'VSTACK',
+  [ComponentType.TEXT]: 'TEXT',
+  [ComponentType.BUTTON]: 'BUTTON',
+  [ComponentType.SPACER]: 'SPACER',
+  [ComponentType.IMAGE]: 'IMAGE',
+  [ComponentType.SCROLLVIEW]: 'SCROLLVIEW',
+  [ComponentType.LIST]: 'LIST',
+  [ComponentType.GRID]: 'GRID',
+  [ComponentType.SWITCH]: 'SWITCH',
+  [ComponentType.TEXT_FIELD]: 'TEXT_FIELD',
+  [ComponentType.COMMENT]: 'COMMENT'
+};
+
+/**
+ * Maps property ID to human-readable string.
+ */
+const PROPERTY_NAMES: Record<number, string> = {
+  // Stack properties
+  [StackProperty.SPACING]: 'SPACING',
+  [StackProperty.ALIGNMENT]: 'ALIGNMENT',
+  [StackProperty.JUSTIFICATION]: 'JUSTIFICATION',
+  [StackProperty.PADDING]: 'PADDING',
+  
+  // Text properties
+  [TextProperty.TEXT]: 'TEXT',
+  [TextProperty.TEXT_ALIGNMENT]: 'TEXT_ALIGNMENT',
+  [TextProperty.LINE_LIMIT]: 'LINE_LIMIT',
+  
+  // Style properties
+  [StyleProperty.COLOR]: 'COLOR',
+  [StyleProperty.BACKGROUND_COLOR]: 'BACKGROUND_COLOR',
+  [StyleProperty.FONT_SIZE]: 'FONT_SIZE',
+  [StyleProperty.FONT_WEIGHT]: 'FONT_WEIGHT',
+  [StyleProperty.FONT_FAMILY]: 'FONT_FAMILY',
+  [StyleProperty.WIDTH]: 'WIDTH',
+  [StyleProperty.HEIGHT]: 'HEIGHT',
+  [StyleProperty.OPACITY]: 'OPACITY',
+  [StyleProperty.VISIBLE]: 'VISIBLE',
+  [StyleProperty.BORDER_WIDTH]: 'BORDER_WIDTH',
+  [StyleProperty.BORDER_COLOR]: 'BORDER_COLOR',
+  [StyleProperty.BORDER_RADIUS]: 'BORDER_RADIUS',
+  [StyleProperty.PADDING]: 'PADDING'
+};
+
+/**
+ * Format a property value for logging.
+ */
+function formatPropertyValue(value: any): string {
+  if (!value) {
+    return 'undefined';
+  }
+  
+  if (value.type === 'string') {
+    return `"${value.value}"`;
+  }
+  if (value.type === 'u8' || value.type === 'u16' || value.type === 'u32' || value.type === 'i32') {
+    return String(value.value);
+  }
+  if (value.type === 'f32') {
+    return value.value.toFixed(2);
+  }
+  if (value.type === 'color') {
+    if (value.kind === 'semantic') {
+      return `semantic(${value.tokenId})`;
+    }
+    if (value.kind === 'literal') {
+      return `0x${value.rgba.toString(16).padStart(8, '0').toUpperCase()}`;
+    }
+  }
+  if (value.type === 'enum') {
+    return `enum(${value.value})`;
+  }
+  if (value.type === 'bool') {
+    return value.value ? 'true' : 'false';
+  }
+  if (value.type === 'designToken') {
+    return `designToken(${value.path})`;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Format a command for human-readable logging.
+ */
+function formatCommand(command: Command): string {
+  const opcodeName = OPCODE_NAMES[command.opcode] || command.opcode;
+  
+  switch (command.opcode) {
+    case 'CREATE_NODE':
+      const componentName = COMPONENT_TYPE_NAMES[command.componentType] || command.componentType;
+      return `[${opcodeName}] nodeId=${command.nodeId}, componentType=${componentName}`;
+    
+    case 'DELETE_NODE':
+      return `[${opcodeName}] nodeId=${command.nodeId}`;
+    
+    case 'INSERT_CHILD':
+      return `[${opcodeName}] parentId=${command.parentId}, childId=${command.childId}, index=${command.index}`;
+    
+    case 'REMOVE_CHILD':
+      return `[${opcodeName}] parentId=${command.parentId}, childId=${command.childId}`;
+    
+    case 'SET_PROPERTY':
+      const propertyName = PROPERTY_NAMES[command.propertyId] || command.propertyId;
+      return `[${opcodeName}] nodeId=${command.nodeId}, property=${propertyName}, value=${formatPropertyValue(command.value)}`;
+    
+    case 'SET_DESIGN_TOKEN':
+      const setTokenCmd = command as any;
+      return `[${opcodeName}] tokenPath="${setTokenCmd.tokenPath}", value=${formatPropertyValue(setTokenCmd.value)}`;
+    
+    case 'REGISTER_EVENT_HANDLER':
+      return `[${opcodeName}] nodeId=${command.nodeId}, eventType=${command.eventType}, handlerId=${command.handlerId}`;
+    
+    default:
+      return `[${opcodeName}] ${JSON.stringify(command)}`;
   }
 }
 
@@ -592,6 +834,47 @@ function rgbaToCss(rgba: number): string {
   const b = (rgba >>> 8) & 0xFF;
   const a = rgba & 0xFF;
   return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+}
+
+// ============================================
+// DEFAULT THEME
+// ============================================
+
+/**
+ * Default resolution of semantic color tokens to concrete sRGB values.
+ * The renderer owns the default theme; applications may override tokens
+ * via SET_DESIGN_TOKEN (which the renderer can apply on top of these).
+ */
+const DEFAULT_SEMANTIC_COLORS: Record<number, number> = {
+  [SemanticColorToken.PRIMARY_TEXT]: 0xFF1C1C1E,
+  [SemanticColorToken.SECONDARY_TEXT]: 0xFF6E6E73,
+  [SemanticColorToken.TERTIARY_TEXT]: 0xFF8E8E93,
+  [SemanticColorToken.BACKGROUND]: 0xFFFFFFFF,
+  [SemanticColorToken.SURFACE]: 0xFFF2F2F7,
+  [SemanticColorToken.ACCENT]: 0xFF007AFF,
+  [SemanticColorToken.ERROR]: 0xFFFF3B30,
+  [SemanticColorToken.SUCCESS]: 0xFF34C759,
+  [SemanticColorToken.WARNING]: 0xFFFF9500,
+  [SemanticColorToken.INFO]: 0xFF0A84FF,
+  [SemanticColorToken.BORDER]: 0xFFC7C7CC,
+  [SemanticColorToken.SEPARATOR]: 0xFFD1D1D6,
+};
+
+/**
+ * Resolve a PropertyValue to a concrete sRGB rgba value, or null if it
+ * cannot be resolved (unknown semantic token, unresolved design token, etc.).
+ */
+function resolveColor(value: PropertyValue): number | null {
+  if (value.type === 'color' && value.kind === 'literal') {
+    return value.rgba;
+  }
+  if (value.type === 'color' && value.kind === 'semantic') {
+    return DEFAULT_SEMANTIC_COLORS[value.tokenId] ?? null;
+  }
+  if (value.type === 'u32') {
+    return value.value;
+  }
+  return null;
 }
 
 function enumToAlignItems(value: number): string {
@@ -616,5 +899,5 @@ function enumToJustifyContent(value: number): string {
   return mapping[value] || 'flex-start';
 }
 
-export type { RenderElement };
+export type { RenderElement, DOMRendererConfig, Renderer };
 export { DOMRenderer as default };

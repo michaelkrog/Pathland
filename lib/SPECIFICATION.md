@@ -8,6 +8,19 @@ The Pathland TypeScript implementation is organized as a **monorepo** with multi
 
 **Key Principle**: The library as a whole covers protocol, rendering, and transportation concerns, but these are **strictly divided into separate packages** with clear boundaries.
 
+## Core Requirements
+
+### Bundler Independence
+**The library MUST NOT depend on any specific bundler (Vite, Webpack, Rollup, etc.).**
+
+- All packages must use standard JavaScript/TypeScript features only
+- No bundler-specific globals (e.g., `__DEV__`, `import.meta.env`) 
+- No bundler-specific import syntax or conventions
+- No bundler-specific file naming conventions
+- Bundler configuration is the **application's responsibility**, not the library's
+
+**Rationale**: Pathland should work in any environment - browser with any bundler, Node.js, or even without a bundler. Bundler-specific concerns belong in the application or in separate adapter packages.
+
 ## Monorepo Structure
 
 ```
@@ -283,7 +296,7 @@ transport.send(commands);
 import { decodeMessage } from '@pathland/protocol';
 import { DOMRenderer } from '@pathland/renderer-dom';
 
-const renderer = new DOMRenderer(document.getElementById('app'));
+const renderer = new DOMRenderer({ container: document.getElementById('app') });
 
 // Receive binary message
 const message = decodeMessage(binaryBuffer);

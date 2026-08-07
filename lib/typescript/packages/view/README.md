@@ -296,7 +296,7 @@ This architecture provides:
 // main.ts (main thread - renderer)
 import { DOMRenderer } from '@pathland/renderer-dom';
 
-const renderer = new DOMRenderer(document.getElementById('app'));
+const renderer = new DOMRenderer({ container: document.getElementById('app') });
 const transport = {
   send: (commands) => renderer.executeCommands(commands)
 };

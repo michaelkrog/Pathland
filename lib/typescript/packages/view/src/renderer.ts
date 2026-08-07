@@ -29,31 +29,45 @@ function mapType(type: string): number {
 
 function compileColor(color: string | number): PropertyValue {
   if (typeof color === 'number') {
-    return { type: 'u32', value: color };
+    return { type: 'color', kind: 'literal', rgba: color };
   }
-  
+
+  const normalizedColor = color.toLowerCase();
+
+  // Semantic color tokens, matching spec/BINARY_PROTOCOL.md semantic token table.
   const tokens: Record<string, number> = {
     'primary': 0x0001,
     'secondary': 0x0002,
-    'background': 0x0004,
-    'surface': 0x0005,
     'text': 0x0001,
     'textsecondary': 0x0002,
-    'accent': 0x0003,
-    'error': 0x0006,
-    'warning': 0x0007,
+    'background': 0x0004,
+    'surface': 0x0005,
+    'accent': 0x0006,
+    'error': 0x0007,
+    'warning': 0x0009,
     'success': 0x0008,
-    'red': 0x0006,
-    'blue': 0x0003,
-    'green': 0x0008,
+    'info': 0x000A,
+  };
+
+  if (tokens[normalizedColor] !== undefined) {
+    return { type: 'color', kind: 'semantic', tokenId: tokens[normalizedColor] };
+  }
+
+  // Named literal colors (no semantic token exists for these).
+  const literals: Record<string, number> = {
     'white': 0xFFFFFFFF,
     'black': 0xFF000000,
     'transparent': 0x00000000,
+    'red': 0xFFFF0000,
+    'green': 0xFF00FF00,
+    'blue': 0xFF0000FF,
   };
-  
-  const normalizedColor = color.toLowerCase();
-  const tokenId = tokens[normalizedColor] ?? 0x0004;
-  return { type: 'color', kind: 'semantic', tokenId };
+
+  if (literals[normalizedColor] !== undefined) {
+    return { type: 'color', kind: 'literal', rgba: literals[normalizedColor] };
+  }
+
+  return { type: 'color', kind: 'semantic', tokenId: 0x0004 };
 }
 
 function mapGestureKind(kind: string): number {
@@ -332,7 +346,13 @@ function compileNode(node: ViewNode, parentId?: number, index?: number): Interna
         const childCommands = compileNode(initialNode, parentId, index ?? 0);
         commands.push(...childCommands);
         
-        // INSERT_CHILD is already added by compileNode
+        // Also add INSERT_CHILD command since compileNode doesn't do it for conditional content
+        commands.push({
+          opcode: 'INSERT_CHILD',
+          parentId: parentId,
+          childId: initialNode.nodeId,
+          index: index ?? 0
+        });
       }
     }
     
@@ -375,7 +395,7 @@ function compileNode(node: ViewNode, parentId?: number, index?: number): Interna
     commands.push(...compileNode(child, node.nodeId, i));
     
     // Only add INSERT_CHILD for non-conditional children
-    if (child.type !== 'if') {
+    if (child.type !== 'if' && child.type !== 'for' && child.type !== 'switch') {
       commands.push({
         opcode: 'INSERT_CHILD',
         parentId: node.nodeId,
