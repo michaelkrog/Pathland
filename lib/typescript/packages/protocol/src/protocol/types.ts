@@ -38,6 +38,17 @@ export type RemoveChildCommand = {
   childId: number;
 };
 
+export type MoveChildCommand = {
+  opcode: 'MOVE_CHILD';
+  parentId: number;
+  childId: number;
+  index: number;
+};
+
+export type ResetCommand = {
+  opcode: 'RESET';
+};
+
 export type SetPropertyCommand = {
   opcode: 'SET_PROPERTY';
   nodeId: number;
@@ -68,11 +79,15 @@ export type DispatchEventCommand = {
 export type SetEnvironmentCommand = {
   opcode: 'SET_ENVIRONMENT';
   fields: Map<number, PropertyValue>;
+  /** Echo of the REQUEST_ENVIRONMENT requestId, or 0 for a proactive message. */
+  requestId?: number;
 };
 
 export type UpdateEnvironmentCommand = {
   opcode: 'UPDATE_ENVIRONMENT';
   fields: Map<number, PropertyValue>;
+  /** Echo of the REQUEST_ENVIRONMENT requestId, or 0 for a proactive message. */
+  requestId?: number;
 };
 
 export type RequestEnvironmentCommand = {
@@ -86,6 +101,8 @@ export type Command =
   | DeleteNodeCommand
   | InsertChildCommand
   | RemoveChildCommand
+  | MoveChildCommand
+  | ResetCommand
   | SetPropertyCommand
   | SetDesignTokenCommand
   | RegisterEventHandlerCommand

@@ -103,3 +103,87 @@ describe('DOMRenderer event dispatch', () => {
     expect(dispatched).toContainEqual([1, EventType.KEY_UP]);
   });
 });
+
+describe('DOMRenderer tree mutation', () => {
+  let renderer: DOMRenderer;
+  let document: Document;
+
+  const build = async (commands: Command[]): Promise<DOMRenderer> => {
+    const r = await DOMRenderer.createJSDOMRenderer();
+    r.executeCommands(commands);
+    return r;
+  };
+
+  const stackCommands: Command[] = [
+    { opcode: 'CREATE_NODE', nodeId: 1, componentType: ComponentType.VSTACK, properties: new Map() },
+    { opcode: 'CREATE_NODE', nodeId: 2, componentType: ComponentType.TEXT, properties: new Map([[TextProperty.TEXT, { type: 'string', value: 'A' }]]) },
+    { opcode: 'CREATE_NODE', nodeId: 3, componentType: ComponentType.TEXT, properties: new Map([[TextProperty.TEXT, { type: 'string', value: 'B' }]]) },
+    { opcode: 'CREATE_NODE', nodeId: 4, componentType: ComponentType.TEXT, properties: new Map([[TextProperty.TEXT, { type: 'string', value: 'C' }]]) },
+    { opcode: 'INSERT_CHILD', parentId: 1, childId: 2, index: 0 },
+    { opcode: 'INSERT_CHILD', parentId: 1, childId: 3, index: 1 },
+    { opcode: 'INSERT_CHILD', parentId: 1, childId: 4, index: 2 },
+  ];
+
+  it('MOVE_CHILD reorders children within a parent', async () => {
+    renderer = await build(stackCommands);
+    const stack = renderer.getDOMElement(1) as HTMLElement;
+
+    expect(Array.from(stack.children)).toEqual([
+      renderer.getDOMElement(2),
+      renderer.getDOMElement(3),
+      renderer.getDOMElement(4),
+    ]);
+
+    renderer.executeCommands([{ opcode: 'MOVE_CHILD', parentId: 1, childId: 4, index: 0 }]);
+
+    expect(Array.from(stack.children)).toEqual([
+      renderer.getDOMElement(4),
+      renderer.getDOMElement(2),
+      renderer.getDOMElement(3),
+    ]);
+  });
+
+  it('MOVE_CHILD appends when the index is out of range', async () => {
+    renderer = await build(stackCommands);
+    const stack = renderer.getDOMElement(1) as HTMLElement;
+
+    renderer.executeCommands([{ opcode: 'MOVE_CHILD', parentId: 1, childId: 2, index: 99 }]);
+
+    expect(Array.from(stack.children)).toEqual([
+      renderer.getDOMElement(3),
+      renderer.getDOMElement(4),
+      renderer.getDOMElement(2),
+    ]);
+  });
+
+  it('RESET clears all rendered output except the root', async () => {
+    renderer = await build(stackCommands);
+    expect(renderer.getDOMElement(2)).toBeDefined();
+
+    renderer.executeCommands([{ opcode: 'RESET' }]);
+
+    expect(renderer.getDOMElement(2)).toBeUndefined();
+    expect(renderer.getDOMElement(4)).toBeUndefined();
+    expect(renderer.getDOMElement(0)).toBeDefined();
+  });
+
+  it('applies per-edge padding properties', async () => {
+    renderer = await build([
+      { opcode: 'CREATE_NODE', nodeId: 1, componentType: ComponentType.TEXT, properties: new Map() },
+      { opcode: 'INSERT_CHILD', parentId: 0, childId: 1, index: 0 },
+    ]);
+    const el = renderer.getDOMElement(1) as HTMLElement;
+
+    renderer.executeCommands([
+      { opcode: 'SET_PROPERTY', nodeId: 1, propertyId: 0x1012, value: { type: 'f32', value: 8 } }, // TOP
+      { opcode: 'SET_PROPERTY', nodeId: 1, propertyId: 0x1013, value: { type: 'f32', value: 16 } }, // RIGHT
+      { opcode: 'SET_PROPERTY', nodeId: 1, propertyId: 0x1014, value: { type: 'f32', value: 24 } }, // BOTTOM
+      { opcode: 'SET_PROPERTY', nodeId: 1, propertyId: 0x1015, value: { type: 'f32', value: 32 } }, // LEFT
+    ]);
+
+    expect(el.style.paddingTop).toBe('8px');
+    expect(el.style.paddingRight).toBe('16px');
+    expect(el.style.paddingBottom).toBe('24px');
+    expect(el.style.paddingLeft).toBe('32px');
+  });
+});

@@ -144,6 +144,24 @@ Message (3 instructions):
 01 00 03 00 00 00 01 07 00 01 00 00 00 02 00 00 01 13 00 02 00 00 00 03 00 01 0a 00 05 05 00 00 00 48 65 6c 6c 6f 03 0c 00 01 00 00 00 02 00 00 00 00 00 00 00
 ```
 
+### 11. MOVE_CHILD
+
+Command: `MOVE_CHILD { parentId: 1, childId: 4, newIndex: 0 }`
+
+Message:
+```
+01 00 01 00 00 00 0c 0c 00 01 00 00 00 04 00 00 00 00 00 00 00
+```
+
+### 12. RESET
+
+Command: `RESET`
+
+Message:
+```
+01 00 01 00 00 00 0d 00 00
+```
+
 ## Not covered by fixed vectors
 
 Event encodings that carry a **timestamp** (e.g., `DISPATCH_EVENT`, `GESTURE_UPDATE`) are intentionally not given fixed vectors: the timestamp bytes are non-deterministic. Their field layout is defined in [BINARY_PROTOCOL.md - Event System](./BINARY_PROTOCOL.md#event-system) and [Gesture System](./BINARY_PROTOCOL.md#gesture-system).

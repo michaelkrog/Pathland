@@ -292,6 +292,31 @@ class RenderElement {
           (this.element as HTMLElement).style.padding = `${value.value}px`;
         }
         break;
+
+      // Per-edge padding (EdgeInsets)
+      case StyleProperty.PADDING_TOP:
+        if (value.type === 'f32') {
+          (this.element as HTMLElement).style.paddingTop = `${value.value}px`;
+        }
+        break;
+
+      case StyleProperty.PADDING_RIGHT:
+        if (value.type === 'f32') {
+          (this.element as HTMLElement).style.paddingRight = `${value.value}px`;
+        }
+        break;
+
+      case StyleProperty.PADDING_BOTTOM:
+        if (value.type === 'f32') {
+          (this.element as HTMLElement).style.paddingBottom = `${value.value}px`;
+        }
+        break;
+
+      case StyleProperty.PADDING_LEFT:
+        if (value.type === 'f32') {
+          (this.element as HTMLElement).style.paddingLeft = `${value.value}px`;
+        }
+        break;
     }
   }
 
@@ -614,6 +639,12 @@ export class DOMRenderer implements Renderer {
       case 'REMOVE_CHILD':
         this.removeChild(command);
         break;
+      case 'MOVE_CHILD':
+        this.moveChild(command);
+        break;
+      case 'RESET':
+        this.clear();
+        break;
       case 'SET_PROPERTY':
         this.setProperty(command);
         break;
@@ -674,6 +705,29 @@ export class DOMRenderer implements Renderer {
     }
 
     parent.removeChild(child);
+  }
+
+  private moveChild(command: Extract<Command, { opcode: 'MOVE_CHILD' }>): void {
+    const parent = this.elements.get(command.parentId);
+    const child = this.elements.get(command.childId);
+
+    if (!parent) {
+      console.warn(`Cannot move child: parent ${command.parentId} not found`);
+      return;
+    }
+    if (!child) {
+      console.warn(`Cannot move child: child ${command.childId} not found`);
+      return;
+    }
+    if (child.parent !== parent) {
+      console.warn(`Cannot move child: child ${command.childId} is not a child of ${command.parentId}`);
+      return;
+    }
+
+    // Remove, then re-insert at the target index (index is relative to the
+    // list after removal).
+    parent.removeChild(child);
+    parent.insertChild(child, command.index);
   }
 
   private setProperty(command: Extract<Command, { opcode: 'SET_PROPERTY' }>): void {
@@ -744,10 +798,11 @@ export class DOMRenderer implements Renderer {
    * Clear all elements.
    */
   clear(): void {
-    for (const [nodeId, element] of this.elements) {
-      if (nodeId !== 0) {
-        element.remove();
-      }
+    // Remove the root's direct children (their subtrees are detached with
+    // them). Iterating the whole map and removing each element would double-
+    // remove descendants already detached by their ancestors.
+    for (const child of [...this.root.children]) {
+      this.root.removeChild(child);
     }
     this.elements.clear();
     this.root = new RenderElement(0, 0, this.document, this.container);

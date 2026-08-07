@@ -162,8 +162,14 @@ export class ViewNode {
   }
 
   // Chainable modifier methods
-  padding(value: number): ViewNode {
-    return this.withModifier({ kind: 'padding', value });
+  padding(value: number): ViewNode;
+  padding(top: number, right: number, bottom: number, left: number): ViewNode;
+  padding(a: number, b?: number, c?: number, d?: number): ViewNode {
+    if (b !== undefined && c !== undefined && d !== undefined) {
+      // Per-edge padding (EdgeInsets).
+      return this.withModifier({ kind: 'paddingInsets', top: a, right: b, bottom: c, left: d });
+    }
+    return this.withModifier({ kind: 'padding', value: a });
   }
 
   background(color: string | number): ViewNode {

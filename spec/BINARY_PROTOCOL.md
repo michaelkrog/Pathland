@@ -140,12 +140,14 @@ The `payloadLength` counts only the payload bytes — not the opcode byte or the
 | 9 | 0x09 | `GESTURE_UPDATE` | Dispatch a gesture state update |
 | 10 | 0x0A | `ATTACH_GESTURE` | Attach a gesture recognizer to a component |
 | 11 | 0x0B | `COMBINE_GESTURES` | Combine two gestures |
+| 12 | 0x0C | `MOVE_CHILD` | Move an existing child to a new index within its parent |
+| 13 | 0x0D | `RESET` | Clear all rendered output (re-sync) |
 
 ### Reserved Opcodes
 
 | Range | Purpose |
 |-------|---------|
-| 0x0C-0x7F | Future opcodes |
+| 0x0E-0x7F | Future opcodes |
 | 0x80-0xFF | Custom/extended opcodes |
 
 Implementations SHOULD ignore unknown opcodes to maintain forward compatibility.
@@ -659,6 +661,15 @@ Breakdown:
 
 ### Event Payload Details
 
+#### Coordinate Space
+
+All event and gesture coordinates (`x`, `y`, `startX`, `startY`, `locationX`, `locationY`) are expressed in **logical points** relative to the **top-left corner of the viewport** (the renderer's output surface), not relative to the target component. Logical points are device-independent: divide raw device pixels by the device pixel ratio (see `DEVICE_PIXEL_RATIO` in the Environment Context Protocol). Derived values:
+
+- `translationX` / `translationY`: current position minus the position at gesture start (in logical points).
+- `velocity*`: logical points per second.
+
+This gives a single, consistent coordinate system across all platforms and display densities.
+
 #### ON_CHANGE Event
 Dispatched when a property value changes on a component.
 
@@ -899,6 +910,59 @@ Breakdown:
 - `01 00 00 00` - firstGestureId = 1 (pinch)
 - `02 00 00 00` - secondGestureId = 2 (rotate)
 - `03 00 00 00` - combinedGestureId = 3
+
+---
+
+### 12. MOVE_CHILD (0x0C)
+
+Moves an existing child to a new index within its parent. This reorders children without recreating the node (or its subtree), which is more efficient than DELETE_NODE + INSERT_CHILD for list reorders.
+
+**Payload:**
+```
+[u32 parentId][u32 childId][u32 newIndex]
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `parentId` | u32 | ID of the parent node |
+| `childId` | u32 | ID of the child to move (must already be a child of parentId) |
+| `newIndex` | u32 | Target index. Interpreted as: remove the child, then insert it at `newIndex` (use `UINT32_MAX` for append) |
+
+**Binary Layout:**
+```
+0C  Len(2B)  ParentID(4B)  ChildID(4B)  NewIndex(4B)
+```
+
+**Example:** Move node 4 to the front of node 1's children
+```
+0C 0C 00 01 00 00 00 04 00 00 00 00 00 00 00
+```
+Breakdown:
+- `0C` - MOVE_CHILD opcode
+- `0C 00` - payloadLength = 12
+- `01 00 00 00` - parentId = 1
+- `04 00 00 00` - childId = 4
+- `00 00 00 00` - newIndex = 0
+
+**Note on index semantics:** `newIndex` is relative to the parent's child list **after** the child has been removed. To move a child to the end, use `UINT32_MAX` (0xFFFFFFFF).
+
+---
+
+### 13. RESET (0x0D)
+
+Tells the renderer to clear its entire rendered-output tree (all nodes except the root container). The application follows with a full re-emission of the tree. This is the recovery mechanism when the renderer is suspected to be out of sync (e.g., a missed batch over a lossy transport, or after an application restart).
+
+**Payload:** None (payloadLength = 0)
+
+**Binary Layout:**
+```
+0D  Len(2B)=00 00
+```
+
+**Example:** Reset the renderer
+```
+0D 00 00
+```
 
 ---
 
@@ -1467,11 +1531,11 @@ SET_ENVIRONMENT Payload:
 │ u8: opcode = 0x20 (SET_ENVIRONMENT)                        │
 │ u16: payloadLength                                          │
 │ u8: fieldCount (N)                                           │
-│                                                             │
 │ For each of N fields:                                       │
 │   ├─ u8: fieldId                                             │
 │   ├─ u8: fieldSize                                           │
 │   └─ [fieldSize bytes]: fieldValue                          │
+│ u8: requestId (0 = proactive, else echoes REQUEST_ENVIRONMENT) │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -1506,11 +1570,11 @@ UPDATE_ENVIRONMENT Payload:
 │ u8: opcode = 0x21 (UPDATE_ENVIRONMENT)                      │
 │ u16: payloadLength                                          │
 │ u8: fieldCount (N)                                           │
-│                                                             │
 │ For each of N changed fields:                               │
 │   ├─ u8: fieldId                                             │
 │   ├─ u8: fieldSize                                           │
 │   └─ [fieldSize bytes]: fieldValue                          │
+│ u8: requestId (0 = proactive, else echoes REQUEST_ENVIRONMENT) │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -1559,7 +1623,7 @@ fieldCount: 2
 fieldIds: [0x01, 0x02]  // VIEWPORT_WIDTH_PX and VIEWPORT_HEIGHT_PX
 ```
 
-**Renderer Response:** The renderer responds with either `SET_ENVIRONMENT` or `UPDATE_ENVIRONMENT` (depending on whether it has sent environment before) containing the requested fields.
+**Renderer Response:** The renderer responds with either `SET_ENVIRONMENT` or `UPDATE_ENVIRONMENT` (depending on whether it has sent environment before) containing the requested fields, with the `requestId` field set to the `requestId` from the request so the application can correlate the response.
 
 ### Renderer Requirements
 
@@ -1803,6 +1867,12 @@ Style properties can be applied to any component. Properties that accept COLOR c
 | `visible` | 0x100E | U8 | Visibility (0 = hidden, 1 = visible) |
 | `zIndex` | 0x100F | F32 | Stacking order (higher values appear on top) |
 | `clipsToBounds` | 0x1010 | U8 | Clip content that overflows (0 = false, 1 = true) |
+| `paddingTop` | 0x1012 | F32 or DESIGN_TOKEN | Top padding (EdgeInsets) |
+| `paddingRight` | 0x1013 | F32 or DESIGN_TOKEN | Right padding (EdgeInsets) |
+| `paddingBottom` | 0x1014 | F32 or DESIGN_TOKEN | Bottom padding (EdgeInsets) |
+| `paddingLeft` | 0x1015 | F32 or DESIGN_TOKEN | Left padding (EdgeInsets) |
+
+**Per-edge padding**: `padding` (0x1006 / 0x0004) sets uniform padding. When only some edges need padding, set the individual `paddingTop/Right/Bottom/Left` properties (0x1012-0x1015) instead; they compose with (and take precedence over) the uniform value.
 
 ### Reserved Property IDs
 
@@ -1811,7 +1881,7 @@ Style properties can be applied to any component. Properties that accept COLOR c
 | 0x0000 | Reserved |
 | 0x0006-0x0009 | Future HSTACK/VSTACK properties |
 | 0x0010-0x0FFF | Future TEXT properties |
-| 0x1011-0xFFFF | Future style properties |
+| 0x1016-0xFFFF | Future style properties |
 
 ---
 
@@ -2241,6 +2311,8 @@ REGISTER_EVENT_HANDLER = 0x08
 GESTURE_UPDATE = 0x09
 ATTACH_GESTURE = 0x0A
 COMBINE_GESTURES = 0x0B
+MOVE_CHILD = 0x0C
+RESET = 0x0D
 ```
 
 ### Event Types
@@ -2384,6 +2456,10 @@ OPACITY = 0x100D
 VISIBLE = 0x100E
 Z_INDEX = 0x100F
 CLIPS_TO_BOUNDS = 0x1010
+PADDING_TOP = 0x1012
+PADDING_RIGHT = 0x1013
+PADDING_BOTTOM = 0x1014
+PADDING_LEFT = 0x1015
 ```
 
 ### Semantic Properties
@@ -2523,7 +2599,9 @@ const OPCODES = {
   REGISTER_EVENT_HANDLER: 0x08,
   GESTURE_UPDATE: 0x09,
   ATTACH_GESTURE: 0x0A,
-  COMBINE_GESTURES: 0x0B
+  COMBINE_GESTURES: 0x0B,
+  MOVE_CHILD: 0x0C,
+  RESET: 0x0D
 };
 
 // Component Types
@@ -2889,6 +2967,10 @@ class BinaryEncoder {
         return 1 + 4 + 4 + 4; // opcode + parentId + childId + index
       case 'REMOVE_CHILD':
         return 1 + 4 + 4; // opcode + parentId + childId
+      case 'MOVE_CHILD':
+        return 1 + 4 + 4 + 4; // opcode + parentId + childId + newIndex
+      case 'RESET':
+        return 1; // opcode only
       case 'SET_PROPERTY':
         return 1 + 4 + 2 + 1 + this.calculateValueSize(inst.valueType, inst.value);
       case 'SET_DESIGN_TOKEN':
@@ -3037,6 +3119,14 @@ class BinaryEncoder {
       case 'REMOVE_CHILD':
         this.writeU32(inst.parentId);
         this.writeU32(inst.childId);
+        break;
+      case 'MOVE_CHILD':
+        this.writeU32(inst.parentId);
+        this.writeU32(inst.childId);
+        this.writeU32(inst.newIndex ?? 0xFFFFFFFF);
+        break;
+      case 'RESET':
+        // No payload.
         break;
       case 'SET_PROPERTY':
         this.writeU32(inst.nodeId);
@@ -3419,6 +3509,15 @@ class BinaryDecoder {
           parentId: this.readU32(),
           childId: this.readU32()
         };
+      case OPCODES.MOVE_CHILD:
+        return {
+          opcode: 'MOVE_CHILD',
+          parentId: this.readU32(),
+          childId: this.readU32(),
+          newIndex: this.readU32()
+        };
+      case OPCODES.RESET:
+        return { opcode: 'RESET' };
       case OPCODES.SET_PROPERTY: {
         const nodeId = this.readU32();
         const propertyId = this.readU16();
@@ -3781,7 +3880,7 @@ for (const inst of decoded) {
 | **Format** | Custom binary instruction protocol |
 | **Endianness** | Little-endian |
 | **Wire version** | 1 |
-| **Opcodes** | 11 defined, 121 reserved |
+| **Opcodes** | 13 defined, 119 reserved |
 | **Component Types** | 12 defined, 65,524 reserved |
 | **Properties** | 25 defined, 65,510 reserved |
 | **Value Types** | 8 defined, 119 reserved |
@@ -3801,3 +3900,4 @@ for (const inst of decoded) {
 | 2.1.0-alpha | 2026-06-26 | Added Event System Phase 1: DISPATCH_EVENT and REGISTER_EVENT_HANDLER opcodes, binary event encoding, ON_APPEAR (0x0C), ON_DISAPPEAR (0x0D), ON_CHANGE (0x0E) event types, event phase support (capture, target, bubble), comprehensive event payload definitions for all event types |
 | 2.2.0-alpha | 2026-06-26 | Added Gesture System: GESTURE_UPDATE (0x09), ATTACH_GESTURE (0x0A), COMBINE_GESTURES (0x0B) opcodes, 6 gesture types (TAP, LONG_PRESS, DRAG, SWIPE, PINCH, ROTATE), gesture states (began, changed, ended, cancelled), gesture combination types (simultaneous, sequenced, exclusive), comprehensive binary encoding for all gesture states and data payloads |
 | 2.3.0-alpha | 2026-08-07 | **Wire format change (still version 1, pre-release)**: every instruction is now length-prefixed `[u8 opcode][u16 payloadLength][payload...]` for forward compatibility (unknown opcodes are skippable). SET_DESIGN_TOKEN payload redefined to `[u32 pathLength][utf8 path][u8 valueType][value...]`, eliminating the numeric tokenId and the separate u16 token value type system. Clarified that the wire `version` field is 1, independent of this document's version. |
+| 2.4.0-alpha | 2026-08-07 | Added MOVE_CHILD (0x0C) for efficient reordering, RESET (0x0D) for re-sync (clear + full re-emit). Added per-edge padding properties PADDING_TOP/RIGHT/BOTTOM/LEFT (0x1012-0x1015). Defined the event/gesture coordinate space (viewport-relative logical points). SET/UPDATE_ENVIRONMENT now carry a requestId field to correlate REQUEST_ENVIRONMENT responses. |

@@ -190,6 +190,8 @@ function getOpcode(command: Command): number {
     case 'DELETE_NODE': return Opcode.DELETE_NODE;
     case 'INSERT_CHILD': return Opcode.INSERT_CHILD;
     case 'REMOVE_CHILD': return Opcode.REMOVE_CHILD;
+    case 'MOVE_CHILD': return Opcode.MOVE_CHILD;
+    case 'RESET': return Opcode.RESET;
     case 'SET_PROPERTY': return Opcode.SET_PROPERTY;
     case 'SET_DESIGN_TOKEN': return Opcode.SET_DESIGN_TOKEN;
     case 'REGISTER_EVENT_HANDLER': return Opcode.REGISTER_EVENT_HANDLER;
@@ -228,6 +230,14 @@ function encodeCommandPayload(writer: BinaryWriter, command: Command): void {
       writer.writeU32(command.parentId);
       writer.writeU32(command.childId);
       break;
+    case 'MOVE_CHILD':
+      writer.writeU32(command.parentId);
+      writer.writeU32(command.childId);
+      writer.writeU32(command.index);
+      break;
+    case 'RESET':
+      // No payload.
+      break;
     case 'SET_PROPERTY':
       writer.writeU32(command.nodeId);
       writer.writeU16(command.propertyId);
@@ -251,9 +261,11 @@ function encodeCommandPayload(writer: BinaryWriter, command: Command): void {
       break;
     case 'SET_ENVIRONMENT':
       writeEnvironmentFields(writer, command.fields);
+      writer.writeU8(command.requestId ?? 0);
       break;
     case 'UPDATE_ENVIRONMENT':
       writeEnvironmentFields(writer, command.fields);
+      writer.writeU8(command.requestId ?? 0);
       break;
     case 'REQUEST_ENVIRONMENT':
       writer.writeU8(command.requestId);
@@ -378,6 +390,10 @@ function decodeCommand(reader: BinaryReader, opcode: number): Command | null {
       return decodeInsertChild(reader);
     case Opcode.REMOVE_CHILD:
       return decodeRemoveChild(reader);
+    case Opcode.MOVE_CHILD:
+      return decodeMoveChild(reader);
+    case Opcode.RESET:
+      return { opcode: 'RESET' };
     case Opcode.SET_PROPERTY:
       return decodeSetProperty(reader);
     case Opcode.SET_DESIGN_TOKEN:
@@ -422,6 +438,10 @@ function decodeRemoveChild(reader: BinaryReader): Command {
   return { opcode: 'REMOVE_CHILD', parentId: reader.readU32(), childId: reader.readU32() };
 }
 
+function decodeMoveChild(reader: BinaryReader): Command {
+  return { opcode: 'MOVE_CHILD', parentId: reader.readU32(), childId: reader.readU32(), index: reader.readU32() };
+}
+
 function decodeSetProperty(reader: BinaryReader): Command {
   return { opcode: 'SET_PROPERTY', nodeId: reader.readU32(), propertyId: reader.readU16(), value: decodePropertyValue(reader) };
 }
@@ -463,7 +483,8 @@ function decodeEnvCmd(reader: BinaryReader, opcode: 'SET_ENVIRONMENT' | 'UPDATE_
     const value = decodeEnvField(reader, id, size);
     fields.set(id, value);
   }
-  return { opcode, fields };
+  const requestId = reader.readU8();
+  return { opcode, fields, requestId };
 }
 
 function decodeRequestEnvironment(reader: BinaryReader): Command {

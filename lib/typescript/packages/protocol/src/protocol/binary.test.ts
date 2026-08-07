@@ -60,6 +60,17 @@ describe('round-trip: tree mutation opcodes', () => {
     expect(decodeMessage(encodeMessage(commands)).commands).toEqual(commands);
   });
 
+  it('MOVE_CHILD', () => {
+    const commands: Command[] = [{ opcode: 'MOVE_CHILD', parentId: 1, childId: 2, index: 4 }];
+    expect(decodeMessage(encodeMessage(commands)).commands).toEqual(commands);
+  });
+
+  it('RESET', () => {
+    const commands: Command[] = [{ opcode: 'RESET' }];
+    const decoded = decodeMessage(encodeMessage(commands));
+    expect(decoded.commands).toEqual(commands);
+  });
+
   it('SET_PROPERTY with each value type', () => {
     const valueCases: Array<[string, PropertyValue]> = [
       ['u8', { type: 'u8', value: 1 }],
@@ -113,7 +124,7 @@ describe('round-trip: environment opcodes', () => {
       [0x13, { type: 'string', value: 'en-US' }],
     ]);
     for (const opcode of ['SET_ENVIRONMENT', 'UPDATE_ENVIRONMENT'] as const) {
-      const commands: Command[] = [{ opcode, fields: new Map(fields) }];
+      const commands: Command[] = [{ opcode, fields: new Map(fields), requestId: 7 }];
       expect(decodeMessage(encodeMessage(commands)).commands).toEqual(commands);
     }
   });
