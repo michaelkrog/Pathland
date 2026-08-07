@@ -115,10 +115,10 @@ Pathland uses **stateless command execution**:
 1. The application generates commands based on state changes
 2. Commands are transmitted to the renderer as binary messages
 3. The renderer executes each command in order
-4. The renderer does NOT maintain the component tree between command batches
+4. The renderer does NOT maintain the application's component tree between command batches (see the Renderer Memory Model in Section 3.3 for what it MAY retain)
 5. The renderer does NOT cache or remember any state
 
-**Key Insight**: The renderer is a pure function that transforms a stream of commands into rendered output. It has no memory of previous commands or the current UI state.
+**Key Insight**: The renderer is a pure function that transforms a stream of commands into rendered output. It retains no application state and no memory of previous commands beyond its own rendered-output tree (see Section 3.3).
 
 ### 2.3 Data Flow
 
@@ -186,17 +186,32 @@ The renderer:
 - ✅ Executes commands in order to produce rendered output
 - ✅ Dispatches events to the application using component IDs
 - ❌ Does NOT store application state
-- ❌ Does NOT maintain a component tree
-- ❌ Does NOT maintain a virtual DOM or similar internal representation
-- ❌ Does NOT cache or remember any values between command batches
+- ❌ Does NOT maintain the application's canonical UI tree (business state)
+- ❌ Does NOT cache or remember any application data between command batches
 - ❌ Does NOT validate command sequences
 
-The ONLY exception is that a renderer MAY maintain a temporary mapping of component IDs to rendered elements **solely for the purpose of event routing**. This mapping must be:
-- Rebuilt as commands are executed (not persisted across command batches)
-- Used only to route events back to the correct component ID
-- Not used to store any application state or data
+See [Section 3.3 - Renderer Memory Model](#33-renderer-memory-model) for what a renderer MAY retain (its own rendered output) and what it MUST NOT retain (application state).
 
-### 3.3 Command Execution Process
+### 3.3 Renderer Memory Model
+
+The statelessness principle forbids renderers from retaining **application state**, but renderers still need working memory to do their job: hit-testing input, routing events, and laying out the tree. This section draws the line.
+
+**A renderer MAY retain a rendered-output tree**: the mapping from component IDs to the renderer's native output (e.g., DOM elements) together with whatever geometry and parent/child relationships are required to:
+
+- map a pointer/keyboard input to the target component (hit-testing)
+- dispatch events to the application via component IDs
+- implement capture/bubble event propagation (the ancestor chain)
+
+This tree is **derived entirely from the command stream** and is a cache of the renderer's *own output*, not application state. Because it is a pure function of the command history, replaying the same command batch from a clean state must produce the same output — the rendered-output tree is an implementation detail of that function, not state.
+
+**A renderer MUST NOT retain**:
+- component property values or semantic meaning of the UI (business state)
+- any data the application did not explicitly send via commands
+- application-side control flow (conditionals, list state, etc.)
+
+**Rule of thumb**: if the application can change it without sending a command, the renderer must not hold it.
+
+### 3.4 Command Execution Process
 
 The command execution process follows this stateless model:
 
@@ -211,7 +226,7 @@ The command execution process follows this stateless model:
 9. **Application Handling**: Application receives event with component ID, updates state
 10. **Repeat**: Back to step 1
 
-**Key Insight**: The renderer has no memory between command batches. Each batch is executed independently.
+**Key Insight**: The renderer retains no application state between command batches. Its only persistent memory is its own rendered-output tree (see [Section 3.3 - Renderer Memory Model](#33-renderer-memory-model)).
 
 ---
 
@@ -330,6 +345,7 @@ For complete and authoritative protocol details, always refer to:
 - **[BINARY_PROTOCOL.md](./BINARY_PROTOCOL.md)** - The official protocol specification
 - **[COMPONENTS.md](./components/COMPONENTS.md)** - Component specifications
 - **[EVENTS.md](./events/EVENTS.md)** - Event system specifications
+- **[CONFORMANCE.md](./CONFORMANCE.md)** - Golden test vectors for implementations
 
 ---
 
