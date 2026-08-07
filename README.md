@@ -24,6 +24,7 @@ Pathland is a **protocol-first** UI framework designed to enable retained-mode U
 - [Protocol Overview](./spec/PROTOCOL.md) - Core protocol concepts and architecture
 - [Component Specifications](./spec/components/COMPONENTS.md) - Detailed component definitions
 - [Event System](./spec/events/EVENTS.md) - Complete event system specification
+- [Conformance Test Vectors](./spec/CONFORMANCE.md) - Golden byte arrays for validating implementations
 
 ### Proof of Concept (POC)
 
