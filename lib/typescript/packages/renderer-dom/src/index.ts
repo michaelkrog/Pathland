@@ -7,7 +7,7 @@
  */
 
 import type { Command, PropertyValue } from '@pathland/protocol';
-import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, SemanticColorToken, decodeMessage } from '@pathland/protocol';
+import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, SemanticColorToken, EventType, decodeMessage } from '@pathland/protocol';
 import type { Renderer } from '@pathland/renderer';
 
 // ============================================
@@ -135,6 +135,9 @@ class RenderElement {
       this.element = document.createElement(tag);
       setDataAttribute(this.element, 'node-id', nodeId.toString());
       setDataAttribute(this.element, 'component-type', componentType.toString());
+
+      // Make the element focusable so focus/blur/keyboard events can route to it.
+      (this.element as HTMLElement).tabIndex = -1;
 
       // Setup flex layout for stack containers
       if (componentType === ComponentType.HSTACK) {
@@ -488,21 +491,110 @@ export class DOMRenderer implements Renderer {
    */
   setupEvents(dispatchEvent: (nodeId: number, eventType: number) => void): void {
     this.dispatchEvent = dispatchEvent;
-    
-    // Set up event delegation on the container for DOM events
-    if (isElement(this.container)) {
-      // Click events
-      this.container.addEventListener('click', (event: Event) => {
-        let target = event.target as HTMLElement;
-        while (target && !target.dataset.pathlandNodeId) {
-          target = target.parentElement as HTMLElement;
+
+    if (!isElement(this.container)) return;
+    const container = this.container as HTMLElement;
+
+    // Resolve the nearest Pathland node for a DOM event target.
+    const resolveNodeId = (target: EventTarget | null): number | null => {
+      let el = target as HTMLElement | null;
+      while (el && !el.dataset?.pathlandNodeId) {
+        el = el.parentElement;
+      }
+      const id = el?.dataset?.pathlandNodeId;
+      return id !== undefined && id !== '' ? parseInt(id, 10) : null;
+    };
+
+    // ---- Click ----
+    container.addEventListener('click', (event: Event) => {
+      const nodeId = resolveNodeId(event.target);
+      if (nodeId !== null) this.dispatchEvent(nodeId, EventType.CLICK);
+    });
+
+    // ---- Long press (mousedown + timer, cancelled on move/up/leave) ----
+    const LONG_PRESS_DELAY = 500;
+    const LONG_PRESS_MOVE_TOLERANCE = 10;
+    let pressNodeId: number | null = null;
+    let pressTimer: ReturnType<typeof setTimeout> | null = null;
+    let pressStartX = 0;
+    let pressStartY = 0;
+
+    const cancelLongPress = (): void => {
+      if (pressTimer !== null) {
+        clearTimeout(pressTimer);
+        pressTimer = null;
+      }
+      pressNodeId = null;
+    };
+
+    container.addEventListener('mousedown', (event: MouseEvent) => {
+      cancelLongPress();
+      const nodeId = resolveNodeId(event.target);
+      if (nodeId === null) return;
+      pressNodeId = nodeId;
+      pressStartX = event.clientX;
+      pressStartY = event.clientY;
+      pressTimer = setTimeout(() => {
+        if (pressNodeId !== null) {
+          this.dispatchEvent(pressNodeId, EventType.LONG_PRESS);
+          pressNodeId = null;
+          pressTimer = null;
         }
-        if (target?.dataset.pathlandNodeId) {
-          const nodeId = parseInt(target.dataset.pathlandNodeId, 10);
-          this.dispatchEvent(nodeId, 0x04); // EventType.CLICK
-        }
-      });
-    }
+      }, LONG_PRESS_DELAY);
+    });
+    container.addEventListener('mouseup', cancelLongPress);
+    container.addEventListener('mouseleave', cancelLongPress);
+    container.addEventListener('mousemove', (event: MouseEvent) => {
+      if (pressNodeId === null) return;
+      const moved =
+        Math.abs(event.clientX - pressStartX) + Math.abs(event.clientY - pressStartY);
+      if (moved > LONG_PRESS_MOVE_TOLERANCE) cancelLongPress();
+    });
+
+    // ---- Hover (enter and leave both dispatch HOVER; the current
+    //      (nodeId, eventType) callback cannot carry the enter/leave flag) ----
+    let hoveredNodeId: number | null = null;
+    container.addEventListener('mouseover', (event: Event) => {
+      const nodeId = resolveNodeId(event.target);
+      if (nodeId !== null && nodeId !== hoveredNodeId) {
+        hoveredNodeId = nodeId;
+        this.dispatchEvent(nodeId, EventType.HOVER);
+      }
+    });
+    container.addEventListener('mouseout', (event: MouseEvent) => {
+      if (hoveredNodeId === null) return;
+      const next = resolveNodeId(event.relatedTarget as EventTarget | null);
+      if (next !== hoveredNodeId) {
+        this.dispatchEvent(hoveredNodeId, EventType.HOVER);
+        hoveredNodeId = null;
+      }
+    });
+    container.addEventListener('mouseleave', () => {
+      if (hoveredNodeId !== null) {
+        this.dispatchEvent(hoveredNodeId, EventType.HOVER);
+        hoveredNodeId = null;
+      }
+    });
+
+    // ---- Focus / blur (focusin/focusout bubble) ----
+    container.addEventListener('focusin', (event: FocusEvent) => {
+      const nodeId = resolveNodeId(event.target);
+      if (nodeId !== null) this.dispatchEvent(nodeId, EventType.FOCUS);
+    });
+    container.addEventListener('focusout', (event: FocusEvent) => {
+      const nodeId = resolveNodeId(event.target);
+      if (nodeId !== null) this.dispatchEvent(nodeId, EventType.BLUR);
+    });
+
+    // ---- Keyboard (bubbles from the focused node) ----
+    container.addEventListener('keydown', (event: KeyboardEvent) => {
+      const nodeId = resolveNodeId(event.target);
+      if (nodeId !== null) this.dispatchEvent(nodeId, EventType.KEY_DOWN);
+    });
+    container.addEventListener('keyup', (event: KeyboardEvent) => {
+      const nodeId = resolveNodeId(event.target);
+      if (nodeId !== null) this.dispatchEvent(nodeId, EventType.KEY_UP);
+    });
   }
 
   private executeCommand(command: Command): void {

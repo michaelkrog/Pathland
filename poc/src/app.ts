@@ -254,6 +254,33 @@ class Demo9 extends View {
 }
 
 // ============================================
+// DEMO 10: Long-Press & Hover
+// ============================================
+
+class Demo10 extends View {
+  private presses = signal(0);
+  private hovering = signal(false);
+
+  body(): ViewNode {
+    return VStack(
+      Text('Demo 10: Long-Press & Hover'),
+      Text(this.presses.map(n => `Long-press count: ${n}`))
+        .fontSize(16)
+        .padding(16)
+        .background(0xFFFFE0B2)
+        .longPressGesture(() => this.presses.set(this.presses.get() + 1)),
+      Text(this.hovering.map(h => (h ? 'Hovered!' : 'Hover me')))
+        .padding(16)
+        .background('primary')
+        .hoverGesture(() => this.hovering.set(!this.hovering.get()))
+    )
+      .spacing(16)
+      .padding(16)
+      .background(0xFF00FF9F);
+  }
+}
+
+// ============================================
 // MAIN APPLICATION
 // ============================================
 
@@ -270,7 +297,8 @@ class POCApp extends View {
       Demo6.make(),
       Demo7.make(),
       Demo8.make(),
-      Demo9.make()
+      Demo9.make(),
+      Demo10.make()
     )
       .spacing(16)
       .padding(16)
