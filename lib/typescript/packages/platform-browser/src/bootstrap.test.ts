@@ -1,239 +1,185 @@
 /**
  * @pathland/platform-browser
- * 
- * Tests for bootstrapApplication function.
+ *
+ * Tests for bootstrapApplication (worker mode + non-worker fallback).
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { encodeMessage } from '@pathland/protocol';
 import { bootstrapApplication } from './bootstrap';
-import type { Renderer } from '@pathland/renderer';
-import { WorkerManager } from './worker/worker-manager';
 
-// Mock View class for testing
-// We use type assertions to make it compatible with ViewClass type
+// Collect the renderer instance the mocked DOMRenderer produces.
+// vi.hoisted makes these available to the (hoisted) mock factories below.
+const { rendererInstance, viewModule } = vi.hoisted(() => ({
+  rendererInstance: {
+    executeCommands: vi.fn(),
+    setupEvents: vi.fn(),
+  },
+  viewModule: {
+    initialRender: vi.fn(),
+    handleDispatchEvent: vi.fn(),
+  },
+}));
+
+// Mock the lazily-loaded packages.
+vi.mock('@pathland/renderer-dom', () => ({
+  DOMRenderer: class {
+    constructor() {
+      return rendererInstance;
+    }
+  },
+}));
+
+vi.mock('@pathland/view', () => viewModule);
+
+let workerInstances: any[] = [];
+
+class MockWorker {
+  onmessage: ((event: MessageEvent) => void) | null = null;
+  onerror: ((event: ErrorEvent) => void) | null = null;
+  messages: any[] = [];
+  url: string;
+
+  constructor(url: string, _opts?: any) {
+    this.url = url;
+    workerInstances.push(this);
+  }
+
+  postMessage(message: any): void {
+    this.messages.push(message);
+  }
+
+  terminate(): void {
+    this.onmessage = null;
+    this.onerror = null;
+  }
+
+  emit(message: any): void {
+    this.onmessage?.({ data: message } as MessageEvent);
+  }
+
+  fail(message: string): void {
+    this.onerror?.({ message } as ErrorEvent);
+  }
+}
+
 const MockView: any = class {
   static make() {
     return { type: 'MockViewNode' } as any;
   }
-  
-  body() {
-    return { type: 'MockViewNode' } as any;
-  }
 };
 
-// Mock Renderer implementation for testing
-class MockRenderer implements Renderer {
-  executeCommandsMock = vi.fn();
-  setupEventsMock = vi.fn();
-
-  executeCommands(commands: any[]): void {
-    this.executeCommandsMock(commands);
-  }
-
-  setupEvents(dispatchEvent: (nodeId: number, eventType: number) => void): void {
-    this.setupEventsMock(dispatchEvent);
-  }
-}
-
-// Mock the dynamic imports
-vi.mock('@pathland/renderer-dom', () => ({
-  DOMRenderer: class MockDOMRenderer {
-    constructor() {
-      return new MockRenderer();
-    }
-  }
-}));
-
-vi.mock('@pathland/view', () => ({
-  initialRender: vi.fn(),
-  handleDispatchEvent: vi.fn()
-}));
-
-// Mock the worker module
-vi.mock('./worker', async () => {
-  const actual = await vi.importActual('./worker');
-  return {
-    ...actual,
-    generateWorkerBundleUrl: vi.fn(() => 'mock-worker-url.js'),
-    resolveViewModulePath: vi.fn(() => 'mock-view-module-path.js')
-  };
-});
-
 describe('bootstrapApplication', () => {
-  let originalWorker: typeof Worker;
-  let mockWorkerClass: any;
+  let originalWorker: any;
 
   beforeEach(() => {
-    // Save original Worker
     originalWorker = globalThis.Worker;
-    
-    // Create a mock worker class
-    mockWorkerClass = class MockWorker {
-      onmessage: ((event: MessageEvent) => void) | null = null;
-      onerror: ((error: ErrorEvent) => void) | null = null;
-      messages: any[] = [];
-      url: string;
-      
-      constructor(url: string) {
-        this.url = url;
-      }
-      
-      postMessage(message: any, transfer?: any): void {
-        // Store message for verification
-        this.messages.push(message);
-      }
-      
-      terminate(): void {}
-    };
-    
-    // Replace global Worker with mock
-    (globalThis as any).Worker = mockWorkerClass;
-    
-    // Clear all mocks
+    (globalThis as any).Worker = MockWorker;
+    workerInstances = [];
     vi.clearAllMocks();
   });
 
   afterEach(() => {
-    // Restore original Worker
     (globalThis as any).Worker = originalWorker;
-    vi.clearAllMocks();
   });
 
-  describe('worker mode (default)', () => {
-    it('should use worker by default', async () => {
-      // Mock console.error to suppress warnings in tests
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
+  describe('worker mode', () => {
+    it('creates a worker from a URL and resolves on READY', async () => {
+      const promise = bootstrapApplication('worker-url.js');
+
+      await vi.waitFor(() => {
+        expect(workerInstances).toHaveLength(1);
+      });
+      expect(workerInstances[0].url).toBe('worker-url.js');
+
+      workerInstances[0].emit({ type: 'READY' });
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('accepts a pre-built Worker instance', async () => {
+      const worker = new MockWorker('prebuilt.js');
+      const promise = bootstrapApplication(worker as any);
+
+      // Wait until bootstrap has attached its message handler (manager.start).
+      await vi.waitFor(() => {
+        expect(worker.onmessage).not.toBeNull();
+      });
+      worker.emit({ type: 'READY' });
+      await expect(promise).resolves.toBeUndefined();
+    });
+
+    it('rejects when the worker reports an error', async () => {
+      const promise = bootstrapApplication('worker-url.js');
+
+      await vi.waitFor(() => {
+        expect(workerInstances).toHaveLength(1);
+      });
+      workerInstances[0].emit({ type: 'ERROR', error: 'init failed' });
+      await expect(promise).rejects.toThrow('init failed');
+    });
+
+    it('decodes binary command batches and executes them with the renderer', async () => {
+      const promise = bootstrapApplication('worker-url.js');
+
+      await vi.waitFor(() => {
+        expect(workerInstances).toHaveLength(1);
+      });
+      const worker = workerInstances[0];
+
+      const commands = [
+        { opcode: 'CREATE_NODE' as const, nodeId: 1, componentType: 0x0002, properties: new Map() },
+        { opcode: 'INSERT_CHILD' as const, parentId: 1, childId: 2, index: 0 },
+      ];
+      worker.emit({ type: 'BINARY', buffer: encodeMessage(commands) });
+      worker.emit({ type: 'READY' });
+      await promise;
+
+      expect(rendererInstance.executeCommands).toHaveBeenCalledWith(commands);
+    });
+
+    it('forwards renderer events to the worker', async () => {
+      const promise = bootstrapApplication('worker-url.js');
+
+      await vi.waitFor(() => {
+        expect(workerInstances).toHaveLength(1);
+      });
+      const worker = workerInstances[0];
+      worker.emit({ type: 'READY' });
+      await promise;
+
+      // Capture the dispatch callback registered via renderer.setupEvents.
+      const dispatch = rendererInstance.setupEvents.mock.calls[0][0];
+      dispatch(5, 0x04);
+
+      expect(worker.messages).toContainEqual({ type: 'EVENT', nodeId: 5, eventType: 0x04 });
+    });
+
+    it('uses a custom renderer when provided', async () => {
+      const custom = { executeCommands: vi.fn(), setupEvents: vi.fn() };
+      const promise = bootstrapApplication('worker-url.js', { renderer: custom as any });
+
+      await vi.waitFor(() => {
+        expect(workerInstances).toHaveLength(1);
+      });
+      workerInstances[0].emit({ type: 'READY' });
+      await promise;
+
+      expect(custom.setupEvents).toHaveBeenCalled();
+    });
+  });
+
+  describe('non-worker mode', () => {
+    it('runs the view on the main thread without creating a worker', async () => {
       await bootstrapApplication(MockView);
-      
-      // Check that generateWorkerBundleUrl was called
-      expect(WorkerManager).toHaveBeenCalled();
-      
-      // Should have created a worker
-      expect((globalThis as any).Worker).toHaveBeenCalled();
-      
-      consoleSpy.mockRestore();
+      expect(workerInstances).toHaveLength(0);
+      expect(viewModule.initialRender).toHaveBeenCalled();
     });
 
-    it('should pass custom worker URL when provided', async () => {
-      const customWorkerUrl = 'custom-worker.js';
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      // Mock the worker manager to capture the URL
-      const workerManagerSpy = vi.spyOn(WorkerManager.prototype, 'startWorker');
-      
-      await bootstrapApplication(MockView, { workerUrl: customWorkerUrl });
-      
-      expect(workerManagerSpy).toHaveBeenCalledWith(
-        customWorkerUrl,
-        expect.objectContaining({
-          viewModulePath: expect.any(String),
-          viewClassName: 'MockView'
-        })
-      );
-      
-      workerManagerSpy.mockRestore();
-      consoleSpy.mockRestore();
-    });
-
-    it('should use custom renderer when provided', async () => {
-      const mockRenderer = new MockRenderer();
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      await bootstrapApplication(MockView, { renderer: mockRenderer });
-      
-      // The custom renderer should be used
-      expect(WorkerManager).toHaveBeenCalledWith(mockRenderer);
-      
-      consoleSpy.mockRestore();
-    });
-
-    it('should call setupEvents on renderer', async () => {
-      const mockRenderer = new MockRenderer();
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      await bootstrapApplication(MockView, { renderer: mockRenderer, useWorker: true });
-      
-      // setupEvents should have been called
-      expect(mockRenderer.setupEventsMock).toHaveBeenCalled();
-      
-      consoleSpy.mockRestore();
-    });
-  });
-
-  describe('legacy mode (useWorker: false)', () => {
-    it('should run on main thread when useWorker is false', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      // Mock the view module to return actual functions
-      vi.doMock('@pathland/view', () => ({
-        initialRender: vi.fn(),
-        handleDispatchEvent: vi.fn()
-      }));
-      
-      await bootstrapApplication(MockView, { useWorker: false });
-      
-      // Worker should NOT be created
-      expect((globalThis as any).Worker).not.toHaveBeenCalled();
-      
-      consoleSpy.mockRestore();
-    });
-
-    it('should use custom renderer in legacy mode', async () => {
-      const mockRenderer = new MockRenderer();
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      vi.doMock('@pathland/view', () => ({
-        initialRender: vi.fn(),
-        handleDispatchEvent: vi.fn()
-      }));
-      
-      await bootstrapApplication(MockView, { 
-        useWorker: false,
-        renderer: mockRenderer 
-      });
-      
-      // Renderer should have been used
-      expect(mockRenderer.executeCommandsMock).not.toHaveBeenCalled();
-      
-      consoleSpy.mockRestore();
-    });
-
-    it('should call initialRender with view in legacy mode', async () => {
-      const mockRenderer = new MockRenderer();
-      const mockInitialRender = vi.fn();
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      vi.doMock('@pathland/view', () => ({
-        initialRender: mockInitialRender,
-        handleDispatchEvent: vi.fn()
-      }));
-      
-      await bootstrapApplication(MockView, { 
-        useWorker: false,
-        renderer: mockRenderer 
-      });
-      
-      // initialRender should have been called
-      expect(mockInitialRender).toHaveBeenCalled();
-      
-      consoleSpy.mockRestore();
-    });
-  });
-
-  describe('error handling', () => {
-    it('should handle errors gracefully', async () => {
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      
-      // Force an error by mocking Worker to throw
-      (globalThis as any).Worker = vi.fn(() => {
-        throw new Error('Worker creation failed');
-      });
-      
-      // This should not throw
-      await expect(bootstrapApplication(MockView)).rejects.toThrow();
-      
-      consoleSpy.mockRestore();
+    it('dispatches renderer events to the view on the main thread', async () => {
+      await bootstrapApplication(MockView);
+      const dispatch = rendererInstance.setupEvents.mock.calls[0][0];
+      dispatch(7, 0x01);
+      expect(viewModule.handleDispatchEvent).toHaveBeenCalledWith(7, 0x01);
     });
   });
 });

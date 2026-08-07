@@ -95,15 +95,17 @@ class Demo5 extends View {
 
   constructor() {
     super();
-    // Update time every second
-    this.interval = window.setInterval(() => {
+    // Update time every second.
+    // Use the global setInterval (available in both window and worker scopes)
+    // since the app runs in a worker thread.
+    this.interval = setInterval(() => {
       this.time.set(new Date());
     }, 1000);
   }
 
   cleanup() {
     if (this.interval) {
-      window.clearInterval(this.interval);
+      clearInterval(this.interval);
       this.interval = null;
     }
   }
