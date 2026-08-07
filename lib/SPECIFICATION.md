@@ -28,10 +28,12 @@ lib/typescript/                    # Monorepo root
 ├── package.json                   # Workspace configuration
 └── packages/
     ├── protocol/                 # Core protocol (no dependencies)
+    ├── renderer/                 # Renderer interface + shared interaction
     ├── transport/                # Message transportation
     ├── view/                    # Reactive view framework
     ├── platform-browser/        # Browser platform bootstrap
-    ├── renderer-dom/            # Unified DOM rendering (browser + JSDOM)
+    ├── renderer-dom/            # DOM rendering (browser + JSDOM)
+    ├── renderer-canvas/         # Canvas 2D rendering
     └── renderer-html/           # HTML string rendering
 ```
 
@@ -262,25 +264,62 @@ bootstrapApplication(workerUrl);
 
 **Statelessness**: Only maintains `Map<number, RenderElement>` for event routing. All other state is derived from commands.
 
+### 6. `@pathland/renderer-canvas` - Canvas 2D Renderer
+
+**Responsibility**: Execute Pathland commands and draw the UI to a Canvas 2D context.
+
+**Scope**: Browser canvas rendering; proves the protocol is surface-agnostic (the same app + protocol renders on DOM or canvas).
+
+**Provides**:
+- `CanvasRenderer` class - implements the `Renderer` interface
+- Internal layout engine (HSTACK/VSTACK spacing/alignment/justification/padding,
+  SPACER fill, TEXT measurement via `measureText`, FILL/HUG_CONTENT/explicit sizes)
+- Drawing: backgrounds, borders, rounded corners, text, opacity, zIndex, visibility
+- Pointer interaction via the shared `PointerInteraction` recognizer (tap /
+  long-press / drag + click/hover synthesis) with layout-bounds hit-testing
+- `getLayout(nodeId)` / `getNode(nodeId)` for inspection
+
+**Does NOT provide**:
+- DOM rendering (see renderer-dom)
+- Text editing / input components (placeholder boxes only)
+- Transportation
+
+**Depends on**: `@pathland/protocol`, `@pathland/renderer`
+
+**Statelessness**: Maintains the rendered-output tree (id -> node + computed layout) for drawing and input routing; all application state lives in the command stream.
+
+**Integration**: pass a `CanvasRenderer` as the bootstrap renderer:
+```typescript
+import { CanvasRenderer } from '@pathland/renderer-canvas';
+import { bootstrapApplication } from '@pathland/platform-browser';
+
+const renderer = new CanvasRenderer({ canvas: document.getElementById('app') as HTMLCanvasElement });
+bootstrapApplication(workerUrl, { renderer });
+```
+
 ## Package Boundaries
 
-| From \ To | protocol | transport | view | platform-browser | renderer-dom | renderer-html |
-|-----------|----------|-----------|------|-----------------|--------------|---------------|
-| protocol | - | ✓ | ✓ | ✓ | ✓ | ✓ |
-| transport | - | - | ✓ | ✓ | - | - |
-| view | - | - | - | ✓ | ✓ | ✓ |
-| platform-browser | - | - | ✓ | - | ✓ | ✓ |
-| renderer-dom | - | - | - | - | - | - |
-| renderer-html | - | - | - | - | - | - |
+| From \ To | protocol | renderer | transport | view | platform-browser | renderer-dom | renderer-canvas | renderer-html |
+|-----------|----------|----------|-----------|------|-----------------|--------------|-----------------|--------------|
+| protocol | - | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| renderer | - | - | - | - | ✓ | ✓ | ✓ | - |
+| transport | - | - | - | ✓ | ✓ | - | - | - |
+| view | - | - | - | - | ✓ | ✓ | ✓ | ✓ |
+| platform-browser | - | - | - | ✓ | - | ✓ | ✓ | ✓ |
+| renderer-dom | - | - | - | - | - | - | - | - |
+| renderer-canvas | - | - | - | - | - | - | - | - |
+| renderer-html | - | - | - | - | - | - | - | - |
 
 **Dependency Rule**: Packages can only depend on packages to their left in the table above.
 
 This ensures:
 - `protocol` has no dependencies
+- `renderer` only depends on `protocol` (shared `PointerInteraction` recognizer)
 - `transport` only depends on `protocol`
 - `view` depends on `protocol` and `transport`
 - `platform-browser` depends on `view`, `renderer-dom`, and `transport`
-- `renderer-dom` only depends on `protocol` (with optional `jsdom` peer dependency)
+- `renderer-dom` only depends on `protocol` and `renderer` (with optional `jsdom` peer dependency)
+- `renderer-canvas` only depends on `protocol` and `renderer`
 - `renderer-html` only depends on `protocol`
 
 ## Usage Patterns
@@ -343,7 +382,6 @@ New packages should follow these rules:
 4. **Protocol First**: All packages that work with Pathland data depend on `@pathland/protocol`
 
 Example future packages:
-- `@pathland/renderer-canvas` - Canvas 2D rendering
 - `@pathland/renderer-svg` - SVG rendering
 - `@pathland/renderer-terminal` - Terminal/ANSI rendering
 - `@pathland/app` - Application utilities for command generation
@@ -414,6 +452,13 @@ src/
 ```
 src/
 └── index.ts              # DOMRenderer class
+```
+
+### renderer-canvas/
+```
+src/
+├── index.ts              # CanvasRenderer class
+└── layout.ts             # Retained layout engine
 ```
 
 ### renderer-html/
