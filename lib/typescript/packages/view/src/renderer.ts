@@ -5,11 +5,12 @@
  * Handles initial render only - updates are handled directly by signals.
  */
 
-import { ViewNode, Modifier, Gesture } from './view-node';
-import type { PropertyValue } from '@pathland/protocol';
-import { ComponentType, StackProperty, StyleProperty, EventType } from '@pathland/protocol';
+import { ViewNode, Modifier, GestureSpec } from './view-node';
+import type { PropertyValue, EventData } from '@pathland/protocol';
+import { ComponentType, StackProperty, StyleProperty, EventType, GestureState } from '@pathland/protocol';
 import { commandQueue, Signal } from './signal';
 import { propertyNameToId, compilePropertyValue } from './utils';
+import type { Gesture, GestureHandlers } from './gestures';
 
 // Re-export types
 export type { PropertyValue };
@@ -250,9 +251,9 @@ function compileModifier(nodeId: number, modifier: Modifier):
 // ============================================
 
 let gestureHandlerId = 0;
-const gestureHandlers = new Map<number, Map<number, () => void>>();
+const gestureHandlers = new Map<number, Map<number, (data?: EventData) => void>>();
 
-function compileGesture(nodeId: number, gesture: Gesture): { opcode: string; nodeId: number; eventType: number; handlerId: number } {
+function compileGesture(nodeId: number, gesture: GestureSpec): { opcode: string; nodeId: number; eventType: number; handlerId: number } {
   const eventType = mapGestureKind(gesture.kind);
   const handlerId = ++gestureHandlerId;
   
@@ -271,13 +272,49 @@ function compileGesture(nodeId: number, gesture: Gesture): { opcode: string; nod
   };
 }
 
-export function handleDispatchEvent(targetId: number, eventType: number): void {
+export function handleDispatchEvent(targetId: number, eventType: number, data?: EventData): void {
   const handlers = gestureHandlers.get(targetId);
   if (handlers) {
     const handler = handlers.get(eventType);
     if (handler) {
-      handler();
+      handler(data);
     }
+  }
+}
+
+// ============================================
+// LIFECYCLE GESTURE COMPILATION
+// ============================================
+
+let gestureRecognizerId = 0;
+// nodeId -> gestureType -> state handlers
+const gestureRecognizers = new Map<number, Map<number, GestureHandlers>>();
+
+function compileAttachedGesture(nodeId: number, gesture: Gesture): { opcode: string; nodeId: number; gestureType: number; gestureRecognizerId: number } {
+  let byType = gestureRecognizers.get(nodeId);
+  if (!byType) {
+    byType = new Map();
+    gestureRecognizers.set(nodeId, byType);
+  }
+  byType.set(gesture.gestureType, gesture.handlers);
+
+  return {
+    opcode: 'ATTACH_GESTURE',
+    nodeId,
+    gestureType: gesture.gestureType,
+    gestureRecognizerId: ++gestureRecognizerId,
+  };
+}
+
+export function handleGestureUpdate(targetId: number, gestureType: number, gestureState: number, data?: EventData): void {
+  const handlers = gestureRecognizers.get(targetId)?.get(gestureType);
+  if (!handlers) return;
+
+  switch (gestureState) {
+    case GestureState.BEGAN: handlers.onBegan?.(data ?? {}); break;
+    case GestureState.CHANGED: handlers.onChanged?.(data ?? {}); break;
+    case GestureState.ENDED: handlers.onEnded?.(data ?? {}); break;
+    case GestureState.CANCELLED: handlers.onCancelled?.(data ?? {}); break;
   }
 }
 
@@ -418,6 +455,10 @@ function compileNode(node: ViewNode, parentId?: number, index?: number): Interna
     commands.push(compileGesture(node.nodeId, gesture));
   }
   
+  for (const gesture of node.attachedGestures) {
+    commands.push(compileAttachedGesture(node.nodeId, gesture));
+  }
+  
   for (let i = 0; i < node.children.length; i++) {
     const child = node.children[i];
     commands.push(...compileNode(child, node.nodeId, i));
@@ -443,6 +484,8 @@ function compileNode(node: ViewNode, parentId?: number, index?: number): Interna
 export function initialRender(root: ViewNode, transport: any): void {
   gestureHandlerId = 0;
   gestureHandlers.clear();
+  gestureRecognizerId = 0;
+  gestureRecognizers.clear();
   
   commandQueue.setTransport(transport);
   

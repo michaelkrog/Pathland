@@ -4,7 +4,7 @@
  * Uses view package for creating UI.
  */
 
-import { View, ViewNode, VStack, HStack, Text, signal, If, For, Switch } from '@pathland/view';
+import { View, ViewNode, VStack, HStack, Text, signal, If, For, Switch, DragGesture } from '@pathland/view';
 
 // ============================================
 // DEMO 1: Simple VStack with Text (semantic colors)
@@ -281,6 +281,34 @@ class Demo10 extends View {
 }
 
 // ============================================
+// DEMO 11: Drag Gesture
+// ============================================
+
+class Demo11 extends View {
+  private position = signal({ x: 0, y: 0 });
+  private drops = signal(0);
+
+  body(): ViewNode {
+    return VStack(
+      Text('Demo 11: Drag Gesture').fontSize(16),
+      Text('Drag the box below:'),
+      Text(this.position.map(p => `x=${p.x}, y=${p.y}`))
+        .padding(24)
+        .background('accent')
+        .gesture(
+          DragGesture()
+            .onChanged(v => this.position.set({ x: v.translationX as number, y: v.translationY as number }))
+            .onEnded(() => this.drops.set(this.drops.get() + 1))
+        ),
+      Text(this.drops.map(n => `Drags completed: ${n}`)).padding(8)
+    )
+      .spacing(16)
+      .padding(16)
+      .background(0xFF00FF9F);
+  }
+}
+
+// ============================================
 // MAIN APPLICATION
 // ============================================
 
@@ -298,7 +326,8 @@ class POCApp extends View {
       Demo7.make(),
       Demo8.make(),
       Demo9.make(),
-      Demo10.make()
+      Demo10.make(),
+      Demo11.make()
     )
       .spacing(16)
       .padding(16)

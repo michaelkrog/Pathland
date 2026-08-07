@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { encodeMessage } from '@pathland/protocol';
+import { deserializeMessage } from '@pathland/transport';
 import { WorkerManager } from './worker-manager';
 import type { Renderer } from '@pathland/renderer';
 
@@ -138,14 +139,41 @@ describe('WorkerManager', () => {
   });
 
   describe('sendEventToWorker', () => {
-    it('forwards events to the worker when ready', async () => {
+    it('forwards events to the worker as binary DISPATCH_EVENT when ready', async () => {
       const promise = manager.start(worker as any);
       worker.emit({ type: 'READY' });
       await promise;
 
-      manager.sendEventToWorker(1, 0x04);
+      manager.sendEventToWorker(1, 0x04, { x: 5, y: 6 });
       expect(worker.messages).toHaveLength(1);
-      expect(worker.messages[0]).toEqual({ type: 'EVENT', nodeId: 1, eventType: 0x04 });
+      expect(worker.messages[0].type).toBe('BINARY');
+
+      const decoded = deserializeMessage(worker.messages[0].buffer);
+      expect(decoded.commands[0]).toMatchObject({
+        opcode: 'DISPATCH_EVENT',
+        targetId: 1,
+        eventType: 0x04,
+        data: { x: 5, y: 6 },
+      });
+    });
+
+    it('forwards gestures to the worker as binary GESTURE_UPDATE when ready', async () => {
+      const promise = manager.start(worker as any);
+      worker.emit({ type: 'READY' });
+      await promise;
+
+      manager.sendGestureToWorker(1, 0x12, 0x01, { translationX: 30, translationY: 40 });
+      expect(worker.messages).toHaveLength(1);
+      expect(worker.messages[0].type).toBe('BINARY');
+
+      const decoded = deserializeMessage(worker.messages[0].buffer);
+      expect(decoded.commands[0]).toMatchObject({
+        opcode: 'GESTURE_UPDATE',
+        targetId: 1,
+        gestureType: 0x12,
+        gestureState: 0x01,
+        data: { translationX: 30, translationY: 40 },
+      });
     });
 
     it('does not send events while starting (queues nothing, warns)', async () => {
@@ -154,7 +182,7 @@ describe('WorkerManager', () => {
 
       manager.sendEventToWorker(1, 0x04);
       expect(worker.messages).toHaveLength(0);
-      expect(warnSpy).toHaveBeenCalledWith('[Pathland] Cannot send event before worker is ready');
+      expect(warnSpy).toHaveBeenCalledWith('[Pathland] Cannot send to worker before it is ready');
 
       worker.emit({ type: 'READY' });
       await promise;
@@ -166,7 +194,7 @@ describe('WorkerManager', () => {
 
       manager.sendEventToWorker(1, 0x04);
       expect(worker.messages).toHaveLength(0);
-      expect(errorSpy).toHaveBeenCalledWith('[Pathland] Cannot send event - worker is in error state');
+      expect(errorSpy).toHaveBeenCalledWith('[Pathland] Cannot send to worker - worker is in error state');
     });
   });
 });

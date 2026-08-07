@@ -6,6 +6,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { encodeMessage } from '@pathland/protocol';
+import { deserializeMessage } from '@pathland/transport';
 import { bootstrapApplication } from './bootstrap';
 
 // Collect the renderer instance the mocked DOMRenderer produces.
@@ -14,10 +15,12 @@ const { rendererInstance, viewModule } = vi.hoisted(() => ({
   rendererInstance: {
     executeCommands: vi.fn(),
     setupEvents: vi.fn(),
+    setupGestures: vi.fn(),
   },
   viewModule: {
     initialRender: vi.fn(),
     handleDispatchEvent: vi.fn(),
+    handleGestureUpdate: vi.fn(),
   },
 }));
 
@@ -149,13 +152,21 @@ describe('bootstrapApplication', () => {
 
       // Capture the dispatch callback registered via renderer.setupEvents.
       const dispatch = rendererInstance.setupEvents.mock.calls[0][0];
-      dispatch(5, 0x04);
+      dispatch(5, 0x04, { x: 1, y: 2 });
 
-      expect(worker.messages).toContainEqual({ type: 'EVENT', nodeId: 5, eventType: 0x04 });
+      expect(worker.messages).toHaveLength(1);
+      expect(worker.messages[0].type).toBe('BINARY');
+      const decoded = deserializeMessage(worker.messages[0].buffer);
+      expect(decoded.commands[0]).toMatchObject({
+        opcode: 'DISPATCH_EVENT',
+        targetId: 5,
+        eventType: 0x04,
+        data: { x: 1, y: 2 },
+      });
     });
 
     it('uses a custom renderer when provided', async () => {
-      const custom = { executeCommands: vi.fn(), setupEvents: vi.fn() };
+      const custom = { executeCommands: vi.fn(), setupEvents: vi.fn(), setupGestures: vi.fn() };
       const promise = bootstrapApplication('worker-url.js', { renderer: custom as any });
 
       await vi.waitFor(() => {
@@ -179,7 +190,7 @@ describe('bootstrapApplication', () => {
       await bootstrapApplication(MockView);
       const dispatch = rendererInstance.setupEvents.mock.calls[0][0];
       dispatch(7, 0x01);
-      expect(viewModule.handleDispatchEvent).toHaveBeenCalledWith(7, 0x01);
+      expect(viewModule.handleDispatchEvent).toHaveBeenCalledWith(7, 0x01, undefined);
     });
   });
 });
