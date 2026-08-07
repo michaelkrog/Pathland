@@ -7,7 +7,7 @@
  */
 
 import type { Command, PropertyValue } from '@pathland/protocol';
-import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, decodeMessage } from '@pathland/protocol';
+import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, SemanticColorToken, decodeMessage } from '@pathland/protocol';
 import type { Renderer } from '@pathland/renderer';
 
 // ============================================
@@ -173,19 +173,21 @@ class RenderElement {
         break;
 
       // Style properties
-      case StyleProperty.BACKGROUND_COLOR:
-        if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
-          const rgba = value.type === 'u32' ? value.value : value.rgba;
-          (this.element as HTMLElement).style.backgroundColor = rgbaToCss(rgba);
+      case StyleProperty.BACKGROUND_COLOR: {
+        const bgRgba = resolveColor(value);
+        if (bgRgba !== null) {
+          (this.element as HTMLElement).style.backgroundColor = rgbaToCss(bgRgba);
         }
         break;
+      }
 
-      case StyleProperty.COLOR:
-        if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
-          const rgba = value.type === 'u32' ? value.value : value.rgba;
-          (this.element as HTMLElement).style.color = rgbaToCss(rgba);
+      case StyleProperty.COLOR: {
+        const fgRgba = resolveColor(value);
+        if (fgRgba !== null) {
+          (this.element as HTMLElement).style.color = rgbaToCss(fgRgba);
         }
         break;
+      }
 
       case StyleProperty.FONT_SIZE:
         if (value.type === 'f32') {
@@ -248,12 +250,13 @@ class RenderElement {
         }
         break;
 
-      case StyleProperty.BORDER_COLOR:
-        if (value.type === 'u32' || (value.type === 'color' && value.kind === 'literal')) {
-          const rgba = value.type === 'u32' ? value.value : value.rgba;
-          (this.element as HTMLElement).style.borderColor = rgbaToCss(rgba);
+      case StyleProperty.BORDER_COLOR: {
+        const borderRgba = resolveColor(value);
+        if (borderRgba !== null) {
+          (this.element as HTMLElement).style.borderColor = rgbaToCss(borderRgba);
         }
         break;
+      }
 
       case StyleProperty.BORDER_RADIUS:
         if (value.type === 'f32') {
@@ -831,6 +834,47 @@ function rgbaToCss(rgba: number): string {
   const b = (rgba >>> 8) & 0xFF;
   const a = rgba & 0xFF;
   return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
+}
+
+// ============================================
+// DEFAULT THEME
+// ============================================
+
+/**
+ * Default resolution of semantic color tokens to concrete sRGB values.
+ * The renderer owns the default theme; applications may override tokens
+ * via SET_DESIGN_TOKEN (which the renderer can apply on top of these).
+ */
+const DEFAULT_SEMANTIC_COLORS: Record<number, number> = {
+  [SemanticColorToken.PRIMARY_TEXT]: 0xFF1C1C1E,
+  [SemanticColorToken.SECONDARY_TEXT]: 0xFF6E6E73,
+  [SemanticColorToken.TERTIARY_TEXT]: 0xFF8E8E93,
+  [SemanticColorToken.BACKGROUND]: 0xFFFFFFFF,
+  [SemanticColorToken.SURFACE]: 0xFFF2F2F7,
+  [SemanticColorToken.ACCENT]: 0xFF007AFF,
+  [SemanticColorToken.ERROR]: 0xFFFF3B30,
+  [SemanticColorToken.SUCCESS]: 0xFF34C759,
+  [SemanticColorToken.WARNING]: 0xFFFF9500,
+  [SemanticColorToken.INFO]: 0xFF0A84FF,
+  [SemanticColorToken.BORDER]: 0xFFC7C7CC,
+  [SemanticColorToken.SEPARATOR]: 0xFFD1D1D6,
+};
+
+/**
+ * Resolve a PropertyValue to a concrete sRGB rgba value, or null if it
+ * cannot be resolved (unknown semantic token, unresolved design token, etc.).
+ */
+function resolveColor(value: PropertyValue): number | null {
+  if (value.type === 'color' && value.kind === 'literal') {
+    return value.rgba;
+  }
+  if (value.type === 'color' && value.kind === 'semantic') {
+    return DEFAULT_SEMANTIC_COLORS[value.tokenId] ?? null;
+  }
+  if (value.type === 'u32') {
+    return value.value;
+  }
+  return null;
 }
 
 function enumToAlignItems(value: number): string {

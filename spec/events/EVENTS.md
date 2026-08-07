@@ -296,14 +296,15 @@ For efficient transport, Pathland supports a **binary encoding** for events that
 
 ### 4.1 Event Message Format
 
-Events are dispatched using the `DISPATCH_EVENT` (0x07) opcode with the following binary format:
+Events are dispatched using the `DISPATCH_EVENT` (0x07) opcode with the following binary format (including the standard `[u16 payloadLength]` instruction framing):
 
 ```
-[u8 opcode=0x07][u32 targetId][u8 eventType][u32 timestamp][u8 phase][event-specific data...]
+[u8 opcode=0x07][u16 payloadLength][u32 targetId][u8 eventType][u32 timestamp][u8 phase][event-specific data...]
 ```
 
 **Fields:**
 - `opcode`: Always 0x07 for DISPATCH_EVENT
+- `payloadLength`: Byte length of everything after this field (u16, little-endian)
 - `targetId`: The component ID that the event targets (u32, little-endian)
 - `eventType`: The type of event (see Event Type IDs below, u8)
 - `timestamp`: Milliseconds since epoch (u32, little-endian)
@@ -341,11 +342,12 @@ Events are dispatched using the `DISPATCH_EVENT` (0x07) opcode with the followin
 Event handlers are registered using the `REGISTER_EVENT_HANDLER` (0x08) opcode:
 
 ```
-[u8 opcode=0x08][u32 nodeId][u8 eventType][u8 handlerPhase][u32 handlerId]
+[u8 opcode=0x08][u16 payloadLength][u32 nodeId][u8 eventType][u8 handlerPhase][u32 handlerId]
 ```
 
 **Fields:**
 - `opcode`: Always 0x08 for REGISTER_EVENT_HANDLER
+- `payloadLength`: Byte length of everything after this field (u16, little-endian)
 - `nodeId`: The component ID to register the handler on (u32, little-endian)
 - `eventType`: The type of event to handle (u8, from Event Type IDs above)
 - `handlerPhase`: Which propagation phase to handle (u8)
@@ -454,9 +456,10 @@ The value is encoded using the same format as the `SET_PROPERTY` instruction (se
 
 **Registering a tap handler:**
 ```binary
-08 2A 00 00 00 01 01 05 00 00 00
+08 0A 00 2A 00 00 00 01 01 05 00 00 00
 ```
 - Opcode: 0x08 (REGISTER_EVENT_HANDLER)
+- payloadLength: 10
 - nodeId: 42
 - eventType: 0x01 (TAP)
 - handlerPhase: 0x01 (TARGET)
@@ -464,9 +467,10 @@ The value is encoded using the same format as the `SET_PROPERTY` instruction (se
 
 **Dispatching a tap event:**
 ```binary
-07 2A 00 00 00 01 60 6E 9A 01 01 00 00 80 3F 00 00 00 00
+07 13 00 2A 00 00 00 01 60 6E 9A 01 01 00 00 80 3F 00 00 00 00 01
 ```
 - Opcode: 0x07 (DISPATCH_EVENT)
+- payloadLength: 19
 - targetId: 42
 - eventType: 0x01 (TAP)
 - timestamp: 1699911200 (example)
@@ -475,9 +479,10 @@ The value is encoded using the same format as the `SET_PROPERTY` instruction (se
 
 **Dispatching an onChange event:**
 ```binary
-07 2A 00 00 00 0E 60 6E 9A 01 01 0A 00 07 02 FF 00 00 FF
+07 12 00 2A 00 00 00 0E 60 6E 9A 01 01 0A 00 07 02 FF 00 00 FF
 ```
 - Opcode: 0x07 (DISPATCH_EVENT)
+- payloadLength: 18
 - targetId: 42
 - eventType: 0x0E (ON_CHANGE)
 - timestamp: 1699911200
@@ -548,10 +553,11 @@ For the **authoritative gesture opcodes**, see **[BINARY_PROTOCOL.md - Gesture B
 #### Opcode: GESTURE_UPDATE (0x09)
 
 ```
-[u8 opcode=0x09][u32 targetId][u8 gestureType][u8 gestureState][u32 timestamp][u32 gestureId][gesture-specific data...]
+[u8 opcode=0x09][u16 payloadLength][u32 targetId][u8 gestureType][u8 gestureState][u32 timestamp][u32 gestureId][gesture-specific data...]
 ```
 
 **Fields:**
+- `payloadLength`: Byte length of everything after this field (u16, little-endian)
 - `targetId`: The component ID receiving the gesture (u32, little-endian)
 - `gestureType`: Type of gesture (0x10-0x15, u8)
 - `gestureState`: Current state of the gesture (0x00-0x03, u8)
@@ -561,10 +567,11 @@ For the **authoritative gesture opcodes**, see **[BINARY_PROTOCOL.md - Gesture B
 #### Opcode: ATTACH_GESTURE (0x0A)
 
 ```
-[u8 opcode=0x0A][u32 nodeId][u8 gestureType][u32 gestureRecognizerId][u8 handlerPhase][u32 onBeganHandler][u32 onChangedHandler][u32 onEndedHandler][u32 onCancelledHandler]
+[u8 opcode=0x0A][u16 payloadLength][u32 nodeId][u8 gestureType][u32 gestureRecognizerId][u8 handlerPhase][u32 onBeganHandler][u32 onChangedHandler][u32 onEndedHandler][u32 onCancelledHandler]
 ```
 
 **Fields:**
+- `payloadLength`: Byte length of everything after this field (u16, little-endian)
 - `nodeId`: The component ID to attach gesture to (u32, little-endian)
 - `gestureType`: Type of gesture (0x10-0x15, u8)
 - `gestureRecognizerId`: Unique ID for this gesture recognizer (u32, little-endian)
@@ -574,7 +581,7 @@ For the **authoritative gesture opcodes**, see **[BINARY_PROTOCOL.md - Gesture B
 #### Opcode: COMBINE_GESTURES (0x0B)
 
 ```
-[u8 opcode=0x0B][u8 combinationType][u32 firstGestureId][u32 secondGestureId][u32 combinedGestureId]
+[u8 opcode=0x0B][u16 payloadLength][u8 combinationType][u32 firstGestureId][u32 secondGestureId][u32 combinedGestureId]
 ```
 
 **Combination Types:**
@@ -775,7 +782,7 @@ For the **authoritative event type definitions**, see **[BINARY_PROTOCOL.md - Ev
 | SWIPE | 0x0B | `onSwipe` | direction, velocity, distance |
 | ON_APPEAR | 0x0C | `onAppear` | None |
 | ON_DISAPPEAR | 0x0D | `onDisappear` | None |
-| ON_CHANGE | 0x0E | `onChange` | propertyId, oldValue, newValue |
+| ON_CHANGE | 0x0E | `onChange` | propertyId, value (new value only) |
 
 ---
 

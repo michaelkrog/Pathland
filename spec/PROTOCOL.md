@@ -286,7 +286,7 @@ For complete color specifications, see **[BINARY_PROTOCOL.md - Color Value Type]
 ### 6.1 Custom Components
 
 Implementations MAY define custom component types using IDs in the reserved ranges:
-- `0x0009-0x7FFF`: Future core components
+- `0x000D-0x7FFF`: Future core components
 - `0x8000-0xFFFF`: Custom/experimental components
 
 Custom components:
@@ -330,7 +330,6 @@ For complete and authoritative protocol details, always refer to:
 - **[BINARY_PROTOCOL.md](./BINARY_PROTOCOL.md)** - The official protocol specification
 - **[COMPONENTS.md](./components/COMPONENTS.md)** - Component specifications
 - **[EVENTS.md](./events/EVENTS.md)** - Event system specifications
-- **[STATE.md](./state/STATE.md)** - State management specifications
 
 ---
 

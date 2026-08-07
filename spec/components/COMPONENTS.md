@@ -422,7 +422,7 @@ See **[BINARY_PROTOCOL.md - Property ID Definitions](../BINARY_PROTOCOL.md#prope
 | 0x0006-0x0009 | Future HSTACK/VSTACK properties |
 | 0x0010-0x0FFF | Future TEXT properties |
 | 0x1011-0xFFFF | Future properties |
-| 0x0009-0x7FFF | Future core component types |
+| 0x000D-0x7FFF | Future core component types |
 | 0x8000-0xFFFF | Custom/experimental component types |
 
 Implementations SHOULD ignore nodes with unknown component types or properties.
@@ -441,6 +441,12 @@ Implementations SHOULD ignore nodes with unknown component types or properties.
 | SWITCH | 0x0006 | 6 | No | Toggle switch component |
 | TEXT_FIELD | 0x0007 | 7 | No | Text input field component |
 | SPACER | 0x0008 | 8 | No | Flexible space component |
+| SCROLLVIEW | 0x0009 | 9 | Yes | Scrollable container (experimental) |
+| LIST | 0x000A | 10 | Yes | Virtualized list container (experimental) |
+| GRID | 0x000B | 11 | Yes | Grid container (experimental) |
+| COMMENT | 0x000C | 12 | No | Non-rendered comment/marker node (experimental) |
+
+**Note**: Components marked *experimental* (0x0009-0x000C) are implemented in the TypeScript renderers but their property sets and behavior are not yet fully specified.
 
 ---
 

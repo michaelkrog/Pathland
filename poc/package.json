@@ -5,7 +5,6 @@
   "main": "dist/src/worker.js",
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
     "dev": "vite"
   },
   "keywords": [

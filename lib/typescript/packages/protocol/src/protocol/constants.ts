@@ -110,6 +110,22 @@ export const ColorKind = {
   LITERAL_SRGB: 0x02,
 } as const;
 
+// Semantic Color Tokens
+export const SemanticColorToken = {
+  PRIMARY_TEXT: 0x0001,
+  SECONDARY_TEXT: 0x0002,
+  TERTIARY_TEXT: 0x0003,
+  BACKGROUND: 0x0004,
+  SURFACE: 0x0005,
+  ACCENT: 0x0006,
+  ERROR: 0x0007,
+  SUCCESS: 0x0008,
+  WARNING: 0x0009,
+  INFO: 0x000A,
+  BORDER: 0x000B,
+  SEPARATOR: 0x000C,
+} as const;
+
 // Special Values
 export const FILL = -1.0;
 export const HUG_CONTENT = -2.0;
@@ -151,6 +167,7 @@ export const EventType = {
   KEY_DOWN: 0x08,
   KEY_UP: 0x09,
   SCROLL: 0x0A,
+  SWIPE: 0x0B,
   ON_APPEAR: 0x0C,
   ON_DISAPPEAR: 0x0D,
   ON_CHANGE: 0x0E,
@@ -159,7 +176,6 @@ export const EventType = {
 // Gesture Types
 export const GestureType = {
   TAP: 0x10,
-  DOUBLE_TAP: 0x11,
   LONG_PRESS: 0x11,
   DRAG: 0x12,
   SWIPE: 0x13,
