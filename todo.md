@@ -8,7 +8,8 @@ Rolling task list of candidate next steps. Each workstream links to its detail p
 - [x] Worker-thread bootstrap with binary command transport — `262e524`
 - [x] POC worker-safe clock — `0636e06`
 - [x] Complete the interaction system — `dac6a91` (branch: feature/interaction-system)
-- [x] Test suite green: protocol 17, view 19, renderer-dom 8, platform-browser 25
+- [x] For-loop positional identity diffing — `006a4cb` (branch: feature/for-loop-diffing)
+- [x] Test suite green: protocol 17, view 24, renderer-dom 8, platform-browser 25
 
 ## Workstreams
 
