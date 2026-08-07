@@ -441,12 +441,12 @@ export class DOMRenderer implements Renderer {
         this.document = config.document;
         this.container = this.document.body as DOMNode;
       } else {
-        throw new Error('No container or document provided. For JSDOM, pass the document in config or use DOMRenderer.createJSDOMRenderer().');
+        throw new Error('No container or document provided. For JSDOM, pass the document in config or import { createJSDOMRenderer } from "@pathland/renderer-dom/jsdom".');
       }
     }
     
     if (!this.document) {
-      throw new Error('No document provided and no global document available. For JSDOM, pass the document parameter or use DOMRenderer.createJSDOMRenderer().');
+      throw new Error('No document provided and no global document available. For JSDOM, pass the document parameter or import { createJSDOMRenderer } from "@pathland/renderer-dom/jsdom".');
     }
     
     if (!this.container) {
@@ -814,21 +814,6 @@ export class DOMRenderer implements Renderer {
    */
   getDOMElement(nodeId: number): DOMNode | undefined {
     return this.elements.get(nodeId)?.element;
-  }
-
-  /**
-   * Create a new JSDOM renderer for server-side use.
-   * This is a convenience factory for Node.js environments.
-   */
-  static async createJSDOMRenderer(html?: string, config: DOMRendererConfig = {}): Promise<DOMRenderer> {
-    // Dynamic import for ESM compatibility
-    const { JSDOM } = await import('jsdom');
-    const dom = new JSDOM(html || '<!DOCTYPE html><html><body></body></html>');
-    return new DOMRenderer({ 
-      ...config, 
-      document: dom.window.document,
-      container: dom.window.document.body as unknown as DOMNode
-    });
   }
 }
 

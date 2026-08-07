@@ -7,6 +7,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { DOMRenderer } from './index';
+import { createJSDOMRenderer } from './jsdom';
 import { ComponentType, TextProperty, EventType } from '@pathland/protocol';
 import type { Command } from '@pathland/protocol';
 
@@ -29,7 +30,7 @@ describe('DOMRenderer event dispatch', () => {
   let el: HTMLElement;
 
   beforeEach(async () => {
-    renderer = await DOMRenderer.createJSDOMRenderer();
+    renderer = await createJSDOMRenderer();
     dispatched = [];
     renderer.setupEvents((nodeId, eventType) => dispatched.push([nodeId, eventType]));
     renderer.executeCommands(COMMANDS);
@@ -109,7 +110,7 @@ describe('DOMRenderer tree mutation', () => {
   let document: Document;
 
   const build = async (commands: Command[]): Promise<DOMRenderer> => {
-    const r = await DOMRenderer.createJSDOMRenderer();
+    const r = await createJSDOMRenderer();
     r.executeCommands(commands);
     return r;
   };

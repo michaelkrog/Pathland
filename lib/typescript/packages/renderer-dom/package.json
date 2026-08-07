@@ -9,6 +9,10 @@
     ".": {
       "import": "./dist/index.js",
       "require": "./dist/index.js"
+    },
+    "./jsdom": {
+      "import": "./dist/jsdom.js",
+      "require": "./dist/jsdom.js"
     }
   },
   "files": ["dist"],

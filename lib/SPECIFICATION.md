@@ -247,7 +247,9 @@ bootstrapApplication(workerUrl);
 - `getHTML()` → full document HTML string (JSDOM only)
 - `getBodyHTML()` → body content HTML string (JSDOM only)
 - `getDocument()` → access to the document being used
-- `createJSDOMRenderer()` → static factory for Node.js/JSDOM
+- `createJSDOMRenderer()` → factory for Node.js/JSDOM, imported from the
+  `@pathland/renderer-dom/jsdom` subpath (kept separate so browser bundles
+  never include jsdom)
 - Flex layout for HStack (row) and VStack (column)
 
 **Does NOT provide**:

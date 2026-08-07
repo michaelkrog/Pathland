@@ -11,6 +11,7 @@ Rolling task list of candidate next steps. Each workstream links to its detail p
 - [x] For-loop positional identity diffing — `006a4cb` (branch: feature/for-loop-diffing)
 - [x] Documentation: renderer memory model + conformance vectors — `2afad57` (branch: feature/docs-memory-model)
 - [x] Protocol gaps: MOVE_CHILD/RESET, EdgeInsets, coordinate space, env requestId (branch: feature/protocol-gaps)
+- [x] Bundle hygiene: jsdom moved to `@pathland/renderer-dom/jsdom` subpath (branch: feature/bundle-hygiene)
 - [x] Test suite green: protocol 19, view 25, renderer-dom 12, platform-browser 25
 
 ## Workstreams
@@ -54,7 +55,8 @@ Rolling task list of candidate next steps. Each workstream links to its detail p
   (stateless vs rendered-output tree)
 - spec/CONFORMANCE.md: golden byte arrays
 
-### 5. Bundle hygiene  ← NEXT
+### 5. Bundle hygiene — DONE
 
-- Externalize jsdom from the browser bundle
-  (renderer-dom `createJSDOMRenderer` -> ~2.7MB chunk)
+- Moved `createJSDOMRenderer` out of the renderer-dom main entry into the
+  `@pathland/renderer-dom/jsdom` subpath; browser bundles no longer pull in
+  jsdom (removed the ~2.7MB chunk from the POC build)
