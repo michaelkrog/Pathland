@@ -12,7 +12,7 @@ This document provides essential context for AI agents (or human contributors) w
 
 **Primary Goal**: Write once, run anywhere - Enable UI code to be written once and deployed across web, mobile, desktop, and embedded platforms through different renderer implementations.
 
-**Status**: The protocol + worker bootstrap + DOM renderer + Canvas 2D renderer are implemented and tested end-to-end.
+**Status**: The protocol + worker bootstrap + DOM renderer are implemented and tested end-to-end.
 
 ---
 
@@ -169,9 +169,9 @@ Worker (application)  ──binary mutations──▶  Main (renderer)
 
 ## Event & Gesture Model
 
-- **Discrete events** travel as binary `DISPATCH_EVENT` with per-type payloads (coordinates, tapCount, keyCode, modifiers, hover `isHovering`, …). renderer-dom and renderer-canvas dispatch them via `Renderer.setupEvents((nodeId, eventType, data?) => void)`.
-- **Stateful gestures** use `ATTACH_GESTURE` (register) + `GESTURE_UPDATE` (lifecycle: began/changed/ended/cancelled). renderer-dom and renderer-canvas dispatch via `Renderer.setupGestures((nodeId, gestureType, gestureState, data?) => void)`.
-- **Shared recognition**: both renderers use the same `PointerInteraction` (`@pathland/renderer`) over a normalized pointer stream (down/move/up/cancel + logical points + optional raw target), with an injected hit-test. Click/hover can be synthesized from the stream (canvas) or from native DOM events (DOM).
+- **Discrete events** travel as binary `DISPATCH_EVENT` with per-type payloads (coordinates, tapCount, keyCode, modifiers, hover `isHovering`, …). renderer-dom dispatches them via `Renderer.setupEvents((nodeId, eventType, data?) => void)`.
+- **Stateful gestures** use `ATTACH_GESTURE` (register) + `GESTURE_UPDATE` (lifecycle: began/changed/ended/cancelled). renderer-dom dispatches via `Renderer.setupGestures((nodeId, gestureType, gestureState, data?) => void)`.
+- **Shared recognition**: renderers use the shared `PointerInteraction` (`@pathland/renderer`) over a normalized pointer stream (down/move/up/cancel + logical points + optional raw target), with an injected hit-test. renderer-dom drives it from native DOM events.
 - **View API (SwiftUI-style)**: `DragGesture()`, `LongPressGesture()`, `TapGesture()` with `.onBegan/.onChanged/.onEnded/.onCancelled`, attached via `.gesture(...)`; plus `.onTapGesture {}` / `.onLongPressGesture {}`. Discrete sugar (`tapGesture`, `longPressGesture`, `hoverGesture`, `focusGesture`, `blurGesture`) registers via `REGISTER_EVENT_HANDLER`.
 - **Coordinates** are viewport-relative logical points.
 
@@ -185,16 +185,14 @@ Worker (application)  ──binary mutations──▶  Main (renderer)
 ```
 poc/
 ├── index.html           # DOM renderer page
-├── canvas.html          # Canvas 2D renderer page
 └── src/
     ├── app.ts           # The app: 11 demos (View classes)
     ├── worker.ts        # Worker entry: startWorker(() => POCApp)
     ├── main.ts          # DOM bootstrap: bootstrapApplication(workerUrl)
-    ├── canvas-main.ts   # Canvas bootstrap: bootstrapApplication(workerUrl, { renderer })
     └── vite-env.d.ts    # Ambient types for Vite ?worker&url imports
 ```
 
-**Running**: `cd poc && npm install && npm run dev` → http://localhost:3000 (DOM) or /canvas.html (Canvas). Both run in worker mode against the same `app.ts`.
+**Running**: `cd poc && npm install && npm run dev` → http://localhost:3000 (DOM). Runs in worker mode against `app.ts`.
 
 **11 Demos**: simple VStack, HStack+Spacer, nested stacks, styled components, live clock, counter with signals, `If`, `For` (with positional diffing), `Switch`, long-press & hover, drag gesture.
 
@@ -209,9 +207,10 @@ packages/
 ├── transport/         # serializeMessage/createTransferable + transports
 ├── view/              # View/ViewNode, Signal, components, control flow, gestures
 ├── platform-browser/  # bootstrapApplication, startWorker, WorkerManager
-├── renderer-dom/      # DOM renderer (+ ./jsdom subpath for Node/SSR)
-└── renderer-canvas/   # Canvas 2D renderer + retained layout engine
+└── renderer-dom/      # DOM renderer (+ ./jsdom subpath for Node/SSR)
 ```
+
+**renderer-dom architecture**: components are **hand-rolled custom elements with shadow DOM** (`pl-hstack`, `pl-text`, `pl-button`, `pl-root`, …) — no Lit/Stencil. Every component is a stateless shell whose shadow root provides hard CSS encapsulation; children live in the light DOM via a `<slot>`. The renderer applies properties as **inline CSS custom properties** on hosts (`--pl-spacing`, `--pl-padding-top`, `--pl-bg`, …) consumed by a single shared `:host` rule set, or as direct inline styles on shadow internals (text span, native button, inputs) — per-element style application, no class-based selector matching. Semantic colors resolve to `var(--pl-color-*)` defined on the root container, so `SET_DESIGN_TOKEN` (a single root var write) re-themes the whole surface. Event/gesture hit-testing walks the composed path via `resolveNodeId` (`src/events.ts`), crossing shadow boundaries through `host`. Legacy `adoptedStyleSheets` is unsupported in jsdom, so the shared sheet is injected as a `<style>` per shadow root.
 
 Dependency rule: packages depend only on packages to their left in the table above (see `lib/SPECIFICATION.md`). `npm test` at the monorepo root runs every package's suite.
 
@@ -220,7 +219,7 @@ Dependency rule: packages depend only on packages to their left in the table abo
 ### Adding New Component
 1. Add to `ComponentType` in `lib/typescript/packages/protocol/src/protocol/constants.ts`
 2. Add to `spec/BINARY_PROTOCOL.md` + `spec/components/COMPONENTS.md`
-3. Implement creation/properties in `renderer-dom/src/index.ts` AND `renderer-canvas/src/index.ts` (+ layout in `renderer-canvas/src/layout.ts`)
+3. Implement creation/properties in `renderer-dom/src/index.ts`
 
 ### Adding New Property
 1. Add to the appropriate property enum in `constants.ts`
@@ -257,7 +256,7 @@ Dependency rule: packages depend only on packages to their left in the table abo
 
 ## Project Status
 
-**Complete**: Binary protocol (v1) with conformance vectors; worker bootstrap with symmetric binary transport; DOM + Canvas 2D renderers; shared `PointerInteraction`; full discrete event set; SwiftUI-style gestures (tap/long-press/drag); For-loop diffing; protocol gaps (MOVE_CHILD, RESET, EdgeInsets, coordinates, env requestId); renderer memory model docs; bundle hygiene. **106 tests green across 5 packages.**
+**Complete**: Binary protocol (v1) with conformance vectors; worker bootstrap with symmetric binary transport; shadow-DOM DOM renderer; shared `PointerInteraction`; full discrete event set; SwiftUI-style gestures (tap/long-press/drag); For-loop diffing; protocol gaps (MOVE_CHILD, RESET, EdgeInsets, coordinates, env requestId); renderer memory model docs; bundle hygiene; SET_DESIGN_TOKEN theming. **101 tests green across 4 packages.**
 
 **Planned / deferred**: pinch/rotate + multi-touch + `COMBINE_GESTURES`, capture/bubble propagation, keyed For reconciliation with moves, TEXT_FIELD editing, image rendering, more backends (SVG/terminal/native), Playwright E2E tests.
 
@@ -266,7 +265,7 @@ Dependency rule: packages depend only on packages to their left in the table abo
 ## Quick Start
 
 1. Read this file and `spec/BINARY_PROTOCOL.md`
-2. Run the POC: `cd poc && npm install && npm run dev` → http://localhost:3000 and /canvas.html
+2. Run the POC: `cd poc && npm install && npm run dev` → http://localhost:3000
 3. Run tests: `cd lib/typescript && npm test` (runs all packages)
 4. Make small changes, verify they work
 

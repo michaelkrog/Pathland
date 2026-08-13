@@ -6,7 +6,7 @@
 
 Pathland is a **protocol-first** UI framework designed to enable retained-mode UI development with multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but designed to be **language-agnostic** and **platform-agnostic**.
 
-The same application + binary protocol renders on different surfaces: today there are **DOM** and **Canvas 2D** renderers, and the interface is designed so any renderer (native, SVG, terminal, embedded) can be added.
+The same application + binary protocol renders on different surfaces: today there is a **DOM** renderer, and the interface is designed so any renderer (canvas, native, SVG, terminal, embedded) can be added.
 
 ## Core Principles
 
@@ -31,12 +31,11 @@ The same application + binary protocol renders on different surfaces: today ther
 
 ## Proof of Concept (POC)
 
-A working implementation is available in the [`/poc/`](./poc/) directory. It renders the **same** application (`src/app.ts`) two ways:
+A working implementation is available in the [`/poc/`](./poc/) directory. It renders the **same** application (`src/app.ts`) through the **DOM renderer**:
 
 - [`index.html`](./poc/index.html) - the **DOM renderer** (`@pathland/renderer-dom`)
-- [`canvas.html`](./poc/canvas.html) - the **Canvas 2D renderer** (`@pathland/renderer-canvas`)
 
-In both cases the app runs in a **worker thread** (`src/worker.ts`) and emits binary commands to the renderer on the main thread; renderer events/gestures flow back as binary instructions.
+The app runs in a **worker thread** (`src/worker.ts`) and emits binary commands to the renderer on the main thread; renderer events/gestures flow back as binary instructions.
 
 **11 demos**:
 1. Simple VStack with Text (semantic colors)
@@ -58,7 +57,7 @@ npm install
 npm run dev
 ```
 
-Then open `http://localhost:3000` (DOM) or `http://localhost:3000/canvas.html` (Canvas).
+Then open `http://localhost:3000`.
 
 ## TypeScript Libraries
 
@@ -71,8 +70,7 @@ The implementation is a monorepo under [`lib/typescript/`](./lib/typescript/):
 | `@pathland/transport` | Message serialization + transports (WebSocket, postMessage, memory) |
 | `@pathland/view` | Reactive view framework (signals, components, control flow, SwiftUI-style gestures) |
 | `@pathland/platform-browser` | `bootstrapApplication` (worker mode) + `startWorker` |
-| `@pathland/renderer-dom` | DOM renderer (+ `@pathland/renderer-dom/jsdom` for Node/SSR) |
-| `@pathland/renderer-canvas` | Canvas 2D renderer with a retained layout engine |
+| `@pathland/renderer-dom` | DOM renderer — hand-rolled custom elements with shadow DOM for hard CSS encapsulation (+ `@pathland/renderer-dom/jsdom` for Node/SSR) |
 
 ## Implemented Components
 
@@ -199,7 +197,7 @@ Event coordinates are **viewport-relative logical points** (see [BINARY_PROTOCOL
 2. Study the [Component Specifications](./spec/components/COMPONENTS.md)
 3. Review the [Event System](./spec/events/EVENTS.md)
 4. Validate against the [Conformance Vectors](./spec/CONFORMANCE.md)
-5. Implement a renderer for your target platform (see `@pathland/renderer-dom` / `@pathland/renderer-canvas`)
+5. Implement a renderer for your target platform (see `@pathland/renderer-dom` as a reference)
 
 ### For Application Developers
 
@@ -224,12 +222,12 @@ import workerUrl from './worker?worker&url';
 bootstrapApplication(workerUrl);
 ```
 
-**Render on a different surface** (write once, run anywhere):
+**Render on a different surface** (write once, run anywhere): pass a custom `Renderer` implementation (canvas, native, SVG, terminal, …) to `bootstrapApplication`:
 
 ```typescript
-import { CanvasRenderer } from '@pathland/renderer-canvas';
-const renderer = new CanvasRenderer({ canvas: document.getElementById('app') as HTMLCanvasElement });
-bootstrapApplication(workerUrl, { renderer }); // same app, canvas surface
+import { bootstrapApplication } from '@pathland/platform-browser';
+import { MyRenderer } from './my-renderer';
+bootstrapApplication(workerUrl, { renderer: new MyRenderer(...) });
 ```
 
 ## Versioning

@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "cd packages/protocol && npm run build && cd ../../packages/renderer && npm run build && cd ../../packages/transport && npm run build && cd ../../packages/view && npm run build && cd ../../packages/platform-browser && npm run build && cd ../../packages/renderer-dom && npm run build && cd ../../packages/renderer-canvas && npm run build",
+    "build": "cd packages/protocol && npm run build && cd ../../packages/renderer && npm run build && cd ../../packages/transport && npm run build && cd ../../packages/view && npm run build && cd ../../packages/platform-browser && npm run build && cd ../../packages/renderer-dom && npm run build",
     "test": "npm test --workspaces --if-present",
     "build:view": "cd packages/view && npm run build",
     "watch:view": "cd packages/view && npm run watch"

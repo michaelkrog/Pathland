@@ -23,8 +23,7 @@
     "@pathland/transport": "file:../lib/typescript/packages/transport",
     "@pathland/view": "file:../lib/typescript/packages/view",
     "@pathland/platform-browser": "file:../lib/typescript/packages/platform-browser",
-    "@pathland/renderer-dom": "file:../lib/typescript/packages/renderer-dom",
-    "@pathland/renderer-canvas": "file:../lib/typescript/packages/renderer-canvas"
+    "@pathland/renderer-dom": "file:../lib/typescript/packages/renderer-dom"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
