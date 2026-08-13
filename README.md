@@ -2,6 +2,16 @@
 
 > A cross-platform, cross-language UI protocol inspired by SwiftUI
 
+## New Direction (Rust WASM Opcode Engine)
+
+As of August 2026 Pathland is pivoting to a **Rust WASM guest engine** that
+emits a fixed **16-byte opcode ring buffer** into shared linear memory, consumed
+by host renderers. Components and modifiers are written in Rust with a
+SwiftUI-like API and exposed to other languages via **WASM/WIT**. See
+[`spec/OPCODE.md`](./spec/OPCODE.md) (supersedes `spec/BINARY_PROTOCOL.md`) and
+the Rust workspace under [`lib/rust/`](./lib/rust/). The TypeScript
+implementation in [`lib/typescript/`](./lib/typescript/) is kept for reference.
+
 ## Overview
 
 Pathland is a **protocol-first** UI framework designed to enable retained-mode UI development with multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but designed to be **language-agnostic** and **platform-agnostic**.

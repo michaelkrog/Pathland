@@ -1,7 +1,12 @@
 # Pathland Binary Protocol Specification
 
+> **SUPERSEDED.** This variable-length instruction protocol has been replaced by
+> the fixed-size **16-byte opcode engine** defined in
+> **[OPCODE.md](./OPCODE.md)**. This document is kept for historical reference
+> only. The wire protocol version (1) is carried forward into the new format.
+
 **Version:** 2.0.0-alpha  
-**Status:** Draft  
+**Status:** Superseded (kept for history)  
 **Format:** Custom Binary Instruction Protocol  
 **Last Updated:** June 26, 2026
 

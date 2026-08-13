@@ -2,7 +2,52 @@
 
 This document provides essential context for AI agents (or human contributors) working on the **Pathland** protocol. It captures the project's direction, architectural decisions, and implementation details to ensure consistency.
 
-**Last Updated**: August 7, 2026
+**Last Updated**: August 13, 2026
+
+---
+
+## NEW DIRECTION: Rust WASM Opcode Engine (POC)
+
+> As of August 2026 the project is **pivoting**. The new canonical core is a
+> **Rust engine compiled to WASM** ("WASM guest engine") that emits a fixed
+> **16-byte opcode ring buffer** into shared linear memory, consumed by host
+> renderers. View components and modifiers are written in Rust with a
+> SwiftUI-like API; other languages consume the components as **WASM/WIT**
+> components. The historical TypeScript implementation and variable-length
+> protocol remain under `lib/typescript/` and `spec/BINARY_PROTOCOL.md` (kept
+> for reference; **superseded** by `spec/OPCODE.md`).
+
+### The 16-byte Opcode Engine
+
+- Every opcode is exactly **16 bytes**: `Category (1B) | Command ID (1B) | Flags (2B) | A (4B) | B (4B) | C (4B)`, `#[repr(C, packed)]`, little-endian.
+- A 64-byte cache line holds exactly **4 opcodes** → L1-cache-friendly.
+- **Zero dynamic heap allocations during layout updates** (proven by test).
+- Opcodes live in a **ring buffer** in linear memory; the guest writes at `writeCursor`, the host reads from `readCursor`; frame boundaries via a monotonic `frameCount` in the header block.
+- **Variable-length data** (strings, token paths, child lists) lives in a bump **arena**; opcodes reference entries by offset (`[u32 byteLength][bytes...]`), so every opcode stays 16 bytes.
+- Spec: **`spec/OPCODE.md`** (primary) + **`spec/CONFORMANCE.md`** (golden vectors).
+
+### Rust Workspace (`lib/rust/`)
+
+```
+crates/pathland-opcode/   # 16-byte opcode, ring buffer, arena, memory layout (no_std)
+crates/pathland-layout/   # VStack/HStack/Text layout → LAYOUT opcodes (zero-alloc)
+crates/pathland-host/     # host reader: ring → render tree (std convenience layer)
+wit/pathland.wit          # WIT component-world definitions (Goal 3+)
+```
+
+- Test: `cd lib/rust && cargo test` (runs all crates).
+- WASM build: `RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc cargo build --target wasm32-unknown-unknown`
+  (the Homebrew `cargo` on PATH uses a rustc without the wasm std; use the rustup toolchain's rustc).
+
+### POC Goals (issues #12–#16)
+
+| # | Goal | Status |
+|---|------|--------|
+| 12 | 16-byte opcode engine | **In progress** (this branch) |
+| 13 | Core components & modifiers in Rust | Planned |
+| 14 | TypeScript browser demo via WASM/WIT | Planned |
+| 15 | Quarkus SSR + WebSocket demo | Planned |
+| 16 | Rust desktop app with GTK renderer | Planned |
 
 ---
 
@@ -12,7 +57,7 @@ This document provides essential context for AI agents (or human contributors) w
 
 **Primary Goal**: Write once, run anywhere - Enable UI code to be written once and deployed across web, mobile, desktop, and embedded platforms through different renderer implementations.
 
-**Status**: The protocol + worker bootstrap + DOM renderer are implemented and tested end-to-end.
+**Status**: The TypeScript protocol + worker bootstrap + DOM renderer are implemented and tested end-to-end (**legacy**). The Rust WASM opcode engine (16-byte opcode, ring buffer, arena) is under active development — see the NEW DIRECTION section above.
 
 ---
 
