@@ -10,6 +10,8 @@ import type { Command, PropertyValue, EventData } from '@pathland/protocol';
 import { ComponentType, StyleProperty, TextProperty, StackProperty, FILL, HUG_CONTENT, SemanticColorToken, EventType, decodeMessage } from '@pathland/protocol';
 import type { Renderer, PointerInput } from '@pathland/renderer';
 import { PointerInteraction } from '@pathland/renderer';
+import { createComponentElement, definePathlandElements, type PathlandHostElement } from './components';
+import { resolveNodeId } from './events';
 
 // ============================================
 // LOGGING CONFIGURATION
@@ -85,25 +87,6 @@ function isDOMNode(obj: any): obj is DOMNode {
 // ============================================
 
 /**
- * Maps Pathland component types to DOM element tag names.
- * COMMENT maps to 'comment' which is handled specially to create DOM comment nodes.
- */
-const COMPONENT_TO_TAG: Record<number, string> = {
-  [ComponentType.HSTACK]: 'div',
-  [ComponentType.VSTACK]: 'div',
-  [ComponentType.TEXT]: 'span',
-  [ComponentType.BUTTON]: 'button',
-  [ComponentType.IMAGE]: 'img',
-  [ComponentType.SPACER]: 'div',
-  [ComponentType.SCROLLVIEW]: 'div',
-  [ComponentType.LIST]: 'div',
-  [ComponentType.GRID]: 'div',
-  [ComponentType.SWITCH]: 'input',
-  [ComponentType.TEXT_FIELD]: 'input',
-  [ComponentType.COMMENT]: 'comment',
-};
-
-/**
  * Helper to set data attributes that works with both DOM and JSDOM.
  * Note: Comment nodes don't support setAttribute, so this should only be called on Elements.
  */
@@ -132,30 +115,13 @@ class RenderElement {
       // Note: Comment nodes don't support setAttribute, so we use a different approach
       // For now, we'll skip data attributes on comments as they're not standard
     } else {
-      const tag = COMPONENT_TO_TAG[componentType] || 'div';
-      this.element = document.createElement(tag);
+      // Custom element host with a shadow root (hard CSS encapsulation).
+      this.element = createComponentElement(document, componentType);
       setDataAttribute(this.element, 'node-id', nodeId.toString());
       setDataAttribute(this.element, 'component-type', componentType.toString());
 
       // Make the element focusable so focus/blur/keyboard events can route to it.
       (this.element as HTMLElement).tabIndex = -1;
-
-      // Setup flex layout for stack containers
-      if (componentType === ComponentType.HSTACK) {
-        (this.element as HTMLElement).style.display = 'flex';
-        (this.element as HTMLElement).style.flexDirection = 'row';
-      } else if (componentType === ComponentType.VSTACK) {
-        (this.element as HTMLElement).style.display = 'flex';
-        (this.element as HTMLElement).style.flexDirection = 'column';
-      }
-
-      // Special setup for certain components
-      if (componentType === ComponentType.SWITCH) {
-        (this.element as HTMLInputElement).type = 'checkbox';
-      }
-      if (componentType === ComponentType.TEXT_FIELD) {
-        (this.element as HTMLInputElement).type = 'text';
-      }
     }
 
     if (container) {
@@ -163,159 +129,155 @@ class RenderElement {
     }
   }
 
+  /**
+   * Shadow-internal target element for leaf components (text span, button,
+   * image, inputs). Returns null for containers, spacer and comment nodes.
+   */
+  getInternalElement(): HTMLElement | null {
+    const host = this.element as PathlandHostElement;
+    return host && typeof host.inner !== 'undefined' ? host.inner : null;
+  }
+
   setProperty(propertyId: number, value: PropertyValue): void {
     this.applyProperty(propertyId, value);
   }
 
   private applyProperty(propertyId: number, value: PropertyValue): void {
+    const host = this.element as HTMLElement;
     switch (propertyId) {
       // Text
       case TextProperty.TEXT:
         if (value.type === 'string') {
-          this.element.textContent = value.value;
+          const inner = this.getInternalElement();
+          if (inner) inner.textContent = value.value;
         }
         break;
 
-      // Style properties
-      case StyleProperty.BACKGROUND_COLOR: {
-        const bgRgba = resolveColor(value);
-        if (bgRgba !== null) {
-          (this.element as HTMLElement).style.backgroundColor = rgbaToCss(bgRgba);
-        }
+      // Style properties — set as per-element inline CSS custom properties,
+      // consumed by the shared :host rule set in the component shadow root.
+      case StyleProperty.COLOR:
+        setVar(host, '--pl-color', colorToCss(value));
         break;
-      }
 
-      case StyleProperty.COLOR: {
-        const fgRgba = resolveColor(value);
-        if (fgRgba !== null) {
-          (this.element as HTMLElement).style.color = rgbaToCss(fgRgba);
-        }
+      case StyleProperty.BACKGROUND_COLOR:
+        setVar(host, '--pl-bg', colorToCss(value));
         break;
-      }
 
       case StyleProperty.FONT_SIZE:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.fontSize = `${value.value}px`;
+          setVar(host, '--pl-font-size', `${value.value}px`);
         }
         break;
 
       case StyleProperty.FONT_WEIGHT:
         if (value.type === 'u8' || value.type === 'u32') {
-          (this.element as HTMLElement).style.fontWeight = String(value.value);
+          setVar(host, '--pl-font-weight', String(value.value));
+        }
+        break;
+
+      case StyleProperty.FONT_FAMILY:
+        if (value.type === 'string') {
+          setVar(host, '--pl-font-family', value.value);
         }
         break;
 
       case StyleProperty.WIDTH:
         if (value.type === 'f32') {
-          if (value.value === FILL) {
-            (this.element as HTMLElement).style.width = '100%';
-          } else if (value.value === HUG_CONTENT) {
-            (this.element as HTMLElement).style.width = 'fit-content';
-          } else {
-            (this.element as HTMLElement).style.width = `${value.value}px`;
-          }
+          setVar(host, '--pl-width', cssSize(value.value));
         }
         break;
 
       case StyleProperty.HEIGHT:
         if (value.type === 'f32') {
-          if (value.value === FILL) {
-            (this.element as HTMLElement).style.height = '100%';
-          } else if (value.value === HUG_CONTENT) {
-            (this.element as HTMLElement).style.height = 'fit-content';
-          } else {
-            (this.element as HTMLElement).style.height = `${value.value}px`;
-          }
+          setVar(host, '--pl-height', cssSize(value.value));
         }
         break;
 
       case StyleProperty.OPACITY:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.opacity = String(value.value);
+          setVar(host, '--pl-opacity', String(value.value));
         }
         break;
 
       case StyleProperty.VISIBLE:
         if (value.type === 'u8') {
-          (this.element as HTMLElement).style.display = value.value ? '' : 'none';
+          if (value.value) {
+            host.style.removeProperty('--pl-display');
+          } else {
+            setVar(host, '--pl-display', 'none');
+          }
         }
         break;
 
       case StyleProperty.PADDING:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.padding = `${value.value}px`;
+          setVar(host, '--pl-padding', `${value.value}px`);
         }
         break;
 
       case StyleProperty.BORDER_WIDTH:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.borderWidth = `${value.value}px`;
-          (this.element as HTMLElement).style.borderStyle = `solid`;
+          setVar(host, '--pl-border-width', `${value.value}px`);
         }
         break;
 
-      case StyleProperty.BORDER_COLOR: {
-        const borderRgba = resolveColor(value);
-        if (borderRgba !== null) {
-          (this.element as HTMLElement).style.borderColor = rgbaToCss(borderRgba);
-        }
+      case StyleProperty.BORDER_COLOR:
+        setVar(host, '--pl-border-color', colorToCss(value));
         break;
-      }
 
       case StyleProperty.BORDER_RADIUS:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.borderRadius = `${value.value}px`;
-        }
-        break;
-
-      // Stack properties
-      case StackProperty.SPACING:
-        if (value.type === 'f32') {
-          (this.element as HTMLElement).style.gap = `${value.value}px`;
-        }
-        break;
-
-      case StackProperty.ALIGNMENT:
-        if (value.type === 'enum') {
-          (this.element as HTMLElement).style.alignItems = enumToAlignItems(value.value);
-        }
-        break;
-
-      case StackProperty.JUSTIFICATION:
-        if (value.type === 'enum') {
-          (this.element as HTMLElement).style.justifyContent = enumToJustifyContent(value.value);
-        }
-        break;
-
-      // Special handling for HSTACK/VSTACK
-      case StackProperty.PADDING:
-        if (value.type === 'f32') {
-          (this.element as HTMLElement).style.padding = `${value.value}px`;
+          setVar(host, '--pl-border-radius', `${value.value}px`);
         }
         break;
 
       // Per-edge padding (EdgeInsets)
       case StyleProperty.PADDING_TOP:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.paddingTop = `${value.value}px`;
+          setVar(host, '--pl-padding-top', `${value.value}px`);
         }
         break;
 
       case StyleProperty.PADDING_RIGHT:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.paddingRight = `${value.value}px`;
+          setVar(host, '--pl-padding-right', `${value.value}px`);
         }
         break;
 
       case StyleProperty.PADDING_BOTTOM:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.paddingBottom = `${value.value}px`;
+          setVar(host, '--pl-padding-bottom', `${value.value}px`);
         }
         break;
 
       case StyleProperty.PADDING_LEFT:
         if (value.type === 'f32') {
-          (this.element as HTMLElement).style.paddingLeft = `${value.value}px`;
+          setVar(host, '--pl-padding-left', `${value.value}px`);
+        }
+        break;
+
+      // Stack properties
+      case StackProperty.SPACING:
+        if (value.type === 'f32') {
+          setVar(host, '--pl-spacing', `${value.value}px`);
+        }
+        break;
+
+      case StackProperty.ALIGNMENT:
+        if (value.type === 'enum') {
+          setVar(host, '--pl-align', enumToAlignItems(value.value));
+        }
+        break;
+
+      case StackProperty.JUSTIFICATION:
+        if (value.type === 'enum') {
+          setVar(host, '--pl-justify', enumToJustifyContent(value.value));
+        }
+        break;
+
+      case StackProperty.PADDING:
+        if (value.type === 'f32') {
+          setVar(host, '--pl-padding', `${value.value}px`);
         }
         break;
     }
@@ -459,6 +421,12 @@ export class DOMRenderer implements Renderer {
     // Create root container
     this.root = new RenderElement(0, 0, this.document, this.container);
     this.elements.set(0, this.root);
+
+    // Define the Pathland custom elements on this document and seed the
+    // default design-token variables so semantic colors cascade into every
+    // component shadow root.
+    definePathlandElements(this.document);
+    applyDefaultTokens(this.root.element as HTMLElement);
   }
 
   /**
@@ -522,16 +490,6 @@ export class DOMRenderer implements Renderer {
 
     if (!isElement(this.container)) return;
     const container = this.container as HTMLElement;
-
-    // Resolve the nearest Pathland node for a DOM event target.
-    const resolveNodeId = (target: EventTarget | null): number | null => {
-      let el = target as HTMLElement | null;
-      while (el && !el.dataset?.pathlandNodeId) {
-        el = el.parentElement;
-      }
-      const id = el?.dataset?.pathlandNodeId;
-      return id !== undefined && id !== '' ? parseInt(id, 10) : null;
-    };
 
     // Modifier bit flags (matches the protocol's Modifier Keys).
     const modifiersOf = (event: MouseEvent | KeyboardEvent): number =>
@@ -670,18 +628,8 @@ export class DOMRenderer implements Renderer {
     if (!isElement(this.container)) return;
     const container = this.container as HTMLElement;
 
-    // Hit-test from a DOM target (walk up to the nearest Pathland node).
-    const resolveNodeIdFromTarget = (target: EventTarget | null): number | null => {
-      let el = target as HTMLElement | null;
-      while (el && !el.dataset?.pathlandNodeId) {
-        el = el.parentElement;
-      }
-      const id = el?.dataset?.pathlandNodeId;
-      return id !== undefined && id !== '' ? parseInt(id, 10) : null;
-    };
-
     const interaction = new PointerInteraction({
-      hitTest: (input: PointerInput) => resolveNodeIdFromTarget(input.target as EventTarget | null),
+      hitTest: (input: PointerInput) => resolveNodeId(input.target as EventTarget | null),
       attachedGestures: (nodeId: number) => this.attachedGestures.get(nodeId),
       onGesture: (nodeId, gestureType, gestureState, data) =>
         this.dispatchGesture(nodeId, gestureType, gestureState, data),
@@ -738,6 +686,9 @@ export class DOMRenderer implements Renderer {
         break;
       case 'SET_PROPERTY':
         this.setProperty(command);
+        break;
+      case 'SET_DESIGN_TOKEN':
+        this.setDesignToken(command);
         break;
       // Other command types are ignored by the renderer
     }
@@ -831,6 +782,21 @@ export class DOMRenderer implements Renderer {
   }
 
   /**
+   * Apply a design token as a CSS custom property on the root container.
+   * The variable name derives from the dot-separated token path
+   * (e.g. `color.primary` -> `--pl-color-primary`); because custom properties
+   * cascade into every component shadow root, a single write re-themes the
+   * whole surface.
+   */
+  private setDesignToken(command: Extract<Command, { opcode: 'SET_DESIGN_TOKEN' }>): void {
+    const host = this.root.element as HTMLElement;
+    const css = tokenValueToCss(command.value);
+    if (css !== null) {
+      setVar(host, tokenPathToVar(command.tokenPath), css);
+    }
+  }
+
+  /**
    * Get a render element by node ID.
    */
   getElement(nodeId: number): RenderElement | undefined {
@@ -898,6 +864,7 @@ export class DOMRenderer implements Renderer {
     this.elements.clear();
     this.root = new RenderElement(0, 0, this.document, this.container);
     this.elements.set(0, this.root);
+    applyDefaultTokens(this.root.element as HTMLElement);
   }
 
   /**
@@ -1052,10 +1019,10 @@ function formatCommand(command: Command): string {
 // ============================================
 
 function rgbaToCss(rgba: number): string {
-  const r = (rgba >>> 24) & 0xFF;
-  const g = (rgba >>> 16) & 0xFF;
-  const b = (rgba >>> 8) & 0xFF;
-  const a = rgba & 0xFF;
+  const a = (rgba >>> 24) & 0xFF;
+  const r = (rgba >>> 16) & 0xFF;
+  const g = (rgba >>> 8) & 0xFF;
+  const b = rgba & 0xFF;
   return `rgba(${r}, ${g}, ${b}, ${a / 255})`;
 }
 
@@ -1084,20 +1051,85 @@ const DEFAULT_SEMANTIC_COLORS: Record<number, number> = {
 };
 
 /**
- * Resolve a PropertyValue to a concrete sRGB rgba value, or null if it
- * cannot be resolved (unknown semantic token, unresolved design token, etc.).
+ * Semantic color token ids -> canonical design-token paths (per spec:
+ * BINARY_PROTOCOL.md "Design Token System"). Token vars derive from these
+ * paths so `SET_DESIGN_TOKEN` and semantic color references resolve to the
+ * same CSS custom property (e.g. PRIMARY_TEXT -> `--pl-color-text-primary`).
  */
-function resolveColor(value: PropertyValue): number | null {
-  if (value.type === 'color' && value.kind === 'literal') {
-    return value.rgba;
+const SEMANTIC_TOKEN_PATHS: Record<number, string> = {
+  [SemanticColorToken.PRIMARY_TEXT]: 'color.text.primary',
+  [SemanticColorToken.SECONDARY_TEXT]: 'color.text.secondary',
+  [SemanticColorToken.TERTIARY_TEXT]: 'color.text.tertiary',
+  [SemanticColorToken.BACKGROUND]: 'color.background',
+  [SemanticColorToken.SURFACE]: 'color.surface',
+  [SemanticColorToken.ACCENT]: 'color.accent',
+  [SemanticColorToken.ERROR]: 'color.danger',
+  [SemanticColorToken.SUCCESS]: 'color.success',
+  [SemanticColorToken.WARNING]: 'color.warning',
+  [SemanticColorToken.INFO]: 'color.info',
+  [SemanticColorToken.BORDER]: 'color.border',
+  [SemanticColorToken.SEPARATOR]: 'color.separator',
+};
+
+/** Set an inline CSS custom property (returns early on unresolvable values). */
+function setVar(host: HTMLElement, name: string, css: string | null): void {
+  if (css !== null) {
+    host.style.setProperty(name, css);
   }
-  if (value.type === 'color' && value.kind === 'semantic') {
-    return DEFAULT_SEMANTIC_COLORS[value.tokenId] ?? null;
+}
+
+/**
+ * Convert a color PropertyValue to a CSS value: literal/u32 colors become
+ * concrete rgba() strings; semantic tokens become var() references to the
+ * design-token custom properties defined on the root container.
+ */
+function colorToCss(value: PropertyValue): string | null {
+  if (value.type === 'color') {
+    if (value.kind === 'literal') {
+      return rgbaToCss(value.rgba);
+    }
+    if (value.kind === 'semantic') {
+      const path = SEMANTIC_TOKEN_PATHS[value.tokenId];
+      return path ? `var(${tokenPathToVar(path)})` : null;
+    }
   }
   if (value.type === 'u32') {
-    return value.value;
+    return rgbaToCss(value.value);
   }
   return null;
+}
+
+/** Convert a WIDTH/HEIGHT value to a CSS size string. */
+function cssSize(value: number): string {
+  if (value === FILL) return '100%';
+  if (value === HUG_CONTENT) return 'fit-content';
+  return `${value}px`;
+}
+
+/** Convert a design-token path to a CSS custom-property name. */
+function tokenPathToVar(path: string): string {
+  return `--pl-${path.replace(/\./g, '-')}`;
+}
+
+/** Convert a design-token value to a CSS value for the custom property. */
+function tokenValueToCss(value: PropertyValue): string | null {
+  if (value.type === 'color' || value.type === 'u32') {
+    return colorToCss(value);
+  }
+  if (value.type === 'string') return value.value;
+  if (value.type === 'f32') return String(value.value);
+  if (value.type === 'u8' || value.type === 'i32') return String(value.value);
+  return null;
+}
+
+/** Define the default semantic color token variables on the root container. */
+function applyDefaultTokens(host: HTMLElement): void {
+  for (const [tokenId, rgba] of Object.entries(DEFAULT_SEMANTIC_COLORS)) {
+    const path = SEMANTIC_TOKEN_PATHS[Number(tokenId)];
+    if (path) {
+      host.style.setProperty(tokenPathToVar(path), rgbaToCss(rgba));
+    }
+  }
 }
 
 function enumToAlignItems(value: number): string {
