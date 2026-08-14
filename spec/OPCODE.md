@@ -13,7 +13,7 @@ The Pathland Opcode Protocol is the **fixed-size instruction engine** at the hea
 
 **The engine does not compute layout and does not emit rects.** Native renderers lay out their own native elements from the constraint properties the engine passes through. This is the Pathland principle: *always render through that platform's native elements.*
 
-This specification supersedes the variable-length format documented in [BINARY_PROTOCOL.md](./BINARY_PROTOCOL.md) (kept for history).
+This specification supersedes the historical variable-length binary instruction format (which has been removed from the repository).
 
 ### Goals
 
@@ -251,7 +251,62 @@ Literal colors are **sRGB** (IEC 61966-2-1, D65 white point), packed as `0xAARRG
 - `AA`: alpha (0x00 transparent – 0xFF opaque)
 - `RR`: red, `GG`: green, `BB`: blue
 
-Stored little-endian in a `u32` payload. Semantic token resolution and theme adaptation remain **renderer-owned** (see [Design Token System](./BINARY_PROTOCOL.md#design-token-system) for the historical principles, carried forward unchanged).
+Stored little-endian in a `u32` payload. Semantic token resolution and theme adaptation remain **renderer-owned** (see [Design Token System](#design-token-system)).
+
+---
+
+## Design Token System
+
+### Core Principle
+
+> **The renderer owns the defaults. The application owns the overrides.**
+
+This ensures a native look-and-feel by default and cross-platform consistency when the application overrides tokens.
+
+### Responsibilities
+
+| Aspect | Owner | Responsibility |
+|--------|-------|----------------|
+| **Default Token Values** | Renderer | Define platform-appropriate defaults for all standard tokens |
+| **Token Overrides** | Application | Specify overrides for cross-platform consistency |
+| **Token Resolution** | Renderer | Resolve final token values (override or default) |
+| **Platform Adaptation** | Renderer | Adapt default token values to platform conventions |
+
+### Token Identification
+
+Tokens are identified by **dot-separated string paths** (e.g. `color.primary`, `space.2`, `font.body`), case-sensitive, lowercase recommended. The `DESIGN_TOKEN` value type (`0x08`) references a token path stored in the arena; `SET_DESIGN_TOKEN` overrides a token's value globally.
+
+### Token Resolution Algorithm
+
+```
+FUNCTION resolveToken(tokenPath: string) -> PropertyValue:
+    IF applicationOverrides.has(tokenPath):
+        RETURN applicationOverrides[tokenPath]
+    ELSE IF rendererDefaults.has(tokenPath):
+        RETURN rendererDefaults[tokenPath]
+    ELSE IF hasParentToken(tokenPath):
+        RETURN resolveToken(getParentPath(tokenPath))
+    ELSE:
+        RETURN getFallbackValue(tokenPath)
+```
+
+### Renderer Responsibilities
+
+The renderer MUST:
+
+1. Provide platform-appropriate defaults for all standard tokens (e.g. `color.primary`, `font.body.size`, `space.md`).
+2. Accept `SET_DESIGN_TOKEN` commands and store overrides.
+3. Resolve design-token references in properties.
+4. Fall back to defaults when no override exists.
+5. Never transmit visual styling rules in the protocol.
+
+The application MAY override any token via `SET_DESIGN_TOKEN` and reference tokens via the `DESIGN_TOKEN` value type; it MUST NOT assume specific default token values.
+
+### Standard Token Catalog
+
+Required core tokens (renderer MUST support with platform-appropriate defaults): `color.primary`, `color.secondary`, `color.background`, `color.surface`, `color.text.primary`, `color.text.secondary`, `color.border`, `font.body.size`, `font.body.weight`, `font.body.family`, `space.xs`–`space.lg`.
+
+Recommended extended tokens: `color.success`, `color.warning`, `color.danger`, `color.info`, `font.heading.1`–`font.heading.6`, `font.size.heading.1`–`6`, `radius.sm`/`md`, `elevation.low`/`high`, `opacity.disabled`.
 
 ---
 

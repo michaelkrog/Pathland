@@ -94,7 +94,7 @@ pub mod value_type {
 
 /// Component types (u16, encoded in the low half of `A` of `TREE::CREATE_NODE`).
 ///
-/// IDs are carried forward from the previous protocol (`spec/BINARY_PROTOCOL.md`).
+/// IDs are specified in `spec/OPCODE.md` (carried forward from the historical protocol).
 pub mod component_type {
     pub const HSTACK: u16 = 0x0001;
     pub const VSTACK: u16 = 0x0002;
@@ -112,7 +112,7 @@ pub mod component_type {
 
 /// Property IDs (u16, encoded in the low half of `B` of `STYLE::SET_PROPERTY`).
 ///
-/// IDs are carried forward from the previous protocol (`spec/BINARY_PROTOCOL.md`).
+/// IDs are specified in `spec/OPCODE.md` (carried forward from the historical protocol).
 pub mod property_id {
     // Stack
     pub const SPACING: u16 = 0x0001;
