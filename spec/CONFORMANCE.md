@@ -48,67 +48,69 @@ All multi-byte fields little-endian. `A`/`B`/`C` may carry `f32` bit patterns.
 - `01 00 00 00` B = childId = 1
 - `FF FF FF FF` C = APPEND (`u32::MAX`)
 
-### 3. LAYOUT:SET_ORIGIN (id=2, x=8.0, y=8.0)
+### 3. TREE:MOVE_CHILD (parent=1, child=2, newIndex=0)
 
 ```
-02 01 00 00 02 00 00 00 00 00 00 41 00 00 00 41
+01 05 00 00 01 00 00 00 02 00 00 00 00 00 00 00
 ```
 
-- `02` category = LAYOUT
-- `01` command = SET_ORIGIN
+- `01` category = TREE
+- `05` command = MOVE_CHILD
 - `00 00` flags = 0
-- `02 00 00 00` A = nodeId = 2
-- `00 00 00 41` B = x = 8.0 (f32 LE: 0x41000000)
-- `00 00 00 41` C = y = 8.0
+- `01 00 00 00` A = parentId = 1
+- `02 00 00 00` B = childId = 2
+- `00 00 00 00` C = newIndex = 0
 
-### 4. LAYOUT:SET_SIZE (id=2, w=16.0, h=16.0)
-
-```
-02 02 00 00 02 00 00 00 00 00 80 41 00 00 80 41
-```
-
-- `02` category = LAYOUT
-- `02` command = SET_SIZE
-- `00 00` flags = 0
-- `02 00 00 00` A = nodeId = 2
-- `00 00 80 41` B = w = 16.0 (f32 LE: 0x41800000)
-- `00 00 80 41` C = h = 16.0
-
-### 5. STYLE:SET_PROPERTY (id=2, propertyId=COLOR=0x100A, valueType=COLOR=0x07, rgba=0xFF0000FF)
+### 4. STYLE:SET_PROPERTY (id=1, propertyId=SPACING=0x0001, valueType=F32, 4.0)
 
 ```
-03 01 00 00 02 00 00 00 0A 10 07 00 FF 00 00 FF
+02 01 00 00 01 00 00 00 01 00 04 00 00 00 80 40
 ```
 
-- `03` category = STYLE
+- `02` category = STYLE
 - `01` command = SET_PROPERTY
 - `00 00` flags = 0
-- `02 00 00 00` A = nodeId = 2
+- `01 00 00 00` A = nodeId = 1
+- `01 00 04 00` B = `(valueType << 16) | propertyId` = `(0x04 << 16) | 0x0001`
+  - low two bytes `01 00` = propertyId = 0x0001 (SPACING)
+  - high byte `04` = valueType = 0x04 (F32)
+- `00 00 80 40` C = 4.0 (f32 LE: 0x40800000)
+
+### 5. STYLE:SET_PROPERTY (id=1, propertyId=COLOR=0x100A, valueType=COLOR=0x07, rgba=0xFF0000FF)
+
+```
+02 01 00 00 01 00 00 00 0A 10 07 00 FF 00 00 FF
+```
+
+- `02` category = STYLE
+- `01` command = SET_PROPERTY
+- `00 00` flags = 0
+- `01 00 00 00` A = nodeId = 1
 - `0A 10 07 00` B = `(valueType << 16) | propertyId` = `(0x07 << 16) | 0x100A`
   - low two bytes `0A 10` = propertyId = 0x100A (COLOR)
   - high byte `07` = valueType = 0x07 (COLOR)
 - `FF 00 00 FF` C = 0xFF0000FF (opaque blue, `0xAARRGGBB`)
 
-### 6. STYLE:SET_TEXT (id=2, arenaRef=0)
+### 6. STYLE:SET_TEXT (id=1, arenaRef=0)
 
 ```
-03 03 00 00 02 00 00 00 00 00 00 00 00 00 00 00
+02 03 00 00 01 00 00 00 00 00 00 00 00 00 00 00
 ```
 
-- `03` category = STYLE
+- `02` category = STYLE
 - `03` command = SET_TEXT
 - `00 00` flags = 0
-- `02 00 00 00` A = nodeId = 2
+- `01 00 00 00` A = nodeId = 1
 - `00 00 00 00` B = arenaRef = 0 (entry is `[u32 length][bytes]` in the arena)
 - `00 00 00 00` C = 0
 
 ### 7. META:RESET
 
 ```
-07 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+05 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 ```
 
-- `07` category = META
+- `05` category = META
 - `01` command = RESET
 - `00 00` flags = 0
 - `00 00 00 00` A = 0
@@ -119,7 +121,7 @@ All multi-byte fields little-endian. `A`/`B`/`C` may carry `f32` bit patterns.
 
 ## Frame Conformance
 
-A complete frame is: opcodes written into consecutive ring slots, then a
+A complete frame is: delta opcodes written into consecutive ring slots, then a
 `frameCount` increment in the header block. Ring slot `i` occupies bytes
 `[ringOffset + i*16, ringOffset + i*16 + 16)`.
 

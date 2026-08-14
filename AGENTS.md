@@ -21,17 +21,28 @@ This document provides essential context for AI agents (or human contributors) w
 
 - Every opcode is exactly **16 bytes**: `Category (1B) | Command ID (1B) | Flags (2B) | A (4B) | B (4B) | C (4B)`, `#[repr(C, packed)]`, little-endian.
 - A 64-byte cache line holds exactly **4 opcodes** → L1-cache-friendly.
-- **Zero dynamic heap allocations during layout updates** (proven by test).
 - Opcodes live in a **ring buffer** in linear memory; the guest writes at `writeCursor`, the host reads from `readCursor`; frame boundaries via a monotonic `frameCount` in the header block.
-- **Variable-length data** (strings, token paths, child lists) lives in a bump **arena**; opcodes reference entries by offset (`[u32 byteLength][bytes...]`), so every opcode stays 16 bytes.
+- **Variable-length data** (strings, token paths) lives in a bump **arena**; opcodes reference entries by offset (`[u32 byteLength][bytes...]`), so every opcode stays 16 bytes.
 - Spec: **`spec/OPCODE.md`** (primary) + **`spec/CONFORMANCE.md`** (golden vectors).
+
+### Declarative, not positioned (NON-NEGOTIABLE)
+
+> **The engine describes WHAT the UI is — VStack, HStack, Text, spacing,
+> padding, alignment — never WHERE it is. It does not compute layout and does
+> not emit rects.**
+
+- The engine emits **declarative structure** (`TREE` create/delete/insert/remove/move) + **constraint properties** (`STYLE` spacing/padding/alignment/FILL/HUG hints).
+- **Native elements everywhere**: each platform's renderer maps the opcode stream onto that platform's native elements — GTK4 widgets on desktop, DOM elements in the browser, HTML server-side — and those native elements lay themselves out. Never a generic canvas unless a platform has no native equivalent.
+- **Reactive emission**: emission is diff-based. Only the nodes that changed emit opcodes (property diffs via `SET_PROPERTY`/`SET_TEXT`, structural diffs via `TREE` opcodes). An unchanged tree emits **zero** opcodes. Signals in the application mark the tree dirty; the engine reconciles.
+- **Zero dynamic heap allocations** during steady-state emission (proven by test).
 
 ### Rust Workspace (`lib/rust/`)
 
 ```
 crates/pathland-opcode/   # 16-byte opcode, ring buffer, arena, memory layout (no_std)
-crates/pathland-layout/   # VStack/HStack/Text layout → LAYOUT opcodes (zero-alloc)
-crates/pathland-host/     # host reader: ring → render tree (std convenience layer)
+crates/pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
+                          #   diff-based reactive emission (zero-alloc steady state)
+crates/pathland-host/     # host reader: ring -> native-element description (std layer)
 wit/pathland.wit          # WIT component-world definitions (Goal 3+)
 ```
 
@@ -47,7 +58,7 @@ wit/pathland.wit          # WIT component-world definitions (Goal 3+)
 | 13 | Core components & modifiers in Rust | Planned |
 | 14 | TypeScript browser demo via WASM/WIT | Planned |
 | 15 | Quarkus SSR + WebSocket demo | Planned |
-| 16 | Rust desktop app with GTK renderer | Planned |
+| 16 | Rust desktop app with GTK4 renderer | Planned |
 
 ---
 

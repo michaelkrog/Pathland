@@ -7,18 +7,16 @@
 pub mod category {
     /// Tree mutations (guest → host): node create/delete/insert/remove/move.
     pub const TREE: u8 = 0x01;
-    /// Layout results (guest → host): node origins and sizes.
-    pub const LAYOUT: u8 = 0x02;
-    /// Properties and design tokens (guest → host).
-    pub const STYLE: u8 = 0x03;
-    /// Draw primitives (guest → host): rects, glyph runs.
-    pub const DRAW: u8 = 0x04;
+    /// Properties and design tokens (guest → host): the constraint properties
+    /// (spacing, padding, alignment, …) that native renderers use to lay out
+    /// native elements. The engine does NOT emit rects.
+    pub const STYLE: u8 = 0x02;
     /// Discrete events (host → guest): tap, hover, key, etc.
-    pub const EVENT: u8 = 0x05;
+    pub const EVENT: u8 = 0x03;
     /// Gesture updates (host → guest).
-    pub const GESTURE: u8 = 0x06;
+    pub const GESTURE: u8 = 0x04;
     /// Control (both directions): reset, environment, custom data.
-    pub const META: u8 = 0x07;
+    pub const META: u8 = 0x05;
 }
 
 /// Commands within the `TREE` category.
@@ -35,14 +33,6 @@ pub mod tree {
     pub const MOVE_CHILD: u8 = 0x05;
 }
 
-/// Commands within the `LAYOUT` category.
-pub mod layout {
-    /// `A=nodeId, B=x (f32), C=y (f32)`
-    pub const SET_ORIGIN: u8 = 0x01;
-    /// `A=nodeId, B=width (f32), C=height (f32)`
-    pub const SET_SIZE: u8 = 0x02;
-}
-
 /// Commands within the `STYLE` category.
 pub mod style {
     /// `A=nodeId, B=(valueType << 16) | propertyId, C=value`
@@ -51,14 +41,6 @@ pub mod style {
     pub const SET_DESIGN_TOKEN: u8 = 0x02;
     /// `A=nodeId, B=arenaRef (utf8)`
     pub const SET_TEXT: u8 = 0x03;
-}
-
-/// Commands within the `DRAW` category.
-pub mod draw {
-    /// `A=nodeId, B=width (f32), C=height (f32)`
-    pub const RECT: u8 = 0x01;
-    /// `A=nodeId, B=arenaRef (utf8)`
-    pub const GLYPH_RUN: u8 = 0x02;
 }
 
 /// Commands within the `EVENT` category.

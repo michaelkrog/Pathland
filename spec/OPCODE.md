@@ -9,24 +9,27 @@
 
 ## Overview
 
-The Pathland Opcode Protocol is the **fixed-size instruction engine** at the heart of the Rust-first architecture. All layout math, tree bounds, and drawing instructions are emitted by the **WASM guest engine** into a contiguous, fixed 16-byte opcode ring buffer in **linear memory**. The host renderer consumes the ring and draws.
+The Pathland Opcode Protocol is the **fixed-size instruction engine** at the heart of the Rust-first architecture. The **WASM guest engine** emits the application's **declarative view structure** — VStack, HStack, Text, spacing, padding, alignment — as a stream of fixed 16-byte opcodes into a **ring buffer** in **linear memory**. The host renderer consumes the ring and maps the structure onto that platform's **native elements** (GTK4 widgets, DOM elements, HTML).
+
+**The engine does not compute layout and does not emit rects.** Native renderers lay out their own native elements from the constraint properties the engine passes through. This is the Pathland principle: *always render through that platform's native elements.*
 
 This specification supersedes the variable-length format documented in [BINARY_PROTOCOL.md](./BINARY_PROTOCOL.md) (kept for history).
 
 ### Goals
 
-- **Sub-millisecond execution**: every opcode is a fixed 16 bytes; no dynamic heap allocation during layout updates.
+- **Sub-millisecond execution**: every opcode is a fixed 16 bytes; emission is a diff over the retained tree with **zero dynamic heap allocations** in the steady state.
 - **L1 CPU cache alignment**: a 64-byte cache line holds exactly **4 opcodes**. Ring slots are 16-byte aligned and densely packed.
-- **Zero dynamic heap allocations** during layout: strings and other variable-length data live in a pre-allocated **bump arena**, referenced by offset.
+- **Reactive emission**: only the nodes that changed emit opcodes. An unchanged tree emits **zero** opcodes (see [Reactive Emission](#reactive-emission)).
 - **Linear, deterministic decoding**: the host walks the ring with a single cursor.
 
 ### Core Principles
 
 1. **Fixed-size instructions**: every opcode is exactly 16 bytes — no length prefixes, no skippable-variable framing.
-2. **Numeric IDs**: categories, commands, component types, and properties are numeric.
-3. **Renderer-agnostic**: the ring carries layout/bounds/draw/event data only — never renderer styling rules.
-4. **Zero-copy**: the ring and arena are plain regions of the same linear memory shared with the host.
-5. **Single-producer / single-consumer**: the guest engine produces; the host renderer consumes. No locks required.
+2. **Declarative, not positioned**: the engine describes *what* the UI is (stacks, text, constraints), never *where* it is. Native elements compute their own positions.
+3. **Numeric IDs**: categories, commands, component types, and properties are numeric.
+4. **Native elements**: renderers map the opcode stream onto that platform's native elements — never a generic canvas unless a platform has no native equivalent.
+5. **Zero-copy**: the ring and arena are plain regions of the same linear memory shared with the host.
+6. **Single-producer / single-consumer**: the guest engine produces; the host renderer consumes. No locks required.
 
 ---
 
@@ -65,7 +68,7 @@ pub struct Opcode {
 
 ### Payload encoding conventions
 
-- **Float payloads** (`x`, `y`, `width`, `height`, etc.) are stored as raw `f32` (IEEE 754) bit patterns in a `u32` field.
+- **Float payloads** (`spacing`, `padding`, sizes) are stored as raw `f32` (IEEE 754) bit patterns in a `u32` field.
 - **Node IDs** are `u32`.
 - **Component types / property IDs** are `u16`; when packed into a 4-byte payload they occupy the low two bytes (the high bytes are reserved / zero unless documented).
 - **Arena references** are a `u32` byte offset into the arena region (see [Arena](#arena)).
@@ -84,12 +87,10 @@ pub struct Opcode {
 | Category | Value | Name | Producer | Description |
 |----------|-------|------|----------|-------------|
 | `TREE` | `0x01` | Tree mutations | Guest engine | Node create/delete/insert/remove/move |
-| `LAYOUT` | `0x02` | Layout results | Guest engine | Node origins and sizes |
-| `STYLE` | `0x03` | Properties & tokens | Guest engine | Property values, design tokens |
-| `DRAW` | `0x04` | Draw primitives | Guest engine | Rects, glyph runs (renderer hints) |
-| `EVENT` | `0x05` | Discrete events | Host renderer | Tap, hover, key, etc. |
-| `GESTURE` | `0x06` | Gesture updates | Host renderer | Began/changed/ended/cancelled |
-| `META` | `0x07` | Control | Both | Reset, environment, custom data |
+| `STYLE` | `0x02` | Constraints & tokens | Guest engine | Property values (spacing, padding, …), design tokens |
+| `EVENT` | `0x03` | Discrete events | Host renderer | Tap, hover, key, etc. |
+| `GESTURE` | `0x04` | Gesture updates | Host renderer | Began/changed/ended/cancelled |
+| `META` | `0x05` | Control | Both | Reset, environment |
 
 ---
 
@@ -105,20 +106,15 @@ pub struct Opcode {
 | `REMOVE_CHILD` | `0x04` | parentId | childId | 0 | — | Remove `childId` from `parentId` |
 | `MOVE_CHILD` | `0x05` | parentId | childId | newIndex | `0x0001` = append | Move child to `newIndex` (after removal) |
 
-### LAYOUT (0x02)
+### STYLE (0x02)
 
-| Command | Value | A | B | C | Description |
-|---------|-------|---|---|---|-------------|
-| `SET_ORIGIN` | `0x01` | nodeId | x (f32) | y (f32) | Top-left of the node in logical points |
-| `SET_SIZE` | `0x02` | nodeId | width (f32) | height (f32) | Size of the node in logical points |
-
-Bounds are split into two opcodes so that every opcode is exactly 16 bytes while retaining full `f32` precision.
-
-### STYLE (0x03)
+The engine does not emit positions. `STYLE` carries the **constraint properties**
+that native renderers feed to their own layout — spacing, padding, alignment,
+FILL/HUG size hints, colors, fonts.
 
 | Command | Value | A | B | C | Flags | Description |
 |---------|-------|---|---|---|-------|-------------|
-| `SET_PROPERTY` | `0x01` | nodeId | propertyId (u16, low) + valueType (u8, high byte) | value | — | Set a property; `value` encoding depends on `valueType` |
+| `SET_PROPERTY` | `0x01` | nodeId | propertyId (u16, low) + valueType (u8, high byte) | value | — | Set a constraint/style property; `value` depends on `valueType` |
 | `SET_DESIGN_TOKEN` | `0x02` | arenaRef (path) | valueType (u8) | value | — | Override a design token; path is an arena string |
 | `SET_TEXT` | `0x03` | nodeId | arenaRef (utf8) | 0 | — | Set a node's text content |
 
@@ -141,14 +137,27 @@ B = (valueType << 16) | propertyId
 | `COLOR` | `0x07` | packed `0xAARRGGBB` |
 | `DESIGN_TOKEN` | `0x08` | arenaRef (token path) |
 
-### DRAW (0x04)
+#### Constraint properties for native layout
 
-| Command | Value | A | B | C | Description |
-|---------|-------|---|---|---|-------------|
-| `RECT` | `0x01` | nodeId | width (f32) | height (f32) | Fill/border rect for `nodeId` (origin = node origin) |
-| `GLYPH_RUN` | `0x02` | nodeId | arenaRef (utf8) | 0 | Text glyph run for `nodeId` (layout supplies positions) |
+The following properties drive native layout; the renderer maps them to its
+native equivalents (e.g. `SPACING` → GTK box spacing / CSS `gap`, `PADDING` →
+widget margin / CSS `padding`, `WIDTH`/`HEIGHT` → size requests). Special
+`WIDTH`/`HEIGHT` values: `-1` = FILL (expand to available), `-2` = HUG_CONTENT
+(native intrinsic size).
 
-### EVENT (0x05) — host → guest
+| Property | Value | Type | Native meaning |
+|----------|-------|------|----------------|
+| `SPACING` | `0x0001` | F32 | Gap between children |
+| `ALIGNMENT` | `0x0002` | ENUM | Cross-axis alignment |
+| `JUSTIFICATION` | `0x0003` | ENUM | Main-axis distribution |
+| `PADDING` | `0x0004` | F32 | Uniform inner padding |
+| `WIDTH` | `0x100B` | F32 | Width hint (-1 FILL, -2 HUG) |
+| `HEIGHT` | `0x100C` | F32 | Height hint (-1 FILL, -2 HUG) |
+
+Full property catalog: see the Rust `constants.rs` (carried forward from the
+historical protocol).
+
+### EVENT (0x03) — host → guest
 
 | Command | Value | A | B | C | Description |
 |---------|-------|---|---|---|-------------|
@@ -156,18 +165,34 @@ B = (valueType << 16) | propertyId
 | `HOVER` | `0x02` | targetId | x (f32) | y (f32) | Pointer moved; Flags bit 0 = isHovering |
 | `KEY` | `0x03` | targetId | keyCode (u16, low) | modifiers (u8, low) | Key event; Flags bit 0 = down, bit 1 = repeat |
 
-### GESTURE (0x06) — host → guest
+### GESTURE (0x04) — host → guest
 
 | Command | Value | A | B | C | Flags | Description |
 |---------|-------|---|---|---|-------|-------------|
 | `UPDATE` | `0x01` | targetId | gestureType (u8) + state (u8, high byte) | gestureId | — | Gesture lifecycle update |
 
-### META (0x07)
+### META (0x05)
 
 | Command | Value | A | B | C | Description |
 |---------|-------|---|---|---|-------------|
 | `RESET` | `0x01` | 0 | 0 | 0 | Host must clear all rendered output |
 | `ENVIRONMENT` | `0x02` | viewportWidth (f32) | viewportHeight (f32) | 0 | Viewport size in logical points (host → guest) |
+
+---
+
+## Reactive Emission
+
+The engine emits **only what changed** relative to its previous emission:
+
+- **Property diff**: a changed `spacing`/`padding`/text emits a single
+  `SET_PROPERTY` / `SET_TEXT` for that node.
+- **Structural diff**: a node added/removed/moved emits the corresponding
+  `TREE` opcode(s).
+- **Steady state**: an unchanged tree emits **zero** opcodes.
+
+Signals in the application drive this: a signal marks the tree dirty; the
+engine's next `emit` reconciles and writes only the delta. The renderer applies
+each frame as a delta to its native elements.
 
 ---
 
@@ -212,7 +237,7 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 
 ### Arena
 
-- A pre-allocated **bump region** for variable-length data (strings, token paths, child-id lists, glyph runs).
+- A pre-allocated **bump region** for variable-length data (strings, token paths).
 - Every arena entry is **self-describing**: `[u32 byteLength][bytes...]`.
 - Opcodes reference entries by their **byte offset** (`arenaRef`), so an entry's length is read directly from the arena — all opcodes stay 16 bytes.
 - The guest advances `arenaCursor` monotonically (no free-list, no fragmentation). The arena MAY be reset via `META::RESET`.
@@ -232,10 +257,10 @@ Stored little-endian in a `u32` payload. Semantic token resolution and theme ada
 
 ## Frame Lifecycle
 
-A frame is a batch of opcodes produced by one layout/paint pass:
+A frame is a batch of delta opcodes produced by one `emit` pass:
 
-1. Guest begins a frame (optionally flushing/resetting cursor state).
-2. Guest emits opcodes into consecutive ring slots (tree, layout, style, draw).
+1. Guest begins a frame.
+2. Guest emits the delta opcodes (tree structure and/or property changes) into consecutive ring slots.
 3. Guest allocates strings in the arena as needed.
 4. Guest `end_frame()`: publishes `writeCursor`, then increments `frameCount`.
 5. Host observes `frameCount` change, drains `[readCursor, writeCursor)`, advances `readCursor`.

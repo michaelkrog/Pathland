@@ -120,48 +120,25 @@ pub(crate) fn push_remove_child(
     )
 }
 
-pub(crate) fn push_set_origin(
+pub(crate) fn push_move_child(
     slots: &mut [u8],
     header: &mut [u8],
     mask: usize,
-    node_id: u32,
-    x: f32,
-    y: f32,
+    parent: u32,
+    child: u32,
+    new_index: u32,
 ) -> Result<(), RingError> {
     push(
         slots,
         header,
         mask,
         &Opcode::new(
-            constants::category::LAYOUT,
-            constants::layout::SET_ORIGIN,
+            constants::category::TREE,
+            constants::tree::MOVE_CHILD,
             0,
-            node_id,
-            x.to_bits(),
-            y.to_bits(),
-        ),
-    )
-}
-
-pub(crate) fn push_set_size(
-    slots: &mut [u8],
-    header: &mut [u8],
-    mask: usize,
-    node_id: u32,
-    w: f32,
-    h: f32,
-) -> Result<(), RingError> {
-    push(
-        slots,
-        header,
-        mask,
-        &Opcode::new(
-            constants::category::LAYOUT,
-            constants::layout::SET_SIZE,
-            0,
-            node_id,
-            w.to_bits(),
-            h.to_bits(),
+            parent,
+            child,
+            new_index,
         ),
     )
 }

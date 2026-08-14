@@ -5,11 +5,16 @@
 ## New Direction (Rust WASM Opcode Engine)
 
 As of August 2026 Pathland is pivoting to a **Rust WASM guest engine** that
-emits a fixed **16-byte opcode ring buffer** into shared linear memory, consumed
-by host renderers. Components and modifiers are written in Rust with a
-SwiftUI-like API and exposed to other languages via **WASM/WIT**. See
-[`spec/OPCODE.md`](./spec/OPCODE.md) (supersedes `spec/BINARY_PROTOCOL.md`) and
-the Rust workspace under [`lib/rust/`](./lib/rust/). The TypeScript
+emits the **declarative view structure** — VStack, HStack, Text, spacing,
+padding, alignment — as a fixed **16-byte opcode ring buffer** into shared
+linear memory, consumed by host renderers. The engine does **not** compute
+layout or emit rects; each platform's renderer maps the opcode stream onto that
+platform's **native elements** (GTK4 widgets, DOM elements, HTML) and those
+native elements lay themselves out. Emission is **diff-based and reactive**:
+signals in the application ensure only changed nodes emit opcodes.
+
+See [`spec/OPCODE.md`](./spec/OPCODE.md) (supersedes `spec/BINARY_PROTOCOL.md`)
+and the Rust workspace under [`lib/rust/`](./lib/rust/). The TypeScript
 implementation in [`lib/typescript/`](./lib/typescript/) is kept for reference.
 
 ## Overview

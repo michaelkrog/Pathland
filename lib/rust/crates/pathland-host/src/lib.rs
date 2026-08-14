@@ -1,38 +1,34 @@
 //! # pathland-host
 //!
 //! Host-side reader for the Pathland 16-byte opcode ring. Consumes frames from
-//! shared linear memory and decodes them into a simple in-memory render tree —
-//! the entry point a renderer (DOM, GTK, …) builds on.
+//! shared linear memory and builds a **native-element description**: the tree
+//! structure (`TREE`) plus constraint properties (`STYLE`) a renderer maps onto
+//! that platform's native elements (GTK widgets, DOM elements, HTML).
 //!
-//! This crate is a small, `std` convenience layer over `pathland-opcode`; the
-//! core decoding lives in the guest/host types there. Here we add a
-//! renderer-friendly model: nodes, bounds, and text, produced from a frame of
-//! `TREE` / `LAYOUT` / `STYLE` opcodes.
+//! The engine does not compute layout; this crate stores only what the renderer
+//! needs to create native elements and let them lay themselves out.
 
 use std::collections::HashMap;
 
-pub use pathland_layout;
+pub use pathland_engine;
 pub use pathland_opcode;
 
 use pathland_opcode::category;
 use pathland_opcode::component_type;
-use pathland_opcode::layout;
 use pathland_opcode::style;
 use pathland_opcode::tree;
 use pathland_opcode::{Frame, Opcode};
 
-/// A decoded node in the host render tree.
+/// A decoded node in the host's native-element description.
 #[derive(Debug, Clone, PartialEq)]
 pub struct HostNode {
     pub id: u32,
     pub component_type: u16,
-    pub x: f32,
-    pub y: f32,
-    pub width: f32,
-    pub height: f32,
     pub text: Option<String>,
     pub parent: Option<u32>,
     pub children: Vec<u32>,
+    /// Constraint properties (propertyId → value) for native layout/styling.
+    pub properties: HashMap<u16, u32>,
 }
 
 impl Default for HostNode {
@@ -40,28 +36,24 @@ impl Default for HostNode {
         Self {
             id: 0,
             component_type: component_type::HSTACK,
-            x: 0.0,
-            y: 0.0,
-            width: 0.0,
-            height: 0.0,
             text: None,
             parent: None,
             children: Vec::new(),
+            properties: HashMap::new(),
         }
     }
 }
 
-/// A decoded frame for a renderer.
+/// The host's native-element description of a rendered tree.
 #[derive(Debug, Default)]
 pub struct RenderTree {
-    /// nodeId → node. Always contains the root (id 0).
+    /// nodeId → node.
     pub nodes: HashMap<u32, HostNode>,
 }
 
 impl RenderTree {
-    /// Apply a frame's opcodes to this tree.
+    /// Apply a frame's opcodes to this tree (a delta).
     pub fn apply_frame(&mut self, frame: &Frame<'_>) {
-        let mut parents: Vec<(u32, u32)> = Vec::new();
         for op in frame.opcodes() {
             match (op.category(), op.command()) {
                 (category::TREE, tree::CREATE_NODE) => {
@@ -76,24 +68,42 @@ impl RenderTree {
                 }
                 (category::TREE, tree::INSERT_CHILD) => {
                     let (parent, child) = (op.a(), op.b());
-                    parents.push((parent, child));
                     if let Some(p) = self.nodes.get_mut(&parent) {
-                        p.children.push(child);
+                        if !p.children.contains(&child) {
+                            p.children.push(child);
+                        }
                     }
                     if let Some(c) = self.nodes.get_mut(&child) {
                         c.parent = Some(parent);
                     }
                 }
-                (category::LAYOUT, layout::SET_ORIGIN) => {
-                    if let Some(n) = self.nodes.get_mut(&op.a()) {
-                        n.x = op.b_f32();
-                        n.y = op.c_f32();
+                (category::TREE, tree::REMOVE_CHILD) => {
+                    let (parent, child) = (op.a(), op.b());
+                    if let Some(p) = self.nodes.get_mut(&parent) {
+                        p.children.retain(|c| *c != child);
+                    }
+                    if let Some(c) = self.nodes.get_mut(&child) {
+                        c.parent = None;
                     }
                 }
-                (category::LAYOUT, layout::SET_SIZE) => {
+                (category::TREE, tree::MOVE_CHILD) => {
+                    let (parent, child, new_index) = (op.a(), op.b(), op.c() as usize);
+                    if let Some(p) = self.nodes.get_mut(&parent) {
+                        if let Some(pos) = p.children.iter().position(|c| *c == child) {
+                            p.children.remove(pos);
+                        }
+                        let idx = if new_index == usize::MAX {
+                            p.children.len()
+                        } else {
+                            new_index.min(p.children.len())
+                        };
+                        p.children.insert(idx, child);
+                    }
+                }
+                (category::STYLE, style::SET_PROPERTY) => {
+                    let prop_id = op.b() as u16;
                     if let Some(n) = self.nodes.get_mut(&op.a()) {
-                        n.width = op.b_f32();
-                        n.height = op.c_f32();
+                        n.properties.insert(prop_id, op.c());
                     }
                 }
                 (category::STYLE, style::SET_TEXT) => {
@@ -101,18 +111,11 @@ impl RenderTree {
                         n.text = frame.arena_str(op.b()).ok().map(|s| s.to_string());
                     }
                 }
-                (category::STYLE, style::SET_PROPERTY) => {
-                    // Properties other than text are not modeled yet.
+                (category::STYLE, style::SET_DESIGN_TOKEN) => {
+                    // Token overrides are handled by the renderer's theme layer.
                     let _ = op;
                 }
                 _ => {}
-            }
-        }
-        for (parent, child) in parents {
-            if let Some(p) = self.nodes.get_mut(&parent) {
-                if !p.children.contains(&child) {
-                    p.children.push(child);
-                }
             }
         }
     }
@@ -151,17 +154,17 @@ pub fn describe(op: &Opcode) -> String {
         (category::TREE, tree::REMOVE_CHILD) => {
             format!("TREE:REMOVE_CHILD parent={} child={}", op.a(), op.b())
         }
-        (category::LAYOUT, layout::SET_ORIGIN) => format!(
-            "LAYOUT:SET_ORIGIN id={} x={} y={}",
+        (category::TREE, tree::MOVE_CHILD) => format!(
+            "TREE:MOVE_CHILD parent={} child={} index={}",
             op.a(),
-            op.b_f32(),
-            op.c_f32()
+            op.b(),
+            op.c()
         ),
-        (category::LAYOUT, layout::SET_SIZE) => format!(
-            "LAYOUT:SET_SIZE id={} w={} h={}",
+        (category::STYLE, style::SET_PROPERTY) => format!(
+            "STYLE:SET_PROPERTY id={} prop=0x{:04x} value=0x{:08x}",
             op.a(),
-            op.b_f32(),
-            op.c_f32()
+            op.b() as u16,
+            op.c()
         ),
         (category::STYLE, style::SET_TEXT) => {
             format!("STYLE:SET_TEXT id={} arenaRef={}", op.a(), op.b())
@@ -173,26 +176,24 @@ pub fn describe(op: &Opcode) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pathland_layout::view;
-    use pathland_layout::{LayoutEngine, Rect};
+    use pathland_engine::view;
+    use pathland_engine::Engine;
     use pathland_opcode::{init_memory, Guest, MemoryLayout};
 
     #[test]
-    fn decodes_a_layout_frame() {
+    fn decodes_a_declarative_frame() {
         let layout = MemoryLayout::default();
         let mut mem = vec![0u8; layout.total_bytes()];
         init_memory(&mut mem, &layout);
 
         let mut root = view::vstack(4.0, 8.0, vec![view::text(1, "ab"), view::text(2, "cd")]);
-        let mut next = 1;
-        view::assign_ids(&mut root, &mut next);
+        view::assign_ids(&mut root, &mut 1);
 
+        let mut engine = Engine::new();
         {
             let mut guest = Guest::new(&mut mem, &layout);
             guest.begin_frame();
-            // Emit the full tree structure + layout in one frame.
-            emit_tree(&root, &mut guest);
-            LayoutEngine::layout(&root, Rect::new(0.0, 0.0, 100.0, 100.0), &mut guest).unwrap();
+            engine.emit(&root, &mut guest).unwrap();
             guest.end_frame();
         }
 
@@ -204,26 +205,57 @@ mod tests {
         assert_eq!(tree.nodes.len(), 3);
         let root_node = tree.node(1).unwrap();
         assert_eq!(root_node.component_type, component_type::VSTACK);
+        assert_eq!(
+            root_node.properties.get(&pathland_opcode::property_id::SPACING),
+            Some(&4.0f32.to_bits())
+        );
         let child = tree.node(2).unwrap();
         assert_eq!(child.text.as_deref(), Some("ab"));
-        assert_eq!(child.x, 8.0);
-        assert_eq!(child.y, 8.0);
-        assert_eq!(child.width, 16.0);
+        // No layout/rect data is present.
+        assert!(!child.properties.contains_key(&pathland_opcode::property_id::WIDTH));
     }
 
-    /// Emit TREE opcodes for a node tree (structure only).
-    fn emit_tree(node: &pathland_layout::Node, guest: &mut Guest<'_>) {
-        let ty = pathland_layout::component_type_id(&node.component);
-        guest.create_node(node.id, ty).unwrap();
-        if node.id != 0 {
-            guest.insert_child(0, node.id, pathland_opcode::APPEND).unwrap();
+    #[test]
+    fn applies_a_delta_frame() {
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        let mut engine = Engine::new();
+        let mut tree = RenderTree::default();
+
+        let mut a = view::vstack(4.0, 8.0, vec![view::text(1, "ab")]);
+        view::assign_ids(&mut a, &mut 1);
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            engine.emit(&a, &mut guest).unwrap();
+            guest.end_frame();
         }
-        for (i, child) in node.children.iter().enumerate() {
-            guest.insert_child(node.id, child.id, i as u32).unwrap();
-            emit_tree(child, guest);
+        {
+            let mut host = pathland_opcode::Host::new(&mut mem, &layout);
+            tree.apply_frame(&host.frames()[0]);
         }
-        if let pathland_layout::Component::Text { text } = &node.component {
-            guest.set_text(node.id, text).unwrap();
+
+        // Delta: spacing 4 -> 12.
+        let mut b = view::vstack(12.0, 8.0, vec![view::text(1, "ab")]);
+        view::assign_ids(&mut b, &mut 1);
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            engine.emit(&b, &mut guest).unwrap();
+            guest.end_frame();
         }
+        {
+            let mut host = pathland_opcode::Host::new(&mut mem, &layout);
+            tree.apply_frame(&host.frames()[0]);
+        }
+
+        assert_eq!(tree.nodes.len(), 2);
+        let root = tree.node(1).unwrap();
+        assert_eq!(
+            root.properties.get(&pathland_opcode::property_id::SPACING),
+            Some(&12.0f32.to_bits())
+        );
     }
 }

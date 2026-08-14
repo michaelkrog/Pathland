@@ -3,11 +3,11 @@ name = "pathland-host"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Pathland host-side reader: consumes the 16-byte opcode ring from linear memory (test harness + renderer entry point)"
+description = "Pathland host-side reader: consumes the opcode ring and builds a native-element description for renderers (GTK, DOM, HTML)"
 repository = "https://github.com/michaelkrog/Pathland"
 categories = ["graphics"]
 keywords = ["ui", "opcode", "ring-buffer", "wasm"]
 
 [dependencies]
 pathland-opcode = { path = "../pathland-opcode" }
-pathland-layout = { path = "../pathland-layout" }
+pathland-engine = { path = "../pathland-engine" }

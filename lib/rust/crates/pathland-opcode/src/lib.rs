@@ -19,7 +19,7 @@
 //! guest.begin_frame();
 //! guest.create_node(1, pathland_opcode::component_type::VSTACK).unwrap();
 //! guest.insert_child(0, 1, pathland_opcode::APPEND).unwrap();
-//! guest.set_size(1, 100.0, 200.0).unwrap();
+//! guest.set_property(1, pathland_opcode::property_id::SPACING, pathland_opcode::value_type::F32, 4.0f32.to_bits()).unwrap();
 //! guest.end_frame(); // publishes frameCount
 //! ```
 //!
@@ -162,14 +162,13 @@ impl<'a> Guest<'a> {
         ring_fn::push_remove_child(self.slots, self.header, self.mask(), parent, child)
     }
 
-    // --- LAYOUT ---
-
-    pub fn set_origin(&mut self, node_id: u32, x: f32, y: f32) -> Result<(), RingError> {
-        ring_fn::push_set_origin(self.slots, self.header, self.mask(), node_id, x, y)
-    }
-
-    pub fn set_size(&mut self, node_id: u32, w: f32, h: f32) -> Result<(), RingError> {
-        ring_fn::push_set_size(self.slots, self.header, self.mask(), node_id, w, h)
+    pub fn move_child(
+        &mut self,
+        parent: u32,
+        child: u32,
+        new_index: u32,
+    ) -> Result<(), RingError> {
+        ring_fn::push_move_child(self.slots, self.header, self.mask(), parent, child, new_index)
     }
 
     // --- STYLE ---
@@ -347,7 +346,7 @@ impl<'a> Host<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::{category, component_type};
+    use crate::constants::{category, component_type, property_id, value_type};
     use alloc::vec;
 
     #[test]
@@ -360,8 +359,10 @@ mod tests {
         guest.begin_frame();
         guest.create_node(1, component_type::VSTACK).unwrap();
         guest.insert_child(0, 1, APPEND).unwrap();
-        guest.set_origin(1, 10.0, 20.0).unwrap();
-        guest.set_size(1, 100.0, 200.0).unwrap();
+        guest.set_property(1, property_id::SPACING, value_type::F32, 4.0f32.to_bits()).unwrap();
+        guest
+            .set_property(1, property_id::PADDING, value_type::F32, 8.0f32.to_bits())
+            .unwrap();
         let arena_ref = guest.set_text(1, "Hello").unwrap();
         assert_eq!(guest.pending(), 5);
         guest.end_frame();
@@ -377,8 +378,8 @@ mod tests {
         assert_eq!(ops[0].category(), category::TREE);
         assert_eq!(ops[0].a(), 1);
         assert_eq!(ops[1].a(), 0); // parent root
-        assert_eq!(ops[2].b_f32(), 10.0);
-        assert_eq!(ops[3].c_f32(), 200.0);
+        assert_eq!(ops[2].b() as u16, property_id::SPACING);
+        assert_eq!(ops[2].c_f32(), 4.0);
         assert_eq!(frame.arena_str(arena_ref).unwrap(), "Hello");
         // Second drain is empty.
         assert!(host.frames().is_empty());

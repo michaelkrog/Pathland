@@ -3,17 +3,17 @@
 version = 4
 
 [[package]]
-name = "pathland-host"
+name = "pathland-engine"
 version = "0.1.0"
 dependencies = [
- "pathland-layout",
  "pathland-opcode",
 ]
 
 [[package]]
-name = "pathland-layout"
+name = "pathland-host"
 version = "0.1.0"
 dependencies = [
+ "pathland-engine",
  "pathland-opcode",
 ]
 
