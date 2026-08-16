@@ -38,6 +38,8 @@ This document provides essential context for AI agents (or human contributors) w
 
 ```
 crates/pathland-opcode/   # 16-byte opcode, ring buffer, arena, memory layout (no_std)
+crates/pathland-view/     # SwiftUI-style view DSL: VStack/HStack/Text + decoupled
+                          #   modifiers (spacing/padding/fontSize/color/background) (no_std)
 crates/pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
                           #   diff-based reactive emission (zero-alloc steady state)
 crates/pathland-host/     # host reader: ring -> native-element description (std layer)
@@ -52,8 +54,8 @@ wit/pathland.wit          # WIT component-world definitions (Goal 3+)
 
 | # | Goal | Status |
 |---|------|--------|
-| 12 | 16-byte opcode engine | **In progress** (`feature/opcode-engine` branch) |
-| 13 | Core components & modifiers in Rust | Planned |
+| 12 | 16-byte opcode engine | **Complete** |
+| 13 | Core components & modifiers in Rust | **In progress** (`pathland-view` DSL; defer signals) |
 | 14 | TypeScript browser demo via WASM/WIT | Planned |
 | 15 | Quarkus SSR + WebSocket demo | Planned |
 | 16 | Rust desktop app with GTK4 renderer | Planned |
@@ -209,9 +211,9 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-opcode`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), golden conformance vectors (incl. raw-input EVENT bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission. **31 tests green across 3 crates.**
+**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), golden conformance vectors (incl. raw-input EVENT bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission. **41 unit tests green across 4 crates.**
 
-**Planned / deferred**: full SwiftUI-style view DSL + signals (Goal 2/#13), TS browser demo via WASM/WIT (Goal 3/#14), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 desktop renderer (Goal 5/#16), raw-input event routing into the guest engine, TEXT_FIELD editing, image rendering.
+**Planned / deferred**: signals (Goal 2/#13), TS browser demo via WASM/WIT (Goal 3/#14), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 desktop renderer (Goal 5/#16), raw-input event routing into the guest engine, TEXT_FIELD editing, image rendering.
 
 ---
 

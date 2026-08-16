@@ -7,6 +7,8 @@ consumed by host renderers.
 ```
 crates/
 ├── pathland-opcode/   # 16-byte opcode, ring buffer, bump arena, linear-memory layout (no_std)
+├── pathland-view/     # SwiftUI-style view DSL: VStack/HStack/Text + decoupled
+│                      #   chainable modifiers (spacing/padding/fontSize/color/background) (no_std)
 ├── pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
 │                      #   diff-based reactive emission (zero-alloc steady state)
 └── pathland-host/     # host reader: ring -> native-element description (std layer)
@@ -39,8 +41,9 @@ The engine emits declarative structure (no rects). A signal changes a property;
 the next `emit` writes only the delta opcodes.
 
 ```rust
-use pathland_engine::{view, Engine};
+use pathland_engine::Engine;
 use pathland_opcode::{init_memory, Guest, MemoryLayout};
+use pathland_view::{assign_ids, text, vstack, View, ViewExt};
 
 let layout = MemoryLayout::default();
 let mut mem = vec![0u8; layout.total_bytes()];
@@ -49,14 +52,17 @@ init_memory(&mut mem, &layout);
 let mut guest = Guest::new(&mut mem, &layout);
 let mut engine = Engine::new();
 
-let mut root = view::vstack(4.0, 8.0, vec![view::text(1, "Hello")]);
-view::assign_ids(&mut root, &mut 1);
+let mut root = vstack![text("Hello")]
+    .spacing(4.0)
+    .padding(8.0)
+    .build();
+assign_ids(&mut root, &mut 1);
 
 guest.begin_frame();
 engine.emit(&root, &mut guest).unwrap(); // full structure
 guest.end_frame();
 
-root.component = pathland_engine::Component::VStack { spacing: 12.0, padding: 8.0 };
+root.properties.insert(pathland_opcode::property_id::SPACING, 12.0f32.to_bits());
 
 guest.begin_frame();
 engine.emit(&root, &mut guest).unwrap(); // exactly one SET_PROPERTY

@@ -7,6 +7,7 @@ name = "pathland-engine"
 version = "0.1.0"
 dependencies = [
  "pathland-opcode",
+ "pathland-view",
 ]
 
 [[package]]
@@ -15,8 +16,16 @@ version = "0.1.0"
 dependencies = [
  "pathland-engine",
  "pathland-opcode",
+ "pathland-view",
 ]
 
 [[package]]
 name = "pathland-opcode"
 version = "0.1.0"
+
+[[package]]
+name = "pathland-view"
+version = "0.1.0"
+dependencies = [
+ "pathland-opcode",
+]

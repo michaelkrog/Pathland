@@ -11,3 +11,6 @@ keywords = ["ui", "opcode", "ring-buffer", "wasm"]
 [dependencies]
 pathland-opcode = { path = "../pathland-opcode" }
 pathland-engine = { path = "../pathland-engine" }
+
+[dev-dependencies]
+pathland-view = { path = "../pathland-view" }

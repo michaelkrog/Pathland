@@ -10,3 +10,4 @@ keywords = ["ui", "opcode", "wasm", "reactive", "diff"]
 
 [dependencies]
 pathland-opcode = { path = "../pathland-opcode" }
+pathland-view = { path = "../pathland-view" }

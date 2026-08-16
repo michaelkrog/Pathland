@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "crates/pathland-opcode",
+    "crates/pathland-view",
     "crates/pathland-engine",
     "crates/pathland-host",
 ]

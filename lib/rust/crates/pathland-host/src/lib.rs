@@ -176,9 +176,9 @@ pub fn describe(op: &Opcode) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pathland_engine::view;
     use pathland_engine::Engine;
     use pathland_opcode::{init_memory, Guest, MemoryLayout};
+    use pathland_view::{assign_ids, text, vstack, View, ViewExt};
 
     #[test]
     fn decodes_a_declarative_frame() {
@@ -186,8 +186,11 @@ mod tests {
         let mut mem = vec![0u8; layout.total_bytes()];
         init_memory(&mut mem, &layout);
 
-        let mut root = view::vstack(4.0, 8.0, vec![view::text(1, "ab"), view::text(2, "cd")]);
-        view::assign_ids(&mut root, &mut 1);
+        let mut root = vstack![text("ab"), text("cd")]
+            .spacing(4.0)
+            .padding(8.0)
+            .build();
+        assign_ids(&mut root, &mut 1);
 
         let mut engine = Engine::new();
         {
@@ -224,8 +227,11 @@ mod tests {
         let mut engine = Engine::new();
         let mut tree = RenderTree::default();
 
-        let mut a = view::vstack(4.0, 8.0, vec![view::text(1, "ab")]);
-        view::assign_ids(&mut a, &mut 1);
+        let mut a = vstack![text("ab")]
+            .spacing(4.0)
+            .padding(8.0)
+            .build();
+        assign_ids(&mut a, &mut 1);
         {
             let mut guest = Guest::new(&mut mem, &layout);
             guest.begin_frame();
@@ -238,8 +244,11 @@ mod tests {
         }
 
         // Delta: spacing 4 -> 12.
-        let mut b = view::vstack(12.0, 8.0, vec![view::text(1, "ab")]);
-        view::assign_ids(&mut b, &mut 1);
+        let mut b = vstack![text("ab")]
+            .spacing(12.0)
+            .padding(8.0)
+            .build();
+        assign_ids(&mut b, &mut 1);
         {
             let mut guest = Guest::new(&mut mem, &layout);
             guest.begin_frame();
