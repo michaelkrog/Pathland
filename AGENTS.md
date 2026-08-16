@@ -100,7 +100,7 @@ wit/pathland.wit          # WIT component-world definitions (Goal 3+)
 - Open-source, cross-platform binary format
 - Fixed **16-byte instructions** in a ring buffer shared with the host via linear memory
 - Custom instruction-based bytecode, not schema-driven serialization
-- **Both directions are binary**: tree mutations (app → renderer) AND events/gestures (renderer → app) share the same instruction format, so the wire is language- and platform-agnostic
+- **Both directions are binary**: tree mutations (app → renderer) AND raw-input events (renderer → app) share the same instruction format, so the wire is language- and platform-agnostic
 
 ---
 
@@ -122,9 +122,8 @@ See `spec/OPCODE.md` for the full format, ring buffer, arena, and frame lifecycl
 |----------|-------|-----------|-------------|
 | TREE | 0x01 | Guest → Host | Node create/delete/insert/remove/move |
 | STYLE | 0x02 | Guest → Host | Constraint properties (spacing, padding, …), design tokens |
-| EVENT | 0x03 | Host → Guest | Tap, hover, key, etc. |
-| GESTURE | 0x04 | Host → Guest | Began/changed/ended/cancelled |
-| META | 0x05 | Both | Reset, environment |
+| EVENT | 0x03 | Host → Guest | Raw inputs: pointer down/move/up, key down/up |
+| META | 0x04 | Both | Reset, environment |
 
 ### Component Types (u16)
 
@@ -210,9 +209,9 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-opcode`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), golden conformance vectors, `no_std` + wasm32 builds, zero-alloc steady-state emission. **26 tests green across 3 crates.**
+**Complete**: 16-byte opcode engine (`pathland-opcode`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), golden conformance vectors (incl. raw-input EVENT bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission. **31 tests green across 3 crates.**
 
-**Planned / deferred**: full SwiftUI-style view DSL + signals (Goal 2/#13), TS browser demo via WASM/WIT (Goal 3/#14), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 desktop renderer (Goal 5/#16), pinch/rotate + multi-touch, TEXT_FIELD editing, image rendering.
+**Planned / deferred**: full SwiftUI-style view DSL + signals (Goal 2/#13), TS browser demo via WASM/WIT (Goal 3/#14), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 desktop renderer (Goal 5/#16), raw-input event routing into the guest engine, TEXT_FIELD editing, image rendering.
 
 ---
 

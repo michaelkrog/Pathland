@@ -22,7 +22,7 @@ unchanged tree emits zero opcodes.
 
 ## Core Principles
 
-- **Protocol-first**: standardized, open protocol for UI components, events, and gestures
+- **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs
 - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode
 - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions
 - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent

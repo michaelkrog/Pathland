@@ -64,10 +64,55 @@ pub(crate) const VECTORS: &[(&str, [u8; 16])] = &[
     (
         "META:RESET",
         [
-            0x05, 0x01, 0x00, 0x00, // category META, command RESET
+            0x04, 0x01, 0x00, 0x00, // category META, command RESET
             0x00, 0x00, 0x00, 0x00, // A = 0
             0x00, 0x00, 0x00, 0x00, // B = 0
             0x00, 0x00, 0x00, 0x00, // C = 0
+        ],
+    ),
+    (
+        "EVENT:POINTER_DOWN (target=5, x=10.0, y=20.0)",
+        [
+            0x03, 0x01, 0x00, 0x00, // category EVENT, command POINTER_DOWN
+            0x05, 0x00, 0x00, 0x00, // A = targetId = 5
+            0x00, 0x00, 0x20, 0x41, // B = 10.0 (f32 LE: 0x41200000)
+            0x00, 0x00, 0xA0, 0x41, // C = 20.0 (f32 LE: 0x41A00000)
+        ],
+    ),
+    (
+        "EVENT:POINTER_MOVE (target=5, x=10.0, y=20.0, hovering)",
+        [
+            0x03, 0x02, 0x01, 0x00, // category EVENT, command POINTER_MOVE, HOVER_ENTER
+            0x05, 0x00, 0x00, 0x00, // A = targetId = 5
+            0x00, 0x00, 0x20, 0x41, // B = 10.0 (f32 LE: 0x41200000)
+            0x00, 0x00, 0xA0, 0x41, // C = 20.0 (f32 LE: 0x41A00000)
+        ],
+    ),
+    (
+        "EVENT:POINTER_UP (target=5, x=10.0, y=20.0)",
+        [
+            0x03, 0x03, 0x00, 0x00, // category EVENT, command POINTER_UP
+            0x05, 0x00, 0x00, 0x00, // A = targetId = 5
+            0x00, 0x00, 0x20, 0x41, // B = 10.0 (f32 LE: 0x41200000)
+            0x00, 0x00, 0xA0, 0x41, // C = 20.0 (f32 LE: 0x41A00000)
+        ],
+    ),
+    (
+        "EVENT:KEY_DOWN (target=5, keyCode='A'=0x41, modifiers=0x01, repeat)",
+        [
+            0x03, 0x04, 0x02, 0x00, // category EVENT, command KEY_DOWN, KEY_REPEAT
+            0x05, 0x00, 0x00, 0x00, // A = targetId = 5
+            0x41, 0x00, 0x00, 0x00, // B = keyCode = 0x41
+            0x01, 0x00, 0x00, 0x00, // C = modifiers = 0x01
+        ],
+    ),
+    (
+        "EVENT:KEY_UP (target=5, keyCode='A'=0x41, modifiers=0x01)",
+        [
+            0x03, 0x05, 0x00, 0x00, // category EVENT, command KEY_UP
+            0x05, 0x00, 0x00, 0x00, // A = targetId = 5
+            0x41, 0x00, 0x00, 0x00, // B = keyCode = 0x41
+            0x01, 0x00, 0x00, 0x00, // C = modifiers = 0x01
         ],
     ),
 ];
@@ -111,7 +156,36 @@ mod tests {
                 VECTORS[4].1,
             ),
             (0x02, 0x03, 0x0000, 1, 0, 0, VECTORS[5].1),
-            (0x05, 0x01, 0x0000, 0, 0, 0, VECTORS[6].1),
+            (0x04, 0x01, 0x0000, 0, 0, 0, VECTORS[6].1),
+            (
+                0x03,
+                0x01,
+                0x0000,
+                5,
+                10.0f32.to_bits(),
+                20.0f32.to_bits(),
+                VECTORS[7].1,
+            ),
+            (
+                0x03,
+                0x02,
+                0x0001,
+                5,
+                10.0f32.to_bits(),
+                20.0f32.to_bits(),
+                VECTORS[8].1,
+            ),
+            (
+                0x03,
+                0x03,
+                0x0000,
+                5,
+                10.0f32.to_bits(),
+                20.0f32.to_bits(),
+                VECTORS[9].1,
+            ),
+            (0x03, 0x04, 0x0002, 5, 0x41, 0x01, VECTORS[10].1),
+            (0x03, 0x05, 0x0000, 5, 0x41, 0x01, VECTORS[11].1),
         ];
         for (cat, cmd, flags, a, b, c, expected) in cases {
             let op = Opcode::new(*cat, *cmd, *flags, *a, *b, *c);

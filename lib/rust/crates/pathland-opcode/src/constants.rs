@@ -11,12 +11,10 @@ pub mod category {
     /// (spacing, padding, alignment, …) that native renderers use to lay out
     /// native elements. The engine does NOT emit rects.
     pub const STYLE: u8 = 0x02;
-    /// Discrete events (host → guest): tap, hover, key, etc.
+    /// Raw input events (host → guest): pointer down/move/up, key down/up.
     pub const EVENT: u8 = 0x03;
-    /// Gesture updates (host → guest).
-    pub const GESTURE: u8 = 0x04;
     /// Control (both directions): reset, environment, custom data.
-    pub const META: u8 = 0x05;
+    pub const META: u8 = 0x04;
 }
 
 /// Commands within the `TREE` category.
@@ -44,20 +42,21 @@ pub mod style {
 }
 
 /// Commands within the `EVENT` category.
+///
+/// Events are **raw inputs** (host → guest), each carrying a host-resolved
+/// `targetId`. High-level interpretations (tap, drag, long-press) are built by
+/// the guest/app from these raw inputs and are NOT part of the protocol.
 pub mod event {
-    /// `A=targetId, B=x (f32), C=y (f32)`
-    pub const TAP: u8 = 0x01;
-    /// `A=targetId, B=x (f32), C=y (f32)` (Flags `HOVER_ENTER` = hovering)
-    pub const HOVER: u8 = 0x02;
+    /// `A=targetId, B=x (f32), C=y (f32)` (Flags `POINTER_SECONDARY`)
+    pub const POINTER_DOWN: u8 = 0x01;
+    /// `A=targetId, B=x (f32), C=y (f32)` (Flags `HOVER_ENTER` / `HOVER_LEAVE`)
+    pub const POINTER_MOVE: u8 = 0x02;
+    /// `A=targetId, B=x (f32), C=y (f32)` (Flags `POINTER_SECONDARY`)
+    pub const POINTER_UP: u8 = 0x03;
+    /// `A=targetId, B=keyCode (u16, low), C=modifiers (u8, low)` (Flags `KEY_REPEAT`)
+    pub const KEY_DOWN: u8 = 0x04;
     /// `A=targetId, B=keyCode (u16, low), C=modifiers (u8, low)`
-    /// Flags `KEY_DOWN` / `KEY_REPEAT`
-    pub const KEY: u8 = 0x03;
-}
-
-/// Commands within the `GESTURE` category.
-pub mod gesture {
-    /// `A=targetId, B=(state << 8) | gestureType, C=gestureId`
-    pub const UPDATE: u8 = 0x01;
+    pub const KEY_UP: u8 = 0x05;
 }
 
 /// Commands within the `META` category.
@@ -72,11 +71,13 @@ pub mod meta {
 pub mod flag {
     /// `INSERT_CHILD` / `MOVE_CHILD`: append (index = append).
     pub const INSERT_APPEND: u16 = 0x0001;
-    /// `HOVER`: pointer is entering/hovering (bit 0).
+    /// `POINTER_DOWN` / `POINTER_UP`: secondary button (bit 0).
+    pub const POINTER_SECONDARY: u16 = 0x0001;
+    /// `POINTER_MOVE`: pointer is entering/hovering (bit 0).
     pub const HOVER_ENTER: u16 = 0x0001;
-    /// `KEY`: key is down.
-    pub const KEY_DOWN: u16 = 0x0001;
-    /// `KEY`: key repeat.
+    /// `POINTER_MOVE`: pointer is leaving (bit 1).
+    pub const HOVER_LEAVE: u16 = 0x0002;
+    /// `KEY_DOWN`: key repeat (bit 1).
     pub const KEY_REPEAT: u16 = 0x0002;
 }
 

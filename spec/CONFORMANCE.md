@@ -107,17 +107,90 @@ All multi-byte fields little-endian. `A`/`B`/`C` may carry `f32` bit patterns.
 ### 7. META:RESET
 
 ```
-05 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+04 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00
 ```
 
-- `05` category = META
+- `04` category = META
 - `01` command = RESET
 - `00 00` flags = 0
 - `00 00 00 00` A = 0
 - `00 00 00 00` B = 0
 - `00 00 00 00` C = 0
 
+### 8. EVENT:POINTER_DOWN (target=5, x=10.0, y=20.0)
+
+```
+03 01 00 00 05 00 00 00 00 00 20 41 00 00 A0 41
+```
+
+- `03` category = EVENT
+- `01` command = POINTER_DOWN
+- `00 00` flags = 0
+- `05 00 00 00` A = targetId = 5
+- `00 00 20 41` B = 10.0 (f32 LE: 0x41200000)
+- `00 00 A0 41` C = 20.0 (f32 LE: 0x41A00000)
+
+### 9. EVENT:POINTER_MOVE (target=5, x=10.0, y=20.0, hovering)
+
+```
+03 02 01 00 05 00 00 00 00 00 20 41 00 00 A0 41
+```
+
+- `03` category = EVENT
+- `02` command = POINTER_MOVE
+- `01 00` flags = 0x0001 (`HOVER_ENTER`)
+- `05 00 00 00` A = targetId = 5
+- `00 00 20 41` B = 10.0 (f32 LE: 0x41200000)
+- `00 00 A0 41` C = 20.0 (f32 LE: 0x41A00000)
+
+### 10. EVENT:POINTER_UP (target=5, x=10.0, y=20.0)
+
+```
+03 03 00 00 05 00 00 00 00 00 20 41 00 00 A0 41
+```
+
+- `03` category = EVENT
+- `03` command = POINTER_UP
+- `00 00` flags = 0
+- `05 00 00 00` A = targetId = 5
+- `00 00 20 41` B = 10.0 (f32 LE: 0x41200000)
+- `00 00 A0 41` C = 20.0 (f32 LE: 0x41A00000)
+
+### 11. EVENT:KEY_DOWN (target=5, keyCode='A'=0x41, modifiers=0x01, repeat)
+
+```
+03 04 02 00 05 00 00 00 41 00 00 00 01 00 00 00
+```
+
+- `03` category = EVENT
+- `04` command = KEY_DOWN
+- `02 00` flags = 0x0002 (`KEY_REPEAT`)
+- `05 00 00 00` A = targetId = 5
+- `41 00 00 00` B = keyCode = 0x41 (`'A'`, low u16)
+- `01 00 00 00` C = modifiers = 0x01 (low u8)
+
+### 12. EVENT:KEY_UP (target=5, keyCode='A'=0x41, modifiers=0x01)
+
+```
+03 05 00 00 05 00 00 00 41 00 00 00 01 00 00 00
+```
+
+- `03` category = EVENT
+- `05` command = KEY_UP
+- `00 00` flags = 0
+- `05 00 00 00` A = targetId = 5
+- `41 00 00 00` B = keyCode = 0x41 (`'A'`, low u16)
+- `01 00 00 00` C = modifiers = 0x01 (low u8)
+
 ---
+
+## Directions
+
+- `TREE` / `STYLE` are **guest → host** (application → renderer).
+- `EVENT` is **host → guest** (renderer → application): raw pointer/keyboard
+  inputs with a host-resolved `targetId`. A conforming EVENT encoder/decoder
+  MUST reproduce vectors 8–12 exactly.
+- `META` is both directions.
 
 ## Frame Conformance
 

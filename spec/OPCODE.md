@@ -88,9 +88,8 @@ pub struct Opcode {
 |----------|-------|------|----------|-------------|
 | `TREE` | `0x01` | Tree mutations | Guest engine | Node create/delete/insert/remove/move |
 | `STYLE` | `0x02` | Constraints & tokens | Guest engine | Property values (spacing, padding, …), design tokens |
-| `EVENT` | `0x03` | Discrete events | Host renderer | Tap, hover, key, etc. |
-| `GESTURE` | `0x04` | Gesture updates | Host renderer | Began/changed/ended/cancelled |
-| `META` | `0x05` | Control | Both | Reset, environment |
+| `EVENT` | `0x03` | Raw inputs | Host renderer | Pointer down/move/up, key down/up |
+| `META` | `0x04` | Control | Both | Reset, environment |
 
 ---
 
@@ -159,19 +158,21 @@ historical protocol).
 
 ### EVENT (0x03) — host → guest
 
-| Command | Value | A | B | C | Description |
-|---------|-------|---|---|---|-------------|
-| `TAP` | `0x01` | targetId | x (f32) | y (f32) | Tap at viewport-relative point |
-| `HOVER` | `0x02` | targetId | x (f32) | y (f32) | Pointer moved; Flags bit 0 = isHovering |
-| `KEY` | `0x03` | targetId | keyCode (u16, low) | modifiers (u8, low) | Key event; Flags bit 0 = down, bit 1 = repeat |
-
-### GESTURE (0x04) — host → guest
+Events are the **raw inputs**: the renderer reports what happened (a pointer
+went down/moved/up, a key went down/up) and resolves which node it hit via its
+own rendered-output tree. High-level interpretations — tap, drag, long-press —
+are built by the guest/app from these raw inputs and are **not** part of the
+protocol.
 
 | Command | Value | A | B | C | Flags | Description |
 |---------|-------|---|---|---|-------|-------------|
-| `UPDATE` | `0x01` | targetId | gestureType (u8) + state (u8, high byte) | gestureId | — | Gesture lifecycle update |
+| `POINTER_DOWN` | `0x01` | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` | Pointer button pressed at viewport-relative point |
+| `POINTER_MOVE` | `0x02` | targetId | x (f32) | y (f32) | `HOVER_ENTER` / `HOVER_LEAVE` | Pointer moved (bit 0 = entered/hovering, bit 1 = leaving) |
+| `POINTER_UP` | `0x03` | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` | Pointer button released at viewport-relative point |
+| `KEY_DOWN` | `0x04` | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` | Key pressed (bit 1 = auto-repeat) |
+| `KEY_UP` | `0x05` | targetId | keyCode (u16, low) | modifiers (u8, low) | — | Key released |
 
-### META (0x05)
+### META (0x04)
 
 | Command | Value | A | B | C | Description |
 |---------|-------|---|---|---|-------------|
