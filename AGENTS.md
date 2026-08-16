@@ -2,17 +2,71 @@
 
 This document provides essential context for AI agents (or human contributors) working on the **Pathland** protocol. It captures the project's direction, architectural decisions, and implementation details to ensure consistency.
 
-**Last Updated**: August 7, 2026
+**Last Updated**: August 14, 2026
+
+---
+
+## New Direction: Rust WASM Opcode Engine
+
+> The canonical core is a **Rust engine compiled to WASM** ("WASM guest engine")
+> that emits the application's **declarative view structure** — VStack, HStack,
+> Text, spacing, padding, alignment — as a fixed **16-byte opcode ring buffer**
+> into shared linear memory, consumed by host renderers. View components and
+> modifiers are written in Rust with a SwiftUI-like API; other languages consume
+> the components as **WASM/WIT** components.
+
+### The 16-byte Opcode Engine
+
+- Every opcode is exactly **16 bytes**: `Category (1B) | Command ID (1B) | Flags (2B) | A (4B) | B (4B) | C (4B)`, `#[repr(C, packed)]`, little-endian.
+- A 64-byte cache line holds exactly **4 opcodes** → L1-cache-friendly.
+- Opcodes live in a **ring buffer** in linear memory; the guest writes at `writeCursor`, the host reads from `readCursor`; frame boundaries via a monotonic `frameCount` in the header block.
+- **Variable-length data** (strings, token paths) lives in a bump **arena**; opcodes reference entries by offset (`[u32 byteLength][bytes...]`), so every opcode stays 16 bytes.
+- Spec: **`spec/OPCODE.md`** (primary) + **`spec/CONFORMANCE.md`** (golden vectors).
+
+### Declarative, not positioned (NON-NEGOTIABLE)
+
+> **The engine describes WHAT the UI is — VStack, HStack, Text, spacing,
+> padding, alignment — never WHERE it is. It does not compute layout and does
+> not emit rects.**
+
+- The engine emits **declarative structure** (`TREE` create/delete/insert/remove/move) + **constraint properties** (`STYLE` spacing/padding/alignment/FILL/HUG hints).
+- **Native elements everywhere**: each platform's renderer maps the opcode stream onto that platform's native elements — GTK4 widgets on desktop, DOM elements in the browser, HTML server-side — and those native elements lay themselves out. Never a generic canvas unless a platform has no native equivalent.
+- **Reactive emission**: emission is diff-based. Only the nodes that changed emit opcodes (property diffs via `SET_PROPERTY`/`SET_TEXT`, structural diffs via `TREE` opcodes). An unchanged tree emits **zero** opcodes. Signals in the application mark the tree dirty; the engine reconciles.
+- **Zero dynamic heap allocations** during steady-state emission (proven by test).
+
+### Rust Workspace (`lib/rust/`)
+
+```
+crates/pathland-opcode/   # 16-byte opcode, ring buffer, arena, memory layout (no_std)
+crates/pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
+                          #   diff-based reactive emission (zero-alloc steady state)
+crates/pathland-host/     # host reader: ring -> native-element description (std layer)
+wit/pathland.wit          # WIT component-world definitions (Goal 3+)
+```
+
+- Test: `cd lib/rust && cargo test` (runs all crates).
+- WASM build: `RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc cargo build --target wasm32-unknown-unknown`
+  (the Homebrew `cargo` on PATH uses a rustc without the wasm std; use the rustup toolchain's rustc).
+
+### POC Goals (issues #12–#16)
+
+| # | Goal | Status |
+|---|------|--------|
+| 12 | 16-byte opcode engine | **In progress** (`feature/opcode-engine` branch) |
+| 13 | Core components & modifiers in Rust | Planned |
+| 14 | TypeScript browser demo via WASM/WIT | Planned |
+| 15 | Quarkus SSR + WebSocket demo | Planned |
+| 16 | Rust desktop app with GTK4 renderer | Planned |
 
 ---
 
 ## Project Vision
 
-**Pathland is a cross-platform, cross-language UI protocol** that enables retained-mode UI development with multiple renderer backends. It is **protocol-first**, meaning the binary protocol specification is the source of truth, not any particular implementation.
+**Pathland is a cross-platform, cross-language UI protocol** that enables retained-mode UI development with multiple renderer backends. It is **protocol-first**, meaning the protocol specification is the source of truth, not any particular implementation.
 
 **Primary Goal**: Write once, run anywhere - Enable UI code to be written once and deployed across web, mobile, desktop, and embedded platforms through different renderer implementations.
 
-**Status**: The protocol + worker bootstrap + DOM renderer are implemented and tested end-to-end.
+**Status**: The Rust WASM opcode engine (16-byte opcode, ring buffer, arena, diff-based reactive emission) is implemented and tested (`cargo test`). See the New Direction section above.
 
 ---
 
@@ -22,11 +76,11 @@ This document provides essential context for AI agents (or human contributors) w
 
 > **The renderer MUST NOT retain application state.**
 
-- Renderers are **pure functions** of the command stream: same commands → same output
-- A renderer MAY retain its **rendered-output tree** (id → output + computed layout) for drawing, hit-testing, and event routing — this is a cache of its own output, not state
-- The renderer MUST NOT retain component property values as business state, application control flow, or anything the application can change without sending a command
+- Renderers are **pure functions** of the opcode stream: same opcodes → same output
+- A renderer MAY retain its **rendered-output tree** (id → native element + computed layout) for drawing, hit-testing, and event routing — this is a cache of its own output, not state
+- The renderer MUST NOT retain component property values as business state, application control flow, or anything the application can change without emitting an opcode
 - The application owns the canonical retained UI tree
-- See **Renderer Memory Model** in `spec/PROTOCOL.md` (section 3.3)
+- The engine emits **deltas only**; the renderer applies them to its native elements
 
 **Violation of this principle is a bug, not a feature.**
 
@@ -34,8 +88,8 @@ This document provides essential context for AI agents (or human contributors) w
 
 > **The protocol transmits tree mutations as a stream of commands, NOT as serialized trees.**
 
-- Each message contains a **batch of commands** describing changes
-- Only **actual changes** are transmitted
+- Each frame is a **batch of delta commands** describing changes
+- Only **actual changes** are transmitted (diff-based reactive emission)
 - Protocol acts like a **VM instruction stream** / ABI
 - Deterministic, linear decoding without schema lookup or reflection
 
@@ -44,58 +98,49 @@ This document provides essential context for AI agents (or human contributors) w
 > **The protocol MUST be binary.**
 
 - Open-source, cross-platform binary format
-- Works with ArrayBuffer via transferable objects in browsers
+- Fixed **16-byte instructions** in a ring buffer shared with the host via linear memory
 - Custom instruction-based bytecode, not schema-driven serialization
-- **Both directions are binary**: tree mutations (app → renderer) AND events/gestures (renderer → app) share the same instruction format, so the wire is language- and platform-agnostic
+- **Both directions are binary**: tree mutations (app → renderer) AND raw-input events (renderer → app) share the same instruction format, so the wire is language- and platform-agnostic
 
 ---
 
 ## Protocol Quick Reference
 
-### Message Structure
+### Opcode Format
+
+Every opcode is exactly 16 bytes:
 
 ```
-Header (6 bytes):
-  - version: u16 (2 bytes, currently 1)
-  - instructionCount: u32 (4 bytes)
-Body: length-prefixed instructions
-  - [u8 opcode][u16 payloadLength][payload...]
+[Category: u8][Command: u8][Flags: u16][A: u32][B: u32][C: u32]
 ```
 
-### Opcodes (u8)
+See `spec/OPCODE.md` for the full format, ring buffer, arena, and frame lifecycle.
 
-| Opcode | Value | Direction | Status |
-|--------|-------|-----------|--------|
-| CREATE_NODE | 0x01 | App → Renderer | Implemented |
-| DELETE_NODE | 0x02 | App → Renderer | Implemented |
-| INSERT_CHILD | 0x03 | App → Renderer | Implemented |
-| REMOVE_CHILD | 0x04 | App → Renderer | Implemented |
-| SET_PROPERTY | 0x05 | App → Renderer | Implemented |
-| SET_DESIGN_TOKEN | 0x06 | App → Renderer | Implemented |
-| DISPATCH_EVENT | 0x07 | Renderer → App | Implemented |
-| REGISTER_EVENT_HANDLER | 0x08 | App → Renderer | Implemented |
-| GESTURE_UPDATE | 0x09 | Renderer → App | Implemented |
-| ATTACH_GESTURE | 0x0A | App → Renderer | Implemented |
-| COMBINE_GESTURES | 0x0B | App → Renderer | Specified |
-| MOVE_CHILD | 0x0C | App → Renderer | Implemented |
-| RESET | 0x0D | App → Renderer | Implemented |
+### Categories
+
+| Category | Value | Direction | Description |
+|----------|-------|-----------|-------------|
+| TREE | 0x01 | Guest → Host | Node create/delete/insert/remove/move |
+| STYLE | 0x02 | Guest → Host | Constraint properties (spacing, padding, …), design tokens |
+| EVENT | 0x03 | Host → Guest | Raw inputs: pointer down/move/up, key down/up |
+| META | 0x04 | Both | Reset, environment |
 
 ### Component Types (u16)
 
-| Component | ID | Status |
-|-----------|----|--------|
-| HSTACK | 0x0001 | Implemented |
-| VSTACK | 0x0002 | Implemented |
-| TEXT | 0x0003 | Implemented |
-| BUTTON | 0x0004 | Implemented |
-| IMAGE | 0x0005 | Specified (props TBD) |
-| SWITCH | 0x0006 | Specified |
-| TEXT_FIELD | 0x0007 | Specified |
-| SPACER | 0x0008 | Implemented |
-| SCROLLVIEW | 0x0009 | Experimental |
-| LIST | 0x000A | Experimental |
-| GRID | 0x000B | Experimental |
-| COMMENT | 0x000C | Experimental |
+| Component | ID |
+|-----------|----|
+| HSTACK | 0x0001 |
+| VSTACK | 0x0002 |
+| TEXT | 0x0003 |
+| BUTTON | 0x0004 |
+| IMAGE | 0x0005 |
+| SWITCH | 0x0006 |
+| TEXT_FIELD | 0x0007 |
+| SPACER | 0x0008 |
+| SCROLLVIEW | 0x0009 |
+| LIST | 0x000A |
+| GRID | 0x000B |
+| COMMENT | 0x000C |
 
 ### Key Property IDs
 
@@ -105,136 +150,44 @@ Body: length-prefixed instructions
 **Special**: WIDTH=0x100B (use -1=FILL, -2=HUG_CONTENT), HEIGHT=0x100C  
 **Semantic**: ROLE=0x2001, STATE=0x2002, ENABLED=0x2003, SELECTED=0x2004
 
-### Event Types (u8)
-
-TAP=0x01, DOUBLE_TAP=0x02, LONG_PRESS=0x03, CLICK=0x04, HOVER=0x05, FOCUS=0x06, BLUR=0x07, KEY_DOWN=0x08, KEY_UP=0x09, SCROLL=0x0A, SWIPE=0x0B, ON_APPEAR=0x0C, ON_DISAPPEAR=0x0D, ON_CHANGE=0x0E
-
-### Gesture Types (u8) and States
-
-TAP_GESTURE=0x10, LONG_PRESS_GESTURE=0x11, DRAG_GESTURE=0x12, SWIPE=0x13, PINCH=0x14, ROTATE=0x15  
-States: BEGAN=0x00, CHANGED=0x01, ENDED=0x02, CANCELLED=0x03
-
 ### Colors
 
-- Tagged union: semantic token (u16) or literal sRGB (u32 0xAARRGGBB)
-- ALL literal colors are **sRGB** with D65 white point
-- Semantic tokens: PRIMARY_TEXT=0x0001, SECONDARY_TEXT=0x0002, TERTIARY_TEXT=0x0003, BACKGROUND=0x0004, SURFACE=0x0005, ACCENT=0x0006, ERROR=0x0007, SUCCESS=0x0008, WARNING=0x0009, INFO=0x000A, BORDER=0x000B, SEPARATOR=0x000C
+- Literal colors are **sRGB** with D65 white point, packed as `0xAARRGGBB`
+- Semantic token resolution and theme adaptation are **renderer-owned**
 
-### Special Constants
-
-```typescript
-ROOT_CONTAINER_ID = 0
-FILL = -1.0
-HUG_CONTENT = -2.0
-LITTLE_ENDIAN = true
-PROTOCOL_VERSION = 1
-```
-
----
-
-## Design Token System
+### Design Token System
 
 **Core Principle**: Application defines intent and overrides. Renderer defines visual appearance and behavior.
 
-**Renderer Responsibilities**:
-- Owns design tokens and default values
-- Resolves semantic tokens to concrete visuals
-- Defines interaction states (hover, pressed, focus, disabled)
-- Applies theme logic
+- Renderer owns design tokens, default values, semantic-token resolution, interaction states (hover, pressed, focus, disabled), and theme logic
+- `SET_DESIGN_TOKEN` identifies tokens by **dot-separated string paths** (e.g. `color.primary`, `space.2`) with the standard value-type encoding — there is no separate numeric tokenId system
+- The protocol MUST NEVER describe hover styles, click styles, visual transitions, conditional styling, or layout tuning for interaction states
 
-**Protocol MUST NEVER**:
-- Describe hover styles, click styles, visual transitions
-- Include conditional styling rules
-- Specify layout tuning for interaction states
-
-`SET_DESIGN_TOKEN` identifies tokens by **dot-separated string paths** (e.g. `color.primary`, `space.2`) with the standard value-type encoding — there is no separate numeric tokenId system.
+Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ---
-
-## Worker Architecture
-
-By default the application runs in a **worker thread**; only rendering runs on the main thread.
-
-```
-Worker (application)  ──binary mutations──▶  Main (renderer)
-   ▲                                            │
-   └────────────── binary events/gestures ──────┘
-```
-
-- The worker builds the view tree and emits binary command batches (`ArrayBuffer` + transferable via `createTransferable`).
-- The main thread decodes and executes them with the renderer; `WorkerManager` routes `READY`/`ERROR`/`BINARY`.
-- The renderer dispatches events/gestures back as binary `DISPATCH_EVENT` / `GESTURE_UPDATE`, which the worker decodes and routes to `handleDispatchEvent` / `handleGestureUpdate`.
-- **The application owns the worker entry** (bundler-independent): a module that calls `startWorker(() => App)`; `bootstrapApplication` takes the worker URL, a `Worker`, or a `View` class (non-worker fallback).
-- `READY`/`ERROR` are transport-level control messages (not protocol).
-
-## Event & Gesture Model
-
-- **Discrete events** travel as binary `DISPATCH_EVENT` with per-type payloads (coordinates, tapCount, keyCode, modifiers, hover `isHovering`, …). renderer-dom dispatches them via `Renderer.setupEvents((nodeId, eventType, data?) => void)`.
-- **Stateful gestures** use `ATTACH_GESTURE` (register) + `GESTURE_UPDATE` (lifecycle: began/changed/ended/cancelled). renderer-dom dispatches via `Renderer.setupGestures((nodeId, gestureType, gestureState, data?) => void)`.
-- **Shared recognition**: renderers use the shared `PointerInteraction` (`@pathland/renderer`) over a normalized pointer stream (down/move/up/cancel + logical points + optional raw target), with an injected hit-test. renderer-dom drives it from native DOM events.
-- **View API (SwiftUI-style)**: `DragGesture()`, `LongPressGesture()`, `TapGesture()` with `.onBegan/.onChanged/.onEnded/.onCancelled`, attached via `.gesture(...)`; plus `.onTapGesture {}` / `.onLongPressGesture {}`. Discrete sugar (`tapGesture`, `longPressGesture`, `hoverGesture`, `focusGesture`, `blurGesture`) registers via `REGISTER_EVENT_HANDLER`.
-- **Coordinates** are viewport-relative logical points.
-
----
-
-## POC Implementation
-
-**Location**: `/poc/`
-
-**Structure**:
-```
-poc/
-├── index.html           # DOM renderer page
-└── src/
-    ├── app.ts           # The app: 11 demos (View classes)
-    ├── worker.ts        # Worker entry: startWorker(() => POCApp)
-    ├── main.ts          # DOM bootstrap: bootstrapApplication(workerUrl)
-    └── vite-env.d.ts    # Ambient types for Vite ?worker&url imports
-```
-
-**Running**: `cd poc && npm install && npm run dev` → http://localhost:3000 (DOM). Runs in worker mode against `app.ts`.
-
-**11 Demos**: simple VStack, HStack+Spacer, nested stacks, styled components, live clock, counter with signals, `If`, `For` (with positional diffing), `Switch`, long-press & hover, drag gesture.
-
----
-
-## TypeScript Monorepo (`lib/typescript/`)
-
-```
-packages/
-├── protocol/          # Binary encode/decode, constants, types (no deps)
-├── renderer/          # Renderer interface + shared PointerInteraction
-├── transport/         # serializeMessage/createTransferable + transports
-├── view/              # View/ViewNode, Signal, components, control flow, gestures
-├── platform-browser/  # bootstrapApplication, startWorker, WorkerManager
-└── renderer-dom/      # DOM renderer (+ ./jsdom subpath for Node/SSR)
-```
-
-**renderer-dom architecture**: components are **hand-rolled custom elements with shadow DOM** (`pl-hstack`, `pl-text`, `pl-button`, `pl-root`, …) — no Lit/Stencil. Every component is a stateless shell whose shadow root provides hard CSS encapsulation; children live in the light DOM via a `<slot>`. The renderer applies properties as **inline CSS custom properties** on hosts (`--pl-spacing`, `--pl-padding-top`, `--pl-bg`, …) consumed by a single shared `:host` rule set, or as direct inline styles on shadow internals (text span, native button, inputs) — per-element style application, no class-based selector matching. Semantic colors resolve to `var(--pl-color-*)` defined on the root container, so `SET_DESIGN_TOKEN` (a single root var write) re-themes the whole surface. Event/gesture hit-testing walks the composed path via `resolveNodeId` (`src/events.ts`), crossing shadow boundaries through `host`. Legacy `adoptedStyleSheets` is unsupported in jsdom, so the shared sheet is injected as a `<style>` per shadow root.
-
-Dependency rule: packages depend only on packages to their left in the table above (see `lib/SPECIFICATION.md`). `npm test` at the monorepo root runs every package's suite.
 
 ## Implementation Guidelines
 
 ### Adding New Component
-1. Add to `ComponentType` in `lib/typescript/packages/protocol/src/protocol/constants.ts`
-2. Add to `spec/BINARY_PROTOCOL.md` + `spec/components/COMPONENTS.md`
-3. Implement creation/properties in `renderer-dom/src/index.ts`
+1. Add to `component_type` in `lib/rust/crates/pathland-opcode/src/constants.rs`
+2. Document in `spec/OPCODE.md`
+3. Implement the component type in `pathland-engine` (if it affects the retained tree)
+4. Implement native-element mapping in the target renderer (Goal 3–5)
 
 ### Adding New Property
-1. Add to the appropriate property enum in `constants.ts`
-2. Add to the spec
-3. Verify `binary.ts` encoder/decoder handles the value type
+1. Add to the appropriate property module in `constants.rs`
+2. Document in `spec/OPCODE.md`
+3. Handle the value type in `pathland-engine`'s diff emission (if a stack/text/size property)
 4. Implement in each renderer's property application
 
 ### Modifying Protocol
-1. Update `spec/BINARY_PROTOCOL.md` first (and `spec/CONFORMANCE.md` vectors)
-2. Update `constants.ts` / `types.ts`
-3. Update `binary.ts` encode/decode
-4. Verify backward compatibility; update the affected renderer + tests
+1. Update `spec/OPCODE.md` first (and `spec/CONFORMANCE.md` vectors)
+2. Update `constants.rs` and `pathland-opcode` encoding/emitters
+3. Verify backward compatibility; update `pathland-engine`/`pathland-host` + tests
 
 ### Changing the Wire Format
-- Bump the wire `version` field (currently 1). Pre-release format changes are acceptable while version stays 1.
+- Bump the wire `version` field in `spec/OPCODE.md` and `pathland-opcode`'s header (currently 1). Pre-release format changes are acceptable while version stays 1.
 
 ---
 
@@ -244,29 +197,29 @@ Dependency rule: packages depend only on packages to their left in the table abo
 | Anti-Pattern | Why Wrong | Correct |
 |--------------|-----------|---------|
 | Renderer stores application state | Violates statelessness | Application owns the tree |
-| Send full trees | Inefficient | Send mutation commands only |
+| Engine computes layout / emits rects | Violates declarative model | Emit structure + constraints; native elements lay out |
+| Send full trees | Inefficient | Diff-based reactive emission |
 | String property names | Larger payloads | Use numeric IDs |
 | String component names | Larger payloads | Use numeric IDs |
 | Generic RGB | Ambiguous | Explicitly sRGB |
 | Hover styles in protocol | Renderer job | Define in theme |
-| App code uses `window`/`document` | Crashes in the worker | Use globals available in both scopes (e.g. `setInterval`) |
-| JS-object event messages (e.g. `{type:'EVENT'}`) | Not protocol/portable | Use binary `DISPATCH_EVENT`/`GESTURE_UPDATE` |
+| Heap allocation in steady-state emission | Slow | Preallocated snapshot slab + arena |
 
 ---
 
 ## Project Status
 
-**Complete**: Binary protocol (v1) with conformance vectors; worker bootstrap with symmetric binary transport; shadow-DOM DOM renderer; shared `PointerInteraction`; full discrete event set; SwiftUI-style gestures (tap/long-press/drag); For-loop diffing; protocol gaps (MOVE_CHILD, RESET, EdgeInsets, coordinates, env requestId); renderer memory model docs; bundle hygiene; SET_DESIGN_TOKEN theming. **101 tests green across 4 packages.**
+**Complete**: 16-byte opcode engine (`pathland-opcode`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), golden conformance vectors (incl. raw-input EVENT bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission. **31 tests green across 3 crates.**
 
-**Planned / deferred**: pinch/rotate + multi-touch + `COMBINE_GESTURES`, capture/bubble propagation, keyed For reconciliation with moves, TEXT_FIELD editing, image rendering, more backends (SVG/terminal/native), Playwright E2E tests.
+**Planned / deferred**: full SwiftUI-style view DSL + signals (Goal 2/#13), TS browser demo via WASM/WIT (Goal 3/#14), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 desktop renderer (Goal 5/#16), raw-input event routing into the guest engine, TEXT_FIELD editing, image rendering.
 
 ---
 
 ## Quick Start
 
-1. Read this file and `spec/BINARY_PROTOCOL.md`
-2. Run the POC: `cd poc && npm install && npm run dev` → http://localhost:3000
-3. Run tests: `cd lib/typescript && npm test` (runs all packages)
+1. Read this file and `spec/OPCODE.md`
+2. Run tests: `cd lib/rust && cargo test` (runs all crates)
+3. Build for wasm32: `RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc cargo build --target wasm32-unknown-unknown`
 4. Make small changes, verify they work
 
 ---
@@ -277,7 +230,7 @@ Dependency rule: packages depend only on packages to their left in the table abo
 1. Protocol is King
 2. Renderers are Dumb (execute commands only)
 3. Applications are Smart (generate commands)
-4. Only Changes Matter (transmit mutations)
+4. Only Changes Matter (transmit mutations / reactive emission)
 5. Binary is Beautiful (efficient, deterministic)
 
-**When in doubt**: Check `spec/BINARY_PROTOCOL.md`, the POC, and the reference implementation (`@pathland/protocol`). Ask: "Does this maintain stateless renderers?" "Does this only transmit actual changes?" "Is this representable in the binary protocol in any language?"
+**When in doubt**: Check `spec/OPCODE.md`, the conformance vectors in `spec/CONFORMANCE.md`, and the reference implementation (`pathland-opcode`). Ask: "Does this maintain stateless renderers?" "Does this only transmit actual changes?" "Does this describe WHAT the UI is, never WHERE?" "Is this representable as a 16-byte opcode in any language?"
