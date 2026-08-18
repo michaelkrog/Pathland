@@ -43,6 +43,8 @@ crates/pathland-view/     # SwiftUI-style view DSL: VStack/HStack/Text + decoupl
 crates/pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
                           #   diff-based reactive emission (zero-alloc steady state)
 crates/pathland-host/     # host reader: ring -> native-element description (std layer)
+crates/pathland-transport/# opcode transport: shared-memory ring (existing) + network batch
+                          #   encode/decode + batching policy (time/size) (std layer)
 wit/pathland.wit          # WIT component-world definitions (Goal 3+)
 ```
 
@@ -50,15 +52,15 @@ wit/pathland.wit          # WIT component-world definitions (Goal 3+)
 - WASM build: `RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc cargo build --target wasm32-unknown-unknown`
   (the Homebrew `cargo` on PATH uses a rustc without the wasm std; use the rustup toolchain's rustc).
 
-### POC Goals (issues #12–#16)
+### POC Goals (issues #12–#18)
 
 | # | Goal | Status |
 |---|------|--------|
 | 12 | 16-byte opcode engine | **Complete** |
-| 13 | Core components & modifiers in Rust | **In progress** (`pathland-view` DSL; defer signals) |
-| 14 | TypeScript browser demo via WASM/WIT | Planned |
-| 15 | Quarkus SSR + WebSocket demo | Planned |
+| 13 | Core components & modifiers in Rust | **Complete** |
+| 18 | Opcode transport layer (shared memory + network batch) | **In progress** |
 | 16 | Rust desktop app with GTK4 renderer | Planned |
+| 15 | Quarkus SSR + WebSocket demo | Planned |
 
 ---
 
@@ -211,9 +213,9 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), golden conformance vectors (incl. raw-input EVENT bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission. **41 unit tests green across 4 crates.**
+**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission. **55 unit tests green across 5 crates.**
 
-**Planned / deferred**: signals (Goal 2/#13), TS browser demo via WASM/WIT (Goal 3/#14), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 desktop renderer (Goal 5/#16), raw-input event routing into the guest engine, TEXT_FIELD editing, image rendering.
+**Planned / deferred**: signals (Goal 2/#13), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 desktop renderer (Goal 5/#16), raw-input event routing into the guest engine, host → guest events over the network transport, TEXT_FIELD editing, image rendering.
 
 ---
 

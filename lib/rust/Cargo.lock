@@ -24,6 +24,16 @@ name = "pathland-opcode"
 version = "0.1.0"
 
 [[package]]
+name = "pathland-transport"
+version = "0.1.0"
+dependencies = [
+ "pathland-engine",
+ "pathland-host",
+ "pathland-opcode",
+ "pathland-view",
+]
+
+[[package]]
 name = "pathland-view"
 version = "0.1.0"
 dependencies = [

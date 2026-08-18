@@ -5,6 +5,7 @@ members = [
     "crates/pathland-view",
     "crates/pathland-engine",
     "crates/pathland-host",
+    "crates/pathland-transport",
 ]
 
 [workspace.package]

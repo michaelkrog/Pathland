@@ -325,6 +325,53 @@ Because the ring and arena are plain memory, the guest publishes via a single re
 
 ---
 
+## Transport
+
+The opcode protocol is transport-agnostic. Two peer backends carry frames from
+producer (guest engine) to consumer (host renderer):
+
+| Backend | Scenario | Mechanism |
+|---------|----------|-----------|
+| Shared memory | Desktop / native (guest + host share linear memory) | The ring buffer + arena above; zero-copy |
+| Network batch | SSR → browser (guest and host do **not** share memory) | Serialized batches of opcodes + arena delta |
+
+The `Frame` type is the **transport seam**: a consumer (renderer) applies a
+frame the same way whether it came from the shared-memory ring or a decoded
+network batch.
+
+### Network batch format
+
+```
+[u32 magic "PLPL"] [u16 version] [u16 flags] [u32 frameCount] [u32 opcodeCount]
+[opcode × opcodeCount (16 B each)]
+[u32 arenaDeltaLen] [arena delta bytes]
+```
+
+- **magic / version**: `0x504C504C` (`PLPL`, little-endian on the wire) / `1`.
+  A decoder MUST reject batches with a mismatched magic or version.
+- **flags**: direction. `0x0000` = guest → host (tree/style). Bit `0x0001` is
+  reserved for host → guest (raw-input events), not yet implemented.
+- **frameCount**: the guest frame counter of the batch's first frame (opcodes
+  from multiple frames may coalesce into one batch; they remain in order).
+- **arena delta**: the bytes appended to the bump arena since the previous
+  batch. The consumer keeps a **mirrored arena** and appends each delta, so
+  absolute `arenaRef` offsets stay valid — identical to shared memory.
+- **META::RESET**: a batch containing a reset opcode clears the consumer's
+  mirrored arena before appending (offsets restart at 0).
+
+### Batching policy
+
+The producer buffers opcodes and flushes a batch when **either** threshold is
+reached (first trigger wins):
+
+- **Time**: the interval since the first buffered opcode elapses (default **4 ms**).
+- **Size**: the accumulated batch reaches a network-frame size (default **1400 bytes**).
+
+Both thresholds are configurable; a producer MAY flush eagerly (e.g. on the
+first frame after connection).
+
+---
+
 ## Conformance
 
 Golden byte vectors for this protocol are in [CONFORMANCE.md](./CONFORMANCE.md).

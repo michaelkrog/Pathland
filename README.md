@@ -82,13 +82,13 @@ referenced via the `DESIGN_TOKEN` value type or overridden globally with
 
 ## Roadmap (POC Goals)
 
-See the GitHub issues (#12–#16):
+See the GitHub issues (#12, #13, #15, #16, #18):
 
-1. **16-byte opcode engine** — done on `feature/opcode-engine`
+1. **16-byte opcode engine** — done
 2. Core components & modifiers in Rust (SwiftUI-like API)
-3. TypeScript browser demo via WASM/WIT
-4. Quarkus SSR + WebSocket demo
-5. Rust desktop app with GTK4 renderer
+3. **Opcode transport layer** (shared memory + network batch)
+4. Rust desktop app with GTK4 renderer
+5. Quarkus SSR + WebSocket demo
 
 ## Versioning
 

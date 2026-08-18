@@ -1,0 +1,17 @@
+[package]
+name = "pathland-transport"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Pathland opcode transport: shared-memory ring (existing) + network batch encode/decode with time/size batching policy"
+repository = "https://github.com/michaelkrog/Pathland"
+categories = ["network-programming", "encoding", "wasm", "graphics"]
+keywords = ["ui", "protocol", "opcode", "transport", "batching"]
+
+[dependencies]
+pathland-opcode = { path = "../pathland-opcode" }
+
+[dev-dependencies]
+pathland-engine = { path = "../pathland-engine" }
+pathland-host = { path = "../pathland-host" }
+pathland-view = { path = "../pathland-view" }

@@ -223,6 +223,10 @@ impl<'a> Guest<'a> {
 
 /// A completed frame produced by the guest: a sequence of opcodes plus arena
 /// access.
+///
+/// `Frame` is the **transport seam**: both the shared-memory ring (`Host`) and
+/// network batch decoders produce frame views, so consumers such as
+/// `RenderTree::apply_frame` work identically regardless of origin.
 pub struct Frame<'a> {
     slots: &'a [u8],
     arena: &'a [u8],
@@ -231,6 +235,20 @@ pub struct Frame<'a> {
 }
 
 impl<'a> Frame<'a> {
+    /// Construct a frame view over contiguous 16-byte opcode slots plus an
+    /// arena region (`start`/`end` are byte offsets into `slots`).
+    ///
+    /// Used by transport backends to produce `Frame` views over their own
+    /// buffers; `Host` builds these internally from the ring.
+    pub fn from_parts(slots: &'a [u8], arena: &'a [u8], start: usize, end: usize) -> Self {
+        Self {
+            slots,
+            arena,
+            start,
+            end,
+        }
+    }
+
     /// Iterate the opcodes in this frame, in order.
     pub fn opcodes(&self) -> FrameIter<'a> {
         FrameIter {
@@ -257,6 +275,11 @@ impl<'a> Frame<'a> {
     /// Read an arena string by offset.
     pub fn arena_str(&self, offset: u32) -> Result<&'a str, ArenaError> {
         arena_fn::get_str(self.arena, offset)
+    }
+
+    /// The full arena region (for transport serialization of arena deltas).
+    pub fn arena(&self) -> &'a [u8] {
+        self.arena
     }
 }
 

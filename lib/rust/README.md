@@ -11,7 +11,9 @@ crates/
 │                      #   chainable modifiers (spacing/padding/fontSize/color/background) (no_std)
 ├── pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
 │                      #   diff-based reactive emission (zero-alloc steady state)
-└── pathland-host/     # host reader: ring -> native-element description (std layer)
+├── pathland-host/     # host reader: ring -> native-element description (std layer)
+└── pathland-transport/# opcode transport: shared-memory ring (existing) + network batch
+                       #   encode/decode + batching policy (time/size) (std layer)
 ```
 
 ## Specification
@@ -72,3 +74,10 @@ guest.end_frame();
 Emission in the steady state allocates nothing; only changed nodes produce
 opcodes, so an unchanged tree emits zero opcodes. Native renderers map the
 structure onto their native elements (GTK4 widgets, DOM elements).
+
+## Network transport example
+
+Frames emitted into the ring can be serialized into network batches and flushed
+on a time/size policy (`BatchEncoder` / `Batcher`); a `BatchDecoder` rebuilds a
+`Frame`-compatible view so the same `RenderTree::apply_frame` consumes batches
+and shared-memory frames identically. See `spec/OPCODE.md#transport`.

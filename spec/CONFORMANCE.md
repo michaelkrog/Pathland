@@ -199,3 +199,43 @@ A complete frame is: delta opcodes written into consecutive ring slots, then a
 `[ringOffset + i*16, ringOffset + i*16 + 16)`.
 
 The header block layout and ring semantics are defined in [OPCODE.md](./OPCODE.md#linear-memory-layout).
+
+## Network Batch Conformance
+
+A network batch serializes opcodes + an arena delta (see
+[OPCODE.md](./OPCODE.md#transport)). A conforming batch encoder/decoder MUST
+reproduce the following bytes exactly.
+
+### 13. NETWORK:BATCH (frameCount=1, one CREATE_NODE, arena delta = "Hi")
+
+The single opcode is `TREE:CREATE_NODE (id=1, VSTACK)` from vector 1. The arena
+delta is the self-describing entry for `"Hi"`: `[02 00 00 00][48 69]`.
+
+```
+4C 50 4C 50 01 00 00 00 01 00 00 00 01 00 00 00
+01 01 00 00 01 00 00 00 02 00 00 00 00 00 00 00
+06 00 00 00 02 00 00 00 48 69
+```
+
+- `4C 50 4C 50` = magic `PLPL` (u32 `0x504C504C`, little-endian)
+- `01 00` = version 1
+- `00 00` = flags (guest → host)
+- `01 00 00 00` = frameCount = 1
+- `01 00 00 00` = opcodeCount = 1
+- `01 01 00 00 01 00 00 00 02 00 00 00 00 00 00 00` = the CREATE_NODE opcode (16 bytes)
+- `06 00 00 00` = arenaDeltaLen = 6
+- `02 00 00 00 48 69` = arena entry `[len=2]["Hi"]`
+
+### 14. NETWORK:BATCH (frameCount=2, empty opcode list, empty arena delta)
+
+```
+4C 50 4C 50 01 00 00 00 02 00 00 00 00 00 00 00
+00 00 00 00
+```
+
+- `4C 50 4C 50` = magic `PLPL` (u32 `0x504C504C`, little-endian)
+- `01 00` = version 1
+- `00 00` = flags
+- `02 00 00 00` = frameCount = 2
+- `00 00 00 00` = opcodeCount = 0
+- `00 00 00 00` = arenaDeltaLen = 0
