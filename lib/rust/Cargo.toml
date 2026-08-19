@@ -6,6 +6,11 @@ members = [
     "crates/pathland-engine",
     "crates/pathland-host",
     "crates/pathland-transport",
+    "crates/pathland-guest",
+    "crates/pathland-wit-host",
+    "crates/pathland-native",
+    "crates/pathland-gtk-demo",
+    "crates/pathland-codegen",
 ]
 
 [workspace.package]

@@ -1,0 +1,7 @@
+# Rust build output
+/target/
+**/target/
+
+# Java (Maven) build output
+lib/java/**/target/
+*.class

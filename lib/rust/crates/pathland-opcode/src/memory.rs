@@ -29,15 +29,15 @@ pub const OFF_SLOT_COUNT: usize = 0x0E;
 /// Byte offset of `arenaOffset: u32`.
 pub const OFF_ARENA_OFFSET: usize = 0x12;
 /// Byte offset of `arenaBytes: u32`.
-pub const OFF_ARENA_BYTES: usize = 0x14;
+pub const OFF_ARENA_BYTES: usize = 0x16;
 /// Byte offset of `arenaCursor: u32` (guest-owned).
-pub const OFF_ARENA_CURSOR: usize = 0x18;
+pub const OFF_ARENA_CURSOR: usize = 0x1A;
 /// Byte offset of `readCursor: u32` (host-owned).
-pub const OFF_READ_CURSOR: usize = 0x1C;
+pub const OFF_READ_CURSOR: usize = 0x1E;
 /// Byte offset of `writeCursor: u32` (guest-owned).
-pub const OFF_WRITE_CURSOR: usize = 0x20;
+pub const OFF_WRITE_CURSOR: usize = 0x22;
 /// Byte offset of `frameCount: u32` (guest-owned).
-pub const OFF_FRAME_COUNT: usize = 0x24;
+pub const OFF_FRAME_COUNT: usize = 0x26;
 /// Total header size in bytes.
 pub const HEADER_SIZE: usize = 0x40;
 

@@ -1,0 +1,121 @@
+// The Pathland component world.
+//
+// The guest engine (compiled to a WASM component) owns the canonical retained
+// view tree and emits declarative TREE/STYLE opcodes into a ring buffer in its
+// linear memory. Hosts — the GTK desktop app, a future Java/Quarkus app, any
+// WIT host — drive the tree through the flat `builder` interface, produce
+// opcodes with `engine`, and route raw inputs back through `input`.
+//
+// The world is deliberately **language-agnostic and flat**: it exposes tree
+// construction as node ids, not the SwiftUI-like Rust DSL. Each language wraps
+// the world in its own ergonomic surface.
+
+package pathland:view;
+
+/// Shared protocol types.
+interface types {
+    /// Core component types (mirrors `spec/OPCODE.md`).
+    variant component {
+        hstack,
+        vstack,
+        text,
+        button,
+        spacer,
+    }
+
+    /// Constraint/style properties (mirrors `spec/OPCODE.md`).
+    variant property {
+        spacing,
+        padding,
+        font-size,
+        color,
+        background-color,
+    }
+
+    /// Pointer position + button state.
+    record point {
+        x: f32,
+        y: f32,
+        secondary: bool,
+    }
+
+    /// Pointer move with hover flags.
+    record hover {
+        x: f32,
+        y: f32,
+        hovering: bool,
+        leaving: bool,
+    }
+
+    /// Keyboard state.
+    record key {
+        key-code: u16,
+        modifiers: u8,
+        repeat: bool,
+    }
+
+    /// Raw-input events (host -> guest). High-level interpretations (tap,
+    /// drag, ...) are built by the guest/app and are NOT part of the protocol.
+    variant event {
+        pointer-down(tuple<u32, point>),
+        pointer-move(tuple<u32, hover>),
+        pointer-up(tuple<u32, point>),
+        key-down(tuple<u32, key>),
+        key-up(tuple<u32, u16, u8>),
+    }
+}
+
+/// Build the guest's retained view tree (flat, id-based).
+interface builder {
+    use types.{component, property};
+
+    /// Create (or reset) a node with a host-supplied stable id. The host owns
+    /// the ids — stable ids across updates are what make reactive emission
+    /// (diff-based) work. Returns nothing.
+    create-node: func(id: u32, component: component);
+    /// Insert `child` into `parent` at `index` (u32::MAX appends).
+    insert-child: func(parent: u32, child: u32, index: u32);
+    /// Remove `child` from `parent`.
+    remove-child: func(parent: u32, child: u32);
+    /// Set a node's text content.
+    set-text: func(id: u32, text: string);
+    /// Set a constraint/style property (f32 payload).
+    set-property: func(id: u32, property: property, value: f32);
+}
+
+/// Frame lifecycle and opcode output.
+interface engine {
+    /// Start a frame.
+    begin-frame: func();
+    /// Reconcile the retained tree against the last emission, writing the
+    /// delta opcodes into the ring/arena in linear memory.
+    emit: func();
+    /// Finish the frame (publishes frameCount).
+    end-frame: func();
+    /// Return the pending frame as a network batch (opcodes + arena delta).
+    take-batch: func() -> list<u8>;
+}
+
+/// Raw-input event ingress (host -> guest).
+interface input {
+    use types.{event};
+
+    /// Dispatch a raw input to the guest engine.
+    dispatch: func(event: event);
+}
+
+/// Host-provided application callback.
+interface app {
+    use types.{event};
+
+    /// The application handles a raw input routed back from the guest.
+    on-event: func(event: event);
+}
+
+/// The Pathland world.
+world pathland {
+    import app;
+    export builder;
+    export engine;
+    export input;
+}

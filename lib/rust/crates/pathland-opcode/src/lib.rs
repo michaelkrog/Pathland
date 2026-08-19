@@ -78,6 +78,67 @@ pub fn init_memory(mem: &mut [u8], layout: &MemoryLayout) {
     header::init(mem, layout);
 }
 
+/// Accessor for a shared-memory ring header, for consumers that read the ring
+/// in place (zero-copy) without a `Host` handle — e.g. a foreign driver that
+/// holds a raw pointer to the shared linear memory.
+///
+/// Field offsets match [`memory::OFF_*`] constants and are part of the stable
+/// wire layout (see `spec/OPCODE.md`).
+pub struct SharedHeader<'a> {
+    mem: &'a [u8],
+}
+
+impl<'a> SharedHeader<'a> {
+    /// Wrap an immutable view of the shared linear memory.
+    pub fn new(mem: &'a [u8]) -> Self {
+        Self { mem }
+    }
+
+    fn u32(&self, off: usize) -> u32 {
+        u32::from_le_bytes(self.mem[off..off + 4].try_into().unwrap())
+    }
+
+    /// `frameCount` — the completed-frame watermark.
+    pub fn frame_count(&self) -> u32 {
+        self.u32(memory::OFF_FRAME_COUNT)
+    }
+
+    /// `readCursor` — the slot the consumer has consumed up to (masked).
+    pub fn read_cursor(&self) -> u32 {
+        self.u32(memory::OFF_READ_CURSOR)
+    }
+
+    /// `writeCursor` — the slot the producer has written up to (masked).
+    pub fn write_cursor(&self) -> u32 {
+        self.u32(memory::OFF_WRITE_CURSOR)
+    }
+
+    /// `slotCount` — number of ring slots (power of two).
+    pub fn slot_count(&self) -> u32 {
+        self.u32(memory::OFF_SLOT_COUNT)
+    }
+
+    /// Byte offset of the ring region within the linear memory.
+    pub fn ring_offset(&self) -> usize {
+        self.u32(memory::OFF_RING_OFFSET) as usize
+    }
+
+    /// Byte length of the ring region.
+    pub fn ring_bytes(&self) -> usize {
+        self.u32(memory::OFF_RING_BYTES) as usize
+    }
+
+    /// Byte offset of the arena region within the linear memory.
+    pub fn arena_offset(&self) -> usize {
+        self.u32(memory::OFF_ARENA_OFFSET) as usize
+    }
+
+    /// Byte offset of the arena cursor.
+    pub fn arena_cursor(&self) -> u32 {
+        self.u32(memory::OFF_ARENA_CURSOR)
+    }
+}
+
 /// Number of ring slots per the header.
 fn slot_count(header: &[u8]) -> usize {
     header::get_u32(header, OFF_SLOT_COUNT) as usize

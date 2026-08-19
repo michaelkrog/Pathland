@@ -7,25 +7,54 @@ consumed by host renderers.
 ```
 crates/
 ├── pathland-opcode/   # 16-byte opcode, ring buffer, bump arena, linear-memory layout (no_std)
-├── pathland-view/     # SwiftUI-style view DSL: VStack/HStack/Text + decoupled
+├── pathland-view/     # SwiftUI-style view DSL: VStack/HStack/Text/Button + decoupled
 │                      #   chainable modifiers (spacing/padding/fontSize/color/background) (no_std)
 ├── pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
 │                      #   diff-based reactive emission (zero-alloc steady state)
 ├── pathland-host/     # host reader: ring -> native-element description (std layer)
-└── pathland-transport/# opcode transport: shared-memory ring (existing) + network batch
-                       #   encode/decode + batching policy (time/size) (std layer)
+├── pathland-transport/# opcode transport: shared-memory ring + network batch encode/decode
+│                      #   + batching policy + transport abstraction (RingTransport/FrameSource)
+├── pathland-guest/    # WASM guest component: retained tree + engine + emit/take-batch (browser)
+├── pathland-wit-host/ # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)
+├── pathland-native/   # native C-ABI shim + NativeHost: flat world over a zero-copy shared ring
+└── pathland-gtk-demo/ # GTK4 desktop demo: native engine -> zero-copy shared ring -> GtkBox/Label/Button
+
+# Cross-language demo
+../java/pathland-demo/ # Java (Maven): SwiftUI-like DSL + JNA over pathland-native, zero-copy ring read
 ```
 
 ## Specification
 
 - [`spec/OPCODE.md`](../../spec/OPCODE.md) — the 16-byte opcode protocol
 - [`spec/CONFORMANCE.md`](../../spec/CONFORMANCE.md) — golden byte vectors
+- [`wit/pathland.wit`](../../wit/pathland.wit) — the WIT component world
 
 ## Run tests
 
 ```bash
-cargo test
+PATH="$HOME/.cargo/bin:$PATH" cargo test
 ```
+
+## Run the GTK desktop demo (native, zero-copy shared ring)
+
+```bash
+PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-gtk-demo
+```
+
+Requires GTK4 (`brew install gtk4` on macOS).
+
+## Run the Java demo (cross-language, JNA over the native C-ABI shim)
+
+```bash
+PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native
+cd ../java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
+```
+
+The Java app uses a SwiftUI-like DSL, drives the Rust engine via the flat
+`pathland_native_*` C ABI (no per-component wrappers), and reads the resulting
+opcodes **zero-copy** from the shared-memory ring. Verify headlessly with
+`-Dexec.mainClass=demo.DemoHeadless`.
+
 
 ## Build for wasm32
 

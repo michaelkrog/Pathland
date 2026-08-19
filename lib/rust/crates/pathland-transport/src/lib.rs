@@ -48,9 +48,17 @@ extern crate alloc;
 mod batch;
 mod batching;
 mod conformance;
+mod net;
+mod ring;
+mod traits;
 
 pub use batch::{encode_batch, Batch, BatchDecoder, BatchEncoder};
 pub use batching::{Batcher, BatchPolicy};
+pub use net::NetBatchEncoder;
+pub use ring::RingTransport;
+pub use traits::{
+    DriverTransport, FrameSource, InputSink, OpcodeBatch, ProtocolError, TransportError,
+};
 
 /// Wire magic for network batches (`PLPL`).
 pub const BATCH_MAGIC: u32 = 0x504C_504C;

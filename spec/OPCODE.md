@@ -185,11 +185,16 @@ protocol.
 
 The engine emits **only what changed** relative to its previous emission:
 
-- **Property diff**: a changed `spacing`/`padding`/text emits a single
-  `SET_PROPERTY` / `SET_TEXT` for that node.
+- **Property diff**: a changed `spacing`/`padding`/`WIDTH`/`HEIGHT`/`ALIGNMENT`/
+  text emits a single `SET_PROPERTY` / `SET_TEXT` for that node.
 - **Structural diff**: a node added/removed/moved emits the corresponding
   `TREE` opcode(s).
 - **Steady state**: an unchanged tree emits **zero** opcodes.
+
+The **`frame` compound modifier** (width/height/alignment) is not a distinct
+protocol concept: it emits `WIDTH`/`HEIGHT`/`ALIGNMENT` as ordinary
+`STYLE:SET_PROPERTY` deltas, exactly like any other constraint property. There
+is no `frame` opcode or dedicated wire type.
 
 Signals in the application drive this: a signal marks the tree dirty; the
 engine's next `emit` reconciles and writes only the delta. The renderer applies
@@ -221,12 +226,12 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 | 0x0A | 4 | `ringBytes` | — | Byte length of the ring region |
 | 0x0E | 4 | `slotCount` | — | Number of ring slots (power of two) |
 | 0x12 | 4 | `arenaOffset` | — | Byte offset of the arena region |
-| 0x14 | 4 | `arenaBytes` | — | Byte length of the arena region |
-| 0x18 | 4 | `arenaCursor` | guest | Next free byte in the arena |
-| 0x1C | 4 | `readCursor` | host | Ring slot the host has consumed up to |
-| 0x20 | 4 | `writeCursor` | guest | Ring slot the guest has written up to |
-| 0x24 | 4 | `frameCount` | guest | Monotonic completed-frame counter |
-| 0x28 | 36 | reserved | — | Zero |
+| 0x16 | 4 | `arenaBytes` | — | Byte length of the arena region |
+| 0x1A | 4 | `arenaCursor` | guest | Next free byte in the arena |
+| 0x1E | 4 | `readCursor` | host | Ring slot the host has consumed up to |
+| 0x22 | 4 | `writeCursor` | guest | Ring slot the guest has written up to |
+| 0x26 | 4 | `frameCount` | guest | Monotonic completed-frame counter |
+| 0x2A | 22 | reserved | — | Zero |
 
 ### Ring buffer
 

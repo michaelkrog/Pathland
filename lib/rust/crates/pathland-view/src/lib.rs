@@ -129,10 +129,6 @@ pub struct Node {
     pub id: u32,
     pub component: Component,
     pub children: Vec<Node>,
-    /// Fixed width or `None` (native renderer sizes naturally).
-    pub width: Option<f32>,
-    /// Fixed height or `None` (native renderer sizes naturally).
-    pub height: Option<f32>,
     /// Constraint/style properties (propertyId → value) emitted as
     /// `STYLE:SET_PROPERTY`.
     pub properties: BTreeMap<u16, u32>,
@@ -144,10 +140,20 @@ impl core::fmt::Debug for Node {
             .field("id", &self.id)
             .field("component", &self.component)
             .field("children", &self.children)
-            .field("width", &self.width)
-            .field("height", &self.height)
             .field("properties", &self.properties)
             .finish()
+    }
+}
+
+impl Node {
+    /// Build an empty node (id 0, no children/properties) for a component.
+    pub fn from_component(component: &Component) -> Self {
+        Self {
+            id: 0,
+            component: component.clone(),
+            children: Vec::new(),
+            properties: BTreeMap::new(),
+        }
     }
 }
 
@@ -161,6 +167,8 @@ pub enum Component {
     HStack,
     /// Text leaf.
     Text { text: String },
+    /// Interactive button.
+    Button { label: String },
     /// Flexible spacer.
     Spacer,
 }
@@ -171,6 +179,7 @@ impl core::fmt::Debug for Component {
             Component::VStack => f.write_str("VStack"),
             Component::HStack => f.write_str("HStack"),
             Component::Text { text } => f.debug_tuple("Text").field(text).finish(),
+            Component::Button { label } => f.debug_tuple("Button").field(label).finish(),
             Component::Spacer => f.write_str("Spacer"),
         }
     }
@@ -182,7 +191,36 @@ pub fn component_type_id(component: &Component) -> u16 {
         Component::VStack => component_type::VSTACK,
         Component::HStack => component_type::HSTACK,
         Component::Text { .. } => component_type::TEXT,
+        Component::Button { .. } => component_type::BUTTON,
         Component::Spacer => component_type::SPACER,
+    }
+}
+
+/// Cross-axis alignment values for stacks and the `Frame` compound modifier.
+///
+/// These are emitted as the `ALIGNMENT` (0x0002) property with an `ENUM` value
+/// type (low byte of the property value).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Align {
+    /// Align to the leading (start) edge.
+    Leading,
+    /// Center along the cross axis.
+    Center,
+    /// Align to the trailing (end) edge.
+    Trailing,
+    /// Fill the available cross-axis space.
+    Fill,
+}
+
+impl Align {
+    /// The protocol enum value for this alignment.
+    pub fn value(self) -> u8 {
+        match self {
+            Align::Leading => 0,
+            Align::Center => 1,
+            Align::Trailing => 2,
+            Align::Fill => 3,
+        }
     }
 }
 
@@ -270,6 +308,24 @@ pub trait ViewExt: View + Sized {
     fn background(self, rgba: u32) -> Modified<Self, Background> {
         self.modifier(Background(rgba))
     }
+
+    /// Chain `.frame(width, height, alignment)` — a compound sizing modifier.
+    ///
+    /// `width`/`height` use the `size::FILL` (-1.0) and `size::HUG_CONTENT`
+    /// (-2.0) sentinels, or `None` to leave that axis to the native renderer.
+    /// When an alignment is provided it is emitted as the `ALIGNMENT` property.
+    fn frame(
+        self,
+        width: Option<f32>,
+        height: Option<f32>,
+        alignment: Option<Align>,
+    ) -> Modified<Self, Frame> {
+        self.modifier(Frame {
+            width,
+            height,
+            alignment,
+        })
+    }
 }
 
 impl<T: View> ViewExt for T {}
@@ -297,6 +353,19 @@ pub struct Color(pub u32);
 /// Background color (sRGB `0xAARRGGBB`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Background(pub u32);
+
+/// The compound `frame` sizing modifier (SwiftUI `frame`).
+///
+/// Emits `WIDTH`, `HEIGHT`, and optionally `ALIGNMENT` as ordinary
+/// `SET_PROPERTY` values. `width`/`height` use the `size::FILL` (-1.0) and
+/// `size::HUG_CONTENT` (-2.0) sentinels; `None` leaves that axis to the native
+/// renderer.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Frame {
+    pub width: Option<f32>,
+    pub height: Option<f32>,
+    pub alignment: Option<Align>,
+}
 
 impl ViewModifier for Spacing {
     fn apply(&self, node: &mut Node) {
@@ -326,6 +395,23 @@ impl ViewModifier for Color {
 impl ViewModifier for Background {
     fn apply(&self, node: &mut Node) {
         node.properties.insert(property_id::BACKGROUND_COLOR, self.0);
+    }
+}
+
+impl ViewModifier for Frame {
+    fn apply(&self, node: &mut Node) {
+        if let Some(w) = self.width {
+            node.properties
+                .insert(property_id::WIDTH, w.to_bits());
+        }
+        if let Some(h) = self.height {
+            node.properties
+                .insert(property_id::HEIGHT, h.to_bits());
+        }
+        if let Some(a) = self.alignment {
+            node.properties
+                .insert(property_id::ALIGNMENT, (a.value() as f32).to_bits());
+        }
     }
 }
 
@@ -369,8 +455,6 @@ impl View for VStack {
             id: 0,
             component: Component::VStack,
             children: self.children.iter().map(|c| c.build()).collect(),
-            width: None,
-            height: None,
             properties: BTreeMap::new(),
         }
     }
@@ -412,8 +496,6 @@ impl View for HStack {
             id: 0,
             component: Component::HStack,
             children: self.children.iter().map(|c| c.build()).collect(),
-            width: None,
-            height: None,
             properties: BTreeMap::new(),
         }
     }
@@ -440,8 +522,6 @@ impl View for Text {
                 text: self.text.clone(),
             },
             children: Vec::new(),
-            width: None,
-            height: None,
             properties: BTreeMap::new(),
         }
     }
@@ -470,11 +550,40 @@ impl View for Spacer {
             id: 0,
             component: Component::Spacer,
             children: Vec::new(),
-            width: None,
-            height: None,
             properties: BTreeMap::new(),
         }
     }
+}
+
+/// An interactive button.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Button {
+    label: String,
+}
+
+impl Button {
+    /// Create a button with the given label.
+    pub fn new(label: &str) -> Self {
+        Self { label: label.into() }
+    }
+}
+
+impl View for Button {
+    fn build(&self) -> Node {
+        Node {
+            id: 0,
+            component: Component::Button {
+                label: self.label.clone(),
+            },
+            children: Vec::new(),
+            properties: BTreeMap::new(),
+        }
+    }
+}
+
+/// A button view (shorthand for [`Button::new`]).
+pub fn button(label: &str) -> Button {
+    Button::new(label)
 }
 
 // ---------------------------------------------------------------------------
@@ -619,5 +728,36 @@ mod tests {
         assert_eq!(root.children[0].id, 2);
         assert_eq!(root.children[1].id, 3);
         assert_eq!(root.children[1].children[0].id, 4);
+    }
+
+    #[test]
+    fn frame_emits_width_height_alignment_as_properties() {
+        use pathland_opcode::size;
+        let node = text("x")
+            .frame(Some(size::FILL), Some(24.0), Some(Align::Center))
+            .build();
+        assert_eq!(
+            node.properties.get(&property_id::WIDTH),
+            Some(&size::FILL.to_bits())
+        );
+        assert_eq!(
+            node.properties.get(&property_id::HEIGHT),
+            Some(&24.0f32.to_bits())
+        );
+        assert_eq!(
+            node.properties.get(&property_id::ALIGNMENT),
+            Some(&(Align::Center.value() as f32).to_bits())
+        );
+    }
+
+    #[test]
+    fn frame_without_axis_omits_that_property() {
+        let node = text("x").frame(Some(100.0), None, None).build();
+        assert_eq!(
+            node.properties.get(&property_id::WIDTH),
+            Some(&100.0f32.to_bits())
+        );
+        assert!(!node.properties.contains_key(&property_id::HEIGHT));
+        assert!(!node.properties.contains_key(&property_id::ALIGNMENT));
     }
 }

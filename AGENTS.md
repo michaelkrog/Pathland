@@ -38,19 +38,63 @@ This document provides essential context for AI agents (or human contributors) w
 
 ```
 crates/pathland-opcode/   # 16-byte opcode, ring buffer, arena, memory layout (no_std)
-crates/pathland-view/     # SwiftUI-style view DSL: VStack/HStack/Text + decoupled
-                          #   modifiers (spacing/padding/fontSize/color/background) (no_std)
+crates/pathland-view/     # SwiftUI-style view DSL: VStack/HStack/Text/Button +
+                          #   decoupled modifiers (spacing/padding/fontSize/color/
+                          #   background) + vstack!/hstack! macros (no_std)
 crates/pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
                           #   diff-based reactive emission (zero-alloc steady state)
 crates/pathland-host/     # host reader: ring -> native-element description (std layer)
-crates/pathland-transport/# opcode transport: shared-memory ring (existing) + network batch
-                          #   encode/decode + batching policy (time/size) (std layer)
-wit/pathland.wit          # WIT component-world definitions (Goal 3+)
+crates/pathland-transport/# opcode transport: shared-memory ring + network batch
+                          #   encode/decode + batching policy + transport abstraction (std)
+crates/pathland-guest/    # WASM guest component (wit world): retained tree + engine
+                          #   + emit/take-batch + event ingress (wasm32-wasip1, browser)
+crates/pathland-wit-host/ # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)
+crates/pathland-native/   # NATIVE C-ABI shim + NativeHost: flat world over a zero-copy
+                          #   shared-memory ring, for Swift/Java/C#/other native hosts
+crates/pathland-gtk-demo/ # GTK4 desktop demo: native engine -> zero-copy shared ring
+                          #   -> GtkBox/Label/Button (no WASM on desktop)
+wit/pathland.wit          # WIT component-world definitions
+lib/java/pathland-demo/   # Java (Maven) demo: SwiftUI-like DSL + JNA over pathland-native,
+                          #   reading opcodes zero-copy from the shared ring
 ```
 
-- Test: `cd lib/rust && cargo test` (runs all crates).
-- WASM build: `RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc cargo build --target wasm32-unknown-unknown`
-  (the Homebrew `cargo` on PATH uses a rustc without the wasm std; use the rustup toolchain's rustc).
+- Test: `cd lib/rust && cargo test` (runs all native crates; `pathland-guest` is
+  wasm-only and ignored by the native build).
+- WASM component build (browser goal): `cd lib/rust/crates/pathland-guest && cargo component build`
+  (also needs `PATH="$HOME/.cargo/bin:$PATH"` so rustup's `cargo`/`rustc` are used).
+- Run the GTK demo (native, zero-copy shared ring): `cd lib/rust && cargo run -p pathland-gtk-demo`.
+- Run the Java demo (JNA over the native C-ABI shim):
+  `PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native`
+  then `cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java`.
+
+### Native C-ABI shim (`pathland-native`)
+
+The **desktop/cross-language zero-copy path**: a native `cdylib` exposing the
+flat world (same semantics as `wit/pathland.wit`) as `pathland_native_*` C
+functions, with a **shared-memory ring** the host driver reads in place. Any
+language that links the dylib (Swift/Java/C# via FFI) calls the flat surface —
+no per-component wrappers — and consumes opcodes zero-copy. The Java demo
+(`lib/java/pathland-demo`) demonstrates this with a SwiftUI-like Java DSL over
+JNA. wasmtime/WIT remain only for remote/browser hosts.
+
+### WIT Component World (`wit/pathland.wit`)
+
+The `pathland:view/pathland` world is the **language-agnostic surface** other
+languages (Java/Quarkus, Rust GTK, future hosts) drive. It is flat and id-based,
+deliberately NOT the Rust DSL:
+
+- `builder`: `create-node(id, component)`, `insert-child`, `remove-child`,
+  `set-text`, `set-property`. Hosts supply stable node ids — stable ids across
+  updates are what make the guest's diff-based reactive emission work.
+- `engine`: `begin-frame`, `emit`, `end-frame`, `take-batch` (returns the
+  network-batch bytes, so the same wire format serves desktop + network hosts).
+- `input`: `dispatch(event)` — raw-input event ingress (host → guest).
+- `app` (imported): `on-event(event)` — the host application callback.
+
+The **DSL is a uniform surface**: a developer authors with `vstack![...]` /
+`text(...)` / custom views; the bridge (`pathland-wit-host::import_tree`) walks
+the `Node` tree into `builder` calls. Core (WIT) and custom views are
+indistinguishable to the developer.
 
 ### POC Goals (issues #12–#18)
 
@@ -58,8 +102,8 @@ wit/pathland.wit          # WIT component-world definitions (Goal 3+)
 |---|------|--------|
 | 12 | 16-byte opcode engine | **Complete** |
 | 13 | Core components & modifiers in Rust | **Complete** |
-| 18 | Opcode transport layer (shared memory + network batch) | **In progress** |
-| 16 | Rust desktop app with GTK4 renderer | Planned |
+| 18 | Opcode transport layer (+ native C-ABI shim, zero-copy ring) | **Complete** |
+| 16 | Rust desktop app with GTK4 renderer (native shared ring) | **In progress** |
 | 15 | Quarkus SSR + WebSocket demo | Planned |
 
 ---
@@ -213,9 +257,9 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission. **55 unit tests green across 5 crates.**
+**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-transport`), the WIT component world (`wit/pathland.wit`) + WASM guest component (`pathland-guest`) + host bindings/bridge (`pathland-wit-host`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission. **Tests green across 6 crates.**
 
-**Planned / deferred**: signals (Goal 2/#13), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 desktop renderer (Goal 5/#16), raw-input event routing into the guest engine, host → guest events over the network transport, TEXT_FIELD editing, image rendering.
+**Planned / deferred**: signals (Goal 2/#13), Quarkus SSR + WebSocket demo (Goal 4/#15), GTK4 renderer refinements (Goal 5/#16), host → guest events over the network transport, TEXT_FIELD editing, image rendering.
 
 ---
 

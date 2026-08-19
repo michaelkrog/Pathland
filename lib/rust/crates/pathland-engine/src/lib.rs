@@ -40,7 +40,7 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use pathland_opcode::{value_type, Guest};
+use pathland_opcode::Guest;
 use pathland_view::{component_type_id, value_type_for, Node};
 
 pub use pathland_opcode;
@@ -63,8 +63,6 @@ struct SnapshotNode {
     parent: Option<u32>,
     index: usize,
     text: Option<String>,
-    width: Option<f32>,
-    height: Option<f32>,
     properties: BTreeMap<u16, u32>,
     /// Generation stamp set on each emit pass; used to detect deleted nodes.
     gen: u64,
@@ -157,6 +155,7 @@ impl Engine {
 
         let text_borrowed = match &node.component {
             Component::Text { text } => Some(text.as_str()),
+            Component::Button { label } => Some(label.as_str()),
             _ => None,
         };
 
@@ -184,7 +183,6 @@ impl Engine {
                     guest.set_property(node.id, *prop, value_type_for(*prop), *value)?;
                     *out += 1;
                 }
-                self.emit_size_props(node, guest, out)?;
                 if let Some(t) = text_borrowed {
                     guest.set_text(node.id, t)?;
                     *out += 1;
@@ -219,32 +217,10 @@ impl Engine {
                         *out += 1;
                     }
                 }
-                // Size modifier diffs (WIDTH/HEIGHT).
-                if p.width != node.width {
-                    if let Some(w) = node.width {
-                        guest.set_property(
-                            node.id,
-                            pathland_opcode::property_id::WIDTH,
-                            value_type::F32,
-                            w.to_bits(),
-                        )?;
-                        *out += 1;
-                    }
-                }
-                if p.height != node.height {
-                    if let Some(h) = node.height {
-                        guest.set_property(
-                            node.id,
-                            pathland_opcode::property_id::HEIGHT,
-                            value_type::F32,
-                            h.to_bits(),
-                        )?;
-                        *out += 1;
-                    }
-                }
                 // Generic property diffs (new or changed values only). This
-                // covers stack spacing/padding, fonts, colors, and any modifier
-                // applied to the node.
+                // covers stack spacing/padding, fonts, colors, the `frame`
+                // sizing modifier (WIDTH/HEIGHT/ALIGNMENT), and any other
+                // modifier applied to the node.
                 for (prop, value) in &node.properties {
                     if p.properties.get(prop) != Some(value) {
                         guest.set_property(node.id, *prop, value_type_for(*prop), *value)?;
@@ -282,42 +258,12 @@ impl Engine {
             parent,
             index,
             text,
-            width: node.width,
-            height: node.height,
             properties,
             gen: self.gen,
         });
 
         for (i, child) in node.children.iter().enumerate() {
             self.reconcile_node(child, Some(node.id), i, guest, out)?;
-        }
-        Ok(())
-    }
-
-    /// Emit WIDTH/HEIGHT size-modifier properties for a brand-new node.
-    fn emit_size_props(
-        &mut self,
-        node: &Node,
-        guest: &mut Guest<'_>,
-        out: &mut usize,
-    ) -> Result<(), pathland_opcode::RingError> {
-        if let Some(w) = node.width {
-            guest.set_property(
-                node.id,
-                pathland_opcode::property_id::WIDTH,
-                value_type::F32,
-                w.to_bits(),
-            )?;
-            *out += 1;
-        }
-        if let Some(h) = node.height {
-            guest.set_property(
-                node.id,
-                pathland_opcode::property_id::HEIGHT,
-                value_type::F32,
-                h.to_bits(),
-            )?;
-            *out += 1;
         }
         Ok(())
     }
@@ -495,6 +441,57 @@ mod tests {
         assert!(ops.iter().all(|o| o.command() == tree::MOVE_CHILD));
         assert!(ops.iter().any(|o| o.b() == 3 && o.c() == 0)); // child 3 -> index 0
         assert!(ops.iter().any(|o| o.b() == 2 && o.c() == 1)); // child 2 -> index 1
+    }
+
+    #[test]
+    fn frame_emits_width_height_alignment_as_ordinary_properties() {
+        use pathland_opcode::size;
+        use pathland_view::Align;
+        let mut engine = Engine::new();
+        let root = built(
+            text("x")
+                .frame(Some(size::FILL), Some(24.0), Some(Align::Center))
+                .build(),
+        );
+        let ops = emit_and_collect(&mut engine, &root);
+        // Root text node (no parent): create + WIDTH + HEIGHT + ALIGNMENT + text = 5
+        assert_eq!(ops.len(), 5);
+        let width = ops
+            .iter()
+            .find(|o| o.b() as u16 == pathland_opcode::property_id::WIDTH)
+            .unwrap();
+        assert_eq!(width.c_f32(), size::FILL);
+        let height = ops
+            .iter()
+            .find(|o| o.b() as u16 == pathland_opcode::property_id::HEIGHT)
+            .unwrap();
+        assert_eq!(height.c_f32(), 24.0);
+        let align = ops
+            .iter()
+            .find(|o| o.b() as u16 == pathland_opcode::property_id::ALIGNMENT)
+            .unwrap();
+        assert_eq!(align.c_f32(), Align::Center.value() as f32);
+    }
+
+    #[test]
+    fn frame_change_emits_only_size_delta() {
+        use pathland_view::Align;
+        let mut engine = Engine::new();
+        let mut root = built(
+            text("x")
+                .frame(Some(100.0), Some(24.0), Some(Align::Leading))
+                .build(),
+        );
+        emit_and_collect(&mut engine, &root);
+
+        // Change only the width.
+        root.properties
+            .insert(pathland_opcode::property_id::WIDTH, 120.0f32.to_bits());
+        let ops = emit_and_collect(&mut engine, &root);
+        assert_eq!(ops.len(), 1, "only the width delta should emit");
+        assert_eq!(ops[0].command(), style::SET_PROPERTY);
+        assert_eq!(ops[0].b() as u16, pathland_opcode::property_id::WIDTH);
+        assert_eq!(ops[0].c_f32(), 120.0);
     }
 
     #[test]
