@@ -1,0 +1,29 @@
+Explore the WIT world and host/demo crates in /Users/michael/Development/michaelkrog/Pathland.
+
+I am doing an architecture investigation. Report in detail (medium-thorough) with line numbers:
+
+1. The WIT world at /Users/michael/Development/michaelkrog/Pathland/wit/pathland.wit:
+   - The interfaces: types, builder, engine, input, app.
+   - The world definition and imports/exports.
+   - The exact function signatures (create-node, insert-child, remove-child, set-text, set-property, begin-frame, emit, end-frame, take-batch, dispatch, on-event).
+
+2. `pathland-guest` (crates/pathland-guest/src/lib.rs):
+   - The `State` struct (retained node map, engine, memory).
+   - The builder/engine/input Guest implementations.
+   - How `emit` writes to the ring and how `take_batch` drains it with a `Host`.
+   - The `materialize` and `root_id` functions.
+   - Note the `#![cfg(target_arch = "wasm32")]` gating.
+
+3. `pathland-wit-host` (crates/pathland-wit-host/src/lib.rs):
+   - The `bindgen!` invocation and what it generates.
+   - `GuestHost` struct and methods (new, import_tree, emit, dispatch).
+   - `import_tree`/`import_node` bridge functions.
+   - `AppHost` and the `AppHandler` trait.
+   - How it connects wasmtime + WASI + the app callback.
+
+4. `pathland-gtk-demo` (crates/pathland-gtk-demo/src/main.rs):
+   - How it authors a DSL tree, calls import_tree/emit, decodes the batch with BatchDecoder, builds a RenderTree, and renders GTK widgets.
+   - The current interaction (button click -> dispatch event -> re-render).
+   - IMPORTANT: Confirm that the demo currently uses BatchDecoder (network batch path) rather than reading a shared-memory ring.
+
+Report concrete signatures with line numbers. I especially want to understand the current data-flow: DSL -> bridge -> guest -> emit -> take_batch -> BatchDecoder -> RenderTree -> GTK, and where the WASM memory + ring live.

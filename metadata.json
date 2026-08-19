@@ -3,7 +3,7 @@
   "checkpoint_id": "01M0DJKQWNN6ZXEA5VM5XTEBJQ",
   "strategy": "manual-commit",
   "branch": "feature/native-wit-zero-copy",
-  "checkpoints_count": 6,
+  "checkpoints_count": 7,
   "files_touched": [
     "AGENTS.md",
     "generate.sh",
@@ -59,13 +59,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 826717,
+    "input_tokens": 865041,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 18515200,
-    "output_tokens": 58415,
-    "api_call_count": 180
+    "cache_read_tokens": 18661248,
+    "output_tokens": 64453,
+    "api_call_count": 187
   }
 }
