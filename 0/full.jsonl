@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 0.6527104399999999,
+    "cost": 0.6570297399999999,
     "tokens": {
-      "input": 826717,
-      "output": 58415,
+      "input": 828710,
+      "output": 59177,
       "reasoning": 23696,
       "cache": {
-        "read": 18515200,
+        "read": 18997760,
         "write": 0
       }
     },
     "time": {
       "created": 1787122720206,
-      "updated": 1787162110238
+      "updated": 1787162159843
     }
   },
   "messages": [
@@ -20214,21 +20214,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.0017316,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 161650,
+          "input": 1085,
+          "output": 565,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 160000
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787162110237
+          "created": 1787162110237,
+          "completed": 1787162127785
         },
+        "finish": "tool-calls",
         "id": "msg_01b29a91d002ixm86L6woqN0QP",
         "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7"
       },
@@ -20256,20 +20259,211 @@
           "tool": "bash",
           "callID": "chatcmpl-tool-b9cdf5a2e2a336f9",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git commit -q -F - <<'EOF'\nfeat: catalog-driven DSL + frame modifier; native WIT/zero-copy infra\n\nAdd a catalog-driven SwiftUI-like DSL generated from a single YAML source of\ntruth (lib/ui/components.yaml), with a Rust codegen (pathland-codegen) that\nasserts every id against pathland_opcode::constants and emits the checked-in\nJava DSL. Introduce a compound `frame` modifier (width/height/alignment) that\nemits WIDTH/HEIGHT/ALIGNMENT as ordinary SET_PROPERTY, replacing the\nNode.width/height fields.\n\n- pathland-view: remove Node.width/height; add Align enum + Frame modifier +\n  .frame() sugar\n- pathland-engine: drop WIDTH/HEIGHT special-casing; sizing flows through the\n  generic property-diff path\n- pathland-codegen: YAML -> Java DSL generator with id assertions\n- lib/ui/components.yaml: single source of truth (components, constructor\n  props, global modifiers, enums, ids)\n- generated Java: Constants (PROP_-namespaced), typed enums (Align/Justify/\n  TextAlign/Truncation/FontWeight), View (modifiers + frame), ComponentNode,\n  DSL (overloaded factories), Modified (compound frame)\n- pathland-gtk-demo: use .frame(...)\n- generate.sh: regenerate + re-run conformance\n- fix header wire offsets (arenaBytes=0x16, arenaCursor=0x1A, readCursor=0x1E,\n  writeCursor=0x22, frameCount=0x26)\n- add .gitignore for Rust/Maven build output\n\nAlso present in this branch state: pathland-native (zero-copy shared-memory ring\nC-ABI shim), pathland-guest WASM component, pathland-wit-host, WIT world, ring/\nnet transport modules, Java (Maven + JNA) demo. All native crates green.\nEOF\ngit log --oneline -1"
             },
+            "output": "e3ef09f feat: catalog-driven DSL + frame modifier; native WIT/zero-copy infra\n",
+            "metadata": {
+              "output": "e3ef09f feat: catalog-driven DSL + frame modifier; native WIT/zero-copy infra\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git commit -q -F - <<'EOF'\nfeat: catalog-driven DSL + frame modifier; native WIT/zero-copy infra\n\nAdd a catalog-driven SwiftUI-like DSL generated from a single YAML source of\ntruth (lib/ui/components.yaml), with a Rust codegen (pathland-codegen) that\nasserts every id against pathland_opcode::constants and emits the checked-in\nJava DSL. Introduce a compound `frame` modifier (width/height/alignment) that\nemits WIDTH/HEIGHT/ALIGNMENT as ordinary SET_PROPERTY, replacing the\nNode.width/height fields.\n\n- pathland-view: remove Node.width/height; add Align enum + Frame modifier +\n  .frame() sugar\n- pathland-engine: drop WIDTH/HEIGHT special-casing; sizing flows through the\n  generic property-diff path\n- pathland-codegen: YAML -> Java DSL generator with id assertions\n- lib/ui/components.yaml: single source of truth (components, constructor\n  props, global modifiers, enums, ids)\n- generated Java: Constants (PROP_-namespaced), typed enums (Align/Justify/\n  TextAlign/Truncation/FontWeight), View (modifiers + frame), ComponentNode,\n  DSL (overloaded factories), Modified (compound frame)\n- pathland-gtk-demo: use .frame(...)\n- generate.sh: regenerate + re-run conformance\n- fix header wire offsets (arenaBytes=0x16, arenaCursor=0x1A, readCursor=0x1E,\n  writeCursor=0x22, frameCount=0x26)\n- add .gitignore for Rust/Maven build output\n\nAlso present in this branch state: pathland-native (zero-copy shared-memory ring\nC-ABI shim), pathland-guest WASM component, pathland-wit-host, WIT world, ring/\nnet transport modules, Java (Maven + JNA) demo. All native crates green.\nEOF\ngit log --oneline -1",
             "time": {
-              "start": 1787162123932
+              "start": 1787162127698,
+              "end": 1787162127700
             }
           },
           "id": "prt_01b29c3a30017dFOj4L9rzuqN1",
           "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
           "messageID": "msg_01b29a91d002ixm86L6woqN0QP"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "8a7d6a563fd0aa6443d5d2ce2e4ef4f52f72cc3f",
+          "type": "step-finish",
+          "tokens": {
+            "total": 161650,
+            "input": 1085,
+            "output": 565,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 160000
+            }
+          },
+          "cost": 0.0017316,
+          "id": "prt_01b29ed7d001OKECHigX6eqoQY",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_01b29a91d002ixm86L6woqN0QP"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_01b260d7e0016R1Dbs4f10Amtc",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001329128,
+        "tokens": {
+          "total": 161770,
+          "input": 660,
+          "output": 86,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 161024
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787162127792,
+          "completed": 1787162159833
+        },
+        "finish": "tool-calls",
+        "id": "msg_01b29edb0002IX0J2W7F9KTkYu",
+        "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7"
+      },
+      "parts": [
+        {
+          "snapshot": "8a7d6a563fd0aa6443d5d2ce2e4ef4f52f72cc3f",
+          "type": "step-start",
+          "id": "prt_01b2a5254001NAuy65JANFzTDt",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_01b29edb0002IX0J2W7F9KTkYu"
+        },
+        {
+          "type": "text",
+          "text": "Committed as `e3ef09f`. Let me verify the working tree is clean.\n\n",
+          "time": {
+            "start": 1787162153557,
+            "end": 1787162159743
+          },
+          "id": "prt_01b2a5255001qI2zcrgb0bPzDk",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_01b29edb0002IX0J2W7F9KTkYu"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "chatcmpl-tool-b28ed96b8486bbea",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "cd /Users/michael/Development/michaelkrog/Pathland && git status --short && echo \"---clean---\""
+            },
+            "output": "---clean---\n",
+            "metadata": {
+              "output": "---clean---\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git status --short && echo \"---clean---\"",
+            "time": {
+              "start": 1787162159738,
+              "end": 1787162159741
+            }
+          },
+          "id": "prt_01b2a5894001MxVJAZKrcu1R8z",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_01b29edb0002IX0J2W7F9KTkYu"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "8a7d6a563fd0aa6443d5d2ce2e4ef4f52f72cc3f",
+          "type": "step-finish",
+          "tokens": {
+            "total": 161770,
+            "input": 660,
+            "output": 86,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 161024
+            }
+          },
+          "cost": 0.001329128,
+          "id": "prt_01b2a6aae001tusS9f64h2eJZU",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_01b29edb0002IX0J2W7F9KTkYu"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_01b260d7e0016R1Dbs4f10Amtc",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001258572,
+        "tokens": {
+          "total": 161895,
+          "input": 248,
+          "output": 111,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 161536
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787162159842,
+          "completed": 1787162164779
+        },
+        "finish": "stop",
+        "id": "msg_01b2a6ae2002Hp08GSGZDJZdgP",
+        "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7"
+      },
+      "parts": [
+        {
+          "snapshot": "8a7d6a563fd0aa6443d5d2ce2e4ef4f52f72cc3f",
+          "type": "step-start",
+          "id": "prt_01b2a7685001T34gHRs3o47lZr",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_01b2a6ae2002Hp08GSGZDJZdgP"
+        },
+        {
+          "type": "text",
+          "text": "Committed. Working tree is clean.\n\n- **Commit**: `e3ef09f` — `feat: catalog-driven DSL + frame modifier; native WIT/zero-copy infra`\n- Includes my catalog-driven DSL + frame modifier work **and** the pre-existing uncommitted state of this branch (native/WIT/zero-copy infrastructure, GTK/Java demos).\n- Added `.gitignore` so Rust/Maven build artifacts (e.g. `lib/java/**/target/*.class`) aren't committed.",
+          "time": {
+            "start": 1787162162841,
+            "end": 1787162164690
+          },
+          "id": "prt_01b2a769900137veSAOP8eRFkw",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_01b2a6ae2002Hp08GSGZDJZdgP"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "8a7d6a563fd0aa6443d5d2ce2e4ef4f52f72cc3f",
+          "type": "step-finish",
+          "tokens": {
+            "total": 161895,
+            "input": 248,
+            "output": 111,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 161536
+            }
+          },
+          "cost": 0.001258572,
+          "id": "prt_01b2a7dfe001bDu9xKf1e7rlj0",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_01b2a6ae2002Hp08GSGZDJZdgP"
         }
       ]
     }
