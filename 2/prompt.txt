@@ -1,0 +1,21 @@
+Explore the Rust crates `pathland-opcode`, `pathland-transport`, and `pathland-host` in /Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/.
+
+I am doing an architecture investigation of a binary opcode protocol + transport layer. Report in detail (medium-thorough) with line numbers:
+
+1. `pathland-opcode` (crates/pathland-opcode/src/):
+   - The `Opcode` struct in opcode.rs: exact 16-byte layout [Category:u8][Command:u8][Flags:u16][A:u32][B:u32][C:u32]. Its `new`, `to_bytes`, `from_bytes`.
+   - constants.rs: all categories (TREE, STYLE, EVENT, META), commands, property IDs, component types, value types, flags.
+   - The ring buffer in ring.rs: `push`, `push_*` functions, cursor logic, RingError::Full.
+   - memory.rs: the linear memory layout (header block, ring region, arena), MemoryLayout, cursors.
+   - The `Guest` (producer) and `Host` (consumer) structs in lib.rs: their methods, `Frame` type, frameCount framing.
+   - events.rs: the `Event` enum.
+
+2. `pathland-transport` (crates/pathland-transport/src/):
+   - batch.rs: `Batch`, `BatchEncoder`, `BatchDecoder`, the batch wire format (magic/version/flags/frameCount/opcodeCount/opcodes/arenaDeltaLen/arena), encode_batch/parse.
+   - batching.rs: `BatchPolicy` (time/size), `Batcher`, flush logic.
+   - How the arena delta works.
+
+3. `pathland-host` (crates/pathland-host/src/lib.rs):
+   - The `RenderTree` and `HostNode` structs, `apply_frame`, how frames are decoded into a native-element description.
+
+Report concrete struct/trait/function signatures with line numbers. I want to understand the exact current transport mechanism (shared linear memory ring vs network batch) and whether there is ANY transport abstraction trait currently.

@@ -1,0 +1,68 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0DJKQWNN6ZXEA5VM5XTEBJQ",
+  "session_id": "ses_feaa5e0c4ffe1OoE36Ra1u5uhD",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-19T17:55:27.640556Z",
+  "branch": "feature/native-wit-zero-copy",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/rust/Cargo.lock",
+    "lib/rust/Cargo.toml",
+    "lib/rust/README.md",
+    "lib/rust/crates/pathland-engine/src/lib.rs",
+    "lib/rust/crates/pathland-view/src/lib.rs"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "6a2396635ac6",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 46549,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 217088,
+    "output_tokens": 7725,
+    "api_call_count": 8
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 4073,
+      "user_lines_removed": 14,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "AGENTS.md": 36,
+        "lib/rust/Cargo.lock": 2995,
+        "lib/rust/Cargo.toml": 3,
+        "lib/rust/README.md": 20,
+        "lib/rust/crates/pathland-engine/src/lib.rs": 1,
+        "lib/rust/crates/pathland-gtk-demo/Cargo.toml": 22,
+        "lib/rust/crates/pathland-gtk-demo/src/main.rs": 216,
+        "lib/rust/crates/pathland-guest/.gitignore": 2,
+        "lib/rust/crates/pathland-guest/Cargo.toml": 26,
+        "lib/rust/crates/pathland-guest/src/lib.rs": 253,
+        "lib/rust/crates/pathland-view/src/lib.rs": 51,
+        "lib/rust/crates/pathland-wit-host/Cargo.toml": 18,
+        "lib/rust/crates/pathland-wit-host/src/lib.rs": 309,
+        "wit/pathland.wit": 121
+      },
+      "user_removed_per_file": {
+        "AGENTS.md": 10,
+        "lib/rust/README.md": 4
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    }
+  ]
+}
