@@ -1,0 +1,531 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0HQ871P3F3JMR9WENPDS3HV",
+  "session_id": "ses_ff3d2a38bffe8DTGdmv8Nr58Iq",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-21T08:33:35.022737Z",
+  "branch": "feature/native-wit-zero-copy",
+  "checkpoints_count": 54,
+  "save_step_count": 52,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo/pom.xml",
+    "lib/java/pathland-demo/src/main/java/demo/DemoApp.java",
+    "lib/rust/Cargo.lock",
+    "lib/rust/Cargo.toml",
+    "lib/rust/README.md",
+    "lib/rust/crates/pathland-gtk-demo/Cargo.toml",
+    "lib/rust/crates/pathland-gtk-demo/src/main.rs",
+    "lib/rust/crates/pathland-native/src/lib.rs",
+    "lib/rust/crates/pathland-opcode/src/lib.rs",
+    "lib/rust/crates/pathland-opcode/src/memory.rs",
+    "lib/rust/crates/pathland-transport/src/ring.rs",
+    "spec/OPCODE.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "5e442bf4515a",
+  "checkpoint_transcript_start": 341,
+  "transcript_lines_at_start": 341,
+  "compact_transcript_start": 341,
+  "token_usage": {
+    "input_tokens": 17415506,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 225647744,
+    "output_tokens": 230579,
+    "api_call_count": 522
+  },
+  "session_metrics": {
+    "turn_count": 77
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-21T08:33:34.637675Z",
+    "agent_lines": 3631,
+    "agent_removed": 29,
+    "human_added": 738,
+    "human_modified": 330,
+    "human_removed": 0,
+    "total_committed": 4699,
+    "total_lines_changed": 4733,
+    "agent_percentage": 77.32938939361928,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 3356,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 14,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 15,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 16,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 17,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 18,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4926,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 19,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5023,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 20,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5023,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 21,
+      "user_lines_added": 9,
+      "user_lines_removed": 2,
+      "agent_lines_added": 6168,
+      "agent_lines_removed": 14,
+      "user_added_per_file": {
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/App.build/App.emit-module.d": 3,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/AppKit-2BC7JH193T4E5.swiftmodule.lock": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/AppKit-2BC7JH193T4E5.swiftmodule.lock-0640593f": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/DeveloperToolsSupport-34HZ1DABPB57T.swiftmodule.lock": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/DeveloperToolsSupport-34HZ1DABPB57T.swiftmodule.lock-eacf5975": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/XPC-8TJPOP2VHNL0.swiftmodule.lock": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/XPC-8TJPOP2VHNL0.swiftmodule.lock-baed81ac": 1
+      },
+      "user_removed_per_file": {
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/AppKit-2BC7JH193T4E5.swiftmodule.lock": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/DeveloperToolsSupport-34HZ1DABPB57T.swiftmodule.lock": 1
+      }
+    },
+    {
+      "checkpoint_number": 22,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 23,
+      "user_lines_added": 5,
+      "user_lines_removed": 2,
+      "agent_lines_added": 6169,
+      "agent_lines_removed": 14,
+      "user_added_per_file": {
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/AppKit-2BC7JH193T4E5.swiftmodule.lock": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/Foundation-12OI0G7V769RB.swiftmodule.lock": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/Foundation-12OI0G7V769RB.swiftmodule.lock-860e89da": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/OSLog-3MEXSCQ4HSFBC.swiftmodule.lock": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/OSLog-3MEXSCQ4HSFBC.swiftmodule.lock-8bc46edf": 1
+      },
+      "user_removed_per_file": {
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/AppKit-2BC7JH193T4E5.swiftmodule.lock": 1,
+        "lib/swift/PathlandDemo/.build/arm64-apple-macosx/debug/ModuleCache/Foundation-12OI0G7V769RB.swiftmodule.lock": 1
+      }
+    },
+    {
+      "checkpoint_number": 24,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4974,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 25,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4974,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 26,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5025,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 27,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5233,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 28,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5233,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 29,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5528,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 30,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5528,
+      "agent_lines_removed": 14
+    },
+    {
+      "checkpoint_number": 31,
+      "user_lines_added": 18,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5696,
+      "agent_lines_removed": 14,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 15,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 3
+      }
+    },
+    {
+      "checkpoint_number": 32,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5724,
+      "agent_lines_removed": 14,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 33,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5724,
+      "agent_lines_removed": 14,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 34,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5604,
+      "agent_lines_removed": 25,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 35,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5604,
+      "agent_lines_removed": 25,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 36,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 37,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 38,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 39,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 40,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 41,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 42,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 43,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 44,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 45,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 46,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 47,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 48,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 49,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 50,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 51,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    },
+    {
+      "checkpoint_number": 52,
+      "user_lines_added": 20,
+      "user_lines_removed": 0,
+      "agent_lines_added": 5637,
+      "agent_lines_removed": 27,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/createdFiles.lst": 16,
+        "lib/java/pathland-demo/target/maven-status/maven-compiler-plugin/compile/default-compile/inputFiles.lst": 4
+      }
+    }
+  ]
+}

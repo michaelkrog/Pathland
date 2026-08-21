@@ -3,7 +3,7 @@
   "checkpoint_id": "01M0HQ871P3F3JMR9WENPDS3HV",
   "strategy": "manual-commit",
   "branch": "feature/native-wit-zero-copy",
-  "checkpoints_count": 22,
+  "checkpoints_count": 76,
   "files_touched": [
     "AGENTS.md",
     "lib/java/pathland-demo/pom.xml",
@@ -42,13 +42,20 @@
       "compact_transcript": "/1/transcript.jsonl",
       "content_hash": "/1/content_hash.txt",
       "prompt": "/1/prompt.txt"
+    },
+    {
+      "metadata": "/2/metadata.json",
+      "transcript": "/2/full.jsonl",
+      "compact_transcript": "/2/transcript.jsonl",
+      "content_hash": "/2/content_hash.txt",
+      "prompt": "/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 4971217,
+    "input_tokens": 22386723,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 69714688,
-    "output_tokens": 130037,
-    "api_call_count": 374
+    "cache_read_tokens": 295362432,
+    "output_tokens": 360616,
+    "api_call_count": 896
   }
 }
