@@ -1,0 +1,1497 @@
+{
+  "info": {
+    "id": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+    "slug": "brave-knight",
+    "projectID": "78d1a2f36539bb4b093a29b0b4355974b1efbb61",
+    "directory": "/Users/michael/Development/michaelkrog/Pathland",
+    "path": "",
+    "title": "Architecture terminology + README visual doc",
+    "agent": "build",
+    "model": {
+      "id": "deepseek-v4-flash",
+      "providerID": "opencode-go"
+    },
+    "version": "1.18.18",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0.017854912,
+    "tokens": {
+      "input": 61239,
+      "output": 3203,
+      "reasoning": 1296,
+      "cache": {
+        "read": 201856,
+        "write": 0
+      }
+    },
+    "time": {
+      "created": 1787325711027,
+      "updated": 1787325969652
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1787325711054
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "opencode-go",
+          "modelID": "deepseek-v4-flash"
+        },
+        "summary": {
+          "diffs": [
+            {
+              "file": "README.md",
+              "patch": "Index: README.md\n===================================================================\n--- README.md\t\n+++ README.md\t\n@@ -1,131 +1,165 @@\n # Pathland Protocol\n \n > A cross-platform, cross-language UI protocol inspired by SwiftUI\n \n ## Overview\n \n Pathland is a **protocol-first** UI framework for **retained-mode UI** with\n multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\n designed to be **language-agnostic** and **platform-agnostic**.\n \n As of August 2026 the core is a **Rust opcode engine**. It emits the\n application's **declarative view structure** — VStack, HStack, Text, spacing,\n padding, alignment — as a fixed **16-byte opcode ring buffer** into shared\n linear memory. Each platform's renderer maps the opcode stream onto that\n platform's **native elements** (GTK4 widgets on desktop, DOM elements in the\n browser, HTML server-side) and those native elements lay themselves out.\n \n On desktop the engine runs **natively**: other languages drive it through the\n flat **native C ABI** (`pathland-native`) over a zero-copy shared ring and render\n through the shared GTK renderer (`pathland-gtk`). **WASM/WIT are the\n browser/remote projection only**, not the primary path.\n \n **The engine does not compute layout and does not emit rects.** It describes\n *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n signals in the application ensure only changed nodes emit opcodes, so an\n unchanged tree emits zero opcodes.\n \n+## The Four Elements\n+\n+Pathland is composed of four elements. They are the vocabulary the whole\n+project speaks, so they are settled and used consistently:\n+\n+```\n+┌────────────────────┐        ┌─────────────────────┐\n+│ 1. Retained model  │        │ 3. Renderer         │\n+│ the app's UI tree  │───┐    │ native elements +   │\n+│ (application-      │   │    │ event reporting     │\n+│  owned, canonical) │   │    └───────────▲─────────┘\n+└────────────────────┘   │                │\n+                         │                │\n+┌────────────────────┐   │                │\n+│ 2. Opcode engine   │◄──┘   4. Transport │\n+│ diffs + emits      │        delivers    │\n+│ 16-byte opcodes    │────────────────────┘\n+└────────────────────┘\n+```\n+\n+1. **Retained model** — the application's canonical retained UI tree. The\n+   application owns it; it is the single source of truth.\n+2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n+   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n+   emit, so an unchanged tree emits zero opcodes.\n+3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n+   **native elements**, and reports raw inputs back as events. It is a pure\n+   function of the opcode stream (stateless) and never retains application\n+   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n+   host and is pumped by a driver — they are not separate elements.*\n+4. **Transport** — carries opcodes from the engine to the renderer: the\n+   zero-copy shared-memory ring on desktop/native, a serialized network batch\n+   for remote/browser.\n+\n ## Core Principles\n \n - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n - **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n - **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n - **Zero-copy**: ring and arena are plain regions of shared linear memory\n - **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n - **Catalog-driven DSL**: the ergonomic SwiftUI-like DSL in any language is generated from a single YAML catalog (`lib/ui/`), not hand-written\n \n ## Documentation\n \n ### Specification\n \n - [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens\n - [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations\n \n ## Rust Workspace\n \n The implementation is under [`lib/rust/`](./lib/rust/):\n \n | Crate | Responsibility |\n |-------|----------------|\n | `pathland-opcode` | 16-byte opcode, ring buffer, bump arena, linear-memory layout (`no_std`) |\n | `pathland-view` | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |\n | `pathland-engine` | Retained view tree → declarative `TREE`/`STYLE` opcodes; diff-based reactive emission (zero-alloc steady state) |\n | `pathland-host` | Host reader: ring → native-element description (`std` convenience layer) |\n | `pathland-transport` | Opcode transport: shared-memory ring + network batch encode/decode + transport abstraction |\n | `pathland-native` | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |\n | `pathland-gtk` | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n | `pathland-gtk-demo` | Rust GTK4 demo: authors the DSL, renders through `pathland-gtk` (no GTK APIs) |\n | `pathland-codegen` | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |\n | `pathland-guest` | WASM guest component (browser/remote only) |\n | `pathland-wit-host` | WIT host bindings + DSL bridge (browser/remote only) |\n \n The DSL catalog lives in [`lib/ui/components.yaml`](./lib/ui/components.yaml);\n regenerate the Java DSL with `./generate.sh`.\n \n ### Run tests\n \n ```bash\n cd lib/rust\n cargo test\n ```\n \n ### Run the demos (native, zero-copy shared ring + GTK renderer)\n \n ```bash\n # Rust demo\n cd lib/rust && PATH=\"$HOME/.cargo/bin:$PATH\" cargo run -p pathland-gtk-demo\n \n # Java demo (JNA over pathland-native + pathland-gtk)\n PATH=\"$HOME/.cargo/bin:$PATH\" cargo build -p pathland-native -p pathland-gtk\n cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java\n ```\n \n On macOS the Java demo must run GTK on the main thread:\n `MAVEN_OPTS=\"-XstartOnFirstThread\"`.\n \n ### Build for wasm32 (browser projection only)\n \n ```bash\n RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \\\n   cargo build --target wasm32-unknown-unknown\n ```\n \n ## Components & Properties\n \n Component and property IDs are defined in `pathland-opcode`'s\n [`constants.rs`](./lib/rust/crates/pathland-opcode/src/constants.rs) and\n documented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,\n `VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties\n (`SPACING`, `PADDING`, `ALIGNMENT`, …) drive native layout, and `WIDTH`/`HEIGHT`\n use `-1` = FILL, `-2` = HUG_CONTENT.\n \n ## Design Tokens\n \n The renderer owns default token values; the application owns overrides.\n Tokens are identified by dot-separated paths (`color.primary`, `space.2`) and\n referenced via the `DESIGN_TOKEN` value type or overridden globally with\n `SET_DESIGN_TOKEN`. See [Design Token System](./spec/OPCODE.md#design-token-system).\n \n ## Roadmap (POC Goals)\n \n See the GitHub issues (#12, #13, #15, #16, #18):\n \n 1. **16-byte opcode engine** — done\n 2. **Core components & modifiers in Rust** (SwiftUI-like API) — done\n 3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done\n 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done\n 5. **Catalog-driven DSL** (YAML → Java via `pathland-codegen`) — done\n 6. Quarkus SSR + WebSocket demo — planned\n \n ## Versioning\n \n Pathland follows **Semantic Versioning** (Major.Minor.Patch). The wire protocol\n version is 1 (see [OPCODE.md](./spec/OPCODE.md)).\n \n ## License\n \n Pathland is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.\n",
+              "additions": 34,
+              "deletions": 0,
+              "status": "modified"
+            }
+          ]
+        },
+        "id": "msg_024ea02ce0011gREfWjf61hZGI",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "This project has 4 elements overall: 1) A retained ui model, 2) an opcode engine, 3) a renderer/driver/host and 4) a transport for how the opcode engine delivers opcodes from retained model to the renderer/driver/host. I want to settle on a term for the renderer/driver/host and I want to document these elements in the beginning of the readme.md with a visual aid.",
+          "id": "prt_024ea02cf001sRWxl5Y7RRhTYC",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea02ce0011gREfWjf61hZGI"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.00297682,
+        "tokens": {
+          "total": 13211,
+          "input": 13051,
+          "output": 90,
+          "reasoning": 70,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325711389,
+          "completed": 1787325714380
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ea041d001pGn9ehSRULmicc",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-start",
+          "id": "prt_024ea08f2001Kf26LVWmfkcSia",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea041d001pGn9ehSRULmicc"
+        },
+        {
+          "type": "reasoning",
+          "text": "The user wants to settle on a term for \"renderer/driver/host\" and document the 4 elements at the beginning of README.md with a visual aid.\n\nLet me first look at the existing README.md and understand the current state of the project. Let me explore the project structure.\n\nLet me read the README.md first.",
+          "time": {
+            "start": 1787325713319,
+            "end": 1787325713921
+          },
+          "id": "prt_024ea0ba70019CWDq5pZzWE0a2",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea041d001pGn9ehSRULmicc"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "call_00_zWuXDb8qD46HglfvStAS2216",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md"
+            },
+            "output": "<path>/Users/michael/Development/michaelkrog/Pathland/README.md</path>\n<type>file</type>\n<content>\n1: # Pathland Protocol\n2: \n3: > A cross-platform, cross-language UI protocol inspired by SwiftUI\n4: \n5: ## Overview\n6: \n7: Pathland is a **protocol-first** UI framework for **retained-mode UI** with\n8: multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\n9: designed to be **language-agnostic** and **platform-agnostic**.\n10: \n11: As of August 2026 the core is a **Rust opcode engine**. It emits the\n12: application's **declarative view structure** — VStack, HStack, Text, spacing,\n13: padding, alignment — as a fixed **16-byte opcode ring buffer** into shared\n14: linear memory. Each platform's renderer maps the opcode stream onto that\n15: platform's **native elements** (GTK4 widgets on desktop, DOM elements in the\n16: browser, HTML server-side) and those native elements lay themselves out.\n17: \n18: On desktop the engine runs **natively**: other languages drive it through the\n19: flat **native C ABI** (`pathland-native`) over a zero-copy shared ring and render\n20: through the shared GTK renderer (`pathland-gtk`). **WASM/WIT are the\n21: browser/remote projection only**, not the primary path.\n22: \n23: **The engine does not compute layout and does not emit rects.** It describes\n24: *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n25: signals in the application ensure only changed nodes emit opcodes, so an\n26: unchanged tree emits zero opcodes.\n27: \n28: ## Core Principles\n29: \n30: - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n31: - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n32: - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n33: - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n34: - **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n35: - **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n36: - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n37: - **Zero-copy**: ring and arena are plain regions of shared linear memory\n38: - **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n39: - **Catalog-driven DSL**: the ergonomic SwiftUI-like DSL in any language is generated from a single YAML catalog (`lib/ui/`), not hand-written\n40: \n41: ## Documentation\n42: \n43: ### Specification\n44: \n45: - [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens\n46: - [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations\n47: \n48: ## Rust Workspace\n49: \n50: The implementation is under [`lib/rust/`](./lib/rust/):\n51: \n52: | Crate | Responsibility |\n53: |-------|----------------|\n54: | `pathland-opcode` | 16-byte opcode, ring buffer, bump arena, linear-memory layout (`no_std`) |\n55: | `pathland-view` | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |\n56: | `pathland-engine` | Retained view tree → declarative `TREE`/`STYLE` opcodes; diff-based reactive emission (zero-alloc steady state) |\n57: | `pathland-host` | Host reader: ring → native-element description (`std` convenience layer) |\n58: | `pathland-transport` | Opcode transport: shared-memory ring + network batch encode/decode + transport abstraction |\n59: | `pathland-native` | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |\n60: | `pathland-gtk` | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n61: | `pathland-gtk-demo` | Rust GTK4 demo: authors the DSL, renders through `pathland-gtk` (no GTK APIs) |\n62: | `pathland-codegen` | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |\n63: | `pathland-guest` | WASM guest component (browser/remote only) |\n64: | `pathland-wit-host` | WIT host bindings + DSL bridge (browser/remote only) |\n65: \n66: The DSL catalog lives in [`lib/ui/components.yaml`](./lib/ui/components.yaml);\n67: regenerate the Java DSL with `./generate.sh`.\n68: \n69: ### Run tests\n70: \n71: ```bash\n72: cd lib/rust\n73: cargo test\n74: ```\n75: \n76: ### Run the demos (native, zero-copy shared ring + GTK renderer)\n77: \n78: ```bash\n79: # Rust demo\n80: cd lib/rust && PATH=\"$HOME/.cargo/bin:$PATH\" cargo run -p pathland-gtk-demo\n81: \n82: # Java demo (JNA over pathland-native + pathland-gtk)\n83: PATH=\"$HOME/.cargo/bin:$PATH\" cargo build -p pathland-native -p pathland-gtk\n84: cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java\n85: ```\n86: \n87: On macOS the Java demo must run GTK on the main thread:\n88: `MAVEN_OPTS=\"-XstartOnFirstThread\"`.\n89: \n90: ### Build for wasm32 (browser projection only)\n91: \n92: ```bash\n93: RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \\\n94:   cargo build --target wasm32-unknown-unknown\n95: ```\n96: \n97: ## Components & Properties\n98: \n99: Component and property IDs are defined in `pathland-opcode`'s\n100: [`constants.rs`](./lib/rust/crates/pathland-opcode/src/constants.rs) and\n101: documented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,\n102: `VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties\n103: (`SPACING`, `PADDING`, `ALIGNMENT`, …) drive native layout, and `WIDTH`/`HEIGHT`\n104: use `-1` = FILL, `-2` = HUG_CONTENT.\n105: \n106: ## Design Tokens\n107: \n108: The renderer owns default token values; the application owns overrides.\n109: Tokens are identified by dot-separated paths (`color.primary`, `space.2`) and\n110: referenced via the `DESIGN_TOKEN` value type or overridden globally with\n111: `SET_DESIGN_TOKEN`. See [Design Token System](./spec/OPCODE.md#design-token-system).\n112: \n113: ## Roadmap (POC Goals)\n114: \n115: See the GitHub issues (#12, #13, #15, #16, #18):\n116: \n117: 1. **16-byte opcode engine** — done\n118: 2. **Core components & modifiers in Rust** (SwiftUI-like API) — done\n119: 3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done\n120: 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done\n121: 5. **Catalog-driven DSL** (YAML → Java via `pathland-codegen`) — done\n122: 6. Quarkus SSR + WebSocket demo — planned\n123: \n124: ## Versioning\n125: \n126: Pathland follows **Semantic Versioning** (Major.Minor.Patch). The wire protocol\n127: version is 1 (see [OPCODE.md](./spec/OPCODE.md)).\n128: \n129: ## License\n130: \n131: Pathland is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.\n\n(End of file - total 131 lines)\n</content>",
+            "metadata": {
+              "preview": "# Pathland Protocol\n\n> A cross-platform, cross-language UI protocol inspired by SwiftUI\n\n## Overview\n\nPathland is a **protocol-first** UI framework for **retained-mode UI** with\nmultiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\ndesigned to be **language-agnostic** and **platform-agnostic**.\n\nAs of August 2026 the core is a **Rust opcode engine**. It emits the\napplication's **declarative view structure** — VStack, HStack, Text, spacing,\npadding, alignment — as a fixed **16-byte opcode ring buffer** into shared\nlinear memory. Each platform's renderer maps the opcode stream onto that\nplatform's **native elements** (GTK4 widgets on desktop, DOM elements in the\nbrowser, HTML server-side) and those native elements lay themselves out.\n\nOn desktop the engine runs **natively**: other languages drive it through the\nflat **native C ABI** (`pathland-native`) over a zero-copy shared ring and render\nthrough the shared GTK renderer (`pathland-gtk`). **WASM/WIT are the",
+              "truncated": false,
+              "loaded": [],
+              "display": {
+                "type": "file",
+                "path": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "text": "# Pathland Protocol\n\n> A cross-platform, cross-language UI protocol inspired by SwiftUI\n\n## Overview\n\nPathland is a **protocol-first** UI framework for **retained-mode UI** with\nmultiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\ndesigned to be **language-agnostic** and **platform-agnostic**.\n\nAs of August 2026 the core is a **Rust opcode engine**. It emits the\napplication's **declarative view structure** — VStack, HStack, Text, spacing,\npadding, alignment — as a fixed **16-byte opcode ring buffer** into shared\nlinear memory. Each platform's renderer maps the opcode stream onto that\nplatform's **native elements** (GTK4 widgets on desktop, DOM elements in the\nbrowser, HTML server-side) and those native elements lay themselves out.\n\nOn desktop the engine runs **natively**: other languages drive it through the\nflat **native C ABI** (`pathland-native`) over a zero-copy shared ring and render\nthrough the shared GTK renderer (`pathland-gtk`). **WASM/WIT are the\nbrowser/remote projection only**, not the primary path.\n\n**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.\n\n## Core Principles\n\n- **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n- **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n- **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n- **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n- **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n- **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n- **Zero-copy**: ring and arena are plain regions of shared linear memory\n- **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n- **Catalog-driven DSL**: the ergonomic SwiftUI-like DSL in any language is generated from a single YAML catalog (`lib/ui/`), not hand-written\n\n## Documentation\n\n### Specification\n\n- [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens\n- [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations\n\n## Rust Workspace\n\nThe implementation is under [`lib/rust/`](./lib/rust/):\n\n| Crate | Responsibility |\n|-------|----------------|\n| `pathland-opcode` | 16-byte opcode, ring buffer, bump arena, linear-memory layout (`no_std`) |\n| `pathland-view` | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |\n| `pathland-engine` | Retained view tree → declarative `TREE`/`STYLE` opcodes; diff-based reactive emission (zero-alloc steady state) |\n| `pathland-host` | Host reader: ring → native-element description (`std` convenience layer) |\n| `pathland-transport` | Opcode transport: shared-memory ring + network batch encode/decode + transport abstraction |\n| `pathland-native` | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |\n| `pathland-gtk` | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n| `pathland-gtk-demo` | Rust GTK4 demo: authors the DSL, renders through `pathland-gtk` (no GTK APIs) |\n| `pathland-codegen` | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |\n| `pathland-guest` | WASM guest component (browser/remote only) |\n| `pathland-wit-host` | WIT host bindings + DSL bridge (browser/remote only) |\n\nThe DSL catalog lives in [`lib/ui/components.yaml`](./lib/ui/components.yaml);\nregenerate the Java DSL with `./generate.sh`.\n\n### Run tests\n\n```bash\ncd lib/rust\ncargo test\n```\n\n### Run the demos (native, zero-copy shared ring + GTK renderer)\n\n```bash\n# Rust demo\ncd lib/rust && PATH=\"$HOME/.cargo/bin:$PATH\" cargo run -p pathland-gtk-demo\n\n# Java demo (JNA over pathland-native + pathland-gtk)\nPATH=\"$HOME/.cargo/bin:$PATH\" cargo build -p pathland-native -p pathland-gtk\ncd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java\n```\n\nOn macOS the Java demo must run GTK on the main thread:\n`MAVEN_OPTS=\"-XstartOnFirstThread\"`.\n\n### Build for wasm32 (browser projection only)\n\n```bash\nRUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \\\n  cargo build --target wasm32-unknown-unknown\n```\n\n## Components & Properties\n\nComponent and property IDs are defined in `pathland-opcode`'s\n[`constants.rs`](./lib/rust/crates/pathland-opcode/src/constants.rs) and\ndocumented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,\n`VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties\n(`SPACING`, `PADDING`, `ALIGNMENT`, …) drive native layout, and `WIDTH`/`HEIGHT`\nuse `-1` = FILL, `-2` = HUG_CONTENT.\n\n## Design Tokens\n\nThe renderer owns default token values; the application owns overrides.\nTokens are identified by dot-separated paths (`color.primary`, `space.2`) and\nreferenced via the `DESIGN_TOKEN` value type or overridden globally with\n`SET_DESIGN_TOKEN`. See [Design Token System](./spec/OPCODE.md#design-token-system).\n\n## Roadmap (POC Goals)\n\nSee the GitHub issues (#12, #13, #15, #16, #18):\n\n1. **16-byte opcode engine** — done\n2. **Core components & modifiers in Rust** (SwiftUI-like API) — done\n3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done\n4. **Rust desktop app with GTK4 renderer** (native shared ring) — done\n5. **Catalog-driven DSL** (YAML → Java via `pathland-codegen`) — done\n6. Quarkus SSR + WebSocket demo — planned\n\n## Versioning\n\nPathland follows **Semantic Versioning** (Major.Minor.Patch). The wire protocol\nversion is 1 (see [OPCODE.md](./spec/OPCODE.md)).\n\n## License\n\nPathland is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.",
+                "lineStart": 1,
+                "lineEnd": 131,
+                "totalLines": 131,
+                "truncated": false
+              }
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787325714074,
+              "end": 1787325714084
+            }
+          },
+          "id": "prt_024ea0e03001NADVDRweOHkyXt",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea041d001pGn9ehSRULmicc"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "call_01_P79atb37eazfcvmlOuKe6902",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "ls -la"
+            },
+            "output": "total 96\ndrwxr-xr-x  13 michael  staff    416 21 aug. 17:18 .\ndrwxr-xr-x  13 michael  staff    416  2 jul. 13:21 ..\ndrwxr-xr-x   7 michael  staff    224 16 aug. 22:05 .entire\ndrwxr-xr-x  21 michael  staff    672 21 aug. 17:18 .git\n-rw-r--r--@  1 michael  staff     97 19 aug. 19:53 .gitignore\ndrwxr-xr-x   7 michael  staff    224 16 aug. 22:04 .opencode\n-rw-r--r--   1 michael  staff  18922 21 aug. 17:18 AGENTS.md\n-rwxr-xr-x@  1 michael  staff    707 19 aug. 19:44 generate.sh\ndrwxr-xr-x@  5 michael  staff    160 19 aug. 19:18 lib\n-rw-r--r--   1 michael  staff  11357 25 jun. 16:49 LICENSE\n-rw-r--r--   1 michael  staff   6412 21 aug. 17:18 README.md\ndrwxr-xr-x   4 michael  staff    128 16 aug. 22:49 spec\ndrwxr-xr-x@  3 michael  staff     96 18 aug. 08:36 wit\n",
+            "metadata": {
+              "output": "total 96\ndrwxr-xr-x  13 michael  staff    416 21 aug. 17:18 .\ndrwxr-xr-x  13 michael  staff    416  2 jul. 13:21 ..\ndrwxr-xr-x   7 michael  staff    224 16 aug. 22:05 .entire\ndrwxr-xr-x  21 michael  staff    672 21 aug. 17:18 .git\n-rw-r--r--@  1 michael  staff     97 19 aug. 19:53 .gitignore\ndrwxr-xr-x   7 michael  staff    224 16 aug. 22:04 .opencode\n-rw-r--r--   1 michael  staff  18922 21 aug. 17:18 AGENTS.md\n-rwxr-xr-x@  1 michael  staff    707 19 aug. 19:44 generate.sh\ndrwxr-xr-x@  5 michael  staff    160 19 aug. 19:18 lib\n-rw-r--r--   1 michael  staff  11357 25 jun. 16:49 LICENSE\n-rw-r--r--   1 michael  staff   6412 21 aug. 17:18 README.md\ndrwxr-xr-x   4 michael  staff    128 16 aug. 22:49 spec\ndrwxr-xr-x@  3 michael  staff     96 18 aug. 08:36 wit\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "ls -la",
+            "time": {
+              "start": 1787325714191,
+              "end": 1787325714193
+            }
+          },
+          "id": "prt_024ea0eb5001Rb8kIWYM6hSTUM",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea041d001pGn9ehSRULmicc"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-finish",
+          "tokens": {
+            "total": 13211,
+            "input": 13051,
+            "output": 90,
+            "reasoning": 70,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0.00297682,
+          "id": "prt_024ea0f9f001OYQQS4urro7uuZ",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea041d001pGn9ehSRULmicc"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000847548,
+        "tokens": {
+          "total": 15939,
+          "input": 2416,
+          "output": 181,
+          "reasoning": 158,
+          "cache": {
+            "write": 0,
+            "read": 13184
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325714382,
+          "completed": 1787325718914
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ea0fce0010KKAZGDDQoIGmH",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-start",
+          "id": "prt_024ea145d0012S81yBY78RZJw3",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea0fce0010KKAZGDDQoIGmH"
+        },
+        {
+          "type": "reasoning",
+          "text": "Let me understand the current terminology used across the project. The user wants to settle on a term for \"renderer/driver/host\" - the third element. Let me search the codebase for the terms used.\n\nThe 4 elements:\n1. Retained UI model (the view DSL / retained tree)\n2. Opcode engine (emits opcodes from the retained model)\n3. Renderer/driver/host (consumes opcodes, renders natively)\n4. Transport (delivers opcodes from engine to renderer)\n\nThe user wants to:\n- Settle on a term for #3\n- Document these 4 elements in the beginning of README.md with a visual aid\n\nLet me research current terminology in the codebase to see what's used.",
+          "time": {
+            "start": 1787325716694,
+            "end": 1787325717734
+          },
+          "id": "prt_024ea18d600100QFo4156gjwAu",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea0fce0010KKAZGDDQoIGmH"
+        },
+        {
+          "type": "text",
+          "text": "Let me research the current terminology used across the codebase before proposing a term.",
+          "time": {
+            "start": 1787325717735,
+            "end": 1787325718836
+          },
+          "id": "prt_024ea1ce7001GSefRmDv33RR7D",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea0fce0010KKAZGDDQoIGmH"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "call_00_B5KlcSWMLVZIQt2IStU35044",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "renderer|driver|host",
+              "include": "*.md"
+            },
+            "output": "Found 100 matches (more matches available)\n/Users/michael/Development/michaelkrog/Pathland/AGENTS.md:\n  Line 14: > memory, consumed by host renderers. View components and modifiers are written\n\n  Line 25: - Opcodes live in a **ring buffer** in linear memory; the guest writes at `writeCursor`, the host reads from `readCursor`; frame boundaries via a monotonic `frameCount` in the header block.\n\n  Line 26: - **Both directions are binary**: a second **event ring** (host → guest) carries `EVENT`-category opcodes. The renderer writes raw inputs at `eventWriteCursor`; the guest drains them at `eventReadCursor`. Events are 16-byte opcodes through the engine, never a side-channel callback.\n\n  Line 37: - **Native elements everywhere**: each platform's renderer maps the opcode stream onto that platform's native elements — GTK4 widgets on desktop, DOM elements in the browser, HTML server-side — and those native elements lay themselves out. Never a generic canvas unless a platform has no native equivalent.\n\n  Line 50: crates/pathland-host/     # host reader: ring -> native-element description (std layer)\n\n  Line 55: crates/pathland-wit-host/ # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)\n\n  Line 57:                           #   shared-memory ring, for Swift/Java/C#/other native hosts\n\n  Line 60:                           #   pango. Exposes pathland_gtk_run for Java (JNA) hosts.\n\n  Line 78: - Run the Java demo (JNA over the native C-ABI shim + GTK renderer):\n\n  Line 87: functions, with a **shared-memory ring** the host driver reads in place. Any\n\n  Line 91: JNA. wasmtime/WIT remain only for remote/browser hosts.\n\n  Line 95: The desktop renderer: a single crate that owns **all** GTK/glib/pango usage and\n\n  Line 103:   `pathland_gtk_run(host, on_event)`; button clicks round-trip as `EVENT`\n\n  Line 107: line belongs to the embedding host — e.g. the JVM's `-cp`/`-D` flags — and must\n\n  Line 130: **browser/remote** path (WASM guest + wasmtime hosts). It is flat and id-based,\n\n  Line 131: deliberately NOT the Rust DSL — desktop/cross-language hosts use the native C\n\n  Line 138:   network-batch bytes, so the same wire format serves desktop + network hosts).\n\n  Line 139: - `input`: `dispatch(event)` — raw-input event ingress (host → guest).\n\n  Line 140: - `app` (imported): `on-event(event)` — the host application callback.\n\n  Line 143: `text(...)` / custom views; the bridge (`pathland-wit-host::import_tree`) walks\n\n  Line 154: | 16 | Rust desktop app with GTK4 renderer (native shared ring) | **Complete** |\n\n  Line 161: **Pathland is a cross-platform, cross-language UI protocol** that enables retained-mode UI development with multiple renderer backends. It is **protocol-first**, meaning the protocol specification is the source of truth, not any particular implementation.\n\n  Line 163: **Primary Goal**: Write once, run anywhere - Enable UI code to be written once and deployed across web, mobile, desktop, and embedded platforms through different renderer implementations.\n\n  Line 173: > **The renderer MUST NOT retain application state.**\n\n  Line 176: - A renderer MAY retain its **rendered-output tree** (id → native element + computed layout) for drawing, hit-testing, and event routing — this is a cache of its own output, not state\n\n  Line 177: - The renderer MUST NOT retain component property values as business state, application control flow, or anything the application can change without emitting an opcode\n\n  Line 179: - The engine emits **deltas only**; the renderer applies them to its native elements\n\n  Line 197: - Fixed **16-byte instructions** in a ring buffer shared with the host via linear memory\n\n  Line 199: - **Both directions are binary**: tree mutations (app → renderer) AND raw-input events (renderer → app) share the same instruction format, so the wire is language- and platform-agnostic\n\n  Line 252: - Semantic token resolution and theme adaptation are **renderer-owned**\n\n  Line 272: 4. Implement native-element mapping in the target renderer (Goal 3–5)\n\n  Line 278: 4. Implement in each renderer's property application\n\n  Line 283: 3. Verify backward compatibility; update `pathland-engine`/`pathland-host` + tests\n\n  Line 308: **Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-transport`), the WIT component world (`wit/pathland.wit`) + WASM guest component (`pathland-guest`) + host bindings/bridge (`pathland-wit-host`, browser/remote only), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory), the **GTK4 renderer** (`pathland-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, and the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL). **Tests green across the workspace.**\n\n  Line 310: **Planned / deferred**: signals (Goal 2/#13), Quarkus SSR + WebSocket demo (Goal 4/#15), host → guest events over the network transport (the ring carries them; the network batch wire format does not yet), TEXT_FIELD editing, image rendering.\n\n  Line 332: **When in doubt**: Check `spec/OPCODE.md`, the conformance vectors in `spec/CONFORMANCE.md`, and the reference implementation (`pathland-opcode`). Ask: \"Does this maintain stateless renderers?\" \"Does this only transmit actual changes?\" \"Does this describe WHAT the UI is, never WHERE?\" \"Is this representable as a 16-byte opcode in any language?\"\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/README.md:\n  Line 5: consumed by host renderers. Runs natively on desktop (C ABI + GTK renderer);\n\n  Line 15: ├── pathland-host/     # host reader: ring -> native-element description (std layer)\n\n  Line 19: ├── pathland-wit-host/ # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)\n\n  Line 53: ## Run the Java demo (cross-language, JNA over the native C-ABI shim + GTK renderer)\n\n  Line 65: shared `pathland-gtk` renderer (in-process via JNA). It uses **no Swing and no\n\n  Line 115: opcodes, so an unchanged tree emits zero opcodes. Native renderers map the\n\n\n/Users/michael/Development/michaelkrog/Pathland/README.md:\n  Line 8: multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\n\n  Line 14: linear memory. Each platform's renderer maps the opcode stream onto that\n\n  Line 20: through the shared GTK renderer (`pathland-gtk`). **WASM/WIT are the\n\n  Line 32: - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n\n  Line 36: - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n\n  Line 38: - **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n\n  Line 57: | `pathland-host` | Host reader: ring → native-element description (`std` convenience layer) |\n\n  Line 60: | `pathland-gtk` | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n\n  Line 64: | `pathland-wit-host` | WIT host bindings + DSL bridge (browser/remote only) |\n\n  Line 76: ### Run the demos (native, zero-copy shared ring + GTK renderer)\n\n  Line 108: The renderer owns default token values; the application owns overrides.\n\n  Line 120: 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done\n\n\n/Users/michael/Development/michaelkrog/Pathland/spec/CONFORMANCE.md:\n  Line 189: - `TREE` / `STYLE` are **guest → host** (application → renderer).\n\n  Line 190: - `EVENT` is **host → guest** (renderer → application): raw pointer/keyboard\n\n  Line 191:   inputs with a host-resolved `targetId`. A conforming EVENT encoder/decoder\n\n  Line 203: The host → guest event ring shares the same 16-byte slot format and lives at\n\n  Line 205: and `eventWriteCursor` (0x3A, host-owned). A host writing `EVENT:POINTER_UP`\n\n  Line 229: - `00 00` = flags (guest → host)\n\n\n/Users/michael/Development/michaelkrog/Pathland/spec/OPCODE.md:\n  Line 12: The Pathland Opcode Protocol is the **fixed-size instruction engine** at the heart of the Rust-first architecture. The **WASM guest engine** emits the application's **declarative view structure** — VStack, HStack, Text, spacing, padding, alignment — as a stream of fixed 16-byte opcodes into a **ring buffer** in **linear memory**. The host renderer consumes the ring and maps the structure onto that platform's **native elements** (GTK4 widgets, DOM elements, HTML).\n\n  Line 14: **The engine does not compute layout and does not emit rects.** Native renderers lay out their own native elements from the constraint properties the engine passes through. This is the Pathland principle: *always render through that platform's native elements.*\n\n  Line 23: - **Linear, deterministic decoding**: the host walks the ring with a single cursor.\n\n  Line 30: 4. **Native elements**: renderers map the opcode stream onto that platform's native elements — never a generic canvas unless a platform has no native equivalent.\n\n  Line 31: 5. **Zero-copy**: the ring and arena are plain regions of the same linear memory shared with the host.\n\n  Line 32: 6. **Single-producer / single-consumer**: the guest engine produces; the host renderer consumes. No locks required.\n\n  Line 91: | `EVENT` | `0x03` | Raw inputs | Host renderer | Pointer down/move/up, key down/up |\n\n  Line 111: that native renderers feed to their own layout — spacing, padding, alignment,\n\n  Line 141: The following properties drive native layout; the renderer maps them to its\n\n  Line 159: ### EVENT (0x03) — host → guest\n\n  Line 161: Events are the **raw inputs**: the renderer reports what happened (a pointer\n\n  Line 180: | `ENVIRONMENT` | `0x02` | viewportWidth (f32) | viewportHeight (f32) | 0 | Viewport size in logical points (host → guest) |\n\n  Line 200: engine's next `emit` reconciles and writes only the delta. The renderer applies\n\n  Line 207: The guest engine and host share a **single linear memory**. Regions are fixed at module start:\n\n  Line 212: | 0x0040  Ring buffer (16 B × slotCount)   [guest → host]        |\n\n  Line 214: | 0x10040 Event ring buffer (16 B × slotCount) [host → guest]    |\n\n  Line 221: > The event ring is the **host → guest** direction of the shared-memory\n\n  Line 222: > transport: the renderer writes `EVENT`-category opcodes here and the\n\n  Line 224: > (guest → host) ring; both share `slotCount` (same capacity).\n\n  Line 238: | 0x1E | 4 | `readCursor` | host | Ring slot the host has consumed up to |\n\n  Line 241: | 0x2A | 4 | `eventRingOffset` | — | Byte offset of the host→guest event ring region |\n\n  Line 245: | 0x3A | 4 | `eventWriteCursor` | host | Event ring slot the host has written up to |\n\n  Line 252: - **Consumer** (host) reads from `readCursor` up to `writeCursor`; after draining a frame it advances `readCursor`.\n\n  Line 254: - **Frame boundary detection**: the host watches `frameCount`. When it advances, exactly one frame (all slots from the previously consumed `readCursor` to the current `writeCursor`) is complete.\n\n  Line 256: ### Event ring (host → guest)\n\n  Line 258: - The **host** (renderer) is the producer: it writes `EVENT`-category opcodes at `eventWriteCursor`.\n\n  Line 261: - Backpressure mirrors the main ring: the host must not advance `eventWriteCursor` past `eventReadCursor`.\n\n  Line 279: Stored little-endian in a `u32` payload. Semantic token resolution and theme adaptation remain **renderer-owned** (see [Design Token System](#design-token-system)).\n\n  Line 287: > **The renderer owns the defaults. The application owns the overrides.**\n\n  Line 310:     ELSE IF rendererDefaults.has(tokenPath):\n\n  Line 311:         RETURN rendererDefaults[tokenPath]\n\n  Line 320: The renderer MUST:\n\n  Line 332: Required core tokens (renderer MUST support with platform-appropriate defaults): `color.primary`, `color.secondary`, `color.background`, `color.surface`, `color.text.primary`, `color.text.secondary`, `color.border`, `font.body.size`, `font.body.weight`, `font.body.family`, `space.xs`–`space.lg`.\n\n  Line 348: Because the ring and arena are plain memory, the guest publishes via a single release store of `frameCount`; the host acquires on read.\n\n  Line 355: producer (guest engine) to consumer (host renderer):\n\n  Line 359: | Shared memory | Desktop / native (guest + host share linear memory) | The ring buffer + arena above; zero-copy |\n\n  Line 360: | Network batch | SSR → browser (guest and host do **not** share memory) | Serialized batches of opcodes + arena delta |\n\n  Line 362: The `Frame` type is the **transport seam**: a consumer (renderer) applies a\n\n  Line 376: - **flags**: direction. `0x0000` = guest → host (tree/style). Bit `0x0001` is\n\n  Line 377:   reserved for host → guest (raw-input events), not yet implemented.\n\n\n(Results truncated. Consider using a more specific path or pattern.)",
+            "metadata": {
+              "matches": 100,
+              "truncated": true
+            },
+            "title": "renderer|driver|host",
+            "time": {
+              "start": 1787325718040,
+              "end": 1787325718116
+            }
+          },
+          "id": "prt_024ea1d73001Nr0rTLrMIhc4uv",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea0fce0010KKAZGDDQoIGmH"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "call_01_o2zWf9ho9r7zCldCZI8y5119",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "rg -li \"renderer|render|driver|host\" --type rust --type-add 'yaml:*.yaml' -g '!target' -g '!target_*' | sort",
+              "workdir": "/Users/michael/Development/michaelkrog/Pathland"
+            },
+            "output": "zsh:1: command not found: rg\n",
+            "metadata": {
+              "output": "zsh:1: command not found: rg\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "rg -li \"renderer|render|driver|host\" --type rust --type-add 'yaml:*.yaml' -g '!target' -g '!target_*' | sort",
+            "time": {
+              "start": 1787325718769,
+              "end": 1787325718771
+            }
+          },
+          "id": "prt_024ea1e44001m1rvPmG6XL01RV",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea0fce0010KKAZGDDQoIGmH"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-finish",
+          "tokens": {
+            "total": 15939,
+            "input": 2416,
+            "output": 181,
+            "reasoning": 158,
+            "cache": {
+              "write": 0,
+              "read": 13184
+            }
+          },
+          "cost": 0.000847548,
+          "id": "prt_024ea215d001cpcIiJ2fEkJMZN",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea0fce0010KKAZGDDQoIGmH"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001253784,
+        "tokens": {
+          "total": 19990,
+          "input": 3580,
+          "output": 135,
+          "reasoning": 403,
+          "cache": {
+            "write": 0,
+            "read": 15872
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325718916,
+          "completed": 1787325724715
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ea2184001BGtcMkwcK2GrVZ",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-start",
+          "id": "prt_024ea2567001GtfIAieRZCj0PD",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea2184001BGtcMkwcK2GrVZ"
+        },
+        {
+          "type": "reasoning",
+          "text": "`rg` isn't available. Let me use grep tool instead. Let me understand the terminology usage better. The project uses \"renderer\" primarily, and \"host\" a lot in specific contexts (host reader, host renderer, wasmtime hosts, host driver, native hosts). And \"driver\" in one spot (\"host driver\").\n\nThe 4 elements:\n1. Retained UI model - the view DSL (`pathland-view`), the app-side retained tree\n2. Opcode engine - `pathland-engine`, `pathland-opcode` - emits opcodes\n3. Renderer/driver/host - `pathland-gtk`, `pathland-host`, `pathland-native` NativeHost - consumes opcodes and renders native elements\n4. Transport - `pathland-transport` - the ring buffer / network batch delivery\n\nThe user wants to settle on a term for #3. Let me ask the user for their preference. The terms in play: \"renderer\", \"host\", \"driver\". \n\nGiven the project's own terminology and the fact that \"renderer\" is used most consistently (pathland-gtk is \"GTK4 renderer\", \"host renderer\", \"native renderers\"), but there's also \"host\" usage. However there's a subtlety: in the codebase \"host\" often means the whole consumer side (including the transport reading). \"Driver\" appears once.\n\nI think I should ask the user which term they prefer, offering options with reasoning. Let me check the codebase a bit more to see exact usage counts to inform the recommendation. Let me count \"renderer\" vs \"host\" vs \"driver\" usage.\n\nActually, I should ask the user since this is a naming decision they want to settle. Let me offer a question with recommended options. Let me quickly gather info on how the crates are actually named/structured so my recommendation is grounded.\n\nLet me look at the crate structure quickly.",
+          "time": {
+            "start": 1787325720616,
+            "end": 1787325724052
+          },
+          "id": "prt_024ea2828001JmHAIiNh2l4uNg",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea2184001BGtcMkwcK2GrVZ"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "call_00_SbPa9LlmjB7cahCmpoTs2218",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "ls lib/rust/crates/"
+            },
+            "output": "pathland-codegen\npathland-engine\npathland-gtk\npathland-gtk-demo\npathland-guest\npathland-host\npathland-native\npathland-opcode\npathland-transport\npathland-view\npathland-wit-host\n",
+            "metadata": {
+              "output": "pathland-codegen\npathland-engine\npathland-gtk\npathland-gtk-demo\npathland-guest\npathland-host\npathland-native\npathland-opcode\npathland-transport\npathland-view\npathland-wit-host\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "ls lib/rust/crates/",
+            "time": {
+              "start": 1787325724161,
+              "end": 1787325724162
+            }
+          },
+          "id": "prt_024ea3596001oZoHuMeFr5srU0",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea2184001BGtcMkwcK2GrVZ"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "call_01_rSrW5JssB7bFdXpqS11G6274",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "\\bdriver\\b"
+            },
+            "output": "Found 9 matches\n/Users/michael/Development/michaelkrog/Pathland/AGENTS.md:\n  Line 87: functions, with a **shared-memory ring** the host driver reads in place. Any\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-demo/src/main/java/pathland/RingReader.java:\n  Line 15:  * The driver is shown the raw ring pointer by the Rust host\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-transport/src/traits.rs:\n  Line 7: //! - the **consumer** (driver) that reads them.\n\n  Line 68: /// The driver resolves a raw input to a node id (via hit-testing) and dispatches\n\n  Line 75: /// The consumer side of a transport: the driver reads frames here.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-transport/src/ring.rs:\n  Line 3: //! The producer (opcode engine) and consumer (native driver) share one linear\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-opcode/src/lib.rs:\n  Line 82: /// in place (zero-copy) without a `Host` handle — e.g. a foreign driver that\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-native/src/capi.rs:\n  Line 6: //! the foreign driver reads opcodes **in place** (zero-copy).\n\n  Line 146: /// foreign driver can read opcodes in place. Never null; the header layout is\n",
+            "metadata": {
+              "matches": 9,
+              "truncated": false
+            },
+            "title": "\\bdriver\\b",
+            "time": {
+              "start": 1787325724281,
+              "end": 1787325724296
+            }
+          },
+          "id": "prt_024ea3618001yg7S2ytqDN0lLy",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea2184001BGtcMkwcK2GrVZ"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "call_02_T092fSV99fA94cfrB4mF1417",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "\\brenderer\\b",
+              "include": "*.rs"
+            },
+            "output": "Found 50 matches\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-host/src/lib.rs:\n  Line 5: //! structure (`TREE`) plus constraint properties (`STYLE`) a renderer maps onto\n\n  Line 8: //! The engine does not compute layout; this crate stores only what the renderer\n\n  Line 115:                     // Token overrides are handled by the renderer's theme layer.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-gtk/src/lib.rs:\n  Line 3: //! The Pathland **GTK4 renderer**. It consumes opcode frames (via\n\n  Line 8: //! Demos author their UI with the Pathland DSL and drive this renderer; they\n\n  Line 19: //! The `pathland_gtk_*` C ABI (`capi` module) exposes the same renderer to a\n\n  Line 35: /// Callback the renderer invokes with a decoded raw-input event.\n\n  Line 38: /// The bidirectional transport surface the renderer pumps: frames in\n\n  Line 61: /// The GTK4 renderer: a retained `id → gtk::Widget` map kept in sync with the\n\n  Line 77:     /// Create an empty renderer. Call [`GtkRenderer::apply_frame`] per frame.\n\n  Line 277: /// Run the GTK renderer over a shared ring, pumping frames in and events out.\n\n  Line 322:         let renderer = Rc::new(RefCell::new(GtkRenderer::new()));\n\n  Line 332:             renderer.borrow_mut().set_event_sink(sink);\n\n  Line 336:         pump_once(&renderer, &pump, &mut |_, _| {});\n\n  Line 337:         let root = renderer.borrow().root_widget();\n\n  Line 345:         let idle_renderer = renderer.clone();\n\n  Line 361: /// apply pending frames to the renderer.\n\n  Line 362: fn pump_once<P, F>(renderer: &Rc<RefCell<GtkRenderer>>, pump: &Rc<RefCell<P>>, on_event: &mut F)\n\n  Line 379:                 renderer.borrow_mut().apply_frame(frame);\n\n  Line 395:         // Build a tree, emit into a ring, decode via RenderTree (the renderer's\n\n  Line 424:         // Ensures the renderer type is constructible without a display.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-gtk/src/capi.rs:\n  Line 1: //! C ABI for the Pathland GTK renderer (Java host).\n\n  Line 5: //! renderer its shared ring and run GTK in-process. Raw-input events are\n\n  Line 23: /// The renderer borrows the host through a raw pointer for the duration of\n\n  Line 46: /// Run the GTK renderer over a `pathland-native` host's shared ring.\n\n  Line 48: /// `host` is the opaque handle from `pathland_native_create`; the renderer\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-opcode/src/ring.rs:\n  Line 213: /// The host (renderer) writes at `eventWriteCursor`; the guest reads from\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-opcode/src/lib.rs:\n  Line 26: //! ## Consumer (host renderer)\n\n  Line 289:     /// The guest (app/engine) polls this to receive renderer-reported inputs.\n\n  Line 385: /// Consumer side: the host renderer reading completed frames.\n\n  Line 464:     /// 16-byte `EVENT` opcode. The renderer reports inputs here; the guest\n\n  Line 538:         // Host (renderer) writes an event.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-opcode/src/events.rs:\n  Line 3: //! Events are the **raw inputs** the renderer reports: pointer down/move/up and\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-gtk-demo/src/main.rs:\n  Line 4: //! and the shared **GTK renderer** (`pathland-gtk`).\n\n  Line 8: //! the `pathland-gtk` renderer maps them onto native GTK widgets. The demo never\n\n  Line 9: //! touches GTK/glib/pango directly — it only drives Pathland and the renderer.\n\n  Line 53:     // Initial frame before the renderer starts pumping.\n\n  Line 56:     // Hand the renderer the shared ring and an event handler. On a button\n\n  Line 58:     // counter and re-emit; the renderer's idle pump applies the delta.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-transport/src/traits.rs:\n  Line 3: //! The UI runtime produces renderer-neutral opcodes and knows nothing about the\n\n  Line 66: /// Handles raw-input events arriving from the host (renderer → engine).\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-transport/src/batch.rs:\n  Line 235:         // A META::RESET in the batch clears the renderer; reset the arena mirror\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-transport/src/ring.rs:\n  Line 153:         // Host (renderer) reports a click.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-transport/src/lib.rs:\n  Line 16: //! renderer exactly like a shared-memory frame.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-view/src/lib.rs:\n  Line 49: //! property and the renderer ignores what it cannot apply.\n\n  Line 315:     /// (-2.0) sentinels, or `None` to leave that axis to the native renderer.\n\n  Line 362: /// renderer.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-native/src/lib.rs:\n  Line 195: /// The host is a `FrameSource` over its shared ring: a renderer drains the\n\n  Line 211:     /// Drain raw-input events written by a renderer into the host → guest event\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-codegen/src/main.rs:\n  Line 371:     out.push_str(\"     * for a fixed axis, or {@code Float.NaN} to leave it to the native renderer.\\n\");\n",
+            "metadata": {
+              "matches": 50,
+              "truncated": false
+            },
+            "title": "\\brenderer\\b",
+            "time": {
+              "start": 1787325724486,
+              "end": 1787325724496
+            }
+          },
+          "id": "prt_024ea36a6001dwp1HBNtH2Ljjw",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea2184001BGtcMkwcK2GrVZ"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-finish",
+          "tokens": {
+            "total": 19990,
+            "input": 3580,
+            "output": 135,
+            "reasoning": 403,
+            "cache": {
+              "write": 0,
+              "read": 15872
+            }
+          },
+          "cost": 0.001253784,
+          "id": "prt_024ea38060012CwViq5c5IKSq0",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea2184001BGtcMkwcK2GrVZ"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001280036,
+        "tokens": {
+          "total": 23035,
+          "input": 2009,
+          "output": 393,
+          "reasoning": 665,
+          "cache": {
+            "write": 0,
+            "read": 19968
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325724717,
+          "completed": 1787325780820
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ea382d001mvr5hUvvSiJJIF",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-start",
+          "id": "prt_024ea3c8e001LC7uAXljw95wlJ",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea382d001mvr5hUvvSiJJIF"
+        },
+        {
+          "type": "reasoning",
+          "text": "Now I have a good understanding. The terminology in use:\n- \"renderer\" — used pervasively (pathland-gtk is \"GTK4 renderer\", \"host renderer\", \"native renderers\"). This is the most consistent term for the thing that maps opcodes onto native elements.\n- \"host\" — used for the consumer side more broadly (pathland-host crate = host reader, wasmtime hosts, Java host, NativeHost in pathland-native). \"host\" tends to mean the embedding/consuming environment.\n- \"driver\" — used occasionally (host driver, foreign driver, native driver, consumer (driver)). It emphasizes the loop: pump frames, dispatch events, drive the app.\n\nThe 4 elements:\n1. Retained UI model — app-side model (`pathland-view`, the tree)\n2. Opcode engine — emits 16-byte opcodes (`pathland-opcode` + `pathland-engine`)\n3. Renderer/driver/host — consumes opcodes, maps to native elements, reports events (`pathland-host`, `pathland-native` NativeHost, `pathland-gtk`)\n4. Transport — delivers opcodes (`pathland-transport`: shared ring, network batch)\n\nThe user wants to settle on ONE term for #3. This is a naming decision that affects docs going forward. I should ask the user for their preference, since it's subjective and they said \"I want to settle on a term.\" Let me offer options via the question tool.\n\nMy recommendation: \"renderer\" is the most consistent with existing usage and the project vision (\"renderers are dumb\", \"stateless renderers\", \"GTK4 renderer\", \"each platform's renderer maps...\"). It's also the clearest term — it describes what the element does (renders). \"driver\" emphasizes the pump loop which is a sub-role. \"host\" is overloaded (host = consumer environment, NativeHost, Java host).\n\nActually, I want to think carefully. There's a subtlety: element #3 encompasses both the \"driver/host\" pump loop (pathland-host, pathland-native NativeHost) AND the renderer (pathland-gtk). So it's not purely the \"renderer.\" But \"renderer\" is the natural umbrella term and the most used. The AGENTS.md refers to \"host renderers\" as the consumers. \n\nI'll ask the user, recommending \"renderer\". Let me present the options with concise descriptions.\n\nActually, let me reconsider - the user might prefer a term that captures all three aspects. Let me give 3-4 options:\n- renderer (recommended) — most established usage; describes what it does (maps opcodes to native elements); AGENTS.md already says \"host renderers\"\n- driver — emphasizes the event loop / pumping; matches pathland-transport's \"consumer (driver)\" terminology\n- host — emphasizes the consumer/embedding side; matches pathland-host/NativeHost crates, but overloaded\n- display/surface? No.\n\nI'll ask. Then after they choose, I'll write the README section with a visual aid (ASCII diagram) at the beginning.\n\nLet me ask the question.",
+          "time": {
+            "start": 1787325726501,
+            "end": 1787325732230
+          },
+          "id": "prt_024ea3f25001iZksRGPA0AqYLS",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea382d001mvr5hUvvSiJJIF"
+        },
+        {
+          "type": "text",
+          "text": "I've reviewed how these terms are used across the codebase:\n\n- **renderer** — dominant and most consistent (`pathland-gtk` = \"GTK4 renderer\", \"host renderers\", \"stateless renderers\", spec's \"native renderers\")\n- **driver** — used for the pump/event loop (\"host driver\", \"consumer (driver)\" in `pathland-transport`)\n- **host** — used for the consumer/embedding side (`pathland-host`, `NativeHost`, \"Java host\"), but it's overloaded\n\nThis is a naming decision you want to settle, so let me ask before writing it into the README.",
+          "time": {
+            "start": 1787325732233,
+            "end": 1787325735014
+          },
+          "id": "prt_024ea5589001JehGLkR9CxZr3O",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea382d001mvr5hUvvSiJJIF"
+        },
+        {
+          "type": "tool",
+          "tool": "question",
+          "callID": "call_00_CJPdqNBOrj7BSx9JPnZY6023",
+          "state": {
+            "status": "completed",
+            "input": {
+              "questions": [
+                {
+                  "question": "Which single term should the project use for element #3 (the thing that consumes opcodes, maps them to native elements, and reports events)?",
+                  "header": "Term for element #3",
+                  "options": [
+                    {
+                      "label": "Renderer (Recommended)",
+                      "description": "Already the dominant term in the codebase and spec (GTK4 renderer, stateless renderers, native renderers). Describes what it does: maps opcodes onto native elements. 'Driver' and 'host' remain roles/crates."
+                    },
+                    {
+                      "label": "Driver",
+                      "description": "Emphasizes the active pump/event loop that drives frames in and events out. Matches pathland-transport's 'consumer (driver)' wording, but is less used overall."
+                    },
+                    {
+                      "label": "Host",
+                      "description": "Emphasizes the consuming/embedding side. Matches pathland-host and NativeHost crates, but is overloaded (Java host, wasmtime host, host renderer, host driver)."
+                    }
+                  ]
+                }
+              ]
+            },
+            "output": "User has answered your questions: \"Which single term should the project use for element #3 (the thing that consumes opcodes, maps them to native elements, and reports events)?\"=\"What is the most correct term?\". You can now continue with the user's answers in mind.",
+            "metadata": {
+              "answers": [
+                [
+                  "What is the most correct term?"
+                ]
+              ],
+              "truncated": false
+            },
+            "title": "Asked 1 question",
+            "time": {
+              "start": 1787325734861,
+              "end": 1787325780711
+            }
+          },
+          "id": "prt_024ea59a1001Ua0JEON6A2ghQh",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea382d001mvr5hUvvSiJJIF"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-finish",
+          "tokens": {
+            "total": 23035,
+            "input": 2009,
+            "output": 393,
+            "reasoning": 665,
+            "cache": {
+              "write": 0,
+              "read": 19968
+            }
+          },
+          "cost": 0.001280036,
+          "id": "prt_024eb1328001zKofOYm6XCxro7",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ea382d001mvr5hUvvSiJJIF"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.002682644,
+        "tokens": {
+          "total": 22431,
+          "input": 9693,
+          "output": 706,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 12032
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325780822,
+          "completed": 1787325878893
+        },
+        "finish": "tool-calls",
+        "id": "msg_024eb13560012tZnCx5I7nwi9h",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-start",
+          "id": "prt_024eb16c0001CQ4xpa1j2jKRk3",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024eb13560012tZnCx5I7nwi9h"
+        },
+        {
+          "type": "text",
+          "text": "Good question. Let me reason through what each term actually denotes in a retained-mode UI protocol, because they're not synonyms — they describe different layers.\n\n**The four elements:**\n\n1. **Retained UI model** — the app's canonical tree (application-owned)\n2. **Opcode engine** — walks the tree, diffs, emits 16-byte opcodes (producer)\n3. **The thing that consumes opcodes → native elements → events** ← the element we're naming\n4. **Transport** — the ring/batch carrying opcodes between #2 and #3\n\n**Term analysis:**\n\n- **\"Host\"** is the *embedding environment* — the process/address space the engine runs inside, and the entity that provides memory + the event sink. `pathland-host` and `NativeHost` embody this. It's about *ownership of the runtime container*, not about consuming opcodes. It's the most overloaded and least descriptive of the specific \"apply frames to native widgets\" job.\n\n- **\"Driver\"** describes the *active pump* — the loop that pulls frames, applies them, and pushes events. In `pathland-transport` it's literally used as the \"consumer (driver).\" It's accurate for the *loop* but under-describes that the core job is *rendering* (mapping structure onto native elements).\n\n- **\"Renderer\"** is the most *technically correct and precise* term for element #3's essential function: it is the component that **renders** — takes the declarative opcode stream and produces actual native UI. In retained-mode graphics (Retained Mode vs Immediate Mode, used across SwiftUI/React/GTK), \"renderer\" is the established name for exactly this role: consuming a retained/scene description and producing concrete output. It's also the dominant term already in this codebase and spec.\n\n**But there's nuance:** the crate `pathland-host` is genuinely a *host* (the embedding container) and `pathland-gtk` is genuinely a *renderer*. They're distinct layers that both live on the consuming side. The clean answer:\n\n> **The canonical term is \"renderer\"** — it's the most technically correct name for the component that consumes opcodes and produces native elements (matching retained-mode convention across the industry), and it's already the dominant usage in this project. **\"Host\" and \"driver\" remain *roles* the renderer plays**: a renderer runs *in* a host, and a driver pumps it.\n\nLet me confirm how you want to proceed with the README edit.\n\n",
+          "time": {
+            "start": 1787325781704,
+            "end": 1787325788893
+          },
+          "id": "prt_024eb16c8001ZLroNuYmljFfex",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024eb13560012tZnCx5I7nwi9h"
+        },
+        {
+          "type": "tool",
+          "tool": "question",
+          "callID": "chatcmpl-tool-b63a0d66f526bed7",
+          "state": {
+            "status": "completed",
+            "input": {
+              "questions": [
+                {
+                  "header": "Confirm choice",
+                  "options": [
+                    {
+                      "description": "Element #3 is called the 'renderer'. Host and driver stay as roles a renderer plays (runs in a host; a driver pumps it). Update README to use this consistently.",
+                      "label": "Use 'renderer' (Recommended)"
+                    },
+                    {
+                      "description": "You'd prefer a different canonical term and want to discuss further before editing the README.",
+                      "label": "Discuss other terms"
+                    }
+                  ],
+                  "question": "Proceed with 'renderer' as the canonical term for element #3?"
+                }
+              ]
+            },
+            "output": "User has answered your questions: \"Proceed with 'renderer' as the canonical term for element #3?\"=\"Use 'renderer' (Recommended)\". You can now continue with the user's answers in mind.",
+            "metadata": {
+              "answers": [
+                [
+                  "Use 'renderer' (Recommended)"
+                ]
+              ],
+              "truncated": false
+            },
+            "title": "Asked 1 question",
+            "time": {
+              "start": 1787325788822,
+              "end": 1787325878771
+            }
+          },
+          "id": "prt_024eb2f83001aX8yutPig6yT8S",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024eb13560012tZnCx5I7nwi9h"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-finish",
+          "tokens": {
+            "total": 22431,
+            "input": 9693,
+            "output": 706,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 12032
+            }
+          },
+          "cost": 0.002682644,
+          "id": "prt_024ec923e001qKSvB8dU1g5k4l",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024eb13560012tZnCx5I7nwi9h"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000836928,
+        "tokens": {
+          "total": 23198,
+          "input": 981,
+          "output": 713,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 21504
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325878896,
+          "completed": 1787325888223
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ec9270001xbgY7tMclIKvJO",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "type": "step-start",
+          "id": "prt_024ec98f1001HHpyiwVyj3U0M9",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ec9270001xbgY7tMclIKvJO"
+        },
+        {
+          "type": "text",
+          "text": "Now I'll write the \"four elements\" documentation with a visual aid into the README, using **renderer** as the canonical term. Let me draft the section to insert right after the Overview, before \"Core Principles\".\n\n",
+          "time": {
+            "start": 1787325880586,
+            "end": 1787325888096
+          },
+          "id": "prt_024ec990a001iNMaeUmYhvxnTG",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ec9270001xbgY7tMclIKvJO"
+        },
+        {
+          "type": "tool",
+          "tool": "edit",
+          "callID": "chatcmpl-tool-b6f9e16cc2391a17",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "oldString": "**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.\n\n## Core Principles",
+              "newString": "**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.\n\n## The Four Elements\n\nPathland is composed of four elements. They are the vocabulary the whole\nproject speaks, so they are settled and used consistently:\n\n```\n   ┌────────────────────┐        ┌─────────────────────┐\n   │  1. Retained model │        │  3. Renderer        │\n   │  the app's UI tree │───┐    │  native elements +  │\n   │  (application-      │   │    │  event reporting    │\n   │  owned, canonical)  │   │    └──────────▲──────────┘\n   └────────────────────┘   │               │\n                            │               │\n                            │               │\n   ┌────────────────────┐   │               │\n   │  2. Opcode engine   │◄──┘   4. Transport│\n   │  diffs + emits      │        delivers   │\n   │  16-byte opcodes    │───────────────────┘\n   └────────────────────┘\n```\n\n1. **Retained model** — the application's canonical retained UI tree. The\n   application owns it; it is the single source of truth.\n2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n   emit, so an unchanged tree emits zero opcodes.\n3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n   **native elements**, and reports raw inputs back as events. It is a pure\n   function of the opcode stream (stateless) and never retains application\n   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n   host and is pumped by a driver — they are not separate elements.*\n4. **Transport** — carries opcodes from the engine to the renderer: the\n   zero-copy shared-memory ring on desktop/native, a serialized network batch\n   for remote/browser.\n\n## Core Principles"
+            },
+            "output": "Edit applied successfully.",
+            "metadata": {
+              "diagnostics": {
+                "/Users/michael/Development/michaelkrog/Pathland/lib/ui/components.yaml": [],
+                "/Users/michael/Development/michaelkrog/Pathland/generate.sh": []
+              },
+              "diff": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -24,8 +24,43 @@\n *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n signals in the application ensure only changed nodes emit opcodes, so an\n unchanged tree emits zero opcodes.\n \n+## The Four Elements\n+\n+Pathland is composed of four elements. They are the vocabulary the whole\n+project speaks, so they are settled and used consistently:\n+\n+```\n+   ┌────────────────────┐        ┌─────────────────────┐\n+   │  1. Retained model │        │  3. Renderer        │\n+   │  the app's UI tree │───┐    │  native elements +  │\n+   │  (application-      │   │    │  event reporting    │\n+   │  owned, canonical)  │   │    └──────────▲──────────┘\n+   └────────────────────┘   │               │\n+                            │               │\n+                            │               │\n+   ┌────────────────────┐   │               │\n+   │  2. Opcode engine   │◄──┘   4. Transport│\n+   │  diffs + emits      │        delivers   │\n+   │  16-byte opcodes    │───────────────────┘\n+   └────────────────────┘\n+```\n+\n+1. **Retained model** — the application's canonical retained UI tree. The\n+   application owns it; it is the single source of truth.\n+2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n+   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n+   emit, so an unchanged tree emits zero opcodes.\n+3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n+   **native elements**, and reports raw inputs back as events. It is a pure\n+   function of the opcode stream (stateless) and never retains application\n+   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n+   host and is pumped by a driver — they are not separate elements.*\n+4. **Transport** — carries opcodes from the engine to the renderer: the\n+   zero-copy shared-memory ring on desktop/native, a serialized network batch\n+   for remote/browser.\n+\n ## Core Principles\n \n - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n",
+              "filediff": {
+                "file": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "patch": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -24,8 +24,43 @@\n *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n signals in the application ensure only changed nodes emit opcodes, so an\n unchanged tree emits zero opcodes.\n \n+## The Four Elements\n+\n+Pathland is composed of four elements. They are the vocabulary the whole\n+project speaks, so they are settled and used consistently:\n+\n+```\n+   ┌────────────────────┐        ┌─────────────────────┐\n+   │  1. Retained model │        │  3. Renderer        │\n+   │  the app's UI tree │───┐    │  native elements +  │\n+   │  (application-      │   │    │  event reporting    │\n+   │  owned, canonical)  │   │    └──────────▲──────────┘\n+   └────────────────────┘   │               │\n+                            │               │\n+                            │               │\n+   ┌────────────────────┐   │               │\n+   │  2. Opcode engine   │◄──┘   4. Transport│\n+   │  diffs + emits      │        delivers   │\n+   │  16-byte opcodes    │───────────────────┘\n+   └────────────────────┘\n+```\n+\n+1. **Retained model** — the application's canonical retained UI tree. The\n+   application owns it; it is the single source of truth.\n+2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n+   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n+   emit, so an unchanged tree emits zero opcodes.\n+3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n+   **native elements**, and reports raw inputs back as events. It is a pure\n+   function of the opcode stream (stateless) and never retains application\n+   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n+   host and is pumped by a driver — they are not separate elements.*\n+4. **Transport** — carries opcodes from the engine to the renderer: the\n+   zero-copy shared-memory ring on desktop/native, a serialized network batch\n+   for remote/browser.\n+\n ## Core Principles\n \n - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n",
+                "additions": 35,
+                "deletions": 0
+              },
+              "truncated": false
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787325888042,
+              "end": 1787325888045
+            }
+          },
+          "id": "prt_024ec9bc9001rYOhSVC6yRJ4sR",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ec9270001xbgY7tMclIKvJO"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "3d15a7d7a0a3ccfcf33d4282dfc1c6fe55e55697",
+          "type": "step-finish",
+          "tokens": {
+            "total": 23198,
+            "input": 981,
+            "output": 713,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 21504
+            }
+          },
+          "cost": 0.000836928,
+          "id": "prt_024ecb6ae001L41Z7wvKfNqAdT",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ec9270001xbgY7tMclIKvJO"
+        },
+        {
+          "type": "patch",
+          "hash": "46bfe0326b5fbc96f60c206b945b74086dceeba7",
+          "files": [
+            "/Users/michael/Development/michaelkrog/Pathland/README.md"
+          ],
+          "id": "prt_024ecb6dd001c5YPdE98Y96Pli",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ec9270001xbgY7tMclIKvJO"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000432224,
+        "tokens": {
+          "total": 23318,
+          "input": 941,
+          "output": 105,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 22272
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325888225,
+          "completed": 1787325892050
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ecb6e1001tHegBheRTAORsg",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "3d15a7d7a0a3ccfcf33d4282dfc1c6fe55e55697",
+          "type": "step-start",
+          "id": "prt_024ecbf90001en7aRqOKYLMv21",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecb6e1001tHegBheRTAORsg"
+        },
+        {
+          "type": "text",
+          "text": "Now let me verify the README renders correctly by reading the updated section.\n\n",
+          "time": {
+            "start": 1787325890486,
+            "end": 1787325891958
+          },
+          "id": "prt_024ecbfb6001kRtXyMcjNulB9W",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecb6e1001tHegBheRTAORsg"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-b046555df0f3e81c",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "offset": 22,
+              "limit": 50
+            },
+            "output": "<path>/Users/michael/Development/michaelkrog/Pathland/README.md</path>\n<type>file</type>\n<content>\n22: \n23: **The engine does not compute layout and does not emit rects.** It describes\n24: *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n25: signals in the application ensure only changed nodes emit opcodes, so an\n26: unchanged tree emits zero opcodes.\n27: \n28: ## The Four Elements\n29: \n30: Pathland is composed of four elements. They are the vocabulary the whole\n31: project speaks, so they are settled and used consistently:\n32: \n33: ```\n34:    ┌────────────────────┐        ┌─────────────────────┐\n35:    │  1. Retained model │        │  3. Renderer        │\n36:    │  the app's UI tree │───┐    │  native elements +  │\n37:    │  (application-      │   │    │  event reporting    │\n38:    │  owned, canonical)  │   │    └──────────▲──────────┘\n39:    └────────────────────┘   │               │\n40:                             │               │\n41:                             │               │\n42:    ┌────────────────────┐   │               │\n43:    │  2. Opcode engine   │◄──┘   4. Transport│\n44:    │  diffs + emits      │        delivers   │\n45:    │  16-byte opcodes    │───────────────────┘\n46:    └────────────────────┘\n47: ```\n48: \n49: 1. **Retained model** — the application's canonical retained UI tree. The\n50:    application owns it; it is the single source of truth.\n51: 2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n52:    **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n53:    emit, so an unchanged tree emits zero opcodes.\n54: 3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n55:    **native elements**, and reports raw inputs back as events. It is a pure\n56:    function of the opcode stream (stateless) and never retains application\n57:    state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n58:    host and is pumped by a driver — they are not separate elements.*\n59: 4. **Transport** — carries opcodes from the engine to the renderer: the\n60:    zero-copy shared-memory ring on desktop/native, a serialized network batch\n61:    for remote/browser.\n62: \n63: ## Core Principles\n64: \n65: - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n66: - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n67: - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n68: - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n69: - **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n70: - **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n71: - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n\n(Showing lines 22-71 of 166. Use offset=72 to continue.)\n</content>",
+            "metadata": {
+              "preview": "\n**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.\n\n## The Four Elements\n\nPathland is composed of four elements. They are the vocabulary the whole\nproject speaks, so they are settled and used consistently:\n\n```\n   ┌────────────────────┐        ┌─────────────────────┐\n   │  1. Retained model │        │  3. Renderer        │\n   │  the app's UI tree │───┐    │  native elements +  │\n   │  (application-      │   │    │  event reporting    │\n   │  owned, canonical)  │   │    └──────────▲──────────┘\n   └────────────────────┘   │               │\n                            │               │\n                            │               │",
+              "truncated": true,
+              "loaded": [],
+              "display": {
+                "type": "file",
+                "path": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "text": "\n**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.\n\n## The Four Elements\n\nPathland is composed of four elements. They are the vocabulary the whole\nproject speaks, so they are settled and used consistently:\n\n```\n   ┌────────────────────┐        ┌─────────────────────┐\n   │  1. Retained model │        │  3. Renderer        │\n   │  the app's UI tree │───┐    │  native elements +  │\n   │  (application-      │   │    │  event reporting    │\n   │  owned, canonical)  │   │    └──────────▲──────────┘\n   └────────────────────┘   │               │\n                            │               │\n                            │               │\n   ┌────────────────────┐   │               │\n   │  2. Opcode engine   │◄──┘   4. Transport│\n   │  diffs + emits      │        delivers   │\n   │  16-byte opcodes    │───────────────────┘\n   └────────────────────┘\n```\n\n1. **Retained model** — the application's canonical retained UI tree. The\n   application owns it; it is the single source of truth.\n2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n   emit, so an unchanged tree emits zero opcodes.\n3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n   **native elements**, and reports raw inputs back as events. It is a pure\n   function of the opcode stream (stateless) and never retains application\n   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n   host and is pumped by a driver — they are not separate elements.*\n4. **Transport** — carries opcodes from the engine to the renderer: the\n   zero-copy shared-memory ring on desktop/native, a serialized network batch\n   for remote/browser.\n\n## Core Principles\n\n- **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n- **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n- **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n- **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n- **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n- **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state",
+                "lineStart": 22,
+                "lineEnd": 71,
+                "totalLines": 166,
+                "truncated": true
+              }
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787325891917,
+              "end": 1787325891926
+            }
+          },
+          "id": "prt_024ecc0d9001AxHvOgFXxt4J8k",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecb6e1001tHegBheRTAORsg"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "3d15a7d7a0a3ccfcf33d4282dfc1c6fe55e55697",
+          "type": "step-finish",
+          "tokens": {
+            "total": 23318,
+            "input": 941,
+            "output": 105,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 22272
+            }
+          },
+          "cost": 0.000432224,
+          "id": "prt_024ecc5a5001KNElm7gWJOApKT",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecb6e1001tHegBheRTAORsg"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.00073438,
+        "tokens": {
+          "total": 24673,
+          "input": 1147,
+          "output": 486,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 23040
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325892053,
+          "completed": 1787325896285
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ecc5d50011FAMUpn3LOWdId",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "3d15a7d7a0a3ccfcf33d4282dfc1c6fe55e55697",
+          "type": "step-start",
+          "id": "prt_024ecc8e40011gxLazz2T6V1DF",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecc5d50011FAMUpn3LOWdId"
+        },
+        {
+          "type": "text",
+          "text": "The ASCII diagram's box alignment is slightly off because the box-drawing characters are double-width. Let me fix the diagram so the boxes line up cleanly.\n\n",
+          "time": {
+            "start": 1787325892839,
+            "end": 1787325896146
+          },
+          "id": "prt_024ecc8e70016Wq5qwVzYX1tcO",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecc5d50011FAMUpn3LOWdId"
+        },
+        {
+          "type": "tool",
+          "tool": "edit",
+          "callID": "chatcmpl-tool-b037e6f6d9e27c5f",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "oldString": "```\n   ┌────────────────────┐        ┌─────────────────────┐\n   │  1. Retained model │        │  3. Renderer        │\n   │  the app's UI tree │───┐    │  native elements +  │\n   │  (application-      │   │    │  event reporting    │\n   │  owned, canonical)  │   │    └──────────▲──────────┘\n   └────────────────────┘   │               │\n                            │               │\n                            │               │\n   ┌────────────────────┐   │               │\n   │  2. Opcode engine   │◄──┘   4. Transport│\n   │  diffs + emits      │        delivers   │\n   │  16-byte opcodes    │───────────────────┘\n   └────────────────────┘\n```",
+              "newString": "```\n┌────────────────────┐        ┌─────────────────────┐\n│ 1. Retained model  │        │ 3. Renderer         │\n│ the app's UI tree  │───┐    │ native elements +   │\n│ (application-      │   │    │ event reporting     │\n│  owned, canonical) │   │    └───────────▲─────────┘\n└────────────────────┘   │                │\n                         │                │\n┌────────────────────┐   │                │\n│ 2. Opcode engine   │◄──┘   4. Transport │\n│ diffs + emits      │        delivers    │\n│ 16-byte opcodes    │────────────────────┘\n└────────────────────┘\n```"
+            },
+            "output": "Edit applied successfully.",
+            "metadata": {
+              "diagnostics": {
+                "/Users/michael/Development/michaelkrog/Pathland/lib/ui/components.yaml": [],
+                "/Users/michael/Development/michaelkrog/Pathland/generate.sh": []
+              },
+              "diff": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -30,21 +30,20 @@\n Pathland is composed of four elements. They are the vocabulary the whole\n project speaks, so they are settled and used consistently:\n \n ```\n-   ┌────────────────────┐        ┌─────────────────────┐\n-   │  1. Retained model │        │  3. Renderer        │\n-   │  the app's UI tree │───┐    │  native elements +  │\n-   │  (application-      │   │    │  event reporting    │\n-   │  owned, canonical)  │   │    └──────────▲──────────┘\n-   └────────────────────┘   │               │\n-                            │               │\n-                            │               │\n-   ┌────────────────────┐   │               │\n-   │  2. Opcode engine   │◄──┘   4. Transport│\n-   │  diffs + emits      │        delivers   │\n-   │  16-byte opcodes    │───────────────────┘\n-   └────────────────────┘\n+┌────────────────────┐        ┌─────────────────────┐\n+│ 1. Retained model  │        │ 3. Renderer         │\n+│ the app's UI tree  │───┐    │ native elements +   │\n+│ (application-      │   │    │ event reporting     │\n+│  owned, canonical) │   │    └───────────▲─────────┘\n+└────────────────────┘   │                │\n+                         │                │\n+┌────────────────────┐   │                │\n+│ 2. Opcode engine   │◄──┘   4. Transport │\n+│ diffs + emits      │        delivers    │\n+│ 16-byte opcodes    │────────────────────┘\n+└────────────────────┘\n ```\n \n 1. **Retained model** — the application's canonical retained UI tree. The\n    application owns it; it is the single source of truth.\n",
+              "filediff": {
+                "file": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "patch": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -30,21 +30,20 @@\n Pathland is composed of four elements. They are the vocabulary the whole\n project speaks, so they are settled and used consistently:\n \n ```\n-   ┌────────────────────┐        ┌─────────────────────┐\n-   │  1. Retained model │        │  3. Renderer        │\n-   │  the app's UI tree │───┐    │  native elements +  │\n-   │  (application-      │   │    │  event reporting    │\n-   │  owned, canonical)  │   │    └──────────▲──────────┘\n-   └────────────────────┘   │               │\n-                            │               │\n-                            │               │\n-   ┌────────────────────┐   │               │\n-   │  2. Opcode engine   │◄──┘   4. Transport│\n-   │  diffs + emits      │        delivers   │\n-   │  16-byte opcodes    │───────────────────┘\n-   └────────────────────┘\n+┌────────────────────┐        ┌─────────────────────┐\n+│ 1. Retained model  │        │ 3. Renderer         │\n+│ the app's UI tree  │───┐    │ native elements +   │\n+│ (application-      │   │    │ event reporting     │\n+│  owned, canonical) │   │    └───────────▲─────────┘\n+└────────────────────┘   │                │\n+                         │                │\n+┌────────────────────┐   │                │\n+│ 2. Opcode engine   │◄──┘   4. Transport │\n+│ diffs + emits      │        delivers    │\n+│ 16-byte opcodes    │────────────────────┘\n+└────────────────────┘\n ```\n \n 1. **Retained model** — the application's canonical retained UI tree. The\n    application owns it; it is the single source of truth.\n",
+                "additions": 12,
+                "deletions": 13
+              },
+              "truncated": false
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787325896079,
+              "end": 1787325896082
+            }
+          },
+          "id": "prt_024ecca22001RB6Wc5AAKeKGyx",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecc5d50011FAMUpn3LOWdId"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-finish",
+          "tokens": {
+            "total": 24673,
+            "input": 1147,
+            "output": 486,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 23040
+            }
+          },
+          "cost": 0.00073438,
+          "id": "prt_024ecd626001UGxRn25iRv8pcM",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecc5d50011FAMUpn3LOWdId"
+        },
+        {
+          "type": "patch",
+          "hash": "3d15a7d7a0a3ccfcf33d4282dfc1c6fe55e55697",
+          "files": [
+            "/Users/michael/Development/michaelkrog/Pathland/README.md"
+          ],
+          "id": "prt_024ecd65b001h55qo0GjWFWcO6",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecc5d50011FAMUpn3LOWdId"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000370848,
+        "tokens": {
+          "total": 24786,
+          "input": 623,
+          "output": 99,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 24064
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325896287,
+          "completed": 1787325897993
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ecd65f001EX9ftKQ8zQfoVE",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-start",
+          "id": "prt_024ecdb3e001hxqq6aVi6GnF4z",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecd65f001EX9ftKQ8zQfoVE"
+        },
+        {
+          "type": "text",
+          "text": "Let me verify the final diagram renders correctly.\n\n",
+          "time": {
+            "start": 1787325897537,
+            "end": 1787325897891
+          },
+          "id": "prt_024ecdb41001SqQcigni2RXBYO",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecd65f001EX9ftKQ8zQfoVE"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "chatcmpl-tool-a16b1481f90f43db",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "limit": 36,
+              "offset": 28
+            },
+            "output": "<path>/Users/michael/Development/michaelkrog/Pathland/README.md</path>\n<type>file</type>\n<content>\n28: ## The Four Elements\n29: \n30: Pathland is composed of four elements. They are the vocabulary the whole\n31: project speaks, so they are settled and used consistently:\n32: \n33: ```\n34: ┌────────────────────┐        ┌─────────────────────┐\n35: │ 1. Retained model  │        │ 3. Renderer         │\n36: │ the app's UI tree  │───┐    │ native elements +   │\n37: │ (application-      │   │    │ event reporting     │\n38: │  owned, canonical) │   │    └───────────▲─────────┘\n39: └────────────────────┘   │                │\n40:                          │                │\n41: ┌────────────────────┐   │                │\n42: │ 2. Opcode engine   │◄──┘   4. Transport │\n43: │ diffs + emits      │        delivers    │\n44: │ 16-byte opcodes    │────────────────────┘\n45: └────────────────────┘\n46: ```\n47: \n48: 1. **Retained model** — the application's canonical retained UI tree. The\n49:    application owns it; it is the single source of truth.\n50: 2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n51:    **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n52:    emit, so an unchanged tree emits zero opcodes.\n53: 3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n54:    **native elements**, and reports raw inputs back as events. It is a pure\n55:    function of the opcode stream (stateless) and never retains application\n56:    state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n57:    host and is pumped by a driver — they are not separate elements.*\n58: 4. **Transport** — carries opcodes from the engine to the renderer: the\n59:    zero-copy shared-memory ring on desktop/native, a serialized network batch\n60:    for remote/browser.\n61: \n62: ## Core Principles\n63: \n\n(Showing lines 28-63 of 165. Use offset=64 to continue.)\n</content>",
+            "metadata": {
+              "preview": "## The Four Elements\n\nPathland is composed of four elements. They are the vocabulary the whole\nproject speaks, so they are settled and used consistently:\n\n```\n┌────────────────────┐        ┌─────────────────────┐\n│ 1. Retained model  │        │ 3. Renderer         │\n│ the app's UI tree  │───┐    │ native elements +   │\n│ (application-      │   │    │ event reporting     │\n│  owned, canonical) │   │    └───────────▲─────────┘\n└────────────────────┘   │                │\n                         │                │\n┌────────────────────┐   │                │\n│ 2. Opcode engine   │◄──┘   4. Transport │\n│ diffs + emits      │        delivers    │\n│ 16-byte opcodes    │────────────────────┘\n└────────────────────┘\n```\n",
+              "truncated": true,
+              "loaded": [],
+              "display": {
+                "type": "file",
+                "path": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "text": "## The Four Elements\n\nPathland is composed of four elements. They are the vocabulary the whole\nproject speaks, so they are settled and used consistently:\n\n```\n┌────────────────────┐        ┌─────────────────────┐\n│ 1. Retained model  │        │ 3. Renderer         │\n│ the app's UI tree  │───┐    │ native elements +   │\n│ (application-      │   │    │ event reporting     │\n│  owned, canonical) │   │    └───────────▲─────────┘\n└────────────────────┘   │                │\n                         │                │\n┌────────────────────┐   │                │\n│ 2. Opcode engine   │◄──┘   4. Transport │\n│ diffs + emits      │        delivers    │\n│ 16-byte opcodes    │────────────────────┘\n└────────────────────┘\n```\n\n1. **Retained model** — the application's canonical retained UI tree. The\n   application owns it; it is the single source of truth.\n2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n   emit, so an unchanged tree emits zero opcodes.\n3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n   **native elements**, and reports raw inputs back as events. It is a pure\n   function of the opcode stream (stateless) and never retains application\n   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n   host and is pumped by a driver — they are not separate elements.*\n4. **Transport** — carries opcodes from the engine to the renderer: the\n   zero-copy shared-memory ring on desktop/native, a serialized network batch\n   for remote/browser.\n\n## Core Principles\n",
+                "lineStart": 28,
+                "lineEnd": 63,
+                "totalLines": 165,
+                "truncated": true
+              }
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787325897827,
+              "end": 1787325897830
+            }
+          },
+          "id": "prt_024ecdb430019xC5Y03pIIQ7Yc",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecd65f001EX9ftKQ8zQfoVE"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-finish",
+          "tokens": {
+            "total": 24786,
+            "input": 623,
+            "output": 99,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 24064
+            }
+          },
+          "cost": 0.000370848,
+          "id": "prt_024ecdcda001vdFmj7xaELGqeR",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecd65f001EX9ftKQ8zQfoVE"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ea02ce0011gREfWjf61hZGI",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000468812,
+        "tokens": {
+          "total": 25545,
+          "input": 779,
+          "output": 190,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 24576
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325897995,
+          "completed": 1787325903235
+        },
+        "finish": "stop",
+        "id": "msg_024ecdd0b001vo7xnfMnqmT2db",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-start",
+          "id": "prt_024ece1ea001vFmRYCYt5clx17",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecdd0b001vo7xnfMnqmT2db"
+        },
+        {
+          "type": "text",
+          "text": "I added a \"The Four Elements\" section to the README (after the Overview, before Core Principles) with an ASCII diagram and settled terminology.\n\n**Term settled: \"renderer\"** for element #3 — the component that consumes the opcode stream and maps it onto native elements. I documented that **host** and **driver** are *roles* a renderer plays (it runs inside a host, is pumped by a driver), not separate elements. This matches the dominant existing usage in the codebase and spec.\n\nThe section names all four elements:\n1. **Retained model** — the app's canonical UI tree\n2. **Opcode engine** — diffs + emits 16-byte opcodes (producer)\n3. **Renderer** — maps opcodes to native elements + reports events (stateless)\n4. **Transport** — ring / network batch carrying opcodes between #2 and #3",
+          "time": {
+            "start": 1787325899281,
+            "end": 1787325903142
+          },
+          "id": "prt_024ece211001eBTfMncj32lPib",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecdd0b001vo7xnfMnqmT2db"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-finish",
+          "tokens": {
+            "total": 25545,
+            "input": 779,
+            "output": 190,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 24576
+            }
+          },
+          "cost": 0.000468812,
+          "id": "prt_024ecf15c001BcxMaHpVh69tU6",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ecdd0b001vo7xnfMnqmT2db"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1787325942126
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "opencode-go",
+          "modelID": "deepseek-v4-flash"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_024ed896e001M58wHtioocwDm7",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "commit on new branch",
+          "id": "prt_024ed896f00170m80RJP1lBRcu",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ed896e001M58wHtioocwDm7"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ed896e001M58wHtioocwDm7",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.00565972,
+        "tokens": {
+          "total": 25610,
+          "input": 25552,
+          "output": 58,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325942304,
+          "completed": 1787325959128
+        },
+        "finish": "tool-calls",
+        "id": "msg_024ed8a20001Xa5rmN26ikT4EP",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-start",
+          "id": "prt_024edb9a7001Drcocn8HP4XYNm",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ed8a20001Xa5rmN26ikT4EP"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "chatcmpl-tool-97b2320e63e24179",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git status && git branch --show-current && git log --oneline -5"
+            },
+            "output": "On branch main\nYour branch is up to date with 'origin/main'.\n\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   README.md\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\nmain\n87098f7 Merge pull request #20 from michaelkrog/feature/zero-copy-render-test\n65231ba docs: reframe WASM as browser/remote projection only; add catalog DSL\n6b35c8b test: prove the opcode ring read is zero-copy\n2f6e30b Merge pull request #19 from michaelkrog/feature/native-wit-zero-copy\n3ce105d feat: shared GTK4 renderer + bidirectional event ring\n",
+            "metadata": {
+              "output": "On branch main\nYour branch is up to date with 'origin/main'.\n\nChanges not staged for commit:\n  (use \"git add <file>...\" to update what will be committed)\n  (use \"git restore <file>...\" to discard changes in working directory)\n\tmodified:   README.md\n\nno changes added to commit (use \"git add\" and/or \"git commit -a\")\nmain\n87098f7 Merge pull request #20 from michaelkrog/feature/zero-copy-render-test\n65231ba docs: reframe WASM as browser/remote projection only; add catalog DSL\n6b35c8b test: prove the opcode ring read is zero-copy\n2f6e30b Merge pull request #19 from michaelkrog/feature/native-wit-zero-copy\n3ce105d feat: shared GTK4 renderer + bidirectional event ring\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "git status && git branch --show-current && git log --oneline -5",
+            "time": {
+              "start": 1787325959031,
+              "end": 1787325959034
+            }
+          },
+          "id": "prt_024edbe16001irdSKyesmjaPzN",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ed8a20001Xa5rmN26ikT4EP"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-finish",
+          "tokens": {
+            "total": 25610,
+            "input": 25552,
+            "output": 58,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0.00565972,
+          "id": "prt_024edcba8001zgT1VVjvAGyNoH",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024ed8a20001Xa5rmN26ikT4EP"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ed896e001M58wHtioocwDm7",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000311168,
+        "tokens": {
+          "total": 25858,
+          "input": 467,
+          "output": 47,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 25344
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325959130,
+          "completed": 1787325969648
+        },
+        "finish": "tool-calls",
+        "id": "msg_024edcbda00177pMcTURgpWdHR",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-start",
+          "id": "prt_024edf3bd001E1y7YPlwrJ1VDM",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024edcbda00177pMcTURgpWdHR"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "chatcmpl-tool-adca1bdfd454e821",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "git diff README.md"
+            },
+            "output": "diff --git a/README.md b/README.md\nindex 6454b22..2e3f7ea 100644\n--- a/README.md\n+++ b/README.md\n@@ -25,6 +25,40 @@ browser/remote projection only**, not the primary path.\n signals in the application ensure only changed nodes emit opcodes, so an\n unchanged tree emits zero opcodes.\n \n+## The Four Elements\n+\n+Pathland is composed of four elements. They are the vocabulary the whole\n+project speaks, so they are settled and used consistently:\n+\n+```\n+┌────────────────────┐        ┌─────────────────────┐\n+│ 1. Retained model  │        │ 3. Renderer         │\n+│ the app's UI tree  │───┐    │ native elements +   │\n+│ (application-      │   │    │ event reporting     │\n+│  owned, canonical) │   │    └───────────▲─────────┘\n+└────────────────────┘   │                │\n+                         │                │\n+┌────────────────────┐   │                │\n+│ 2. Opcode engine   │◄──┘   4. Transport │\n+│ diffs + emits      │        delivers    │\n+│ 16-byte opcodes    │────────────────────┘\n+└────────────────────┘\n+```\n+\n+1. **Retained model** — the application's canonical retained UI tree. The\n+   application owns it; it is the single source of truth.\n+2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n+   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n+   emit, so an unchanged tree emits zero opcodes.\n+3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n+   **native elements**, and reports raw inputs back as events. It is a pure\n+   function of the opcode stream (stateless) and never retains application\n+   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n+   host and is pumped by a driver — they are not separate elements.*\n+4. **Transport** — carries opcodes from the engine to the renderer: the\n+   zero-copy shared-memory ring on desktop/native, a serialized network batch\n+   for remote/browser.\n+\n ## Core Principles\n \n - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n",
+            "metadata": {
+              "output": "diff --git a/README.md b/README.md\nindex 6454b22..2e3f7ea 100644\n--- a/README.md\n+++ b/README.md\n@@ -25,6 +25,40 @@ browser/remote projection only**, not the primary path.\n signals in the application ensure only changed nodes emit opcodes, so an\n unchanged tree emits zero opcodes.\n \n+## The Four Elements\n+\n+Pathland is composed of four elements. They are the vocabulary the whole\n+project speaks, so they are settled and used consistently:\n+\n+```\n+┌────────────────────┐        ┌─────────────────────┐\n+│ 1. Retained model  │        │ 3. Renderer         │\n+│ the app's UI tree  │───┐    │ native elements +   │\n+│ (application-      │   │    │ event reporting     │\n+│  owned, canonical) │   │    └───────────▲─────────┘\n+└────────────────────┘   │                │\n+                         │                │\n+┌────────────────────┐   │                │\n+│ 2. Opcode engine   │◄──┘   4. Transport │\n+│ diffs + emits      │        delivers    │\n+│ 16-byte opcodes    │────────────────────┘\n+└────────────────────┘\n+```\n+\n+1. **Retained model** — the application's canonical retained UI tree. The\n+   application owns it; it is the single source of truth.\n+2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n+   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n+   emit, so an unchanged tree emits zero opcodes.\n+3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n+   **native elements**, and reports raw inputs back as events. It is a pure\n+   function of the opcode stream (stateless) and never retains application\n+   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n+   host and is pumped by a driver — they are not separate elements.*\n+4. **Transport** — carries opcodes from the engine to the renderer: the\n+   zero-copy shared-memory ring on desktop/native, a serialized network batch\n+   for remote/browser.\n+\n ## Core Principles\n \n - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "git diff README.md",
+            "time": {
+              "start": 1787325969566,
+              "end": 1787325969568
+            }
+          },
+          "id": "prt_024edf42d001PudwU477p6csKS",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024edcbda00177pMcTURgpWdHR"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-finish",
+          "tokens": {
+            "total": 25858,
+            "input": 467,
+            "output": 47,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 25344
+            }
+          },
+          "cost": 0.000311168,
+          "id": "prt_024edf4ca001lzZ2Vv39vgsesF",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024edcbda00177pMcTURgpWdHR"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024ed896e001M58wHtioocwDm7",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0,
+        "tokens": {
+          "input": 0,
+          "output": 0,
+          "reasoning": 0,
+          "cache": {
+            "read": 0,
+            "write": 0
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787325969651
+        },
+        "id": "msg_024edf4f3001eoam6by8mHuubU",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "2a3a998e7a12b528ae6005d5cf79a26a8c6dca10",
+          "type": "step-start",
+          "id": "prt_024edf8ea001s5SyDECMgT15Py",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024edf4f3001eoam6by8mHuubU"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "chatcmpl-tool-a67879e26d86a646",
+          "state": {
+            "metadata": {
+              "output": "Switched to a new branch 'docs/four-elements-terminology'\n"
+            },
+            "status": "running",
+            "input": {
+              "command": "git checkout -b docs/four-elements-terminology && git add README.md && git commit -m \"docs: document the four elements and settle 'renderer' terminology\""
+            },
+            "time": {
+              "start": 1787325971107
+            }
+          },
+          "id": "prt_024edf93200187CChOkrpHMfAy",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_024edf4f3001eoam6by8mHuubU"
+        }
+      ]
+    }
+  ]
+}
