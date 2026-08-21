@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 0.633552128,
+    "cost": 0.640989712,
     "tokens": {
-      "input": 551280,
-      "output": 20906,
+      "input": 552185,
+      "output": 21155,
       "reasoning": 51526,
       "cache": {
-        "read": 5740544,
+        "read": 6029056,
         "write": 0
       }
     },
     "time": {
       "created": 1787331269553,
-      "updated": 1787333005964
+      "updated": 1787333015171
     }
   },
   "messages": [
@@ -8095,21 +8095,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.004066744,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 144760,
+          "input": 649,
+          "output": 239,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 143872
           }
         },
         "modelID": "deepseek-v4-pro",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787333005963
+          "created": 1787333005963,
+          "completed": 1787333015165
         },
+        "finish": "tool-calls",
         "id": "msg_02559528b002FY34CeqY9TfNxA",
         "sessionID": "ses_fdac12c4effeGpqpjS81pcs2O0"
       },
@@ -8126,20 +8129,115 @@
           "tool": "bash",
           "callID": "call_00_ET_pd4JD0TdTQBehqa1mYS01111",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git add -A && git commit -m \"$(cat <<'EOF'\nfeat(events): return raw inputs through the opcode engine\n\nEvents now flow back to the app exclusively through the EVENT opcode\nengine, with no side-channel payload:\n\n- The renderer writes raw inputs via Pump::send_input and wakes the host\n  (no payload); the host drains the event ring itself.\n- pathland-native exposes a generic pathland_native_drain_events C ABI\n  that returns raw 16-byte EVENT opcodes, symmetric with ring_ptr.\n- The GTK renderer emits pointer up via Button::clicked and hover via\n  EventControllerMotion.\n- The Rust and Java demos drain the ring generically instead of relying\n  on a reduced GTK callback (Java gains an EventReader).\nEOF\n)\" && git log --oneline -3"
             },
+            "output": "[main 43a722d] feat(events): return raw inputs through the opcode engine\n 11 files changed, 268 insertions(+), 72 deletions(-)\n create mode 100644 lib/java/pathland-demo/src/main/java/pathland/EventReader.java\n43a722d feat(events): return raw inputs through the opcode engine\ndeed69f Merge pull request #23 from michaelkrog/feature/gtk-renderer-hardening\na862ff4 feat(gtk): harden stack layout and reclassify padding as a styling modifier\n",
+            "metadata": {
+              "output": "[main 43a722d] feat(events): return raw inputs through the opcode engine\n 11 files changed, 268 insertions(+), 72 deletions(-)\n create mode 100644 lib/java/pathland-demo/src/main/java/pathland/EventReader.java\n43a722d feat(events): return raw inputs through the opcode engine\ndeed69f Merge pull request #23 from michaelkrog/feature/gtk-renderer-hardening\na862ff4 feat(gtk): harden stack layout and reclassify padding as a styling modifier\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git add -A && git commit -m \"$(cat <<'EOF'\nfeat(events): return raw inputs through the opcode engine\n\nEvents now flow back to the app exclusively through the EVENT opcode\nengine, with no side-channel payload:\n\n- The renderer writes raw inputs via Pump::send_input and wakes the host\n  (no payload); the host drains the event ring itself.\n- pathland-native exposes a generic pathland_native_drain_events C ABI\n  that returns raw 16-byte EVENT opcodes, symmetric with ring_ptr.\n- The GTK renderer emits pointer up via Button::clicked and hover via\n  EventControllerMotion.\n- The Rust and Java demos drain the ring generically instead of relying\n  on a reduced GTK callback (Java gains an EventReader).\nEOF\n)\" && git log --oneline -3",
             "time": {
-              "start": 1787333011527
+              "start": 1787333015077,
+              "end": 1787333015079
             }
           },
           "id": "prt_025595dc0001IhG0hG9b1Di0Zj",
           "sessionID": "ses_fdac12c4effeGpqpjS81pcs2O0",
           "messageID": "msg_02559528b002FY34CeqY9TfNxA"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "4f4eb5cc4892b939601f6fb242adc5b88bad1bf3",
+          "type": "step-finish",
+          "tokens": {
+            "total": 144760,
+            "input": 649,
+            "output": 239,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 143872
+            }
+          },
+          "cost": 0.004066744,
+          "id": "prt_025597656001pzG8Gef1DPLVTM",
+          "sessionID": "ses_fdac12c4effeGpqpjS81pcs2O0",
+          "messageID": "msg_02559528b002FY34CeqY9TfNxA"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_02559326b001rYC2ZiXFcjclQe",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.00337084,
+        "tokens": {
+          "total": 144906,
+          "input": 256,
+          "output": 10,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 144640
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787333015170,
+          "completed": 1787333018316
+        },
+        "finish": "stop",
+        "id": "msg_025597682002DbLtYPBpuakvAl",
+        "sessionID": "ses_fdac12c4effeGpqpjS81pcs2O0"
+      },
+      "parts": [
+        {
+          "snapshot": "4f4eb5cc4892b939601f6fb242adc5b88bad1bf3",
+          "type": "step-start",
+          "id": "prt_025597e63001dICsaB1RFKHnwH",
+          "sessionID": "ses_fdac12c4effeGpqpjS81pcs2O0",
+          "messageID": "msg_025597682002DbLtYPBpuakvAl"
+        },
+        {
+          "type": "text",
+          "text": "Committed as `43a722d`.",
+          "time": {
+            "start": 1787333018090,
+            "end": 1787333018236
+          },
+          "id": "prt_0255981ea0013MuQaGJyNfrfq2",
+          "sessionID": "ses_fdac12c4effeGpqpjS81pcs2O0",
+          "messageID": "msg_025597682002DbLtYPBpuakvAl"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "4f4eb5cc4892b939601f6fb242adc5b88bad1bf3",
+          "type": "step-finish",
+          "tokens": {
+            "total": 144906,
+            "input": 256,
+            "output": 10,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 144640
+            }
+          },
+          "cost": 0.00337084,
+          "id": "prt_0255982a5001HemrgXFB4869Bq",
+          "sessionID": "ses_fdac12c4effeGpqpjS81pcs2O0",
+          "messageID": "msg_025597682002DbLtYPBpuakvAl"
         }
       ]
     }
