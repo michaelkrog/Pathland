@@ -1,0 +1,53 @@
+Pathland — Session Context (for new sessions)
+Project
+Rust retained-mode UI runtime; SwiftUI-like declarative DSL; 16-byte opcode protocol. Protocol-first, renderers stateless, native elements everywhere.
+Architecture decisions (already implemented & tested — 69 tests green, GTK + Java demos run)
+- WIT world (wit/pathland.wit) = canonical flat, id-based cross-language surface (builder/engine/input/app, variants), no per-component wrappers.
+- Native (non-WASM) path: pathland-native is a cdylib exposing the flat world as pathland_native_* C functions over a zero-copy shared-memory ring. Swift/Java/C# link it via FFI, call the flat surface, and read opcodes zero-copy (no serialization, no WASM on desktop).
+- WASM is browser-only: pathland-guest (wasm component) for CSR worker / optional SSR; pathland-wit-host (wasmtime) for remote hosts.
+- Frame type = the transport seam: a driver consumes Frames regardless of origin (shared ring, decoded batch).
+- pathland-transport: RingTransport (zero-copy SPSC), FrameSource/DriverTransport/InputSink/TransportError/OpcodeBatch, NetBatchEncoder (remote). pathland-guest wasm component built via cargo component.
+- Fixed a header wire bug: shared-memory header offsets were overlapping (OFF_ARENA_BYTES=0x14 overlapped OFF_ARENA_OFFSET=0x12). Corrected to: arenaBytes=0x16, arenaCursor=0x1A, readCursor=0x1E, writeCursor=0x22, frameCount=0x26 in pathland-opcode/src/memory.rs + spec/OPCODE.md + Java RingReader. Native worked (uses layout, not header fields); foreign zero-copy drivers were broken.
+- Demos: pathland-gtk-demo (Rust GTK, native shared ring), lib/java/pathland-demo (Maven + JNA + SwiftUI-like Java DSL, zero-copy ring read).
+Current task (IN PROGRESS, next steps): Catalog-Driven DSL + Frame modifier
+Goal
+Generate the SwiftUI-like DSL from a single YAML catalog — define a core component once, get the ergonomic DSL in any language (starting with Java), no hand-written per-component classes.
+New files
+- lib/ui/components.yaml — single source of truth for the DSL (components, per-component constructor properties, global modifiers, enum values, ids).
+- pathland-codegen — a Rust bin crate that parses YAML (serde_yaml), asserts every id against pathland_opcode::constants (hard build error on mismatch — the consistency safety net), and emits checked-in Java DSL.
+- generate.sh / cargo run -p pathland-codegen to regenerate + re-run conformance.
+Generated Java (checked-in)
+Constants.java, typed enum classes (Align, Justify, TextAlign, Truncation, FontWeight), View.java (interface + simple modifiers + frame), ComponentNode.java, DSL.java, Modified.java (extended for compound frame). Keep Node/Bridge/RingReader/PathlandNative static.
+Confirmed DSL rules (NON-NEGOTIABLE)
+- Component construction properties: structural/layout, per-component, constructor args, NO chaining.
+- stacks (hstack/vstack): alignment, justification, spacing
+- text: text_alignment, line_limit, truncation_mode
+- Global modifiers: appearance/decoration, chainable on any view: padding, color, background_color, opacity, border_width, border_color, border_radius, font_size, font_weight, font_family, visible, z_index, clips_to_bounds.
+- spacing = property (constructor); padding = modifier (always). Any code treating them otherwise is a bug.
+- No standalone width/height. Instead frame compound modifier: .frame(width, height, alignment) — reuses ALIGNMENT (0x0002); no .width()/.height() sugar. Sentinels FILL = -1.0, HUG_CONTENT = -2.0 exposed as Frame.FILL/Frame.HUG_CONTENT.
+- Typed Java enums, not raw ints (e.g. .alignment(Align.CENTER)).
+- Ids live in YAML; Rust generator asserts each against constants.rs.
+Rust DSL change (breaking — do it now)
+- Remove Node.width / Node.height fields from pathland_view::Node.
+- Add a Frame modifier (view-modifier capturing width/height/alignment) that emits WIDTH/HEIGHT (+ ALIGNMENT when set) as ordinary SET_PROPERTY.
+- Refactor pathland-engine emit_size_props and the WIDTH/HEIGHT diff logic into ordinary property diffs.
+- Update pathland-gtk-demo to use .frame(...); migrate affected tests.
+Enum values
+- Align (stack/container cross-axis): leading, center, trailing, fill
+- Justify (main-axis): start, end, center, space_between, space_around, space_evenly
+- TextAlign: leading, center, trailing
+- Truncation: head, middle, tail, none
+- FontWeight: light, regular, medium, semibold, bold
+Component ids (from constants.rs)
+hstack=0x0001, vstack=0x0002, text=0x0003, button=0x0004, image=0x0005, switch=0x0006, text_field=0x0007, spacer=0x0008, scrollview=0x0009, list=0x000A, grid=0x000B, comment=0x000C
+Property ids (from constants.rs)
+spacing=0x0001, alignment=0x0002, justification=0x0003, padding=0x0004, content_margins=0x0005, text=0x000A, line_limit=0x000B, text_alignment=0x000C, truncation_mode=0x000D, background_color=0x1001, border_width=0x1003, border_color=0x1004, border_radius=0x1005, padding_style=0x1006, font_size=0x1007, font_weight=0x1008, font_family=0x1009, color=0x100A, width=0x100B, height=0x100C, opacity=0x100D, visible=0x100E, z_index=0x100F, clips_to_bounds=0x1010, padding_top/right/bottom/left=0x1012-0x1015, role=0x2001, state=0x2002, enabled=0x2003, selected=0x2004
+Phases
+- A — YAML catalog + Rust generator + generated Java DSL (checked-in) + id assertions.
+- B — Rust DSL frame modifier; remove Node.width/height; refactor engine; update GTK demo + tests.
+- C — Verify: cargo test, generator assertions, Java headless (DemoHeadless) + Swing (DemoApp) demo run.
+Helpful run commands
+- Rust tests: cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo test
+- GTK demo: cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-gtk-demo
+- Java demo: cargo build -p pathland-native then cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
+- Java headless verify: mvn ... -Dexec.mainClass=demo.DemoHeadless compile exec:java (expect OK: Java DSL -> Rust engine -> shared ring -> zero-copy read = 'Count: 8')

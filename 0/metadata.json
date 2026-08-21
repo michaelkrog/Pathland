@@ -1,0 +1,160 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0HQ871P3F3JMR9WENPDS3HV",
+  "session_id": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-21T08:33:29.657788Z",
+  "branch": "feature/native-wit-zero-copy",
+  "checkpoints_count": 21,
+  "save_step_count": 13,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo/pom.xml",
+    "lib/java/pathland-demo/src/main/java/demo/DemoApp.java",
+    "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java",
+    "lib/java/pathland-demo/src/main/java/pathland/PathlandGtk.java",
+    "lib/rust/Cargo.lock",
+    "lib/rust/Cargo.toml",
+    "lib/rust/README.md",
+    "lib/rust/crates/pathland-gtk-demo/Cargo.toml",
+    "lib/rust/crates/pathland-gtk-demo/src/main.rs",
+    "lib/rust/crates/pathland-gtk/Cargo.toml",
+    "lib/rust/crates/pathland-gtk/src/capi.rs",
+    "lib/rust/crates/pathland-gtk/src/lib.rs",
+    "lib/rust/crates/pathland-host/src/lib.rs",
+    "lib/rust/crates/pathland-native/src/lib.rs",
+    "lib/rust/crates/pathland-opcode/src/arena.rs",
+    "lib/rust/crates/pathland-opcode/src/lib.rs",
+    "lib/rust/crates/pathland-opcode/src/memory.rs",
+    "lib/rust/crates/pathland-opcode/src/ring.rs",
+    "lib/rust/crates/pathland-transport/src/ring.rs",
+    "spec/CONFORMANCE.md",
+    "spec/OPCODE.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "5c6217328a95",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 4940822,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 69625088,
+    "output_tokens": 124934,
+    "api_call_count": 368
+  },
+  "session_metrics": {
+    "turn_count": 27
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-21T08:33:29.496923Z",
+    "agent_lines": 1059,
+    "agent_removed": 334,
+    "human_added": 7,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 1067,
+    "total_lines_changed": 1401,
+    "agent_percentage": 99.42897930049965,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 313,
+      "agent_lines_removed": 23
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 972,
+      "agent_lines_removed": 317
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 8,
+      "user_lines_removed": 1,
+      "agent_lines_added": 972,
+      "agent_lines_removed": 317,
+      "user_added_per_file": {
+        "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java": 4,
+        "lib/rust/crates/pathland-gtk/src/lib.rs": 4
+      },
+      "user_removed_per_file": {
+        "lib/rust/crates/pathland-gtk/src/lib.rs": 1
+      }
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 979,
+      "agent_lines_removed": 317
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1025,
+      "agent_lines_removed": 333
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1025,
+      "agent_lines_removed": 333
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1025,
+      "agent_lines_removed": 333
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1025,
+      "agent_lines_removed": 333
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1045,
+      "agent_lines_removed": 333
+    },
+    {
+      "checkpoint_number": 14,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1068,
+      "agent_lines_removed": 335
+    }
+  ]
+}

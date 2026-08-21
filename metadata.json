@@ -1,0 +1,47 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0HQ871P3F3JMR9WENPDS3HV",
+  "strategy": "manual-commit",
+  "branch": "feature/native-wit-zero-copy",
+  "checkpoints_count": 21,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo/pom.xml",
+    "lib/java/pathland-demo/src/main/java/demo/DemoApp.java",
+    "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java",
+    "lib/java/pathland-demo/src/main/java/pathland/PathlandGtk.java",
+    "lib/rust/Cargo.lock",
+    "lib/rust/Cargo.toml",
+    "lib/rust/README.md",
+    "lib/rust/crates/pathland-gtk-demo/Cargo.toml",
+    "lib/rust/crates/pathland-gtk-demo/src/main.rs",
+    "lib/rust/crates/pathland-gtk/Cargo.toml",
+    "lib/rust/crates/pathland-gtk/src/capi.rs",
+    "lib/rust/crates/pathland-gtk/src/lib.rs",
+    "lib/rust/crates/pathland-host/src/lib.rs",
+    "lib/rust/crates/pathland-native/src/lib.rs",
+    "lib/rust/crates/pathland-opcode/src/arena.rs",
+    "lib/rust/crates/pathland-opcode/src/lib.rs",
+    "lib/rust/crates/pathland-opcode/src/memory.rs",
+    "lib/rust/crates/pathland-opcode/src/ring.rs",
+    "lib/rust/crates/pathland-transport/src/ring.rs",
+    "spec/CONFORMANCE.md",
+    "spec/OPCODE.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 4940822,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 69625088,
+    "output_tokens": 124934,
+    "api_call_count": 368
+  }
+}
