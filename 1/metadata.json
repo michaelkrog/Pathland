@@ -1,0 +1,78 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0HQ871P3F3JMR9WENPDS3HV",
+  "session_id": "ses_feaa5f3fcffeaG5aJ1LmYE6NRm",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-21T08:33:31.624052Z",
+  "branch": "feature/native-wit-zero-copy",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/rust/Cargo.lock",
+    "lib/rust/Cargo.toml",
+    "lib/rust/README.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "18fa60a00a9a",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 30395,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 89600,
+    "output_tokens": 5103,
+    "api_call_count": 6
+  },
+  "session_metrics": {
+    "turn_count": 1
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-21T08:33:31.606143Z",
+    "agent_lines": 66,
+    "agent_removed": 2,
+    "human_added": 799,
+    "human_modified": 31,
+    "human_removed": 0,
+    "total_committed": 879,
+    "total_lines_changed": 1216,
+    "agent_percentage": 5.592105263157895,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 4073,
+      "user_lines_removed": 14,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "AGENTS.md": 36,
+        "lib/rust/Cargo.lock": 2995,
+        "lib/rust/Cargo.toml": 3,
+        "lib/rust/README.md": 20,
+        "lib/rust/crates/pathland-engine/src/lib.rs": 1,
+        "lib/rust/crates/pathland-gtk-demo/Cargo.toml": 22,
+        "lib/rust/crates/pathland-gtk-demo/src/main.rs": 216,
+        "lib/rust/crates/pathland-guest/.gitignore": 2,
+        "lib/rust/crates/pathland-guest/Cargo.toml": 26,
+        "lib/rust/crates/pathland-guest/src/lib.rs": 253,
+        "lib/rust/crates/pathland-view/src/lib.rs": 51,
+        "lib/rust/crates/pathland-wit-host/Cargo.toml": 18,
+        "lib/rust/crates/pathland-wit-host/src/lib.rs": 309,
+        "wit/pathland.wit": 121
+      },
+      "user_removed_per_file": {
+        "AGENTS.md": 10,
+        "lib/rust/README.md": 4
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 4073,
+      "agent_lines_removed": 14
+    }
+  ]
+}

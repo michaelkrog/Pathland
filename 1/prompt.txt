@@ -1,0 +1,19 @@
+Explore the Rust crate `pathland-view` and `pathland-engine` in /Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/.
+
+I am doing an architecture investigation of a retained-mode UI runtime. I need you to report in detail (medium-thorough):
+
+1. `pathland-view` (crates/pathland-view/src/lib.rs):
+   - The `Node` struct: fields, and how the retained tree is represented (children Vec<Node>?).
+   - The `Component` enum: all variants (VStack, HStack, Text, Button, Spacer).
+   - The `View` trait and `ViewModifier` trait: signatures.
+   - How modifiers work: the `Modified<V,M>` wrapper, `ViewExt` sugar methods, and how `build()` collapses to a `Node`.
+   - The `vstack!`/`hstack!` macros and `assign_ids` function.
+
+2. `pathland-engine` (crates/pathland-engine/src/lib.rs):
+   - The `Engine` struct and how it does diff-based reactive emission.
+   - The `SnapshotNode` (internal snapshot state) and generation stamps.
+   - `reconcile_node`: how it detects new/changed/deleted nodes and what opcodes it emits (CREATE_NODE, INSERT_CHILD, SET_PROPERTY, SET_TEXT, DELETE_NODE, MOVE_CHILD).
+   - Whether there is ANY state/dependency tracking (signals, dependency graph, dirty tracking) or whether the app re-authors the full tree each emit. Look for anything like "signal", "dirty", "depend", "invalidate", "memo".
+   - The `view` module state: does the engine hold a retained tree, or does the caller pass a fresh `&Node` each time?
+
+Report concrete struct/function definitions with line numbers. Be precise about what exists and what does NOT exist (especially: is there any dependency tracking between state and views? or is reconciliation just diffing two full trees?).
