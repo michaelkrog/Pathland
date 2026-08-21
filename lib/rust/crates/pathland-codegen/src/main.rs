@@ -139,6 +139,7 @@ fn assert_ids(catalog: &Catalog) -> Vec<String> {
         ("state", property_id::STATE),
         ("enabled", property_id::ENABLED),
         ("selected", property_id::SELECTED),
+        ("event_listeners", property_id::EVENT_LISTENERS),
     ];
     for (name, id) in expected_props {
         match catalog.property_ids.get(*name) {

@@ -81,6 +81,28 @@ pub mod flag {
     pub const KEY_REPEAT: u16 = 0x0002;
 }
 
+/// Bits for the `EVENT_LISTENERS` semantic property (a u32 bitmask).
+///
+/// Each bit requests that a renderer attach native input recognition for the
+/// matching raw-input event and report it for that node — so any element (not
+/// just a button) can emit raw events. Bits are independent of the `EVENT`
+/// command ids; more event kinds can be added later.
+pub mod listener {
+    /// `POINTER_DOWN` events (bit 0).
+    pub const POINTER_DOWN: u32 = 1 << 0;
+    /// `POINTER_MOVE` events (bit 1).
+    pub const POINTER_MOVE: u32 = 1 << 1;
+    /// `POINTER_UP` events (bit 2).
+    pub const POINTER_UP: u32 = 1 << 2;
+    /// `KEY_DOWN` events (bit 3).
+    pub const KEY_DOWN: u32 = 1 << 3;
+    /// `KEY_UP` events (bit 4).
+    pub const KEY_UP: u32 = 1 << 4;
+
+    /// All pointer events (down + move + up).
+    pub const POINTER: u32 = POINTER_DOWN | POINTER_MOVE | POINTER_UP;
+}
+
 /// Value types for `STYLE` properties (u8, encoded in the high byte of `B`).
 pub mod value_type {
     pub const U8: u8 = 0x01;
@@ -153,6 +175,11 @@ pub mod property_id {
     pub const STATE: u16 = 0x2002;
     pub const ENABLED: u16 = 0x2003;
     pub const SELECTED: u16 = 0x2004;
+    /// `EVENT_LISTENERS` — a u32 bitmask (see [`crate::listener`]) declaring
+    /// which raw-input events a node wants the renderer to report. This is the
+    /// declarative signal the application sets so a renderer attaches native
+    /// input recognition to any element — not just buttons.
+    pub const EVENT_LISTENERS: u16 = 0x2005;
 }
 
 /// Special size constants for `WIDTH` / `HEIGHT`.

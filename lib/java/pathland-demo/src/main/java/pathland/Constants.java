@@ -34,6 +34,7 @@ public final class Constants {
     public static final int PROP_COLOR = 0x100A;
     public static final int PROP_CONTENT_MARGINS = 0x0005;
     public static final int PROP_ENABLED = 0x2003;
+    public static final int PROP_EVENT_LISTENERS = 0x2005;
     public static final int PROP_FONT_FAMILY = 0x1009;
     public static final int PROP_FONT_SIZE = 0x1007;
     public static final int PROP_FONT_WEIGHT = 0x1008;

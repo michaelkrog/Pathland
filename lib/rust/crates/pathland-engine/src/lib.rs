@@ -495,6 +495,29 @@ mod tests {
     }
 
     #[test]
+    fn event_listeners_emits_u32_value_type() {
+        let mut engine = Engine::new();
+        let root = built(
+            text("x")
+                .pointer_events(
+                    pathland_opcode::listener::POINTER_DOWN | pathland_opcode::listener::POINTER_UP,
+                )
+                .build(),
+        );
+        let ops = emit_and_collect(&mut engine, &root);
+        let listeners = ops
+            .iter()
+            .find(|o| o.b() as u16 == pathland_opcode::property_id::EVENT_LISTENERS)
+            .unwrap();
+        // B = (valueType << 16) | propertyId ; U32 valueType = 0x02
+        assert_eq!(listeners.b() >> 16, pathland_opcode::value_type::U32 as u32);
+        assert_eq!(
+            listeners.c(),
+            pathland_opcode::listener::POINTER_DOWN | pathland_opcode::listener::POINTER_UP
+        );
+    }
+
+    #[test]
     fn steady_state_emits_zero() {
         let mut engine = Engine::new();
         let root = built(

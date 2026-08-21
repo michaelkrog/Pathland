@@ -28,9 +28,11 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use gtk::prelude::*;
-use gtk::{Align, Box as GtkBox, Button, EventControllerMotion, Label};
+use gtk::{
+    Align, Box as GtkBox, Button, EventControllerMotion, GestureClick, Label, PropagationPhase,
+};
 use pathland_host::{HostNode, RenderTree};
-use pathland_opcode::{component_type, property_id, Event, Frame};
+use pathland_opcode::{component_type, listener, property_id, Event, Frame};
 use pathland_transport::{DriverTransport, FrameSource, OpcodeBatch, RingTransport, TransportError};
 
 /// The bidirectional transport surface the renderer pumps: frames in
@@ -61,6 +63,9 @@ impl Pump for RingTransport {
 pub struct GtkRenderer {
     tree: RenderTree,
     widgets: HashMap<u32, gtk::Widget>,
+    /// node id → listener bitmask already attached (idempotency guard so delta
+    /// frames don't double-attach controllers).
+    attached_listeners: HashMap<u32, u32>,
     /// Set once before the first render so buttons can report clicks.
     event_sink: Option<Rc<RefCell<dyn FnMut(Event)>>>,
 }
@@ -77,6 +82,7 @@ impl GtkRenderer {
         Self {
             tree: RenderTree::default(),
             widgets: HashMap::new(),
+            attached_listeners: HashMap::new(),
             event_sink: None,
         }
     }
@@ -114,6 +120,7 @@ impl GtkRenderer {
             .collect();
         for id in stale {
             self.widgets.remove(&id);
+            self.attached_listeners.remove(&id);
         }
 
         // 2. Pre-order walk: get-or-create widgets, update text/style, and
@@ -151,15 +158,21 @@ impl GtkRenderer {
         if let Some(w) = self.widgets.get(&id) {
             return w.clone();
         }
-        let widget = build_widget(node, &self.event_sink);
+        let widget = build_widget(node);
         self.widgets.insert(id, widget.clone());
         widget
     }
 
     /// Apply the current text/style/layout to an existing widget (idempotent).
-    fn update(&self, widget: gtk::Widget, node: &HostNode) {
+    fn update(&mut self, widget: gtk::Widget, node: &HostNode) {
         // Padding is styling (a DSL modifier): apply it to any widget as margins.
         apply_padding(&widget, node);
+
+        // Attach (or reconcile) native input recognition for the node's event
+        // listeners. Buttons listen to pointer down/move/up by default; any
+        // node can request more via the `EVENT_LISTENERS` property.
+        let mask = desired_listeners(node);
+        self.attach_listeners(node.id, &widget, mask);
 
         match node.component_type {
             component_type::VSTACK | component_type::HSTACK => {
@@ -184,6 +197,28 @@ impl GtkRenderer {
             }
             _ => {}
         }
+    }
+
+    /// Attach native input recognition for the listener bits not yet wired for
+    /// `id`. Guarded by `attached_listeners` so delta frames don't double-attach.
+    fn attach_listeners(&mut self, id: u32, widget: &gtk::Widget, mask: u32) {
+        let attached = *self.attached_listeners.get(&id).unwrap_or(&0);
+        let new = mask & !attached;
+        if new == 0 {
+            return;
+        }
+        if let Some(sink) = &self.event_sink {
+            let sink = sink.clone();
+            let want_down = new & listener::POINTER_DOWN != 0;
+            let want_up = new & listener::POINTER_UP != 0;
+            if want_down || want_up {
+                attach_pointer_gesture(widget, id, sink.clone(), want_down, want_up);
+            }
+            if new & listener::POINTER_MOVE != 0 {
+                attach_motion(widget, id, sink.clone());
+            }
+        }
+        self.attached_listeners.insert(id, mask);
     }
 
     /// Reconcile a stack's children: apply cross-axis alignment to each child
@@ -239,72 +274,104 @@ impl GtkRenderer {
     }
 }
 
-/// Build the base native widget for a node (no children attached).
-fn build_widget(
-    node: &HostNode,
-    event_sink: &Option<Rc<RefCell<dyn FnMut(Event)>>>,
-) -> gtk::Widget {
+/// Build the base native widget for a node (no children attached, no input
+/// controllers — those are attached later in [`GtkRenderer::update`]).
+fn build_widget(node: &HostNode) -> gtk::Widget {
     match node.component_type {
         component_type::VSTACK | component_type::HSTACK => stack_widget(node),
         component_type::TEXT => Label::new(Some(node.text.as_deref().unwrap_or(""))).upcast(),
-        component_type::BUTTON => {
-            let btn = Button::with_label(node.text.as_deref().unwrap_or(""));
-            let target = node.id;
-            if let Some(sink) = event_sink {
-                let sink = sink.clone();
-
-                // A button activation is reported as a raw pointer-up. (The
-                // button's own internal gesture claims the click sequence, so a
-                // separate `GestureClick` would not observe the release; use the
-                // canonical `clicked` signal instead.)
-                let click_sink = sink.clone();
-                btn.connect_clicked(move |_| {
-                    click_sink.borrow_mut()(Event::PointerUp {
-                        target,
-                        x: 0.0,
-                        y: 0.0,
-                        secondary: false,
-                    });
-                });
-
-                // Hover enter/move/leave as raw pointer-move events.
-                let motion = EventControllerMotion::new();
-                let move_sink = sink.clone();
-                motion.connect_motion(move |_motion, x, y| {
-                    move_sink.borrow_mut()(Event::PointerMove {
-                        target,
-                        x: x as f32,
-                        y: y as f32,
-                        hovering: true,
-                        leaving: false,
-                    });
-                });
-                let enter_sink = sink.clone();
-                motion.connect_enter(move |_motion, x, y| {
-                    enter_sink.borrow_mut()(Event::PointerMove {
-                        target,
-                        x: x as f32,
-                        y: y as f32,
-                        hovering: true,
-                        leaving: false,
-                    });
-                });
-                let leave_sink = sink.clone();
-                motion.connect_leave(move |_motion| {
-                    leave_sink.borrow_mut()(Event::PointerMove {
-                        target,
-                        x: 0.0,
-                        y: 0.0,
-                        hovering: false,
-                        leaving: true,
-                    });
-                });
-                btn.add_controller(motion);
-            }
-            btn.upcast()
-        }
+        component_type::BUTTON => Button::with_label(node.text.as_deref().unwrap_or("")).upcast(),
         _ => Label::new(Some("")).upcast(),
     }
+}
+
+/// The listener bitmask a node wants: buttons listen to pointer down/move/up by
+/// default; any node can request additional (or different) raw events via the
+/// `EVENT_LISTENERS` property.
+fn desired_listeners(node: &HostNode) -> u32 {
+    let mut mask = 0u32;
+    if node.component_type == component_type::BUTTON {
+        mask |= listener::POINTER_DOWN | listener::POINTER_MOVE | listener::POINTER_UP;
+    }
+    if let Some(m) = node.properties.get(&property_id::EVENT_LISTENERS) {
+        mask |= *m;
+    }
+    mask
+}
+
+/// Attach a `GestureClick` to `widget`, reporting raw `POINTER_DOWN` /
+/// `POINTER_UP` events for `target`. Uses the capture phase so it observes both
+/// press and release even on a widget (like a button) whose own internal
+/// gesture claims the click sequence.
+fn attach_pointer_gesture(
+    widget: &gtk::Widget,
+    target: u32,
+    sink: Rc<RefCell<dyn FnMut(Event)>>,
+    want_down: bool,
+    want_up: bool,
+) {
+    let gesture = GestureClick::new();
+    gesture.set_propagation_phase(PropagationPhase::Capture);
+    if want_down {
+        let down_sink = sink.clone();
+        gesture.connect_pressed(move |_, _n, x, y| {
+            down_sink.borrow_mut()(Event::PointerDown {
+                target,
+                x: x as f32,
+                y: y as f32,
+                secondary: false,
+            });
+        });
+    }
+    if want_up {
+        let up_sink = sink.clone();
+        gesture.connect_released(move |_, _n, x, y| {
+            up_sink.borrow_mut()(Event::PointerUp {
+                target,
+                x: x as f32,
+                y: y as f32,
+                secondary: false,
+            });
+        });
+    }
+    widget.add_controller(gesture);
+}
+
+/// Attach an `EventControllerMotion` to `widget`, reporting raw `POINTER_MOVE`
+/// events (hover enter/move/leave) for `target`.
+fn attach_motion(widget: &gtk::Widget, target: u32, sink: Rc<RefCell<dyn FnMut(Event)>>) {
+    let motion = EventControllerMotion::new();
+    let move_sink = sink.clone();
+    motion.connect_motion(move |_motion, x, y| {
+        move_sink.borrow_mut()(Event::PointerMove {
+            target,
+            x: x as f32,
+            y: y as f32,
+            hovering: true,
+            leaving: false,
+        });
+    });
+    let enter_sink = sink.clone();
+    motion.connect_enter(move |_motion, x, y| {
+        enter_sink.borrow_mut()(Event::PointerMove {
+            target,
+            x: x as f32,
+            y: y as f32,
+            hovering: true,
+            leaving: false,
+        });
+    });
+    let leave_sink = sink.clone();
+    motion.connect_leave(move |_motion| {
+        leave_sink.borrow_mut()(Event::PointerMove {
+            target,
+            x: 0.0,
+            y: 0.0,
+            hovering: false,
+            leaving: true,
+        });
+    });
+    widget.add_controller(motion);
 }
 
 /// Build a stack's native `GtkBox` from its mapped layout (orientation +

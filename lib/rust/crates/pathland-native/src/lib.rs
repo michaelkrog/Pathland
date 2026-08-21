@@ -248,6 +248,8 @@ pub fn property_value_type(prop: u32) -> (u16, u8) {
         property_id::COLOR | property_id::BACKGROUND_COLOR | property_id::BORDER_COLOR
     ) {
         pathland_opcode::value_type::COLOR
+    } else if pid == property_id::EVENT_LISTENERS {
+        pathland_opcode::value_type::U32
     } else {
         pathland_opcode::value_type::F32
     };

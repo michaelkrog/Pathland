@@ -176,6 +176,28 @@ own rendered-output tree. High-level interpretations — tap, drag, long-press �
 are built by the guest/app from these raw inputs and are **not** part of the
 protocol.
 
+#### Event listeners (which nodes emit events)
+
+A renderer reports raw events only for nodes that declared they want them. The
+application declares this intent through the `EVENT_LISTENERS` semantic
+property (`0x2005`, a u32 bitmask, `SET_PROPERTY` with the `U32` value type).
+Each bit requests a raw-input event kind (see [`listener`] flags):
+
+| Bit | Mask | Event command | Meaning |
+|-----|------|---------------|---------|
+| 0 | `0x00000001` | `POINTER_DOWN` | Report pointer-down for this node |
+| 1 | `0x00000002` | `POINTER_MOVE` | Report pointer-move/enter/leave |
+| 2 | `0x00000004` | `POINTER_UP` | Report pointer-up for this node |
+| 3 | `0x00000008` | `KEY_DOWN` | Report key-down |
+| 4 | `0x00000010` | `KEY_UP` | Report key-up |
+
+This is what makes **any element** (a `Text`, a `VStack`, …) able to emit
+events — the renderer attaches native input recognition to the matching native
+element when the listener bit is set, not only to buttons. A renderer SHOULD
+report `POINTER_DOWN`/`POINTER_UP` for a node with the `POINTER_DOWN`/
+`POINTER_UP` bits set by attaching a native click/press gesture to that
+element.
+
 | Command | Value | A | B | C | Flags | Description |
 |---------|-------|---|---|---|-------|-------------|
 | `POINTER_DOWN` | `0x01` | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` | Pointer button pressed at viewport-relative point |

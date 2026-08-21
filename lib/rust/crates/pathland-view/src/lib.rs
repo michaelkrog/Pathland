@@ -64,8 +64,10 @@ extern crate std;
 extern crate alloc;
 
 use alloc::collections::BTreeMap;
+use alloc::rc::Rc;
 use alloc::string::String;
 use alloc::vec::Vec;
+use core::cell::RefCell;
 
 /// Re-exported for `vstack!`/`hstack!` macro hygiene (`$crate::Box`).
 pub use alloc::boxed::Box;
@@ -76,6 +78,10 @@ use pathland_opcode::component_type;
 use pathland_opcode::property_id;
 
 pub use pathland_opcode;
+
+mod recognizer;
+
+pub use recognizer::TapRecognizer;
 
 // ---------------------------------------------------------------------------
 // Core component macros + free functions
@@ -132,6 +138,9 @@ pub struct Node {
     /// Constraint/style properties (propertyId → value) emitted as
     /// `STYLE:SET_PROPERTY`.
     pub properties: BTreeMap<u16, u32>,
+    /// App-side gesture handlers (callbacks). These live only in the
+    /// application's retained tree and are **never** emitted as protocol.
+    pub gestures: Vec<Gesture>,
 }
 
 impl core::fmt::Debug for Node {
@@ -141,6 +150,7 @@ impl core::fmt::Debug for Node {
             .field("component", &self.component)
             .field("children", &self.children)
             .field("properties", &self.properties)
+            .field("gestures", &self.gestures.len())
             .finish()
     }
 }
@@ -153,6 +163,34 @@ impl Node {
             component: component.clone(),
             children: Vec::new(),
             properties: BTreeMap::new(),
+            gestures: Vec::new(),
+        }
+    }
+}
+
+/// An app-side gesture handler attached to a view.
+///
+/// Callbacks live only in the application's retained tree and are **never**
+/// emitted as protocol — the protocol carries only the declarative
+/// `EVENT_LISTENERS` signal. Tap is the first gesture; more can be added later.
+#[derive(Clone)]
+pub enum Gesture {
+    /// A tap gesture: invoke the closure when a tap is recognized.
+    Tap(Rc<RefCell<dyn FnMut() + 'static>>),
+}
+
+impl PartialEq for Gesture {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Gesture::Tap(a), Gesture::Tap(b)) => Rc::ptr_eq(a, b),
+        }
+    }
+}
+
+impl core::fmt::Debug for Gesture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Gesture::Tap(_) => f.write_str("Tap(..)"),
         }
     }
 }
@@ -233,6 +271,7 @@ pub fn value_type_for(prop: u16) -> u8 {
         property_id::COLOR
         | property_id::BACKGROUND_COLOR
         | property_id::BORDER_COLOR => pathland_opcode::value_type::COLOR,
+        property_id::EVENT_LISTENERS => pathland_opcode::value_type::U32,
         _ => pathland_opcode::value_type::F32,
     }
 }
@@ -326,6 +365,23 @@ pub trait ViewExt: View + Sized {
             alignment,
         })
     }
+
+    /// Chain `.pointer_events(mask)` — declare which raw pointer events this
+    /// view wants the renderer to report (`EVENT_LISTENERS` bitmask). This is
+    /// what makes any element (not just a button) emit raw events; combine
+    /// `pathland_opcode::listener::*` bits, e.g.
+    /// `POINTER_DOWN | POINTER_UP`.
+    fn pointer_events(self, mask: u32) -> Modified<Self, PointerEvents> {
+        self.modifier(PointerEvents(mask))
+    }
+
+    /// Chain `.on_tap_gesture(f)` — attach a tap gesture (SwiftUI
+    /// `onTapGesture`) to any view. The callback `f` runs when a tap is
+    /// recognized from the view's raw pointer events (down then up on the same
+    /// target).
+    fn on_tap_gesture<F: FnMut() + 'static>(self, f: F) -> Modified<Self, TapGesture> {
+        self.modifier(TapGesture(Rc::new(RefCell::new(f))))
+    }
 }
 
 impl<T: View> ViewExt for T {}
@@ -365,6 +421,31 @@ pub struct Frame {
     pub width: Option<f32>,
     pub height: Option<f32>,
     pub alignment: Option<Align>,
+}
+
+/// Declares which raw pointer events a view wants reported (the `EVENT_LISTENERS`
+/// u32 bitmask, e.g. `listener::POINTER_DOWN | listener::POINTER_UP`). Applies to
+/// any view; the renderer attaches native input recognition for the requested
+/// events.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PointerEvents(pub u32);
+
+/// A tap-gesture modifier (SwiftUI `onTapGesture`). Declares the pointer
+/// down/up listeners and stores the app-side callback in the node's gesture
+/// list.
+#[derive(Clone)]
+pub struct TapGesture(Rc<RefCell<dyn FnMut() + 'static>>);
+
+impl PartialEq for TapGesture {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl core::fmt::Debug for TapGesture {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("TapGesture(..)")
+    }
 }
 
 impl ViewModifier for Spacing {
@@ -415,6 +496,38 @@ impl ViewModifier for Frame {
     }
 }
 
+impl ViewModifier for PointerEvents {
+    fn apply(&self, node: &mut Node) {
+        // OR into any existing mask so multiple modifiers compose.
+        let existing = node
+            .properties
+            .get(&property_id::EVENT_LISTENERS)
+            .copied()
+            .unwrap_or(0);
+        node.properties
+            .insert(property_id::EVENT_LISTENERS, existing | self.0);
+    }
+}
+
+impl ViewModifier for TapGesture {
+    fn apply(&self, node: &mut Node) {
+        // Declare the raw pointer listeners the renderer must attach, then store
+        // the callback in the app-side gesture list.
+        let existing = node
+            .properties
+            .get(&property_id::EVENT_LISTENERS)
+            .copied()
+            .unwrap_or(0);
+        node.properties.insert(
+            property_id::EVENT_LISTENERS,
+            existing
+                | pathland_opcode::listener::POINTER_DOWN
+                | pathland_opcode::listener::POINTER_UP,
+        );
+        node.gestures.push(Gesture::Tap(self.0.clone()));
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Core components
 // ---------------------------------------------------------------------------
@@ -456,6 +569,7 @@ impl View for VStack {
             component: Component::VStack,
             children: self.children.iter().map(|c| c.build()).collect(),
             properties: BTreeMap::new(),
+            gestures: Vec::new(),
         }
     }
 }
@@ -497,6 +611,7 @@ impl View for HStack {
             component: Component::HStack,
             children: self.children.iter().map(|c| c.build()).collect(),
             properties: BTreeMap::new(),
+            gestures: Vec::new(),
         }
     }
 }
@@ -523,6 +638,7 @@ impl View for Text {
             },
             children: Vec::new(),
             properties: BTreeMap::new(),
+            gestures: Vec::new(),
         }
     }
 }
@@ -551,6 +667,7 @@ impl View for Spacer {
             component: Component::Spacer,
             children: Vec::new(),
             properties: BTreeMap::new(),
+            gestures: Vec::new(),
         }
     }
 }
@@ -577,6 +694,7 @@ impl View for Button {
             },
             children: Vec::new(),
             properties: BTreeMap::new(),
+            gestures: Vec::new(),
         }
     }
 }
@@ -599,6 +717,24 @@ pub fn assign_ids(root: &mut Node, next: &mut u32) {
     *next += 1;
     for child in &mut root.children {
         assign_ids(child, next);
+    }
+}
+
+/// Collect a `node id → tap callback` map from a built (and id-assigned) tree.
+///
+/// Call after [`assign_ids`] so each node has its stable id; the returned map
+/// keys the recognizer's tap target to the closure registered by
+/// `.on_tap_gesture(...)`.
+pub fn collect_tap_handlers(
+    root: &Node,
+    out: &mut BTreeMap<u32, Rc<RefCell<dyn FnMut() + 'static>>>,
+) {
+    for gesture in &root.gestures {
+        let Gesture::Tap(handler) = gesture;
+        out.insert(root.id, handler.clone());
+    }
+    for child in &root.children {
+        collect_tap_handlers(child, out);
     }
 }
 
@@ -759,5 +895,58 @@ mod tests {
         );
         assert!(!node.properties.contains_key(&property_id::HEIGHT));
         assert!(!node.properties.contains_key(&property_id::ALIGNMENT));
+    }
+
+    #[test]
+    fn pointer_events_modifier_sets_listener_mask() {
+        let mask = pathland_opcode::listener::POINTER_DOWN | pathland_opcode::listener::POINTER_UP;
+        let node = text("x").pointer_events(mask).build();
+        assert_eq!(
+            node.properties.get(&property_id::EVENT_LISTENERS),
+            Some(&mask)
+        );
+    }
+
+    #[test]
+    fn on_tap_gesture_declares_listeners_and_stores_callback() {
+        let node = text("x").on_tap_gesture(|| {}).build();
+        assert_eq!(
+            node.properties.get(&property_id::EVENT_LISTENERS),
+            Some(&(pathland_opcode::listener::POINTER_DOWN | pathland_opcode::listener::POINTER_UP))
+        );
+        assert_eq!(node.gestures.len(), 1);
+    }
+
+    #[test]
+    fn on_tap_gesture_works_on_any_view() {
+        assert_eq!(vstack![].on_tap_gesture(|| {}).build().gestures.len(), 1);
+        assert_eq!(text("a").on_tap_gesture(|| {}).build().gestures.len(), 1);
+        assert_eq!(hstack![].on_tap_gesture(|| {}).build().gestures.len(), 1);
+    }
+
+    #[test]
+    fn tap_gesture_ors_into_existing_listener_mask() {
+        let node = text("x")
+            .pointer_events(pathland_opcode::listener::POINTER_MOVE)
+            .on_tap_gesture(|| {})
+            .build();
+        assert_eq!(
+            node.properties.get(&property_id::EVENT_LISTENERS),
+            Some(&(pathland_opcode::listener::POINTER_MOVE
+                | pathland_opcode::listener::POINTER_DOWN
+                | pathland_opcode::listener::POINTER_UP))
+        );
+    }
+
+    #[test]
+    fn collect_tap_handlers_maps_ids_to_callbacks() {
+        let mut root = vstack![text("a").on_tap_gesture(|| {}), text("b")].build();
+        assign_ids(&mut root, &mut 1);
+        let mut map = BTreeMap::new();
+        collect_tap_handlers(&root, &mut map);
+        // root=1, "a"=2 (has tap), "b"=3 (no tap).
+        assert!(map.contains_key(&2));
+        assert!(!map.contains_key(&1));
+        assert!(!map.contains_key(&3));
     }
 }

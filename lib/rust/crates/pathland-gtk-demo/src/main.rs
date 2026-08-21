@@ -7,30 +7,44 @@
 //! `pathland_engine` emits declarative 16-byte opcodes into the shared ring, and
 //! the `pathland-gtk` renderer maps them onto native GTK widgets. The demo never
 //! touches GTK/glib/pango directly — it only drives Pathland and the renderer.
+//!
+//! Interaction is declared with `.on_tap_gesture(...)` on any view; raw pointer
+//! events round-trip through the shared ring and are turned back into taps by
+//! the app-side [`TapRecognizer`](pathland_view::TapRecognizer).
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
+use std::time::Instant;
 
 use pathland_engine::Engine;
-use pathland_opcode::size;
+use pathland_opcode::{listener, size};
 use pathland_transport::RingTransport;
 use pathland_view::{assign_ids, button, hstack, text, vstack, Align, Node, View, ViewExt};
 
 const APP_ID: &str = "org.pathland.GtkDemo";
 
+/// node id → tap callback, collected from the built tree after `assign_ids`.
+type TapHandlers = BTreeMap<u32, Rc<RefCell<dyn FnMut() + 'static>>>;
+
 /// Build the DSL tree for the current counter value. This is the developer's
 /// authoring surface.
-fn build_tree(count: u32) -> Node {
+fn build_tree(count: &Rc<RefCell<u32>>) -> Node {
+    let tap_count = count.clone();
     vstack![
         hstack![
-            text(format!("Count: {}", count).as_str()).frame(Some(size::FILL), None, None),
-            button("Increment"),
+            text(format!("Count: {}", *count.borrow()).as_str())
+                .frame(Some(size::FILL), None, None),
+            button("Increment").on_tap_gesture(move || *tap_count.borrow_mut() += 1),
         ]
         .spacing(8.0)
         .padding(16.0),
         text("Pathland · GTK4 · shared ring").color(0xFF_888888),
-        // A VStack whose children (different widths) are centered on the
-        // cross axis, exercising ALIGNMENT.
+        // A non-button view (Text) declaring raw pointer listeners — proving any
+        // element can emit events via the `EVENT_LISTENERS` property.
+        text("I am a Text with raw pointer listeners")
+            .pointer_events(listener::POINTER_DOWN | listener::POINTER_UP)
+            .color(0xFF_0000AA),
         vstack![
             text("short"),
             text("a much longer label"),
@@ -45,40 +59,61 @@ fn build_tree(count: u32) -> Node {
     .build()
 }
 
-/// Emit the current tree as opcodes into the shared ring.
-fn emit(engine: &Rc<RefCell<Engine>>, ring: &Rc<RefCell<RingTransport>>, count: u32) {
-    let mut tree = build_tree(count);
-    assign_ids(&mut tree, &mut 1);
-    let mut ring_ref = ring.borrow_mut();
-    let mut guest = ring_ref.producer();
-    guest.begin_frame();
-    engine.borrow_mut().emit(&tree, &mut guest).ok();
-    guest.end_frame();
-}
-
 fn main() {
     let engine = Rc::new(RefCell::new(Engine::new()));
     let ring = Rc::new(RefCell::new(RingTransport::new()));
     let count = Rc::new(RefCell::new(0u32));
+    let handlers = Rc::new(RefCell::new(TapHandlers::new()));
+
+    // Build + emit the current tree, refreshing the id → tap-callback map.
+    let emit = {
+        let engine = engine.clone();
+        let ring = ring.clone();
+        let count = count.clone();
+        let handlers = handlers.clone();
+        move || {
+            let mut tree = build_tree(&count);
+            assign_ids(&mut tree, &mut 1);
+            let mut h = handlers.borrow_mut();
+            h.clear();
+            pathland_view::collect_tap_handlers(&tree, &mut *h);
+            drop(h);
+
+            let mut ring_ref = ring.borrow_mut();
+            let mut guest = ring_ref.producer();
+            guest.begin_frame();
+            engine.borrow_mut().emit(&tree, &mut guest).ok();
+            guest.end_frame();
+        }
+    };
 
     // Initial frame before the renderer starts pumping.
-    emit(&engine, &ring, 0);
+    emit();
 
     // Hand the renderer the shared ring and a wake handler. The renderer writes
     // native inputs as EVENT opcodes into the ring and wakes us; we drain the
-    // ring, react to pointer-up, bump the counter, and re-emit. The renderer's
-    // idle pump applies the delta.
+    // ring, run the taps through the recognizer, invoke the matching callback,
+    // and re-emit. The renderer's idle pump applies the delta.
     pathland_gtk::run(APP_ID, "Pathland GTK4 Demo", ring.clone(), {
-        let engine = engine.clone();
-        let count = count.clone();
+        let emit = emit;
+        let handlers = handlers.clone();
+        let start = Instant::now();
+        let mut recognizer = pathland_view::TapRecognizer::new();
         move |ring| {
             let events = ring.borrow_mut().drain_events();
-            let activated = events
-                .iter()
-                .any(|ev| matches!(ev, pathland_opcode::Event::PointerUp { .. }));
-            if activated {
-                *count.borrow_mut() += 1;
-                emit(&engine, &ring, *count.borrow());
+            let now_ms = start.elapsed().as_millis() as u64;
+            let mut tapped = false;
+            for ev in &events {
+                if let Some(target) = recognizer.feed(ev, now_ms) {
+                    if let Some(handler) = handlers.borrow().get(&target) {
+                        let mut cb = handler.borrow_mut();
+                        (&mut *cb)();
+                        tapped = true;
+                    }
+                }
+            }
+            if tapped {
+                emit();
             }
         }
     });

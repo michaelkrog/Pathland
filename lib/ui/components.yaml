@@ -70,6 +70,7 @@ property_ids:
   state: 0x2002
   enabled: 0x2003
   selected: 0x2004
+  event_listeners: 0x2005
 
 # ---------------------------------------------------------------------------
 # Enums (typed DSL values; each maps to a u8 wire value and a property id)
