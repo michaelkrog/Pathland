@@ -25,6 +25,40 @@ browser/remote projection only**, not the primary path.
 signals in the application ensure only changed nodes emit opcodes, so an
 unchanged tree emits zero opcodes.
 
+## The Four Elements
+
+Pathland is composed of four elements. They are the vocabulary the whole
+project speaks, so they are settled and used consistently:
+
+```
+┌────────────────────┐        ┌─────────────────────┐
+│ 1. Retained model  │        │ 3. Renderer         │
+│ the app's UI tree  │───┐    │ native elements +   │
+│ (application-      │   │    │ event reporting     │
+│  owned, canonical) │   │    └───────────▲─────────┘
+└────────────────────┘   │                │
+                         │                │
+┌────────────────────┐   │                │
+│ 2. Opcode engine   │◄──┘   4. Transport │
+│ diffs + emits      │        delivers    │
+│ 16-byte opcodes    │────────────────────┘
+└────────────────────┘
+```
+
+1. **Retained model** — the application's canonical retained UI tree. The
+   application owns it; it is the single source of truth.
+2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed
+   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes
+   emit, so an unchanged tree emits zero opcodes.
+3. **Renderer** — consumes the opcode stream and maps it onto that platform's
+   **native elements**, and reports raw inputs back as events. It is a pure
+   function of the opcode stream (stateless) and never retains application
+   state. *"Host" and "driver" are roles a renderer plays: it runs inside a
+   host and is pumped by a driver — they are not separate elements.*
+4. **Transport** — carries opcodes from the engine to the renderer: the
+   zero-copy shared-memory ring on desktop/native, a serialized network batch
+   for remote/browser.
+
 ## Core Principles
 
 - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs
