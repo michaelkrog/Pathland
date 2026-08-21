@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 4.206018656000001,
+    "cost": 4.235451400000001,
     "tokens": {
-      "input": 5001733,
-      "output": 138321,
+      "input": 5017941,
+      "output": 138519,
       "reasoning": 99950,
       "cache": {
-        "read": 75736448,
+        "read": 76570240,
         "write": 0
       }
     },
     "time": {
       "created": 1787122720206,
-      "updated": 1787323606377
+      "updated": 1787323620159
     }
   },
   "messages": [
@@ -42068,21 +42068,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.019935124,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 425059,
+          "input": 16052,
+          "output": 175,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 408832
           }
         },
         "modelID": "deepseek-v4-pro",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787323606299
+          "created": 1787323606299,
+          "completed": 1787323620139
         },
+        "finish": "tool-calls",
         "id": "msg_024c9e51b002WMzG92ocENagJW",
         "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7"
       },
@@ -42099,20 +42102,115 @@
           "tool": "bash",
           "callID": "call_00_ET_C5XwyG9olQAihnlcCKAh0987",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git add lib/rust/crates/pathland-transport/src/ring.rs && git commit -q -F - <<'EOF'\ntest: prove the opcode ring read is zero-copy\n\nAdd next_frame_is_zero_copy to pathland-transport, asserting the renderer\nreads the shared-memory ring in place: reading N opcodes allocates O(1)\nbookkeeping (never O(N) — a copy would allocate per-opcode) and the decoded\narena string is borrowed from the shared buffer (pointer identity).\nEOF\ngit log --oneline -2"
             },
+            "output": "6b35c8b test: prove the opcode ring read is zero-copy\n2f6e30b Merge pull request #19 from michaelkrog/feature/native-wit-zero-copy\n",
+            "metadata": {
+              "output": "6b35c8b test: prove the opcode ring read is zero-copy\n2f6e30b Merge pull request #19 from michaelkrog/feature/native-wit-zero-copy\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git add lib/rust/crates/pathland-transport/src/ring.rs && git commit -q -F - <<'EOF'\ntest: prove the opcode ring read is zero-copy\n\nAdd next_frame_is_zero_copy to pathland-transport, asserting the renderer\nreads the shared-memory ring in place: reading N opcodes allocates O(1)\nbookkeeping (never O(N) — a copy would allocate per-opcode) and the decoded\narena string is borrowed from the shared buffer (pointer identity).\nEOF\ngit log --oneline -2",
             "time": {
-              "start": 1787323615859
+              "start": 1787323620048,
+              "end": 1787323620051
             }
           },
           "id": "prt_024ca031f001U6dwieRgT4n25q",
           "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
           "messageID": "msg_024c9e51b002WMzG92ocENagJW"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "7e5d3d73ea3332a5ba254520c4a208738c68e72c",
+          "type": "step-finish",
+          "tokens": {
+            "total": 425059,
+            "input": 16052,
+            "output": 175,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 408832
+            }
+          },
+          "cost": 0.019935124,
+          "id": "prt_024ca1b020011BiplR6gah3jfP",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_024c9e51b002WMzG92ocENagJW"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_024c9e374001wjTiO04i8qmkxa",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.00949762,
+        "tokens": {
+          "total": 425139,
+          "input": 156,
+          "output": 23,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 424960
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787323620158,
+          "completed": 1787323627833
+        },
+        "finish": "stop",
+        "id": "msg_024ca1b3e0024pkqG8AHiTiCoT",
+        "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7"
+      },
+      "parts": [
+        {
+          "snapshot": "7e5d3d73ea3332a5ba254520c4a208738c68e72c",
+          "type": "step-start",
+          "id": "prt_024ca2f8b0012WoBzoL0aBj6Ii",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_024ca1b3e0024pkqG8AHiTiCoT"
+        },
+        {
+          "type": "text",
+          "text": "Committed as `6b35c8b` on `feature/zero-copy-render-test`.",
+          "time": {
+            "start": 1787323627499,
+            "end": 1787323627738
+          },
+          "id": "prt_024ca37eb001Y0ur9ok4lUybYK",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_024ca1b3e0024pkqG8AHiTiCoT"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "7e5d3d73ea3332a5ba254520c4a208738c68e72c",
+          "type": "step-finish",
+          "tokens": {
+            "total": 425139,
+            "input": 156,
+            "output": 23,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 424960
+            }
+          },
+          "cost": 0.00949762,
+          "id": "prt_024ca3908001DpGnlpo8s1O6Nu",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_024ca1b3e0024pkqG8AHiTiCoT"
         }
       ]
     }
