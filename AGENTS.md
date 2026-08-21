@@ -76,9 +76,11 @@ lib/java/pathland-demo/   # Java (Maven) demo: catalog-generated SwiftUI-like DS
   (also needs `PATH="$HOME/.cargo/bin:$PATH"` so rustup's `cargo`/`rustc` are used).
 - Run the GTK demo (native, zero-copy shared ring): `cd lib/rust && cargo run -p pathland-gtk-demo`.
 - Run the Java demo (JNA over the native C-ABI shim + GTK renderer):
-  `PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native -p pathland-gtk`
-  then `cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java`.
-  On macOS, GTK must run on the main thread: prefix with `MAVEN_OPTS="-XstartOnFirstThread"`.
+  `cd lib/java/pathland-demo && ./run.sh` (or `./run.sh demo.DemoHeadless` for the
+  headless verification). The script builds the native libs, compiles, and launches
+  `java` directly — on macOS GTK must run on the process's main thread, so it passes
+  `-XstartOnFirstThread` to `java` itself (`mvn exec:java` does not propagate the
+  flag correctly).
 
 ### Native C-ABI shim (`pathland-native`)
 
