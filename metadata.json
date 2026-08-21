@@ -3,7 +3,7 @@
   "checkpoint_id": "01M0JKR4W5TEW99PAES7D1T5N1",
   "strategy": "manual-commit",
   "branch": "feature/gtk-renderer-hardening",
-  "checkpoints_count": 13,
+  "checkpoints_count": 14,
   "files_touched": [
     "AGENTS.md",
     "README.md",
@@ -30,13 +30,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": "/0/prompt.txt"
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": "/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 1991336,
+    "input_tokens": 2021731,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 30897792,
-    "output_tokens": 31881,
-    "api_call_count": 125
+    "cache_read_tokens": 30987392,
+    "output_tokens": 36984,
+    "api_call_count": 131
   }
 }
