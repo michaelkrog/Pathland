@@ -25,39 +25,46 @@ browser/remote projection only**, not the primary path.
 signals in the application ensure only changed nodes emit opcodes, so an
 unchanged tree emits zero opcodes.
 
-## The Four Elements
+## The Three Elements
 
-Pathland is composed of four elements. They are the vocabulary the whole
+Pathland is composed of three elements. They are the vocabulary the whole
 project speaks, so they are settled and used consistently:
 
 ```
 ┌────────────────────┐        ┌─────────────────────┐
-│ 1. Retained model  │        │ 3. Renderer         │
-│ the app's UI tree  │───┐    │ native elements +   │
-│ (application-      │   │    │ event reporting     │
-│  owned, canonical) │   │    └───────────▲─────────┘
-└────────────────────┘   │                │
+│ 1. Retained UI     │        │ 3. Renderer         │
+│ the app's UI tree  │────┐   │ maps opcodes onto   │
+│ (any language,     │    │   │ native elements +   │
+│  any platform)     │    │   │ event reporting     │
+└────────────────────┘    │   └───────────▲─────────┘
                          │                │
-┌────────────────────┐   │                │
-│ 2. Opcode engine   │◄──┘   4. Transport │
-│ diffs + emits      │        delivers    │
-│ 16-byte opcodes    │────────────────────┘
+┌────────────────────┐    │                │
+│ 2. Opcode engine   │◄───┘                │
+│ diffs + emits      │─────────────────────┘
 └────────────────────┘
 ```
 
-1. **Retained model** — the application's canonical retained UI tree. The
-   application owns it; it is the single source of truth.
+1. **Retained UI** — the application's canonical retained UI tree. It is the
+   single source of truth, owned by the application. It can be authored in
+   **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —
+   desktop, mobile, embedded, or web — through a generated DSL, a WIT binding,
+   or the flat native C ABI.
 2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed
    **16-byte opcodes** (the producer). Emission is reactive: only changed nodes
-   emit, so an unchanged tree emits zero opcodes.
+   emit, so an unchanged tree emits zero opcodes. The engine is
+   language-independent — the same opcode stream serves every renderer.
 3. **Renderer** — consumes the opcode stream and maps it onto that platform's
    **native elements**, and reports raw inputs back as events. It is a pure
    function of the opcode stream (stateless) and never retains application
    state. *"Host" and "driver" are roles a renderer plays: it runs inside a
-   host and is pumped by a driver — they are not separate elements.*
-4. **Transport** — carries opcodes from the engine to the renderer: the
-   zero-copy shared-memory ring on desktop/native, a serialized network batch
-   for remote/browser.
+   host and is pumped by a driver — they are not separate elements.* The same
+   opcode stream targets **different UI systems**: a GTK4 renderer on desktop,
+   an AppKit/SwiftUI renderer on macOS, a WinUI renderer on Windows, an LVGL
+   renderer on embedded, a DOM renderer in the browser.
+
+The opcodes are carried from the engine to the renderer by a transport (a
+zero-copy shared-memory ring on desktop/native, a serialized network batch for
+remote/browser); transport is an implementation detail, not a fourth element.
 
 ## Core Principles
 
