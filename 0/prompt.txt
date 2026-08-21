@@ -1,0 +1,1 @@
+I want to create a plan to create a new modifier for taps called onTapGesture similar to the one in swiftui. It must base its logic on the existing events we have currently (more can come later). It must be possible to add the modifier to any view

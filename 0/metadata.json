@@ -1,0 +1,73 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0JWHRZS7H7H5HCMMBRVEKVB",
+  "session_id": "ses_fdaa005beffe1gtNKgxlZ3gxeF",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-21T19:25:19.296136Z",
+  "branch": "main",
+  "checkpoints_count": 8,
+  "save_step_count": 2,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo/src/main/java/pathland/Constants.java",
+    "lib/rust/crates/pathland-codegen/src/main.rs",
+    "lib/rust/crates/pathland-engine/src/lib.rs",
+    "lib/rust/crates/pathland-gtk-demo/src/main.rs",
+    "lib/rust/crates/pathland-gtk/src/lib.rs",
+    "lib/rust/crates/pathland-native/src/lib.rs",
+    "lib/rust/crates/pathland-opcode/src/constants.rs",
+    "lib/rust/crates/pathland-view/src/lib.rs",
+    "lib/rust/crates/pathland-view/src/recognizer.rs",
+    "lib/ui/components.yaml",
+    "spec/OPCODE.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "606c49fe030d",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 414932,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 9996544,
+    "output_tokens": 25305,
+    "api_call_count": 85
+  },
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-21T19:25:19.228263Z",
+    "agent_lines": 666,
+    "agent_removed": 93,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 666,
+    "total_lines_changed": 759,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 393,
+      "agent_lines_removed": 1
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 666,
+      "agent_lines_removed": 93
+    }
+  ]
+}
