@@ -38,10 +38,9 @@ public final class Constants {
     public static final int PROP_FONT_SIZE = 0x1007;
     public static final int PROP_FONT_WEIGHT = 0x1008;
     public static final int PROP_HEIGHT = 0x100C;
-    public static final int PROP_JUSTIFICATION = 0x0003;
     public static final int PROP_LINE_LIMIT = 0x000B;
     public static final int PROP_OPACITY = 0x100D;
-    public static final int PROP_PADDING = 0x0004;
+    public static final int PROP_PADDING = 0x1011;
     public static final int PROP_PADDING_BOTTOM = 0x1014;
     public static final int PROP_PADDING_LEFT = 0x1015;
     public static final int PROP_PADDING_RIGHT = 0x1013;

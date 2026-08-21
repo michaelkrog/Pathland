@@ -5,7 +5,6 @@ import pathland.Align;
 import pathland.Bridge;
 import pathland.Constants;
 import pathland.DSL;
-import pathland.Justify;
 import pathland.Node;
 import pathland.PathlandGtk;
 import pathland.PathlandNative;
@@ -52,7 +51,7 @@ public final class GtkDemo {
     /** Rebuild the tree through the DSL, bridge it, then emit opcodes. */
     private void render() {
         View root = DSL.vstack(
-                Align.LEADING, Justify.START, 12f,
+                Align.LEADING, 12f,
                 DSL.hstack(
                         DSL.text("Count: " + count).frame(Constants.FILL, Float.NaN, Align.LEADING),
                         DSL.button("Increment")

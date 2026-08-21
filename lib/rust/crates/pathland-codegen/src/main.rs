@@ -110,7 +110,6 @@ fn assert_ids(catalog: &Catalog) -> Vec<String> {
     let expected_props: &[(&str, u16)] = &[
         ("spacing", property_id::SPACING),
         ("alignment", property_id::ALIGNMENT),
-        ("justification", property_id::JUSTIFICATION),
         ("padding", property_id::PADDING),
         ("content_margins", property_id::CONTENT_MARGINS),
         ("text", property_id::TEXT),

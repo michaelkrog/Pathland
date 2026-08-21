@@ -120,7 +120,7 @@ safety net), and emits the checked-in Java DSL (typed enums, `View`/`DSL`/
 - Global **modifiers** (appearance/decoration) are chainable on any view.
 - `spacing` is a constructor property; `padding` is a modifier (always).
 - No standalone width/height — use the compound `frame(width, height, alignment)` modifier.
-- Typed enums (Align/Justify/TextAlign/Truncation/FontWeight), not raw ints.
+- Typed enums (Align/TextAlign/Truncation/FontWeight), not raw ints.
 
 Run `./generate.sh` (or `cargo run -p pathland-codegen`) to regenerate.
 
@@ -240,9 +240,9 @@ See `spec/OPCODE.md` for the full format, ring buffer, arena, and frame lifecycl
 
 ### Key Property IDs
 
-**Stack**: SPACING=0x0001, ALIGNMENT=0x0002, JUSTIFICATION=0x0003, PADDING=0x0004, CONTENT_MARGINS=0x0005  
+**Stack**: SPACING=0x0001, ALIGNMENT=0x0002, CONTENT_MARGINS=0x0005  
 **Text**: TEXT=0x000A, TEXT_ALIGNMENT=0x000C, LINE_LIMIT=0x000B, TRUNCATION_MODE=0x000D  
-**Style**: COLOR=0x100A, FONT_SIZE=0x1007, FONT_WEIGHT=0x1008, FONT_FAMILY=0x1009, BACKGROUND_COLOR=0x1001, BORDER_WIDTH=0x1003, BORDER_COLOR=0x1004, BORDER_RADIUS=0x1005, OPACITY=0x100D, VISIBLE=0x100E, Z_INDEX=0x100F, CLIPS_TO_BOUNDS=0x1010, PADDING_TOP/RIGHT/BOTTOM/LEFT=0x1012-0x1015  
+**Style**: COLOR=0x100A, FONT_SIZE=0x1007, FONT_WEIGHT=0x1008, FONT_FAMILY=0x1009, BACKGROUND_COLOR=0x1001, BORDER_WIDTH=0x1003, BORDER_COLOR=0x1004, BORDER_RADIUS=0x1005, OPACITY=0x100D, VISIBLE=0x100E, Z_INDEX=0x100F, CLIPS_TO_BOUNDS=0x1010, PADDING=0x1011, PADDING_TOP/RIGHT/BOTTOM/LEFT=0x1012-0x1015  
 **Special**: WIDTH=0x100B (use -1=FILL, -2=HUG_CONTENT), HEIGHT=0x100C  
 **Semantic**: ROLE=0x2001, STATE=0x2002, ENABLED=0x2003, SELECTED=0x2004
 

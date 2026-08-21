@@ -21,13 +21,14 @@
 //! in-process over the `pathland-native` host's shared ring.
 
 mod capi;
+mod layout;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
 
 use gtk::prelude::*;
-use gtk::{Align, Box as GtkBox, Button, Label, Orientation};
+use gtk::{Align, Box as GtkBox, Button, Label};
 use pathland_host::{HostNode, RenderTree};
 use pathland_opcode::{component_type, property_id, Event, Frame};
 use pathland_transport::{DriverTransport, FrameSource, OpcodeBatch, RingTransport, TransportError};
@@ -139,12 +140,13 @@ impl GtkRenderer {
             self.sync_node(*child);
         }
 
-        // Stacks: reconcile the box children (order/content) against the tree.
+        // Stacks: reconcile the box children (order/content) against the tree
+        // and apply cross-axis alignment to each child.
         if matches!(
             node.component_type,
             component_type::VSTACK | component_type::HSTACK
         ) {
-            self.sync_children(id, &children);
+            self.sync_children(id, &children, &node);
         }
     }
 
@@ -157,9 +159,21 @@ impl GtkRenderer {
         widget
     }
 
-    /// Apply the current text/style to an existing widget (idempotent).
+    /// Apply the current text/style/layout to an existing widget (idempotent).
     fn update(&self, widget: gtk::Widget, node: &HostNode) {
+        // Padding is styling (a DSL modifier): apply it to any widget as margins.
+        apply_padding(&widget, node);
+
         match node.component_type {
+            component_type::VSTACK | component_type::HSTACK => {
+                // Re-apply spacing on delta frames; orientation is fixed at
+                // creation time (a component-type change recreates the widget).
+                if let Ok(bx) = widget.downcast::<GtkBox>() {
+                    if let Some(l) = layout::stack_layout(node) {
+                        bx.set_spacing(l.spacing);
+                    }
+                }
+            }
             component_type::TEXT => {
                 if let Ok(label) = widget.downcast::<Label>() {
                     label.set_text(node.text.as_deref().unwrap_or(""));
@@ -175,17 +189,33 @@ impl GtkRenderer {
         }
     }
 
-    /// Reconcile a stack's children: re-append the tree-ordered child widgets.
+    /// Reconcile a stack's children: apply cross-axis alignment to each child
+    /// and re-append the tree-ordered child widgets.
     ///
     /// Leaf widgets are preserved (never recreated); only the parent→child
     /// links are re-established, so unchanged subtrees stay put.
-    fn sync_children(&mut self, parent_id: u32, children: &[u32]) {
+    fn sync_children(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
         let Some(parent) = self.widgets.get(&parent_id).cloned() else {
             return;
         };
         let Some(bx) = parent.downcast_ref::<GtkBox>() else {
             return;
         };
+        let Some(l) = layout::stack_layout(node) else {
+            return;
+        };
+
+        // Cross-axis alignment of each child: a vertical stack aligns children
+        // horizontally (`halign`), a horizontal stack vertically (`valign`).
+        for child_id in children {
+            if let Some(w) = self.widgets.get(child_id) {
+                if layout::cross_axis_is_horizontal(l.orientation) {
+                    w.set_halign(l.child_align);
+                } else {
+                    w.set_valign(l.child_align);
+                }
+            }
+        }
 
         // Current children in order.
         let mut current: Vec<gtk::Widget> = Vec::new();
@@ -218,8 +248,7 @@ fn build_widget(
     event_sink: &Option<Rc<RefCell<dyn FnMut(Event)>>>,
 ) -> gtk::Widget {
     match node.component_type {
-        component_type::VSTACK => stack_widget(node, Orientation::Vertical),
-        component_type::HSTACK => stack_widget(node, Orientation::Horizontal),
+        component_type::VSTACK | component_type::HSTACK => stack_widget(node),
         component_type::TEXT => Label::new(Some(node.text.as_deref().unwrap_or(""))).upcast(),
         component_type::BUTTON => {
             let btn = Button::with_label(node.text.as_deref().unwrap_or(""));
@@ -242,16 +271,27 @@ fn build_widget(
     }
 }
 
-fn stack_widget(node: &HostNode, orientation: Orientation) -> gtk::Widget {
-    let spacing = node
-        .properties
-        .get(&property_id::SPACING)
-        .map(|b| f32::from_bits(*b) as i32)
-        .unwrap_or(0);
-    let bx = GtkBox::new(orientation, spacing);
+/// Build a stack's native `GtkBox` from its mapped layout (orientation +
+/// spacing). Padding is applied later, in `update`, so the spacing here is the
+/// only stack-specific layout decision made at creation time.
+fn stack_widget(node: &HostNode) -> gtk::Widget {
+    let layout = layout::stack_layout(node).expect("stack component");
+    let bx = GtkBox::new(layout.orientation, layout.spacing);
     bx.set_halign(Align::Fill);
     bx.set_valign(Align::Fill);
     bx.upcast()
+}
+
+/// Apply a node's padding as widget margins (styling, any widget type).
+fn apply_padding(widget: &gtk::Widget, node: &HostNode) {
+    let e = layout::padding_from(node);
+    if e.is_zero() {
+        return;
+    }
+    widget.set_margin_top(e.top);
+    widget.set_margin_end(e.right);
+    widget.set_margin_bottom(e.bottom);
+    widget.set_margin_start(e.left);
 }
 
 /// Apply color/font-size text style from properties via Pango attributes.
@@ -423,5 +463,79 @@ mod tests {
     fn renderer_placeholder_compiles() {
         // Ensures the renderer type is constructible without a display.
         let _r = GtkRenderer::new();
+    }
+
+    #[test]
+    fn stack_layout_maps_from_opcode_frames() {
+        // Hand-crafted opcode frames (not the DSL) drive the renderer's
+        // RenderTree + pure layout mapping, exercising spacing/alignment/
+        // padding - including a delta frame - without touching GTK widgets.
+        use pathland_opcode::{Host, APPEND, component_type, property_id, value_type};
+
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        // Frame 1: VSTACK (id 1) with SPACING=4, ALIGNMENT=Center, PADDING=8
+        // with a PADDING_TOP override of 2; child TEXT (id 2).
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            guest.create_node(1, component_type::VSTACK).unwrap();
+            guest
+                .set_property(1, property_id::SPACING, value_type::F32, 4.0f32.to_bits())
+                .unwrap();
+            guest
+                .set_property(1, property_id::ALIGNMENT, value_type::F32, 1.0f32.to_bits())
+                .unwrap();
+            guest
+                .set_property(1, property_id::PADDING, value_type::F32, 8.0f32.to_bits())
+                .unwrap();
+            guest
+                .set_property(1, property_id::PADDING_TOP, value_type::F32, 2.0f32.to_bits())
+                .unwrap();
+            guest.create_node(2, component_type::TEXT).unwrap();
+            guest.insert_child(1, 2, APPEND).unwrap();
+            guest.set_text(2, "hi").unwrap();
+            guest.end_frame();
+        }
+
+        let mut tree = RenderTree::default();
+        {
+            let mut host = Host::new(&mut mem, &layout);
+            tree.apply_frame(&host.frames()[0]);
+        }
+
+        let root = tree.root().unwrap().clone();
+        let l = crate::layout::stack_layout(&root).unwrap();
+        assert_eq!(l.orientation, gtk::Orientation::Vertical);
+        assert_eq!(l.spacing, 4);
+        assert_eq!(l.child_align, Align::Center);
+        assert_eq!(
+            crate::layout::padding_from(&root),
+            crate::layout::Edges { top: 2, right: 8, bottom: 8, left: 8 }
+        );
+
+        // Frame 2 (delta): SPACING 4->12, ALIGNMENT Center->End.
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            guest
+                .set_property(1, property_id::SPACING, value_type::F32, 12.0f32.to_bits())
+                .unwrap();
+            guest
+                .set_property(1, property_id::ALIGNMENT, value_type::F32, 2.0f32.to_bits())
+                .unwrap();
+            guest.end_frame();
+        }
+        {
+            let mut host = Host::new(&mut mem, &layout);
+            tree.apply_frame(&host.frames()[0]);
+        }
+
+        let root = tree.root().unwrap().clone();
+        let l = crate::layout::stack_layout(&root).unwrap();
+        assert_eq!(l.spacing, 12);
+        assert_eq!(l.child_align, Align::End);
     }
 }

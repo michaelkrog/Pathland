@@ -141,7 +141,8 @@ Component and property IDs are defined in `pathland-opcode`'s
 [`constants.rs`](./lib/rust/crates/pathland-opcode/src/constants.rs) and
 documented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,
 `VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties
-(`SPACING`, `PADDING`, `ALIGNMENT`, …) drive native layout, and `WIDTH`/`HEIGHT`
+(`SPACING`, `ALIGNMENT`, …) drive native layout, styling modifiers (`PADDING`,
+`COLOR`, `BACKGROUND_COLOR`, …) decorate any view, and `WIDTH`/`HEIGHT`
 use `-1` = FILL, `-2` = HUG_CONTENT.
 
 ## Design Tokens
