@@ -8,12 +8,17 @@ Pathland is a **protocol-first** UI framework for **retained-mode UI** with
 multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but
 designed to be **language-agnostic** and **platform-agnostic**.
 
-As of August 2026 the core is a **Rust engine compiled to WASM** ("WASM guest
-engine"). It emits the application's **declarative view structure** — VStack,
-HStack, Text, spacing, padding, alignment — as a fixed **16-byte opcode ring
-buffer** into shared linear memory. Each platform's renderer maps the opcode
-stream onto that platform's **native elements** (GTK4 widgets, DOM elements,
-HTML) and those native elements lay themselves out.
+As of August 2026 the core is a **Rust opcode engine**. It emits the
+application's **declarative view structure** — VStack, HStack, Text, spacing,
+padding, alignment — as a fixed **16-byte opcode ring buffer** into shared
+linear memory. Each platform's renderer maps the opcode stream onto that
+platform's **native elements** (GTK4 widgets on desktop, DOM elements in the
+browser, HTML server-side) and those native elements lay themselves out.
+
+On desktop the engine runs **natively**: other languages drive it through the
+flat **native C ABI** (`pathland-native`) over a zero-copy shared ring and render
+through the shared GTK renderer (`pathland-gtk`). **WASM/WIT are the
+browser/remote projection only**, not the primary path.
 
 **The engine does not compute layout and does not emit rects.** It describes
 *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:
@@ -31,7 +36,7 @@ unchanged tree emits zero opcodes.
 - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state
 - **Zero-copy**: ring and arena are plain regions of shared linear memory
 - **Single-producer / single-consumer**: guest engine produces; host renderer consumes
-- **Worker-first heritage**: the architecture keeps the application logic separable from rendering, and WASM/WIT makes components consumable from any language
+- **Catalog-driven DSL**: the ergonomic SwiftUI-like DSL in any language is generated from a single YAML catalog (`lib/ui/`), not hand-written
 
 ## Documentation
 
@@ -47,8 +52,19 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 | Crate | Responsibility |
 |-------|----------------|
 | `pathland-opcode` | 16-byte opcode, ring buffer, bump arena, linear-memory layout (`no_std`) |
+| `pathland-view` | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |
 | `pathland-engine` | Retained view tree → declarative `TREE`/`STYLE` opcodes; diff-based reactive emission (zero-alloc steady state) |
 | `pathland-host` | Host reader: ring → native-element description (`std` convenience layer) |
+| `pathland-transport` | Opcode transport: shared-memory ring + network batch encode/decode + transport abstraction |
+| `pathland-native` | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
+| `pathland-gtk` | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
+| `pathland-gtk-demo` | Rust GTK4 demo: authors the DSL, renders through `pathland-gtk` (no GTK APIs) |
+| `pathland-codegen` | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |
+| `pathland-guest` | WASM guest component (browser/remote only) |
+| `pathland-wit-host` | WIT host bindings + DSL bridge (browser/remote only) |
+
+The DSL catalog lives in [`lib/ui/components.yaml`](./lib/ui/components.yaml);
+regenerate the Java DSL with `./generate.sh`.
 
 ### Run tests
 
@@ -57,7 +73,21 @@ cd lib/rust
 cargo test
 ```
 
-### Build for wasm32
+### Run the demos (native, zero-copy shared ring + GTK renderer)
+
+```bash
+# Rust demo
+cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-gtk-demo
+
+# Java demo (JNA over pathland-native + pathland-gtk)
+PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native -p pathland-gtk
+cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
+```
+
+On macOS the Java demo must run GTK on the main thread:
+`MAVEN_OPTS="-XstartOnFirstThread"`.
+
+### Build for wasm32 (browser projection only)
 
 ```bash
 RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \
@@ -85,10 +115,11 @@ referenced via the `DESIGN_TOKEN` value type or overridden globally with
 See the GitHub issues (#12, #13, #15, #16, #18):
 
 1. **16-byte opcode engine** — done
-2. Core components & modifiers in Rust (SwiftUI-like API)
-3. **Opcode transport layer** (shared memory + network batch)
-4. Rust desktop app with GTK4 renderer
-5. Quarkus SSR + WebSocket demo
+2. **Core components & modifiers in Rust** (SwiftUI-like API) — done
+3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done
+4. **Rust desktop app with GTK4 renderer** (native shared ring) — done
+5. **Catalog-driven DSL** (YAML → Java via `pathland-codegen`) — done
+6. Quarkus SSR + WebSocket demo — planned
 
 ## Versioning
 

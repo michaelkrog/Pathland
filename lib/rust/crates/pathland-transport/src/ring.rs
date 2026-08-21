@@ -173,4 +173,83 @@ mod tests {
         );
         assert!(ring.drain_events().is_empty());
     }
+
+    #[test]
+    fn next_frame_is_zero_copy() {
+        // The ring is a single shared linear-memory buffer. Reading a frame
+        // must borrow that buffer in place — never copy the opcode stream.
+        // Prove two things:
+        //  1. Reading N opcodes allocates O(1) bookkeeping, not O(N) storage
+        //     (a copy of the opcode stream would allocate per-opcode).
+        //  2. The arena string decoded from the frame lives inside the shared
+        //     buffer (pointer identity), i.e. it is read in place.
+
+        use std::alloc::{GlobalAlloc, Layout as AllocLayout};
+        use std::cell::Cell;
+        use std::thread_local;
+
+        thread_local! {
+            static COUNT: Cell<usize> = const { Cell::new(0) };
+        }
+        struct Counting;
+        unsafe impl GlobalAlloc for Counting {
+            unsafe fn alloc(&self, l: AllocLayout) -> *mut u8 {
+                COUNT.with(|c| c.set(c.get() + 1));
+                // SAFETY: forward to the system allocator.
+                unsafe { std::alloc::System.alloc(l) }
+            }
+            unsafe fn dealloc(&self, p: *mut u8, l: AllocLayout) {
+                // SAFETY: forward to the system allocator.
+                unsafe { std::alloc::System.dealloc(p, l) }
+            }
+        }
+        #[global_allocator]
+        static A: Counting = Counting;
+
+        const OPCODES: usize = 1000;
+
+        let mut ring = RingTransport::new();
+        let buf_base = ring.buffer().as_ptr() as usize;
+        let buf_end = buf_base + ring.buffer().len();
+
+        // Producer writes opcodes + a string into the shared buffer (no copies).
+        let arena_ref = {
+            let mut guest = ring.producer();
+            guest.begin_frame();
+            for i in 0..OPCODES {
+                guest.create_node(i as u32 + 1, 0x0003).unwrap();
+            }
+            let r = guest.set_text(1, "zero-copy proof").unwrap();
+            guest.end_frame();
+            r
+        };
+
+        // Consumer reads the frame. Count allocations: the opcode stream is
+        // borrowed, so allocations must be O(1), independent of the opcode count.
+        COUNT.with(|c| c.set(0));
+        let batch = ring.next_frame().unwrap().expect("a frame");
+        let frame = batch.frame();
+
+        let decoded: usize = frame.opcodes().count();
+        let arena = frame.arena_str(arena_ref).expect("arena string");
+
+        let allocs = COUNT.with(|c| c.get());
+
+        assert_eq!(decoded, OPCODES + 1, "create_node + set_text");
+        assert_eq!(arena, "zero-copy proof");
+
+        // The arena string is read in place from the shared buffer.
+        let str_ptr = arena.as_ptr() as usize;
+        assert!(
+            str_ptr >= buf_base && str_ptr < buf_end,
+            "arena string must be borrowed from the shared ring (ptr {str_ptr:#x} outside {buf_base:#x}..{buf_end:#x})"
+        );
+
+        // No per-opcode copying: a handful of O(1) bookkeeping allocations is
+        // fine; anything O(opcodes) would mean the opcode stream was copied.
+        assert!(
+            allocs < OPCODES,
+            "reading {OPCODES} opcodes must not copy them (allocations: {allocs})"
+        );
+    }
 }
