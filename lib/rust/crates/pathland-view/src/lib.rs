@@ -338,7 +338,7 @@ impl<T: View> ViewExt for T {}
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Spacing(pub f32);
 
-/// Uniform inner padding.
+/// Uniform padding (a styling modifier, applied to any view).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Padding(pub f32);
 

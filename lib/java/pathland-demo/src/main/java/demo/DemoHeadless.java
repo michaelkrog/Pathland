@@ -5,7 +5,6 @@ import pathland.Align;
 import pathland.Bridge;
 import pathland.Constants;
 import pathland.DSL;
-import pathland.Justify;
 import pathland.Node;
 import pathland.PathlandNative;
 import pathland.RingReader;
@@ -16,8 +15,7 @@ import pathland.View;
  * ring read -> assert the decoded text matches. No GUI, deterministic.
  *
  * Exercises the catalog-driven DSL: constructor properties (alignment,
- * justification, spacing) + global modifiers (padding, color) + the compound
- * frame modifier.
+ * spacing) + global modifiers (padding, color) + the compound frame modifier.
  */
 public final class DemoHeadless {
 
@@ -28,7 +26,7 @@ public final class DemoHeadless {
         Bridge bridge = new Bridge(host);
 
         View root = DSL.vstack(
-                Align.LEADING, Justify.START, 12f,
+                Align.LEADING, 12f,
                 DSL.hstack(
                         DSL.text("Count: 7").frame(Constants.FILL, Float.NaN, Align.LEADING),
                         DSL.button("Increment")

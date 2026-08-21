@@ -33,10 +33,9 @@ public final class DSL {
     }
 
     /** Create a HStack with constructor properties (structural/layout — never chainable). */
-    public static View hstack(Align alignment, Justify justification, float spacing, View... children) {
+    public static View hstack(Align alignment, float spacing, View... children) {
         ComponentNode node = new ComponentNode(Constants.HSTACK, null, Arrays.asList(children));
         node.setConstructorProp(Constants.PROP_ALIGNMENT, alignment.wire);
-        node.setConstructorProp(Constants.PROP_JUSTIFICATION, justification.wire);
         node.setConstructorProp(Constants.PROP_SPACING, spacing);
         return node;
     }
@@ -91,10 +90,9 @@ public final class DSL {
     }
 
     /** Create a VStack with constructor properties (structural/layout — never chainable). */
-    public static View vstack(Align alignment, Justify justification, float spacing, View... children) {
+    public static View vstack(Align alignment, float spacing, View... children) {
         ComponentNode node = new ComponentNode(Constants.VSTACK, null, Arrays.asList(children));
         node.setConstructorProp(Constants.PROP_ALIGNMENT, alignment.wire);
-        node.setConstructorProp(Constants.PROP_JUSTIFICATION, justification.wire);
         node.setConstructorProp(Constants.PROP_SPACING, spacing);
         return node;
     }

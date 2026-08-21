@@ -8,25 +8,12 @@ import com.sun.jna.Pointer;
  * JNA binding for the Pathland native C-ABI shim (libpathland_native).
  *
  * Maps the flat {@code pathland_native_*} functions 1:1 — no per-component
- * wrappers. Component ids are raw protocol variants (hstack=1, vstack=2,
- * text=3, button=4, spacer=8); property ids are the protocol property ids.
+ * wrappers. Component/property ids live in {@code pathland.Constants}
+ * (generated from the DSL catalog).
  */
 public interface PathlandNative extends Library {
 
     PathlandNative INSTANCE = Native.load("pathland_native", PathlandNative.class);
-
-    // --- component ids ---
-    int HSTACK = 1;
-    int VSTACK = 2;
-    int TEXT = 3;
-    int BUTTON = 4;
-    int SPACER = 8;
-
-    // --- property ids ---
-    int SPACING = 0x0001;
-    int PADDING = 0x0004;
-    int COLOR = 0x100A;
-    int BACKGROUND = 0x1001;
 
     // --- lifetime ---
     Pointer pathland_native_create();

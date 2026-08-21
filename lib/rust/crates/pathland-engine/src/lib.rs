@@ -218,9 +218,9 @@ impl Engine {
                     }
                 }
                 // Generic property diffs (new or changed values only). This
-                // covers stack spacing/padding, fonts, colors, the `frame`
-                // sizing modifier (WIDTH/HEIGHT/ALIGNMENT), and any other
-                // modifier applied to the node.
+                // covers stack spacing, styling modifiers (padding, fonts,
+                // colors), the `frame` sizing modifier (WIDTH/HEIGHT/ALIGNMENT),
+                // and any other modifier applied to the node.
                 for (prop, value) in &node.properties {
                     if p.properties.get(prop) != Some(value) {
                         guest.set_property(node.id, *prop, value_type_for(*prop), *value)?;

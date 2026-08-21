@@ -23,13 +23,24 @@ const APP_ID: &str = "org.pathland.GtkDemo";
 fn build_tree(count: u32) -> Node {
     vstack![
         hstack![
-            text(format!("Count: {}", count).as_str())
-                .frame(Some(size::FILL), None, Some(Align::Leading)),
+            text(format!("Count: {}", count).as_str()).frame(Some(size::FILL), None, None),
             button("Increment"),
         ]
+        .spacing(8.0)
         .padding(16.0),
         text("Pathland · GTK4 · shared ring").color(0xFF_888888),
+        // A VStack whose children (different widths) are centered on the
+        // cross axis, exercising ALIGNMENT.
+        vstack![
+            text("short"),
+            text("a much longer label"),
+            text("x"),
+        ]
+        .spacing(4.0)
+        .padding(16.0)
+        .frame(None, None, Some(Align::Center)),
     ]
+    .spacing(12.0)
     .padding(24.0)
     .build()
 }

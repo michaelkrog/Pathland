@@ -108,8 +108,8 @@ pub struct Opcode {
 ### STYLE (0x02)
 
 The engine does not emit positions. `STYLE` carries the **constraint properties**
-that native renderers feed to their own layout — spacing, padding, alignment,
-FILL/HUG size hints, colors, fonts.
+that native renderers feed to their own layout — spacing, alignment, FILL/HUG
+size hints — plus **styling modifiers** (padding, colors, fonts, borders).
 
 | Command | Value | A | B | C | Flags | Description |
 |---------|-------|---|---|---|-------|-------------|
@@ -139,19 +139,31 @@ B = (valueType << 16) | propertyId
 #### Constraint properties for native layout
 
 The following properties drive native layout; the renderer maps them to its
-native equivalents (e.g. `SPACING` → GTK box spacing / CSS `gap`, `PADDING` →
-widget margin / CSS `padding`, `WIDTH`/`HEIGHT` → size requests). Special
-`WIDTH`/`HEIGHT` values: `-1` = FILL (expand to available), `-2` = HUG_CONTENT
-(native intrinsic size).
+native equivalents (e.g. `SPACING` → GTK box spacing / CSS `gap`, `WIDTH`/`HEIGHT`
+→ size requests). Special `WIDTH`/`HEIGHT` values: `-1` = FILL (expand to
+available), `-2` = HUG_CONTENT (native intrinsic size).
 
 | Property | Value | Type | Native meaning |
 |----------|-------|------|----------------|
 | `SPACING` | `0x0001` | F32 | Gap between children |
 | `ALIGNMENT` | `0x0002` | ENUM | Cross-axis alignment |
-| `JUSTIFICATION` | `0x0003` | ENUM | Main-axis distribution |
-| `PADDING` | `0x0004` | F32 | Uniform inner padding |
 | `WIDTH` | `0x100B` | F32 | Width hint (-1 FILL, -2 HUG) |
 | `HEIGHT` | `0x100C` | F32 | Height hint (-1 FILL, -2 HUG) |
+
+#### Styling properties (modifiers)
+
+Styling properties are **modifiers** — they apply to any view, not just stacks —
+and map to visual decoration rather than layout. `PADDING` (uniform) and its
+per-edge variants map to widget margins / CSS `padding`, alongside
+`COLOR`/`BACKGROUND_COLOR`/`BORDER_*`:
+
+| Property | Value | Type | Native meaning |
+|----------|-------|------|----------------|
+| `PADDING` | `0x1011` | F32 | Uniform inner padding (any view) |
+| `PADDING_TOP` | `0x1012` | F32 | Top padding |
+| `PADDING_RIGHT` | `0x1013` | F32 | Right padding |
+| `PADDING_BOTTOM` | `0x1014` | F32 | Bottom padding |
+| `PADDING_LEFT` | `0x1015` | F32 | Left padding |
 
 Full property catalog: see the Rust `constants.rs` (carried forward from the
 historical protocol).
@@ -186,7 +198,8 @@ protocol.
 The engine emits **only what changed** relative to its previous emission:
 
 - **Property diff**: a changed `spacing`/`padding`/`WIDTH`/`HEIGHT`/`ALIGNMENT`/
-  text emits a single `SET_PROPERTY` / `SET_TEXT` for that node.
+  text emits a single `SET_PROPERTY` / `SET_TEXT` for that node. (Padding is a
+  styling modifier, but it still diffs and emits like any other property.)
 - **Structural diff**: a node added/removed/moved emits the corresponding
   `TREE` opcode(s).
 - **Steady state**: an unchanged tree emits **zero** opcodes.

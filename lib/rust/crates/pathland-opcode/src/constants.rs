@@ -118,8 +118,9 @@ pub mod property_id {
     // Stack
     pub const SPACING: u16 = 0x0001;
     pub const ALIGNMENT: u16 = 0x0002;
-    pub const JUSTIFICATION: u16 = 0x0003;
-    pub const PADDING: u16 = 0x0004;
+    // 0x0003 reserved (formerly JUSTIFICATION; main-axis distribution is
+    // expressed via a spacer element instead).
+    // 0x0004 reserved (formerly PADDING; now a styling modifier at 0x1011).
     pub const CONTENT_MARGINS: u16 = 0x0005;
     // Text
     pub const TEXT: u16 = 0x000A;
@@ -142,6 +143,7 @@ pub mod property_id {
     pub const VISIBLE: u16 = 0x100E;
     pub const Z_INDEX: u16 = 0x100F;
     pub const CLIPS_TO_BOUNDS: u16 = 0x1010;
+    pub const PADDING: u16 = 0x1011;
     pub const PADDING_TOP: u16 = 0x1012;
     pub const PADDING_RIGHT: u16 = 0x1013;
     pub const PADDING_BOTTOM: u16 = 0x1014;

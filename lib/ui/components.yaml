@@ -38,8 +38,6 @@ property_ids:
   # Stack
   spacing: 0x0001
   alignment: 0x0002
-  justification: 0x0003
-  padding: 0x0004
   content_margins: 0x0005
   # Text
   text: 0x000A
@@ -62,6 +60,7 @@ property_ids:
   visible: 0x100E
   z_index: 0x100F
   clips_to_bounds: 0x1010
+  padding: 0x1011
   padding_top: 0x1012
   padding_right: 0x1013
   padding_bottom: 0x1014
@@ -83,15 +82,6 @@ enums:
       center: 1
       trailing: 2
       fill: 3
-  Justify:          # stack main-axis distribution
-    property: justification
-    values:
-      start: 0
-      end: 1
-      center: 2
-      space_between: 3
-      space_around: 4
-      space_evenly: 5
   TextAlign:
     property: text_alignment
     values:
@@ -125,9 +115,6 @@ components:
       - property: alignment
         type: enum
         enum: Align
-      - property: justification
-        type: enum
-        enum: Justify
       - property: spacing
         type: f32
   vstack:
@@ -137,9 +124,6 @@ components:
       - property: alignment
         type: enum
         enum: Align
-      - property: justification
-        type: enum
-        enum: Justify
       - property: spacing
         type: f32
   text:
