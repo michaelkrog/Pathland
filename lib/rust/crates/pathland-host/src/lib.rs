@@ -125,9 +125,9 @@ impl RenderTree {
         self.nodes.get(&id)
     }
 
-    /// The root node (id 0).
+    /// The root node: the single node without a parent.
     pub fn root(&self) -> Option<&HostNode> {
-        self.nodes.get(&0)
+        self.nodes.values().find(|n| n.parent.is_none())
     }
 }
 

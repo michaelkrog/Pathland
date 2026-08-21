@@ -1,0 +1,21 @@
+[package]
+name = "pathland-native"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Pathland native C-ABI shim: the flat world exposed over FFI with a zero-copy shared-memory ring, for Swift/Java/C# and other host languages"
+publish = false
+
+[lib]
+name = "pathland_native"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+pathland-engine = { path = "../pathland-engine" }
+pathland-opcode = { path = "../pathland-opcode" }
+pathland-transport = { path = "../pathland-transport" }
+pathland-view = { path = "../pathland-view" }
+
+[dev-dependencies]
+pathland-host = { path = "../pathland-host" }

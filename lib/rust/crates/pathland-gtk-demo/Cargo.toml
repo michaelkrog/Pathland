@@ -1,0 +1,19 @@
+[package]
+name = "pathland-gtk-demo"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Pathland GTK4 desktop demo: authors the DSL and renders through the shared pathland-gtk renderer (no direct GTK usage)"
+publish = false
+
+[[bin]]
+name = "pathland-gtk-demo"
+path = "src/main.rs"
+
+[dependencies]
+pathland-opcode = { path = "../pathland-opcode" }
+pathland-engine = { path = "../pathland-engine" }
+pathland-transport = { path = "../pathland-transport" }
+pathland-view = { path = "../pathland-view" }
+pathland-gtk = { path = "../pathland-gtk" }

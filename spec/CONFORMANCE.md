@@ -200,6 +200,13 @@ A complete frame is: delta opcodes written into consecutive ring slots, then a
 
 The header block layout and ring semantics are defined in [OPCODE.md](./OPCODE.md#linear-memory-layout).
 
+The host → guest event ring shares the same 16-byte slot format and lives at
+`eventRingOffset` (header `0x2A`), with `eventReadCursor` (0x36, guest-owned)
+and `eventWriteCursor` (0x3A, host-owned). A host writing `EVENT:POINTER_UP`
+into the event ring must reproduce the exact vector-11 bytes in the slot at
+`eventWriteCursor`, then advance `eventWriteCursor`; the guest advances
+`eventReadCursor` after draining.
+
 ## Network Batch Conformance
 
 A network batch serializes opcodes + an arena delta (see

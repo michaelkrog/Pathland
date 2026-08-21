@@ -1,0 +1,26 @@
+[package]
+name = "pathland-guest"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Pathland WASM guest component: retains the view tree and emits declarative TREE/STYLE opcodes via the pathland WIT world"
+
+[dependencies]
+wit-bindgen-rt = { version = "0.44.0", features = ["bitflags"] }
+pathland-engine = { path = "../pathland-engine" }
+pathland-opcode = { path = "../pathland-opcode" }
+pathland-transport = { path = "../pathland-transport" }
+pathland-view = { path = "../pathland-view" }
+
+[lib]
+crate-type = ["cdylib"]
+
+[package.metadata.component]
+package = "pathland:view"
+target = { path = "../../../../wit", world = "pathland" }
+
+[package.metadata.component.bindings]
+derives = ["PartialEq"]
+
+[package.metadata.component.dependencies]

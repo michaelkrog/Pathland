@@ -1,0 +1,16 @@
+[package]
+name = "pathland-codegen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Pathland DSL code generator: parse lib/ui/components.yaml, assert every id against pathland_opcode::constants, and emit the checked-in Java DSL"
+publish = false
+
+[[bin]]
+name = "pathland-codegen"
+path = "src/main.rs"
+
+[dependencies]
+pathland-opcode = { path = "../pathland-opcode" }
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
