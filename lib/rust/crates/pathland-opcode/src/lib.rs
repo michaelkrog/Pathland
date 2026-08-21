@@ -561,4 +561,74 @@ mod tests {
         // Second drain is empty.
         assert!(guest.drain_events().is_empty());
     }
+
+    #[test]
+    fn drain_events_skips_unknown_event_commands() {
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        // Write a valid event into the event ring, then release the host borrow.
+        {
+            let mut host = Host::new(&mut mem, &layout);
+            host.send_event(&Event::PointerUp {
+                target: 4,
+                x: 10.0,
+                y: 20.0,
+                secondary: false,
+            })
+            .unwrap();
+        }
+
+        // Push a second, malformed EVENT opcode directly into the ring.
+        let mask = slot_mask(&mem[..memory::HEADER_SIZE]);
+        let (header, rest) = mem.split_at_mut(memory::HEADER_SIZE);
+        let (_slots, rest) = rest.split_at_mut(layout.ring_bytes());
+        let (event_slots, _arena) = rest.split_at_mut(layout.event_ring_bytes());
+        let bogus = Opcode::new(crate::category::EVENT, 0xFF, 0, 1, 0, 0);
+        ring_fn::push_event(event_slots, header, mask, &bogus).unwrap();
+
+        // The guest sees only the decodable event; the unknown command is dropped.
+        let mut guest = Guest::new(&mut mem, &layout);
+        let events = guest.drain_events();
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            events[0],
+            Event::PointerUp {
+                target: 4,
+                x: 10.0,
+                y: 20.0,
+                secondary: false,
+            }
+        );
+    }
+
+    #[test]
+    fn host_frames_guards_against_wrapped_cursors() {
+        let layout = MemoryLayout {
+            slot_count: 4,
+            arena_bytes: MemoryLayout::default().arena_bytes,
+        };
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        {
+            // Produce one opcode, then advance readCursor past writeCursor by
+            // manipulating the header (simulating a wrapped producer whose data
+            // the consumer must not misread).
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            guest.create_node(1, component_type::VSTACK).unwrap();
+            guest.end_frame();
+
+            let (header, _) = mem.split_at_mut(memory::HEADER_SIZE);
+            // writeCursor = 1; push readCursor to 3 so masked read(3) >
+            // masked write(1).
+            memory::header::set_u32(header, memory::OFF_READ_CURSOR, 3);
+        }
+
+        let mut host = Host::new(&mut mem, &layout);
+        // The wrapped-ring guard drains nothing rather than emitting garbage.
+        assert!(host.frames().is_empty());
+    }
 }

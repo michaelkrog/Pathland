@@ -191,6 +191,52 @@ mod tests {
     }
 
     #[test]
+    fn validate_rejects_wrong_magic() {
+        let layout = MemoryLayout::default();
+        let mut buf = vec![0u8; layout.total_bytes()];
+        header::init(&mut buf, &layout);
+        buf[OFF_MAGIC] ^= 0xFF;
+        assert!(!header::validate(&buf, &layout));
+    }
+
+    #[test]
+    fn validate_rejects_wrong_version() {
+        let layout = MemoryLayout::default();
+        let mut buf = vec![0u8; layout.total_bytes()];
+        header::init(&mut buf, &layout);
+        buf[OFF_VERSION] = (PROTOCOL_VERSION + 1) as u8;
+        assert!(!header::validate(&buf, &layout));
+    }
+
+    #[test]
+    fn validate_rejects_mismatched_layout() {
+        let layout = MemoryLayout::default();
+        let mut buf = vec![0u8; layout.total_bytes()];
+        header::init(&mut buf, &layout);
+
+        // A different arena size must be rejected.
+        let other = MemoryLayout {
+            slot_count: layout.slot_count,
+            arena_bytes: layout.arena_bytes + 4096,
+        };
+        assert!(!header::validate(&buf, &other));
+
+        // A different slot count must be rejected.
+        let other = MemoryLayout {
+            slot_count: layout.slot_count / 2,
+            arena_bytes: layout.arena_bytes,
+        };
+        assert!(!header::validate(&buf, &other));
+    }
+
+    #[test]
+    fn validate_rejects_short_buffer() {
+        let layout = MemoryLayout::default();
+        let tiny = vec![0u8; HEADER_SIZE - 1];
+        assert!(!header::validate(&tiny, &layout));
+    }
+
+    #[test]
     fn default_layout_is_contiguous() {
         let layout = MemoryLayout::default();
         assert_eq!(layout.ring_offset(), HEADER_SIZE);
