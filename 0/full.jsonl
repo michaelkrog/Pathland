@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 4.058844396,
+    "cost": 4.07812502,
     "tokens": {
-      "input": 4940822,
-      "output": 124934,
+      "input": 4941329,
+      "output": 125601,
       "reasoning": 99927,
       "cache": {
-        "read": 69625088,
+        "read": 70426240,
         "write": 0
       }
     },
     "time": {
       "created": 1787122720206,
-      "updated": 1787301197111
+      "updated": 1787301215599
     }
   },
   "messages": [
@@ -40531,21 +40531,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.010117536,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 401076,
+          "input": 426,
+          "output": 522,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 400128
           }
         },
         "modelID": "deepseek-v4-pro",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787301197110
+          "created": 1787301197110,
+          "completed": 1787301215583
         },
+        "finish": "tool-calls",
         "id": "msg_02373f536002d6RsgLmHqOSDFC",
         "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7"
       },
@@ -40562,20 +40565,115 @@
           "tool": "bash",
           "callID": "call_00_ET_vmGTLcAyXW4J4yWF1sWr8335",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git commit -q -F - <<'EOF'\nfeat: shared GTK4 renderer + bidirectional event ring\n\nIntroduce a single GTK4 renderer that both the Rust and Java demos use, and\nroute raw-input events through the opcode engine instead of side-channel\ncallbacks. Remove Swing entirely.\n\n- pathland-opcode: add a host->guest event ring (second 16-byte-slot ring) with\n  eventReadCursor/eventWriteCursor header fields; Host::send_event encodes a\n  raw input as an EVENT opcode, Guest::drain_events decodes it. Fix\n  Host::frames() so an already-drained ring returns no frame (was returning\n  empty frames forever when a fresh Host reset its consumed counter).\n- pathland-transport: RingTransport::send_input writes EVENT opcodes;\n  RingTransport::drain_events reads them (was a stubbed BadInput).\n- pathland-native: FrameSource/DriverTransport for NativeHost + drain_events.\n- pathland-gtk (new rlib+cdylib): incremental GtkRenderer (id -> gtk::Widget\n  delta sync) + run/run_with_pump owning the GTK app/window/main loop, pumping\n  frames in and events out; C ABI pathland_gtk_run for Java via JNA. Passes an\n  explicit argv to GTK so the embedding host's command line (JVM -cp/-D) is not\n  parsed as GTK options.\n- pathland-host: fix RenderTree::root() to find the parentless node (was\n  hardcoded id 0).\n- pathland-gtk-demo: author the DSL and render via pathland-gtk; no GTK APIs.\n- Java demo: replace Swing DemoApp with GtkDemo (JNA over pathland_gtk_run);\n  no Swing, no GTK APIs. Button clicks round-trip as EVENT opcodes.\n- spec: document the event ring (OPCODE.md/CONFORMANCE.md); AGENTS.md/README\n  updated.\n\nBoth demos render through the shared GTK renderer; cargo test green.\nEOF\ngit log --oneline -1"
             },
+            "output": "3ce105d feat: shared GTK4 renderer + bidirectional event ring\n",
+            "metadata": {
+              "output": "3ce105d feat: shared GTK4 renderer + bidirectional event ring\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git commit -q -F - <<'EOF'\nfeat: shared GTK4 renderer + bidirectional event ring\n\nIntroduce a single GTK4 renderer that both the Rust and Java demos use, and\nroute raw-input events through the opcode engine instead of side-channel\ncallbacks. Remove Swing entirely.\n\n- pathland-opcode: add a host->guest event ring (second 16-byte-slot ring) with\n  eventReadCursor/eventWriteCursor header fields; Host::send_event encodes a\n  raw input as an EVENT opcode, Guest::drain_events decodes it. Fix\n  Host::frames() so an already-drained ring returns no frame (was returning\n  empty frames forever when a fresh Host reset its consumed counter).\n- pathland-transport: RingTransport::send_input writes EVENT opcodes;\n  RingTransport::drain_events reads them (was a stubbed BadInput).\n- pathland-native: FrameSource/DriverTransport for NativeHost + drain_events.\n- pathland-gtk (new rlib+cdylib): incremental GtkRenderer (id -> gtk::Widget\n  delta sync) + run/run_with_pump owning the GTK app/window/main loop, pumping\n  frames in and events out; C ABI pathland_gtk_run for Java via JNA. Passes an\n  explicit argv to GTK so the embedding host's command line (JVM -cp/-D) is not\n  parsed as GTK options.\n- pathland-host: fix RenderTree::root() to find the parentless node (was\n  hardcoded id 0).\n- pathland-gtk-demo: author the DSL and render via pathland-gtk; no GTK APIs.\n- Java demo: replace Swing DemoApp with GtkDemo (JNA over pathland_gtk_run);\n  no Swing, no GTK APIs. Button clicks round-trip as EVENT opcodes.\n- spec: document the event ring (OPCODE.md/CONFORMANCE.md); AGENTS.md/README\n  updated.\n\nBoth demos render through the shared GTK renderer; cargo test green.\nEOF\ngit log --oneline -1",
             "time": {
-              "start": 1787301206833
+              "start": 1787301215497,
+              "end": 1787301215500
             }
           },
           "id": "prt_023740314001puTasE8MWOTwYA",
           "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
           "messageID": "msg_02373f536002d6RsgLmHqOSDFC"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "62915708dd470f4034342ad9c9a0546d24876aba",
+          "type": "step-finish",
+          "tokens": {
+            "total": 401076,
+            "input": 426,
+            "output": 522,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 400128
+            }
+          },
+          "cost": 0.010117536,
+          "id": "prt_023743d34001b8cpWKeiqFrH5B",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_02373f536002d6RsgLmHqOSDFC"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_02373b68e001m8KQgg0J70YVxl",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.009163088,
+        "tokens": {
+          "total": 401250,
+          "input": 81,
+          "output": 145,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 401024
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787301215598,
+          "completed": 1787301220907
+        },
+        "finish": "stop",
+        "id": "msg_023743d6e0022tWbz1GT2Wgzn0",
+        "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7"
+      },
+      "parts": [
+        {
+          "snapshot": "62915708dd470f4034342ad9c9a0546d24876aba",
+          "type": "step-start",
+          "id": "prt_023744833001QtpvX9WiC4KKCJ",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_023743d6e0022tWbz1GT2Wgzn0"
+        },
+        {
+          "type": "text",
+          "text": "Committed as `3ce105d`. Working tree is clean.\n\nThe commit covers:\n- **Bidirectional event ring** (`pathland-opcode`/`transport`/`native`) — events now flow as 16-byte `EVENT` opcodes, not callbacks.\n- **Shared `pathland-gtk` renderer** (new rlib+cdylib, incremental) used by both demos.\n- **Swing removed** — Java `DemoApp` → `GtkDemo` (JNA over `pathland_gtk_run`).\n- **Two bug fixes**: `Host::frames()` empty-frame loop and `RenderTree::root()` id-0.",
+          "time": {
+            "start": 1787301219174,
+            "end": 1787301220817
+          },
+          "id": "prt_023744b66001l37JTAKUyI3oS8",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_023743d6e0022tWbz1GT2Wgzn0"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "62915708dd470f4034342ad9c9a0546d24876aba",
+          "type": "step-finish",
+          "tokens": {
+            "total": 401250,
+            "input": 81,
+            "output": 145,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 401024
+            }
+          },
+          "cost": 0.009163088,
+          "id": "prt_0237451fe001m1UycvLRNeVGOV",
+          "sessionID": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+          "messageID": "msg_023743d6e0022tWbz1GT2Wgzn0"
         }
       ]
     }
