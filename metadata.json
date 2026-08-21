@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0JKR4W5TEW99PAES7D1T5N1",
+  "strategy": "manual-commit",
+  "branch": "feature/gtk-renderer-hardening",
+  "checkpoints_count": 13,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "lib/java/pathland-demo/src/main/java/demo/DemoHeadless.java",
+    "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Constants.java",
+    "lib/java/pathland-demo/src/main/java/pathland/DSL.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Justify.java",
+    "lib/java/pathland-demo/src/main/java/pathland/PathlandNative.java",
+    "lib/rust/crates/pathland-codegen/src/main.rs",
+    "lib/rust/crates/pathland-engine/src/lib.rs",
+    "lib/rust/crates/pathland-gtk-demo/src/main.rs",
+    "lib/rust/crates/pathland-gtk/src/layout.rs",
+    "lib/rust/crates/pathland-gtk/src/lib.rs",
+    "lib/rust/crates/pathland-opcode/src/constants.rs",
+    "lib/rust/crates/pathland-view/src/lib.rs",
+    "lib/ui/components.yaml",
+    "spec/OPCODE.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1991336,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 30897792,
+    "output_tokens": 31881,
+    "api_call_count": 125
+  }
+}
