@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0JE7TFYSSPTBZ5T8CTC6KN8",
+  "strategy": "manual-commit",
+  "branch": "feature/zero-copy-render-test",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "lib/rust/README.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3051906,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 7001216,
+    "output_tokens": 6621,
+    "api_call_count": 27
+  }
+}

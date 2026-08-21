@@ -1,0 +1,80 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0JE7TFYSSPTBZ5T8CTC6KN8",
+  "session_id": "ses_fe72f6231ffe0zFdpNFwIhtRM7",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-21T15:15:14.482238Z",
+  "branch": "feature/zero-copy-render-test",
+  "checkpoints_count": 5,
+  "save_step_count": 4,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "lib/rust/README.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "24e37318bb0a",
+  "checkpoint_transcript_start": 412,
+  "transcript_lines_at_start": 412,
+  "compact_transcript_start": 412,
+  "token_usage": {
+    "input_tokens": 3051906,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 7001216,
+    "output_tokens": 6621,
+    "api_call_count": 27
+  },
+  "session_metrics": {
+    "turn_count": 35
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-21T15:15:14.251529Z",
+    "agent_lines": 91,
+    "agent_removed": 31,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 91,
+    "total_lines_changed": 122,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 10,
+      "agent_lines_removed": 7
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 18,
+      "agent_lines_removed": 10
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 18,
+      "agent_lines_removed": 10
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 91,
+      "agent_lines_removed": 31
+    }
+  ]
+}
