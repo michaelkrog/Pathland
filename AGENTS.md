@@ -6,14 +6,17 @@ This document provides essential context for AI agents (or human contributors) w
 
 ---
 
-## New Direction: Rust WASM Opcode Engine
+## Architecture: Rust Opcode Engine
 
-> The canonical core is a **Rust engine compiled to WASM** ("WASM guest engine")
-> that emits the application's **declarative view structure** — VStack, HStack,
-> Text, spacing, padding, alignment — as a fixed **16-byte opcode ring buffer**
-> into shared linear memory, consumed by host renderers. View components and
-> modifiers are written in Rust with a SwiftUI-like API; other languages consume
-> the components as **WASM/WIT** components.
+> The canonical core is a **Rust engine** that emits the application's
+> **declarative view structure** — VStack, HStack, Text, spacing, padding,
+> alignment — as a fixed **16-byte opcode ring buffer** into shared linear
+> memory, consumed by host renderers. View components and modifiers are written
+> in Rust with a SwiftUI-like API; other languages get the ergonomic DSL from a
+> **catalog-driven code generator** (YAML → Java today) and drive the engine
+> through the flat **native C ABI** (`pathland-native`) over a zero-copy shared
+> ring on desktop. **WASM/WIT are the browser/remote projection only** — not the
+> primary path.
 
 ### The 16-byte Opcode Engine
 
@@ -57,9 +60,14 @@ crates/pathland-gtk/      # GTK4 RENDERER (rlib + cdylib): maps opcode frames on
                           #   pango. Exposes pathland_gtk_run for Java (JNA) hosts.
 crates/pathland-gtk-demo/ # Rust GTK4 demo: authors the DSL, emits into the ring, renders
                           #   through pathland-gtk. Uses NO GTK APIs directly.
-wit/pathland.wit          # WIT component-world definitions
-lib/java/pathland-demo/   # Java (Maven) demo: SwiftUI-like DSL + JNA over pathland-native,
-                          #   rendered through pathland-gtk. Uses NO Swing and NO GTK APIs.
+crates/pathland-codegen/  # DSL code generator: parses lib/ui/components.yaml, asserts every
+                          #   id against pathland_opcode::constants, emits the checked-in
+                          #   Java DSL (std bin crate)
+wit/pathland.wit          # WIT component-world definitions (browser/remote projection)
+lib/ui/components.yaml    # single source of truth for the DSL catalog (components,
+                          #   per-component constructor props, global modifiers, enums, ids)
+lib/java/pathland-demo/   # Java (Maven) demo: catalog-generated SwiftUI-like DSL + JNA over
+                          #   pathland-native, rendered through pathland-gtk. No Swing, no GTK.
 ```
 
 - Test: `cd lib/rust && cargo test` (runs all native crates; `pathland-guest` is
@@ -99,11 +107,29 @@ it — the demos **never call GTK or Swing directly**:
 line belongs to the embedding host — e.g. the JVM's `-cp`/`-D` flags — and must
 not be parsed as GTK options).
 
+### Catalog-Driven DSL (`lib/ui/components.yaml` + `pathland-codegen`)
+
+The **single source of truth** for the DSL surface: components, per-component
+constructor props, global modifiers, enums, and ids live in one YAML file. The
+`pathland-codegen` generator parses it, **asserts every id against
+`pathland_opcode::constants`** (a hard build error on mismatch — the consistency
+safety net), and emits the checked-in Java DSL (typed enums, `View`/`DSL`/
+`ComponentNode`/`Modified`, overloaded factories). Rules (NON-NEGOTIABLE):
+
+- Component **constructor props** (structural/layout) are constructor args, never chainable.
+- Global **modifiers** (appearance/decoration) are chainable on any view.
+- `spacing` is a constructor property; `padding` is a modifier (always).
+- No standalone width/height — use the compound `frame(width, height, alignment)` modifier.
+- Typed enums (Align/Justify/TextAlign/Truncation/FontWeight), not raw ints.
+
+Run `./generate.sh` (or `cargo run -p pathland-codegen`) to regenerate.
+
 ### WIT Component World (`wit/pathland.wit`)
 
-The `pathland:view/pathland` world is the **language-agnostic surface** other
-languages (Java/Quarkus, Rust GTK, future hosts) drive. It is flat and id-based,
-deliberately NOT the Rust DSL:
+The `pathland:view/pathland` world is the **language-agnostic surface** for the
+**browser/remote** path (WASM guest + wasmtime hosts). It is flat and id-based,
+deliberately NOT the Rust DSL — desktop/cross-language hosts use the native C
+ABI instead:
 
 - `builder`: `create-node(id, component)`, `insert-child`, `remove-child`,
   `set-text`, `set-property`. Hosts supply stable node ids — stable ids across
@@ -136,7 +162,7 @@ indistinguishable to the developer.
 
 **Primary Goal**: Write once, run anywhere - Enable UI code to be written once and deployed across web, mobile, desktop, and embedded platforms through different renderer implementations.
 
-**Status**: The Rust WASM opcode engine (16-byte opcode, ring buffer, arena, diff-based reactive emission) is implemented and tested (`cargo test`). See the New Direction section above.
+**Status**: The Rust opcode engine (16-byte opcode, ring buffer, arena, diff-based reactive emission) is implemented and tested (`cargo test`). See the Architecture section above.
 
 ---
 
@@ -279,7 +305,7 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-transport`), the WIT component world (`wit/pathland.wit`) + WASM guest component (`pathland-guest`) + host bindings/bridge (`pathland-wit-host`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory), and the **GTK4 renderer** (`pathland-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly. **Tests green across the workspace.**
+**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-transport`), the WIT component world (`wit/pathland.wit`) + WASM guest component (`pathland-guest`) + host bindings/bridge (`pathland-wit-host`, browser/remote only), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory), the **GTK4 renderer** (`pathland-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, and the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL). **Tests green across the workspace.**
 
 **Planned / deferred**: signals (Goal 2/#13), Quarkus SSR + WebSocket demo (Goal 4/#15), host → guest events over the network transport (the ring carries them; the network batch wire format does not yet), TEXT_FIELD editing, image rendering.
 
@@ -289,7 +315,7 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 1. Read this file and `spec/OPCODE.md`
 2. Run tests: `cd lib/rust && cargo test` (runs all crates)
-3. Build for wasm32: `RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc cargo build --target wasm32-unknown-unknown`
+3. Build for wasm32 (browser projection only): `RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc cargo build --target wasm32-unknown-unknown`
 4. Make small changes, verify they work
 
 ---

@@ -1,8 +1,9 @@
 # Pathland Rust Workspace
 
-The Rust core of Pathland: a **WASM guest engine** that emits the declarative
+The Rust core of Pathland: the **opcode engine** that emits the declarative
 view structure as a fixed 16-byte opcode ring buffer into shared linear memory,
-consumed by host renderers.
+consumed by host renderers. Runs natively on desktop (C ABI + GTK renderer);
+WASM/WIT is the browser/remote projection only.
 
 ```
 crates/
@@ -19,6 +20,8 @@ crates/
 ├── pathland-native/   # native C-ABI shim + NativeHost: flat world over a zero-copy shared ring
 ├── pathland-gtk/      # GTK4 RENDERER (rlib + cdylib): opcode frames -> native GTK widgets
 │                      #   (incremental); the only crate that touches GTK/glib/pango
+├── pathland-codegen/  # DSL code generator: parses lib/ui/components.yaml, asserts ids,
+│                      #   emits the checked-in Java DSL
 └── pathland-gtk-demo/ # GTK4 desktop demo: authors the DSL, renders through pathland-gtk
                        #   (uses NO GTK APIs directly)
 
@@ -64,7 +67,7 @@ GTK APIs directly** — button clicks round-trip as `EVENT` opcodes through the
 shared ring. Verify headlessly with `-Dexec.mainClass=demo.DemoHeadless`.
 
 
-## Build for wasm32
+## Build for wasm32 (browser projection only)
 
 ```bash
 RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \
