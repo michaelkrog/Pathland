@@ -49,6 +49,19 @@ public final class EventReader {
         public boolean isPointerUp() {
             return command == POINTER_UP;
         }
+
+        public boolean isPointerDown() {
+            return command == POINTER_DOWN;
+        }
+
+        public boolean isPointerMove() {
+            return command == POINTER_MOVE;
+        }
+
+        /** Whether a pointer-move event is a hover-leave (bit 1 of flags). */
+        public boolean isLeaving() {
+            return (flags & 0x0002) != 0;
+        }
     }
 
     /**

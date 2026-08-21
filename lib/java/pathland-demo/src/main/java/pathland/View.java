@@ -60,6 +60,15 @@ public interface View {
     }
 
     /**
+     * Attach a tap gesture (SwiftUI {@code onTapGesture}) to any view.
+     * {@code action} runs when a tap is recognized from the view's raw
+     * pointer events (down then up on the same target).
+     */
+    default View onTapGesture(Runnable action) {
+        return new TapGesture(this, action);
+    }
+
+    /**
      * Compound sizing modifier. Pass {@link Constants#FILL} / {@link Constants#HUG_CONTENT}
      * for a fixed axis, or {@code Float.NaN} to leave it to the native renderer.
      *

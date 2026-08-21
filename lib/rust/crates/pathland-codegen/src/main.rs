@@ -367,6 +367,15 @@ fn emit_view(catalog: &Catalog, repo_root: &Path) {
     }
 
     out.push_str("    /**\n");
+    out.push_str("     * Attach a tap gesture (SwiftUI {@code onTapGesture}) to any view.\n");
+    out.push_str("     * {@code action} runs when a tap is recognized from the view's raw\n");
+    out.push_str("     * pointer events (down then up on the same target).\n");
+    out.push_str("     */\n");
+    out.push_str("    default View onTapGesture(Runnable action) {\n");
+    out.push_str("        return new TapGesture(this, action);\n");
+    out.push_str("    }\n\n");
+
+    out.push_str("    /**\n");
     out.push_str("     * Compound sizing modifier. Pass {@link Constants#FILL} / {@link Constants#HUG_CONTENT}\n");
     out.push_str("     * for a fixed axis, or {@code Float.NaN} to leave it to the native renderer.\n");
     out.push_str("     *\n");

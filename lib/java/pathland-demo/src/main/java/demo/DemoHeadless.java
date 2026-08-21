@@ -5,6 +5,7 @@ import pathland.Align;
 import pathland.Bridge;
 import pathland.Constants;
 import pathland.DSL;
+import pathland.Listeners;
 import pathland.Node;
 import pathland.PathlandNative;
 import pathland.RingReader;
@@ -29,15 +30,37 @@ public final class DemoHeadless {
                 Align.LEADING, 12f,
                 DSL.hstack(
                         DSL.text("Count: 7").frame(Constants.FILL, Float.NaN, Align.LEADING),
-                        DSL.button("Increment")
+                        DSL.button("Increment").onTapGesture(() -> { })
                 ).padding(16f),
                 DSL.text("Pathland · Java · shared ring").color(0x888888)
         ).padding(24f);
 
         Node tree = root.build();
-        bridge.importTreeAndEmit(tree);
+        java.util.Map<Integer, Runnable> taps = bridge.importTreeAndEmit(tree);
+
+        // The button is node id 4 (root=1, hstack=2, text=3, button=4); it must
+        // have registered a tap action.
+        if (!taps.containsKey(4)) {
+            System.err.println("FAIL: expected a tap action on node 4, got " + taps.keySet());
+            System.exit(1);
+        }
 
         Pointer mem = PathlandNative.INSTANCE.pathland_native_ring_ptr(host);
+
+        // The onTapGesture modifier must have declared the pointer down/up
+        // listeners on the button (EVENT_LISTENERS = DOWN|UP = 0b101 = 5).
+        int expectedMask = Listeners.POINTER_DOWN | Listeners.POINTER_UP;
+        boolean sawListeners = false;
+        for (RingReader.PropertyEntry e : RingReader.readProperties(mem)) {
+            if (e.id == 4 && e.property == Constants.PROP_EVENT_LISTENERS && e.value == expectedMask) {
+                sawListeners = true;
+            }
+        }
+        if (!sawListeners) {
+            System.err.println("FAIL: expected EVENT_LISTENERS=" + expectedMask + " on node 4 in ring");
+            System.exit(1);
+        }
+
         String found = null;
         for (RingReader.TextEntry e : RingReader.readTextEntries(mem)) {
             if (e.text.startsWith("Count:")) {
@@ -69,6 +92,6 @@ public final class DemoHeadless {
         }
 
         PathlandNative.INSTANCE.pathland_native_destroy(host);
-        System.out.println("OK: Java DSL -> Rust engine -> shared ring -> zero-copy read = 'Count: 8'");
+        System.out.println("OK: Java DSL -> Rust engine -> shared ring -> zero-copy read = 'Count: 8'; onTapGesture listener + action verified");
     }
 }

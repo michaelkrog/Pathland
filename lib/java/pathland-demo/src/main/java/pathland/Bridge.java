@@ -36,13 +36,27 @@ public final class Bridge {
 
     /**
      * Send a full DSL tree into the Rust retained tree (flat builder calls),
-     * then {@code emit} opcodes into the shared ring.
+     * then {@code emit} opcodes into the shared ring. Returns the node id →
+     * tap-callback map collected from the freshly assigned tree, so the app can
+     * route recognized taps back to the {@code onTapGesture} actions.
      */
-    public void importTreeAndEmit(Node root) {
+    public java.util.Map<Integer, Runnable> importTreeAndEmit(Node root) {
         nextId = 1;
         assign(root);
+        java.util.Map<Integer, Runnable> taps = new java.util.LinkedHashMap<>();
+        collectTaps(root, taps);
         send(root);
         emit();
+        return taps;
+    }
+
+    private void collectTaps(Node node, java.util.Map<Integer, Runnable> out) {
+        for (Runnable action : node.tapActions) {
+            out.put(node.id, action);
+        }
+        for (Node child : node.children) {
+            collectTaps(child, out);
+        }
     }
 
     private void send(Node node) {

@@ -10,6 +10,7 @@ import pathland.EventReader;
 import pathland.Node;
 import pathland.PathlandGtk;
 import pathland.PathlandNative;
+import pathland.TapRecognizer;
 import pathland.View;
 
 /**
@@ -41,6 +42,10 @@ public final class GtkDemo {
     private final Pointer host;
     private final Bridge bridge;
     private int count = 0;
+    /** node id → tap callback, refreshed on each render. */
+    private final java.util.Map<Integer, Runnable> tapActions = new java.util.LinkedHashMap<>();
+    private final TapRecognizer recognizer = new TapRecognizer();
+    private final long startNanos = System.nanoTime();
     // Strong reference so JNA does not GC the callback mid-run.
     private final PathlandGtk.EventCallback onEvent;
 
@@ -48,19 +53,18 @@ public final class GtkDemo {
         host = PathlandNative.INSTANCE.pathland_native_create();
         bridge = new Bridge(host);
         onEvent = () -> {
-            // Drain the event ring generically (EVENT opcodes) and react to a
-            // pointer-up. Data flows through the opcode engine, not the callback.
+            // Drain the event ring generically (EVENT opcodes), recognize taps,
+            // and route each completed tap to its `onTapGesture` action. Data
+            // flows through the opcode engine, not the callback.
             Memory buf = new Memory((long) MAX_EVENTS * 16);
             int n = PathlandNative.INSTANCE.pathland_native_drain_events(host, buf, MAX_EVENTS);
-            boolean activated = false;
+            long nowMs = (System.nanoTime() - startNanos) / 1_000_000;
             for (EventReader.Event e : EventReader.decode(buf, n)) {
-                if (e.isPointerUp()) {
-                    activated = true;
+                int target = recognizer.feed(e, nowMs);
+                Runnable action = tapActions.get(target);
+                if (action != null) {
+                    action.run();
                 }
-            }
-            if (activated) {
-                count += 1;
-                render();
             }
         };
     }
@@ -71,13 +75,17 @@ public final class GtkDemo {
                 Align.LEADING, 12f,
                 DSL.hstack(
                         DSL.text("Count: " + count).frame(Constants.FILL, Float.NaN, Align.LEADING),
-                        DSL.button("Increment")
+                        DSL.button("Increment").onTapGesture(() -> {
+                            count += 1;
+                            render();
+                        })
                 ).padding(16f),
                 DSL.text("Pathland · Java · shared ring").color(0x888888)
         ).padding(24f);
 
         Node tree = root.build();
-        bridge.importTreeAndEmit(tree);
+        tapActions.clear();
+        tapActions.putAll(bridge.importTreeAndEmit(tree));
     }
 
     /** Emit the initial frame, then run the GTK renderer (blocks until closed). */

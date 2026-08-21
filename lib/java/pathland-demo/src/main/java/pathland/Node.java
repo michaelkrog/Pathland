@@ -21,6 +21,8 @@ public final class Node {
     public String string = "";
     public final List<Node> children = new ArrayList<>();
     public final Map<Integer, Float> properties = new LinkedHashMap<>();
+    /** App-side tap callbacks (resolved by id after {@code Bridge} assigns ids). */
+    public final List<Runnable> tapActions = new ArrayList<>();
 
     public Node(int id, int component) {
         this.id = id;

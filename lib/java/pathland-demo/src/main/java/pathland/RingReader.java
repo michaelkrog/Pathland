@@ -29,6 +29,7 @@ public final class RingReader {
     // Categories / commands.
     static final int CAT_TREE = 0x01;
     static final int CAT_STYLE = 0x02;
+    static final int CMD_SET_PROPERTY = 0x01;
     static final int CMD_SET_TEXT = 0x03;
 
     private RingReader() {}
@@ -49,6 +50,18 @@ public final class RingReader {
         TextEntry(int id, String text) {
             this.id = id;
             this.text = text;
+        }
+    }
+
+    /** A decoded `STYLE:SET_PROPERTY` opcode (property id + raw u32 value). */
+    public static final class PropertyEntry {
+        public final int id;
+        public final int property;
+        public final int value;
+        PropertyEntry(int id, int property, int value) {
+            this.id = id;
+            this.property = property;
+            this.value = value;
         }
     }
 
@@ -91,5 +104,39 @@ public final class RingReader {
         int len = u32(mem, base);
         byte[] bytes = mem.getByteArray(base + 4, len);
         return new String(bytes, java.nio.charset.StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Read all {@code STYLE:SET_PROPERTY} entries in the current ring frame,
+     * zero-copy. The value is the raw u32 payload (an f32 bit pattern for
+     * float properties, a raw bitmask for {@code EVENT_LISTENERS}).
+     */
+    public static List<PropertyEntry> readProperties(Pointer mem) {
+        List<PropertyEntry> out = new ArrayList<>();
+        int ringOff = u32(mem, OFF_RING_OFFSET);
+        int slotCount = u32(mem, OFF_SLOT_COUNT);
+        int readCur = u32(mem, OFF_READ_CURSOR);
+        int writeCur = u32(mem, OFF_WRITE_CURSOR);
+        if (slotCount <= 0) {
+            return out;
+        }
+        int mask = slotCount - 1;
+        int n = writeCur - readCur;
+        if (n < 0 || n > slotCount) {
+            n = 0;
+        }
+        for (int i = 0; i < n; i++) {
+            int slot = (readCur + i) & mask;
+            long base = ringOff + (long) slot * 16;
+            int cat = mem.getByte(base) & 0xFF;
+            int cmd = mem.getByte(base + 1) & 0xFF;
+            if (cat == CAT_STYLE && cmd == CMD_SET_PROPERTY) {
+                int nodeA = u32(mem, base + 4);
+                int bVal = u32(mem, base + 8);
+                int value = u32(mem, base + 12);
+                out.add(new PropertyEntry(nodeA, bVal & 0xFFFF, value));
+            }
+        }
+        return out;
     }
 }
