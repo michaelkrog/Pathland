@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 0.243285796,
+    "cost": 0.245712508,
     "tokens": {
-      "input": 454578,
-      "output": 54887,
+      "input": 455880,
+      "output": 55059,
       "reasoning": 7098,
       "cache": {
-        "read": 8845568,
+        "read": 9135104,
         "write": 0
       }
     },
     "time": {
       "created": 1787325711027,
-      "updated": 1787327296216
+      "updated": 1787327302182
     }
   },
   "messages": [
@@ -11594,21 +11594,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.001269188,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 145373,
+          "input": 896,
+          "output": 93,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 144384
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787327296215
+          "created": 1787327296215,
+          "completed": 1787327302176
         },
+        "finish": "tool-calls",
         "id": "msg_0250232d7002DlxnlPVxlpWVFB",
         "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
       },
@@ -11636,20 +11639,115 @@
           "tool": "bash",
           "callID": "call_00_ET_xvcpTOUlzt6MqUfbdUlZ0592",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "git add lib/rust/crates/pathland-opcode/ && git commit -m \"test: harden pathland-opcode with ring, arena, and frame coverage\""
             },
+            "output": "[test/opcode-engine-hardening 7d274b3] test: harden pathland-opcode with ring, arena, and frame coverage\n 10 files changed, 1155 insertions(+)\n create mode 100644 lib/rust/crates/pathland-opcode/tests/arena.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/events.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/frames.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/randomized.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/roundtrip.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/shared_header.rs\n",
+            "metadata": {
+              "output": "[test/opcode-engine-hardening 7d274b3] test: harden pathland-opcode with ring, arena, and frame coverage\n 10 files changed, 1155 insertions(+)\n create mode 100644 lib/rust/crates/pathland-opcode/tests/arena.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/events.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/frames.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/randomized.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/roundtrip.rs\n create mode 100644 lib/rust/crates/pathland-opcode/tests/shared_header.rs\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "git add lib/rust/crates/pathland-opcode/ && git commit -m \"test: harden pathland-opcode with ring, arena, and frame coverage\"",
             "time": {
-              "start": 1787327299244
+              "start": 1787327302079,
+              "end": 1787327302082
             }
           },
           "id": "prt_025023d79001tDj3Mt0o5P7tio",
           "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
           "messageID": "msg_0250232d7002DlxnlPVxlpWVFB"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "4df8b82b92e6d442a0c1b94c49b78e5dfb2ac197",
+          "type": "step-finish",
+          "tokens": {
+            "total": 145373,
+            "input": 896,
+            "output": 93,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 144384
+            }
+          },
+          "cost": 0.001269188,
+          "id": "prt_0250249ed001ay80pkmdVrX4QR",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_0250232d7002DlxnlPVxlpWVFB"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_02502184b001MJvmffIxZZS8Vz",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001157524,
+        "tokens": {
+          "total": 145637,
+          "input": 406,
+          "output": 79,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 145152
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787327302181,
+          "completed": 1787327306296
+        },
+        "finish": "stop",
+        "id": "msg_025024a25002e26oSOWxww0PmX",
+        "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU"
+      },
+      "parts": [
+        {
+          "snapshot": "4df8b82b92e6d442a0c1b94c49b78e5dfb2ac197",
+          "type": "step-start",
+          "id": "prt_0250251fa001a8aZkT18FgoCZ5",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_025024a25002e26oSOWxww0PmX"
+        },
+        {
+          "type": "text",
+          "text": "Committed on `test/opcode-engine-hardening` (7d274b3):\n\n- 4 source files: `#[cfg(test)]`-only inline tests in `events.rs`, `lib.rs`, `memory.rs`, `ring.rs`\n- 6 new integration test files under `tests/`\n- 1155 insertions, all test code — no production changes",
+          "time": {
+            "start": 1787327305009,
+            "end": 1787327306198
+          },
+          "id": "prt_025025531001WULGA2ORj3A9bq",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_025024a25002e26oSOWxww0PmX"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "4df8b82b92e6d442a0c1b94c49b78e5dfb2ac197",
+          "type": "step-finish",
+          "tokens": {
+            "total": 145637,
+            "input": 406,
+            "output": 79,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 145152
+            }
+          },
+          "cost": 0.001157524,
+          "id": "prt_025025a040010JUIao8GK4v697",
+          "sessionID": "ses_fdb15fd4cffe4bjtngPVwBZGSU",
+          "messageID": "msg_025024a25002e26oSOWxww0PmX"
         }
       ]
     }
