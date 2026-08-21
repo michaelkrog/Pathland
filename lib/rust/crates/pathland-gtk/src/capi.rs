@@ -15,8 +15,10 @@ use pathland_transport::{DriverTransport, FrameSource, OpcodeBatch, TransportErr
 
 use crate::{run_with_pump, Pump};
 
-/// A host-supplied event callback: invoked with the activated node id.
-pub type EventCallback = extern "C" fn(target_id: u32);
+/// A host-supplied event callback, invoked (with no payload) when the renderer
+/// has written a raw input into the host → guest event ring. The host drains the
+/// ring itself (via `pathland_native_drain_events`) to receive the events.
+pub type EventCallback = extern "C" fn();
 
 /// A `Pump` over a `pathland-native` `NativeHost` owned by the foreign host.
 ///
@@ -36,19 +38,15 @@ impl Pump for NativeHostHandle {
         // SAFETY: as above.
         unsafe { DriverTransport::send_input(&mut *self.0, event) }
     }
-
-    fn drain_events(&mut self) -> Vec<Event> {
-        // SAFETY: as above.
-        unsafe { (&mut *self.0).drain_events() }
-    }
 }
 
 /// Run the GTK renderer over a `pathland-native` host's shared ring.
 ///
 /// `host` is the opaque handle from `pathland_native_create`; the renderer
 /// pumps its ring in-process (frames in, events out). `on_event` is called
-/// (on the GTK main thread) with the id of the activated node; it may re-enter
-/// `pathland_native_*` to update the tree and re-emit.
+/// (on the GTK main thread, with no payload) whenever a raw input was written;
+/// the host then drains the event ring via `pathland_native_drain_events` and
+/// may re-enter `pathland_native_*` to update the tree and re-emit.
 ///
 /// This function blocks until the GTK main loop exits (window closed).
 #[no_mangle]
@@ -72,11 +70,9 @@ pub unsafe extern "C" fn pathland_gtk_run(
         "Pathland GTK Demo",
         pump,
         &["GtkDemo"],
-        move |event, _pump| {
+        move |_pump| {
             if let Some(cb) = on_event {
-                if let Event::PointerUp { target, .. } = event {
-                    cb(target);
-                }
+                cb();
             }
         },
     );

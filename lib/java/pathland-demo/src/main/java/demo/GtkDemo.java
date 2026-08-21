@@ -1,10 +1,12 @@
 package demo;
 
+import com.sun.jna.Memory;
 import com.sun.jna.Pointer;
 import pathland.Align;
 import pathland.Bridge;
 import pathland.Constants;
 import pathland.DSL;
+import pathland.EventReader;
 import pathland.Node;
 import pathland.PathlandGtk;
 import pathland.PathlandNative;
@@ -19,9 +21,9 @@ import pathland.View;
  *  - renders through the shared pathland-gtk renderer (in-process via JNA)
  *
  * The demo does not use Swing or any GTK API directly — it only authors the UI
- * with Pathland and hands it to the renderer. Button clicks round-trip as
- * EVENT opcodes through the shared ring and are reported back via
- * {@link PathlandGtk.EventCallback}.
+ * with Pathland and hands it to the renderer. Native inputs round-trip as
+ * EVENT opcodes through the shared ring; the renderer wakes us (no payload)
+ * and we drain the event ring via {@code pathland_native_drain_events}.
  *
  * Run:
  *   PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native -p pathland-gtk
@@ -33,6 +35,9 @@ import pathland.View;
  */
 public final class GtkDemo {
 
+    /** Max events drained per wake (× 16 bytes each). */
+    private static final int MAX_EVENTS = 64;
+
     private final Pointer host;
     private final Bridge bridge;
     private int count = 0;
@@ -42,9 +47,21 @@ public final class GtkDemo {
     public GtkDemo() {
         host = PathlandNative.INSTANCE.pathland_native_create();
         bridge = new Bridge(host);
-        onEvent = targetId -> {
-            count += 1;
-            render();
+        onEvent = () -> {
+            // Drain the event ring generically (EVENT opcodes) and react to a
+            // pointer-up. Data flows through the opcode engine, not the callback.
+            Memory buf = new Memory((long) MAX_EVENTS * 16);
+            int n = PathlandNative.INSTANCE.pathland_native_drain_events(host, buf, MAX_EVENTS);
+            boolean activated = false;
+            for (EventReader.Event e : EventReader.decode(buf, n)) {
+                if (e.isPointerUp()) {
+                    activated = true;
+                }
+            }
+            if (activated) {
+                count += 1;
+                render();
+            }
         };
     }
 

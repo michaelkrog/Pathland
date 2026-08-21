@@ -98,10 +98,19 @@ maps opcode frames **incrementally** onto native GTK widgets (a retained
 it — the demos **never call GTK or Swing directly**:
 
 - Rust demo links `pathland-gtk` as an `rlib` and calls `GtkRenderer::run(...)`
-  with an event closure.
+  with a wake closure.
 - Java demo loads `pathland-gtk` as a `cdylib` via JNA and calls
-  `pathland_gtk_run(host, on_event)`; button clicks round-trip as `EVENT`
-  opcodes through the shared ring and are reported back via a JNA callback.
+  `pathland_gtk_run(host, on_event)`; native inputs round-trip as `EVENT`
+  opcodes through the shared ring. The renderer **writes** the events and
+  **wakes** the host (no payload); the host drains the event ring itself via
+  `pathland_native_drain_events` (Rust: `NativeHost::drain_events` /
+  `RingTransport::drain_events`). Events are never delivered through a
+  side-channel callback — they flow through the opcode engine.
+
+The renderer maps native inputs onto the raw `Event` surface via GTK4
+controllers (`Button::clicked` → pointer up, `EventControllerMotion` →
+pointer move/enter/leave), emitting events through the same `Pump::send_input`
+path.
 
 `pathland-gtk::run` passes an explicit empty argv to GTK (the process command
 line belongs to the embedding host — e.g. the JVM's `-cp`/`-D` flags — and must
@@ -305,7 +314,7 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-transport`), the WIT component world (`wit/pathland.wit`) + WASM guest component (`pathland-guest`) + host bindings/bridge (`pathland-wit-host`, browser/remote only), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory), the **GTK4 renderer** (`pathland-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, and the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL). **Tests green across the workspace.**
+**Complete**: 16-byte opcode engine (`pathland-opcode`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-engine`), host reader to a native-element description (`pathland-host`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-transport`), the WIT component world (`wit/pathland.wit`) + WASM guest component (`pathland-guest`) + host bindings/bridge (`pathland-wit-host`, browser/remote only), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, and the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL). **Tests green across the workspace.**
 
 **Planned / deferred**: signals (Goal 2/#13), Quarkus SSR + WebSocket demo (Goal 4/#15), host → guest events over the network transport (the ring carries them; the network batch wire format does not yet), TEXT_FIELD editing, image rendering.
 

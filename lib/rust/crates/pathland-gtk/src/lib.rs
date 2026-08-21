@@ -28,23 +28,23 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use gtk::prelude::*;
-use gtk::{Align, Box as GtkBox, Button, Label};
+use gtk::{Align, Box as GtkBox, Button, EventControllerMotion, Label};
 use pathland_host::{HostNode, RenderTree};
 use pathland_opcode::{component_type, property_id, Event, Frame};
 use pathland_transport::{DriverTransport, FrameSource, OpcodeBatch, RingTransport, TransportError};
 
-/// Callback the renderer invokes with a decoded raw-input event.
-pub type EventHandler = Box<dyn FnMut(Event)>;
-
 /// The bidirectional transport surface the renderer pumps: frames in
 /// (guest → host) and events out (host → guest).
+///
+/// The renderer **never drains events** — it only writes them as `EVENT`
+/// opcodes. The host (application) drains the event ring itself, so raw inputs
+/// return to the app through the opcode engine, symmetric with how frames flow
+/// to the renderer.
 pub trait Pump {
     /// Read the next guest → host frame.
     fn next_frame(&mut self) -> Result<Option<OpcodeBatch<'_>>, TransportError>;
-    /// Write a host → guest raw input.
+    /// Write a host → guest raw input as an `EVENT` opcode.
     fn send_input(&mut self, event: &Event) -> Result<(), TransportError>;
-    /// Drain pending host → guest raw inputs.
-    fn drain_events(&mut self) -> Vec<Event>;
 }
 
 impl Pump for RingTransport {
@@ -53,9 +53,6 @@ impl Pump for RingTransport {
     }
     fn send_input(&mut self, event: &Event) -> Result<(), TransportError> {
         DriverTransport::send_input(self, event)
-    }
-    fn drain_events(&mut self) -> Vec<Event> {
-        RingTransport::drain_events(self)
     }
 }
 
@@ -255,15 +252,54 @@ fn build_widget(
             let target = node.id;
             if let Some(sink) = event_sink {
                 let sink = sink.clone();
+
+                // A button activation is reported as a raw pointer-up. (The
+                // button's own internal gesture claims the click sequence, so a
+                // separate `GestureClick` would not observe the release; use the
+                // canonical `clicked` signal instead.)
+                let click_sink = sink.clone();
                 btn.connect_clicked(move |_| {
-                    let mut sink = sink.borrow_mut();
-                    sink(Event::PointerUp {
+                    click_sink.borrow_mut()(Event::PointerUp {
                         target,
                         x: 0.0,
                         y: 0.0,
                         secondary: false,
                     });
                 });
+
+                // Hover enter/move/leave as raw pointer-move events.
+                let motion = EventControllerMotion::new();
+                let move_sink = sink.clone();
+                motion.connect_motion(move |_motion, x, y| {
+                    move_sink.borrow_mut()(Event::PointerMove {
+                        target,
+                        x: x as f32,
+                        y: y as f32,
+                        hovering: true,
+                        leaving: false,
+                    });
+                });
+                let enter_sink = sink.clone();
+                motion.connect_enter(move |_motion, x, y| {
+                    enter_sink.borrow_mut()(Event::PointerMove {
+                        target,
+                        x: x as f32,
+                        y: y as f32,
+                        hovering: true,
+                        leaving: false,
+                    });
+                });
+                let leave_sink = sink.clone();
+                motion.connect_leave(move |_motion| {
+                    leave_sink.borrow_mut()(Event::PointerMove {
+                        target,
+                        x: 0.0,
+                        y: 0.0,
+                        hovering: false,
+                        leaving: true,
+                    });
+                });
+                btn.add_controller(motion);
             }
             btn.upcast()
         }
@@ -314,16 +350,18 @@ fn apply_text_style(label: &Label, node: &HostNode) {
     label.set_attributes(Some(&attrs));
 }
 
-/// Run the GTK renderer over a shared ring, pumping frames in and events out.
+/// Run the GTK renderer over a shared ring, pumping frames in and waking the
+/// host on raw-input events.
 ///
-/// `on_event` is invoked (on the GTK main thread) with each decoded raw-input
-/// event; it receives the shared ring so the app can re-emit a new frame.
+/// `on_event` is invoked (on the GTK main thread) with the shared ring whenever
+/// the renderer wrote a raw input; the app drains the ring's event queue itself
+/// (`RingTransport::drain_events`) and may re-emit a new frame.
 ///
 /// Passes the process's real program args to GTK (a native Rust binary's args
 /// are just its program name — safe for GTK to parse).
 pub fn run<F>(app_id: &str, title: &str, ring: Rc<RefCell<RingTransport>>, on_event: F)
 where
-    F: FnMut(Event, Rc<RefCell<RingTransport>>) + 'static,
+    F: FnMut(Rc<RefCell<RingTransport>>) + 'static,
 {
     let args: Vec<String> = std::env::args().collect();
     let args: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
@@ -343,7 +381,7 @@ pub fn run_with_pump<P, F>(
     on_event: F,
 ) where
     P: Pump + 'static,
-    F: FnMut(Event, Rc<RefCell<P>>) + 'static,
+    F: FnMut(Rc<RefCell<P>>) + 'static,
 {
     let app_id = app_id.to_string();
     let title = title.to_string();
@@ -361,34 +399,36 @@ pub fn run_with_pump<P, F>(
 
         let renderer = Rc::new(RefCell::new(GtkRenderer::new()));
 
-        // Buttons report clicks as EVENT opcodes into the pump (host → guest).
+        // Native inputs are written as EVENT opcodes into the pump (host → guest);
+        // the host is then woken to drain the event ring itself.
         {
             let pump_for_buttons = pump.clone();
+            let wake = on_event.clone();
             let sink: Rc<RefCell<dyn FnMut(Event)>> =
                 Rc::new(RefCell::new(move |ev: Event| {
-                    let mut p = pump_for_buttons.borrow_mut();
-                    let _ = p.send_input(&ev);
+                    {
+                        let mut p = pump_for_buttons.borrow_mut();
+                        let _ = p.send_input(&ev);
+                    }
+                    wake.borrow_mut()(pump_for_buttons.clone());
                 }));
             renderer.borrow_mut().set_event_sink(sink);
         }
 
         // Initial render + window root.
-        pump_once(&renderer, &pump, &mut |_, _| {});
+        pump_once(&renderer, &pump);
         let root = renderer.borrow().root_widget();
         if let Some(root) = root {
             window.set_child(Some(&root));
         }
         window.present();
 
-        // Idle pump: drain events (dispatch to app) then drain frames (render).
-        // Clone the Rc handles so the outer `Fn` closure never moves them out.
+        // Idle pump: apply pending frames to the renderer. Events are drained by
+        // the host (woken from the sink above), not here.
         let idle_renderer = renderer.clone();
         let idle_pump = pump.clone();
-        let idle_on_event = on_event.clone();
         glib::idle_add_local(move || {
-            pump_once(&idle_renderer, &idle_pump, &mut |ev, p| {
-                idle_on_event.borrow_mut()(ev, p);
-            });
+            pump_once(&idle_renderer, &idle_pump);
             glib::ControlFlow::Continue
         });
     });
@@ -397,20 +437,12 @@ pub fn run_with_pump<P, F>(
     app.run_with_args(args);
 }
 
-/// Drain the shared pump once: dispatch pending events to `on_event`, then
-/// apply pending frames to the renderer.
-fn pump_once<P, F>(renderer: &Rc<RefCell<GtkRenderer>>, pump: &Rc<RefCell<P>>, on_event: &mut F)
+/// Apply pending frames to the renderer. (Events flow the other way: the
+/// renderer writes them; the host drains them — see [`Pump`].)
+fn pump_once<P>(renderer: &Rc<RefCell<GtkRenderer>>, pump: &Rc<RefCell<P>>)
 where
     P: Pump,
-    F: FnMut(Event, Rc<RefCell<P>>),
 {
-    // Events first (the app may re-emit inside the callback).
-    let events = pump.borrow_mut().drain_events();
-    for ev in events {
-        on_event(ev, pump.clone());
-    }
-
-    // Frames next.
     loop {
         let mut pump_ref = pump.borrow_mut();
         match pump_ref.next_frame() {

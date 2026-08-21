@@ -253,3 +253,28 @@ pub fn property_value_type(prop: u32) -> (u16, u8) {
     };
     (pid, vt)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pathland_opcode::Event;
+
+    #[test]
+    fn native_host_round_trips_events_via_ring() {
+        // The host (application) drains raw inputs written by a renderer into
+        // the host → guest event ring, proving the generic opcode-engine path.
+        let mut host = NativeHost::new();
+
+        DriverTransport::send_input(
+            &mut host,
+            &Event::PointerUp { target: 7, x: 3.0, y: 4.0, secondary: false },
+        )
+        .unwrap();
+
+        assert_eq!(
+            host.drain_events(),
+            vec![Event::PointerUp { target: 7, x: 3.0, y: 4.0, secondary: false }]
+        );
+        assert!(host.drain_events().is_empty());
+    }
+}

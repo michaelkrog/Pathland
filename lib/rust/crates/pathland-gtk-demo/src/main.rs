@@ -64,14 +64,19 @@ fn main() {
     // Initial frame before the renderer starts pumping.
     emit(&engine, &ring, 0);
 
-    // Hand the renderer the shared ring and an event handler. On a button
-    // activation (EVENT opcode round-tripped through the ring) we bump the
-    // counter and re-emit; the renderer's idle pump applies the delta.
+    // Hand the renderer the shared ring and a wake handler. The renderer writes
+    // native inputs as EVENT opcodes into the ring and wakes us; we drain the
+    // ring, react to pointer-up, bump the counter, and re-emit. The renderer's
+    // idle pump applies the delta.
     pathland_gtk::run(APP_ID, "Pathland GTK4 Demo", ring.clone(), {
         let engine = engine.clone();
         let count = count.clone();
-        move |event, ring| {
-            if let pathland_opcode::Event::PointerUp { .. } = event {
+        move |ring| {
+            let events = ring.borrow_mut().drain_events();
+            let activated = events
+                .iter()
+                .any(|ev| matches!(ev, pathland_opcode::Event::PointerUp { .. }));
+            if activated {
                 *count.borrow_mut() += 1;
                 emit(&engine, &ring, *count.borrow());
             }

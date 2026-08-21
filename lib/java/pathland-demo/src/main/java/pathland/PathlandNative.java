@@ -35,4 +35,8 @@ public interface PathlandNative extends Library {
     long pathland_native_ring_len(Pointer host);
     long pathland_native_layout_bytes(Pointer host);
     int pathland_native_root_id(Pointer host);
+
+    // --- raw-input events (host → guest) ---
+    /** Drains pending EVENT opcodes into {@code out} (16 bytes each); returns count. */
+    int pathland_native_drain_events(Pointer host, Pointer out, int max);
 }

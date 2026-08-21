@@ -63,8 +63,9 @@ On macOS, GTK must run on the main thread: prefix the mvn command with
 The Java app uses a SwiftUI-like DSL, drives the Rust engine via the flat
 `pathland_native_*` C ABI (no per-component wrappers), and renders through the
 shared `pathland-gtk` renderer (in-process via JNA). It uses **no Swing and no
-GTK APIs directly** — button clicks round-trip as `EVENT` opcodes through the
-shared ring. Verify headlessly with `-Dexec.mainClass=demo.DemoHeadless`.
+GTK APIs directly** — native inputs round-trip as `EVENT` opcodes through the
+shared ring, and the host drains them via `pathland_native_drain_events`. Verify
+headlessly with `-Dexec.mainClass=demo.DemoHeadless`.
 
 
 ## Build for wasm32 (browser projection only)

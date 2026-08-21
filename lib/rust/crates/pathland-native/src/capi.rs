@@ -171,3 +171,35 @@ pub unsafe extern "C" fn pathland_native_layout_bytes(host: HostHandle) -> usize
 pub unsafe extern "C" fn pathland_native_root_id(host: HostHandle) -> u32 {
     as_host(host).root_id().unwrap_or(u32::MAX)
 }
+
+// ---------------------------------------------------------------------------
+// Raw-input events (host → guest)
+// ---------------------------------------------------------------------------
+
+/// Drain pending raw-input events written by a renderer into the host → guest
+/// event ring, writing each as its raw 16-byte `EVENT` opcode
+/// (`[category][command][flags:u16][A:u32][B:u32][C:u32]`, little-endian) into
+/// `out`. Returns the number of events written (≤ `max`).
+///
+/// `out` must point to at least `max * 16` writable bytes. This is the generic
+/// event path: the renderer only writes `EVENT` opcodes; the host drains them
+/// here, symmetric with how a driver reads frame opcodes via
+/// [`pathland_native_ring_ptr`].
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_drain_events(
+    host: HostHandle,
+    out: *mut u8,
+    max: u32,
+) -> u32 {
+    if out.is_null() || max == 0 {
+        return 0;
+    }
+    let events = as_host(host).drain_events();
+    let n = events.len().min(max as usize);
+    for (i, ev) in events.into_iter().take(n).enumerate() {
+        let bytes = ev.encode().to_bytes();
+        // SAFETY: `out` points to ≥ max*16 writable bytes; we write ≤ max slots.
+        std::ptr::copy_nonoverlapping(bytes.as_ptr(), out.add(i * 16), 16);
+    }
+    n as u32
+}
