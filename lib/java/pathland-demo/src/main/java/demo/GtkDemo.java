@@ -73,7 +73,7 @@ public final class GtkDemo {
     private void render() {
         View root = DSL.vstack(
                 Align.LEADING, 12f,
-                DSL.hstack(
+                DSL.hstack(Align.CENTER, 8f,
                         DSL.text("Count: " + count).frame(Constants.FILL, Float.NaN, Align.LEADING),
                         DSL.button("Increment").onTapGesture(() -> {
                             count += 1;
