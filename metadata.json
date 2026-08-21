@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0JWVV7M9KF3H2V896196CEN",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo/src/main/java/demo/DemoHeadless.java",
+    "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Bridge.java",
+    "lib/java/pathland-demo/src/main/java/pathland/EventReader.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Listeners.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Node.java",
+    "lib/java/pathland-demo/src/main/java/pathland/RingReader.java",
+    "lib/java/pathland-demo/src/main/java/pathland/TapGesture.java",
+    "lib/java/pathland-demo/src/main/java/pathland/TapRecognizer.java",
+    "lib/rust/crates/pathland-codegen/src/main.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 195585,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 5419648,
+    "output_tokens": 8273,
+    "api_call_count": 31
+  }
+}

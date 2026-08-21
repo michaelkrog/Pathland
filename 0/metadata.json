@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0JWVV7M9KF3H2V896196CEN",
+  "session_id": "ses_fdaa005beffe1gtNKgxlZ3gxeF",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-21T19:30:50.725115Z",
+  "branch": "main",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "lib/rust/crates/pathland-codegen/src/main.rs",
+    "lib/java/pathland-demo/src/main/java/pathland/Listeners.java",
+    "lib/java/pathland-demo/src/main/java/pathland/TapGesture.java",
+    "lib/java/pathland-demo/src/main/java/pathland/TapRecognizer.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Node.java",
+    "lib/java/pathland-demo/src/main/java/pathland/EventReader.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Bridge.java",
+    "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java",
+    "lib/java/pathland-demo/src/main/java/pathland/RingReader.java",
+    "lib/java/pathland-demo/src/main/java/demo/DemoHeadless.java",
+    "AGENTS.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "606c49fe030d",
+  "checkpoint_transcript_start": 94,
+  "transcript_lines_at_start": 94,
+  "compact_transcript_start": 94,
+  "token_usage": {
+    "input_tokens": 195585,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 5419648,
+    "output_tokens": 8273,
+    "api_call_count": 31
+  },
+  "session_metrics": {
+    "turn_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-21T19:30:50.62889Z",
+    "agent_lines": 261,
+    "agent_removed": 17,
+    "human_added": 9,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 270,
+    "total_lines_changed": 287,
+    "agent_percentage": 96.86411149825784,
+    "metric_version": 2
+  }
+}
