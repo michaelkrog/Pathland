@@ -160,6 +160,8 @@ fn slot_mask(header: &[u8]) -> usize {
 pub struct Guest<'a> {
     header: &'a mut [u8],
     slots: &'a mut [u8],
+    /// Host → guest event ring (guest reads raw inputs here).
+    event_slots: &'a mut [u8],
     arena: &'a mut [u8],
     /// Write cursor captured at `begin_frame`.
     frame_start: u32,
@@ -170,11 +172,13 @@ impl<'a> Guest<'a> {
     /// called on the same memory beforehand.
     pub fn new(mem: &'a mut [u8], layout: &MemoryLayout) -> Self {
         let (header, rest) = mem.split_at_mut(memory::HEADER_SIZE);
-        let (slots, arena) = rest.split_at_mut(layout.ring_bytes());
+        let (slots, rest) = rest.split_at_mut(layout.ring_bytes());
+        let (event_slots, arena) = rest.split_at_mut(layout.event_ring_bytes());
         let frame_start = header::get_u32(header, OFF_WRITE_CURSOR);
         Self {
             header,
             slots,
+            event_slots,
             arena,
             frame_start,
         }
@@ -276,6 +280,20 @@ impl<'a> Guest<'a> {
     pub fn reset(&mut self) -> Result<(), RingError> {
         ring_fn::push_reset(self.slots, self.header, self.mask())
     }
+
+    // --- EVENT ingress (host → guest) ---
+
+    /// Drain all pending raw-input events written by the host into the event
+    /// ring, decoding each 16-byte `EVENT` opcode into a typed [`Event`].
+    ///
+    /// The guest (app/engine) polls this to receive renderer-reported inputs.
+    pub fn drain_events(&mut self) -> Vec<Event> {
+        let mask = self.mask();
+        let ops = ring_fn::read_events(&self.event_slots, self.header, mask);
+        ops.into_iter()
+            .filter_map(|op| Event::try_from(op).ok())
+            .collect()
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -373,6 +391,8 @@ impl<'a> Iterator for FrameIter<'a> {
 pub struct Host<'a> {
     header: &'a mut [u8],
     slots: &'a [u8],
+    /// Host → guest event ring (host writes raw inputs here).
+    event_slots: &'a mut [u8],
     arena: &'a [u8],
     /// Number of frames already consumed by this host view.
     consumed: u32,
@@ -382,10 +402,14 @@ impl<'a> Host<'a> {
     /// Create a host view over the linear memory.
     pub fn new(mem: &'a mut [u8], layout: &MemoryLayout) -> Self {
         let (header, rest) = mem.split_at_mut(memory::HEADER_SIZE);
-        let (slots, arena) = rest.split_at_mut(layout.ring_bytes());
+        let (slots, rest) = rest.split_at_mut(layout.ring_bytes());
+        let (event_slots, arena) = rest.split_at_mut(layout.event_ring_bytes());
+        let slots: &'a [u8] = slots;
+        let arena: &'a [u8] = arena;
         Self {
             header,
             slots,
+            event_slots,
             arena,
             consumed: 0,
         }
@@ -416,6 +440,14 @@ impl<'a> Host<'a> {
             return Vec::new();
         }
 
+        // No new opcodes since the last drain (readCursor == writeCursor). This
+        // also covers a freshly-created host view whose `consumed` counter
+        // starts at 0 but whose cursors have already been drained by an earlier
+        // view — without this, `next_frame` would return empty frames forever.
+        if start == end {
+            return Vec::new();
+        }
+
         let frames = vec![Frame {
             slots: self.slots,
             arena: self.arena,
@@ -426,6 +458,14 @@ impl<'a> Host<'a> {
         header::set_u32(self.header, OFF_READ_CURSOR, end as u32);
         self.consumed = frame_count;
         frames
+    }
+
+    /// Write a raw-input event (host → guest) into the event ring, encoded as a
+    /// 16-byte `EVENT` opcode. The renderer reports inputs here; the guest
+    /// drains them via [`Guest::drain_events`].
+    pub fn send_event(&mut self, event: &Event) -> Result<(), RingError> {
+        let mask = slot_mask(self.header);
+        ring_fn::push_event(self.event_slots, self.header, mask, &event.encode())
     }
 }
 
@@ -487,5 +527,38 @@ mod tests {
             guest.create_node(4, component_type::TEXT).unwrap_err(),
             RingError::Full
         );
+    }
+
+    #[test]
+    fn host_event_round_trips_to_guest() {
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        // Host (renderer) writes an event.
+        let mut host = Host::new(&mut mem, &layout);
+        host.send_event(&Event::PointerUp {
+            target: 4,
+            x: 10.0,
+            y: 20.0,
+            secondary: false,
+        })
+        .unwrap();
+        drop(host);
+
+        // Guest drains and decodes it.
+        let mut guest = Guest::new(&mut mem, &layout);
+        let events = guest.drain_events();
+        assert_eq!(
+            events,
+            vec![Event::PointerUp {
+                target: 4,
+                x: 10.0,
+                y: 20.0,
+                secondary: false,
+            }]
+        );
+        // Second drain is empty.
+        assert!(guest.drain_events().is_empty());
     }
 }

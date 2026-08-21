@@ -38,6 +38,16 @@ pub const OFF_READ_CURSOR: usize = 0x1E;
 pub const OFF_WRITE_CURSOR: usize = 0x22;
 /// Byte offset of `frameCount: u32` (guest-owned).
 pub const OFF_FRAME_COUNT: usize = 0x26;
+/// Byte offset of `eventRingOffset: u32`.
+pub const OFF_EVENT_RING_OFFSET: usize = 0x2A;
+/// Byte offset of `eventRingBytes: u32`.
+pub const OFF_EVENT_RING_BYTES: usize = 0x2E;
+/// Byte offset of `eventSlotCount: u32`.
+pub const OFF_EVENT_SLOT_COUNT: usize = 0x32;
+/// Byte offset of `eventReadCursor: u32` (guest-owned).
+pub const OFF_EVENT_READ_CURSOR: usize = 0x36;
+/// Byte offset of `eventWriteCursor: u32` (host-owned).
+pub const OFF_EVENT_WRITE_CURSOR: usize = 0x3A;
 /// Total header size in bytes.
 pub const HEADER_SIZE: usize = 0x40;
 
@@ -66,9 +76,16 @@ impl MemoryLayout {
         self.slot_count * OPCODE_SIZE
     }
 
-    /// Total linear memory size: header + ring + arena.
+    /// Event (host → guest) ring region byte length. Reuses `slot_count` so
+    /// both rings share the same capacity (power of two).
+    #[inline]
+    pub fn event_ring_bytes(&self) -> usize {
+        self.slot_count * OPCODE_SIZE
+    }
+
+    /// Total linear memory size: header + ring + event ring + arena.
     pub fn total_bytes(&self) -> usize {
-        HEADER_SIZE + self.ring_bytes() + self.arena_bytes
+        HEADER_SIZE + self.ring_bytes() + self.event_ring_bytes() + self.arena_bytes
     }
 
     /// Byte offset of the ring region (directly after the header).
@@ -77,10 +94,16 @@ impl MemoryLayout {
         HEADER_SIZE
     }
 
-    /// Byte offset of the arena region (directly after the ring).
+    /// Byte offset of the host → guest event ring region (after the main ring).
+    #[inline]
+    pub fn event_ring_offset(&self) -> usize {
+        self.ring_offset() + self.ring_bytes()
+    }
+
+    /// Byte offset of the arena region (directly after the event ring).
     #[inline]
     pub fn arena_offset(&self) -> usize {
-        self.ring_offset() + self.ring_bytes()
+        self.event_ring_offset() + self.event_ring_bytes()
     }
 
     /// Ring mask for wrapping a cursor (slot count is a power of two).
@@ -127,6 +150,11 @@ pub(crate) mod header {
         set_u32(buf, OFF_READ_CURSOR, 0);
         set_u32(buf, OFF_WRITE_CURSOR, 0);
         set_u32(buf, OFF_FRAME_COUNT, 0);
+        set_u32(buf, OFF_EVENT_RING_OFFSET, layout.event_ring_offset() as u32);
+        set_u32(buf, OFF_EVENT_RING_BYTES, layout.event_ring_bytes() as u32);
+        set_u32(buf, OFF_EVENT_SLOT_COUNT, layout.slot_count as u32);
+        set_u32(buf, OFF_EVENT_READ_CURSOR, 0);
+        set_u32(buf, OFF_EVENT_WRITE_CURSOR, 0);
     }
 
     /// Validate a header against a layout; returns false if the memory is not a
@@ -146,6 +174,9 @@ pub(crate) mod header {
         }
         get_u32(buf, OFF_SLOT_COUNT) as usize == layout.slot_count
             && get_u32(buf, OFF_ARENA_BYTES) as usize == layout.arena_bytes
+            && get_u32(buf, OFF_EVENT_RING_OFFSET) as usize == layout.event_ring_offset()
+            && get_u32(buf, OFF_EVENT_RING_BYTES) as usize == layout.event_ring_bytes()
+            && get_u32(buf, OFF_EVENT_SLOT_COUNT) as usize == layout.slot_count
     }
 }
 
@@ -163,10 +194,17 @@ mod tests {
     fn default_layout_is_contiguous() {
         let layout = MemoryLayout::default();
         assert_eq!(layout.ring_offset(), HEADER_SIZE);
-        assert_eq!(layout.arena_offset(), HEADER_SIZE + layout.ring_bytes());
+        assert_eq!(
+            layout.event_ring_offset(),
+            HEADER_SIZE + layout.ring_bytes()
+        );
+        assert_eq!(
+            layout.arena_offset(),
+            HEADER_SIZE + layout.ring_bytes() + layout.event_ring_bytes()
+        );
         assert_eq!(
             layout.total_bytes(),
-            HEADER_SIZE + layout.ring_bytes() + layout.arena_bytes
+            HEADER_SIZE + layout.ring_bytes() + layout.event_ring_bytes() + layout.arena_bytes
         );
         assert!(layout.slot_count.is_power_of_two());
     }
@@ -183,5 +221,21 @@ mod tests {
         assert_eq!(header::get_u32(&buf, OFF_READ_CURSOR), 0);
         assert_eq!(header::get_u32(&buf, OFF_WRITE_CURSOR), 0);
         assert_eq!(header::get_u32(&buf, OFF_FRAME_COUNT), 0);
+        assert_eq!(
+            header::get_u32(&buf, OFF_EVENT_RING_OFFSET),
+            layout.event_ring_offset() as u32
+        );
+        assert_eq!(
+            header::get_u32(&buf, OFF_EVENT_RING_BYTES),
+            layout.event_ring_bytes() as u32
+        );
+        assert_eq!(
+            header::get_u32(&buf, OFF_EVENT_READ_CURSOR),
+            0
+        );
+        assert_eq!(
+            header::get_u32(&buf, OFF_EVENT_WRITE_CURSOR),
+            0
+        );
     }
 }

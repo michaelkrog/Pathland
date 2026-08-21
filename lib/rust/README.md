@@ -17,10 +17,14 @@ crates/
 ├── pathland-guest/    # WASM guest component: retained tree + engine + emit/take-batch (browser)
 ├── pathland-wit-host/ # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)
 ├── pathland-native/   # native C-ABI shim + NativeHost: flat world over a zero-copy shared ring
-└── pathland-gtk-demo/ # GTK4 desktop demo: native engine -> zero-copy shared ring -> GtkBox/Label/Button
+├── pathland-gtk/      # GTK4 RENDERER (rlib + cdylib): opcode frames -> native GTK widgets
+│                      #   (incremental); the only crate that touches GTK/glib/pango
+└── pathland-gtk-demo/ # GTK4 desktop demo: authors the DSL, renders through pathland-gtk
+                       #   (uses NO GTK APIs directly)
 
 # Cross-language demo
-../java/pathland-demo/ # Java (Maven): SwiftUI-like DSL + JNA over pathland-native, zero-copy ring read
+../java/pathland-demo/ # Java (Maven): SwiftUI-like DSL + JNA over pathland-native,
+                       #   rendered through pathland-gtk (uses NO Swing / NO GTK APIs)
 ```
 
 ## Specification
@@ -43,17 +47,21 @@ PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-gtk-demo
 
 Requires GTK4 (`brew install gtk4` on macOS).
 
-## Run the Java demo (cross-language, JNA over the native C-ABI shim)
+## Run the Java demo (cross-language, JNA over the native C-ABI shim + GTK renderer)
 
 ```bash
-PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native
+PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native -p pathland-gtk
 cd ../java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
 ```
 
+On macOS, GTK must run on the main thread: prefix the mvn command with
+`MAVEN_OPTS="-XstartOnFirstThread"`.
+
 The Java app uses a SwiftUI-like DSL, drives the Rust engine via the flat
-`pathland_native_*` C ABI (no per-component wrappers), and reads the resulting
-opcodes **zero-copy** from the shared-memory ring. Verify headlessly with
-`-Dexec.mainClass=demo.DemoHeadless`.
+`pathland_native_*` C ABI (no per-component wrappers), and renders through the
+shared `pathland-gtk` renderer (in-process via JNA). It uses **no Swing and no
+GTK APIs directly** — button clicks round-trip as `EVENT` opcodes through the
+shared ring. Verify headlessly with `-Dexec.mainClass=demo.DemoHeadless`.
 
 
 ## Build for wasm32

@@ -209,12 +209,19 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 ```
 +───────────────────────────────────────────────────────────────+
 | 0x0000  Header block (64 B)  — cursors, frame counter, layout  |
-| 0x0040  Ring buffer (16 B × slotCount)                         |
+| 0x0040  Ring buffer (16 B × slotCount)   [guest → host]        |
 | ...      (slots densely packed, 64-byte aligned base)          |
-| 0x10040 Arena (bump region for strings / token paths / lists)  |
+| 0x10040 Event ring buffer (16 B × slotCount) [host → guest]    |
+| ...                                                           |
+| 0x20040 Arena (bump region for strings / token paths / lists)  |
 | ...                                                            |
 +───────────────────────────────────────────────────────────────+
 ```
+
+> The event ring is the **host → guest** direction of the shared-memory
+> transport: the renderer writes `EVENT`-category opcodes here and the
+> guest/app drains them. It uses the same 16-byte slot layout as the main
+> (guest → host) ring; both share `slotCount` (same capacity).
 
 ### Header block (64 bytes)
 
@@ -231,7 +238,12 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 | 0x1E | 4 | `readCursor` | host | Ring slot the host has consumed up to |
 | 0x22 | 4 | `writeCursor` | guest | Ring slot the guest has written up to |
 | 0x26 | 4 | `frameCount` | guest | Monotonic completed-frame counter |
-| 0x2A | 22 | reserved | — | Zero |
+| 0x2A | 4 | `eventRingOffset` | — | Byte offset of the host→guest event ring region |
+| 0x2E | 4 | `eventRingBytes` | — | Byte length of the event ring region |
+| 0x32 | 4 | `eventSlotCount` | — | Event ring slot count (power of two; = `slotCount`) |
+| 0x36 | 4 | `eventReadCursor` | guest | Event ring slot the guest has consumed up to |
+| 0x3A | 4 | `eventWriteCursor` | host | Event ring slot the host has written up to |
+| 0x3E | 2 | reserved | — | Zero |
 
 ### Ring buffer
 
@@ -240,6 +252,13 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 - **Consumer** (host) reads from `readCursor` up to `writeCursor`; after draining a frame it advances `readCursor`.
 - **Backpressure**: the producer must not advance `writeCursor` past `readCursor` (ring full). The producer SHOULD flush a frame before the ring is full.
 - **Frame boundary detection**: the host watches `frameCount`. When it advances, exactly one frame (all slots from the previously consumed `readCursor` to the current `writeCursor`) is complete.
+
+### Event ring (host → guest)
+
+- The **host** (renderer) is the producer: it writes `EVENT`-category opcodes at `eventWriteCursor`.
+- The **guest** (app/engine) is the consumer: it reads from `eventReadCursor` up to `eventWriteCursor`, then advances `eventReadCursor`.
+- Events are raw inputs and are consumed as soon as they are written (no frame batching); `eventFrameCount` is not required.
+- Backpressure mirrors the main ring: the host must not advance `eventWriteCursor` past `eventReadCursor`.
 
 ### Arena
 

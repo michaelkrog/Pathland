@@ -75,7 +75,8 @@ mod tests {
         let mut buf = vec![0u8; layout.total_bytes()];
         crate::init_memory(&mut buf, &layout);
         let (head, rest) = buf.split_at_mut(crate::memory::HEADER_SIZE);
-        let (_ring, arena_data) = rest.split_at_mut(layout.ring_bytes());
+        let (_, rest) = rest.split_at_mut(layout.ring_bytes() + layout.event_ring_bytes());
+        let arena_data = rest;
         let off = alloc_str(arena_data, head, "Hello").unwrap();
         assert_eq!(get(arena_data, off).unwrap(), b"Hello");
         assert_eq!(get_str(arena_data, off).unwrap(), "Hello");
@@ -88,7 +89,8 @@ mod tests {
         let mut buf = vec![0u8; layout.total_bytes()];
         crate::init_memory(&mut buf, &layout);
         let (head, rest) = buf.split_at_mut(crate::memory::HEADER_SIZE);
-        let (_ring, arena_data) = rest.split_at_mut(layout.ring_bytes());
+        let (_, rest) = rest.split_at_mut(layout.ring_bytes() + layout.event_ring_bytes());
+        let arena_data = rest;
         let o1 = alloc_str(arena_data, head, "ab").unwrap();
         let o2 = alloc_str(arena_data, head, "cdef").unwrap();
         assert!(o2 > o1);
@@ -102,7 +104,8 @@ mod tests {
         let mut buf = vec![0u8; layout.total_bytes()];
         crate::init_memory(&mut buf, &layout);
         let (head, rest) = buf.split_at_mut(crate::memory::HEADER_SIZE);
-        let (_ring, arena_data) = rest.split_at_mut(layout.ring_bytes());
+        let (_, rest) = rest.split_at_mut(layout.ring_bytes() + layout.event_ring_bytes());
+        let arena_data = rest;
         assert_eq!(
             alloc(arena_data, head, &[0u8; 1024 * 1024]).unwrap_err(),
             ArenaError::OutOfSpace

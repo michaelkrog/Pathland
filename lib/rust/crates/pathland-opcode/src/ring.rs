@@ -3,6 +3,8 @@
 //! The ring is a power-of-two slot array. The guest writes at `writeCursor` and
 //! the host reads from `readCursor`. Both cursors live in the header block.
 
+use alloc::vec::Vec;
+
 use crate::opcode::Opcode;
 use crate::{constants, memory, memory::header};
 
@@ -200,4 +202,59 @@ pub(crate) fn push_reset(
         mask,
         &Opcode::new(constants::category::META, constants::meta::RESET, 0, 0, 0, 0),
     )
+}
+
+// ---------------------------------------------------------------------------
+// Host → guest event ring
+// ---------------------------------------------------------------------------
+
+/// Append an `EVENT`-category opcode to the host → guest event ring.
+///
+/// The host (renderer) writes at `eventWriteCursor`; the guest reads from
+/// `eventReadCursor`. Same 16-byte slot layout as the guest → host ring.
+#[inline]
+pub(crate) fn push_event(
+    event_slots: &mut [u8],
+    header: &mut [u8],
+    mask: usize,
+    op: &Opcode,
+) -> Result<(), RingError> {
+    let write = cursor(header, memory::OFF_EVENT_WRITE_CURSOR, mask);
+    let next = (write + 1) & mask;
+    if next == cursor(header, memory::OFF_EVENT_READ_CURSOR, mask) {
+        return Err(RingError::Full);
+    }
+    let bytes = op.to_bytes();
+    let off = write * Opcode::SIZE;
+    event_slots[off..off + Opcode::SIZE].copy_from_slice(&bytes);
+    header::set_u32(header, memory::OFF_EVENT_WRITE_CURSOR, next as u32);
+    Ok(())
+}
+
+/// Drain all pending `EVENT`-category opcodes from the host → guest event ring,
+/// advancing `eventReadCursor`. The guest (app/engine) reads raw inputs here.
+#[inline]
+pub(crate) fn read_events(
+    event_slots: &[u8],
+    header: &mut [u8],
+    mask: usize,
+) -> Vec<Opcode> {
+    let read = cursor(header, memory::OFF_EVENT_READ_CURSOR, mask);
+    let write = cursor(header, memory::OFF_EVENT_WRITE_CURSOR, mask);
+    // The POC host never lets the event ring wrap past the reader; drain only a
+    // contiguous (unwrapped) run.
+    if write < read {
+        return Vec::new();
+    }
+    let count = write - read;
+    let mut out = Vec::with_capacity(count);
+    for i in 0..count {
+        let slot = (read + i) & mask;
+        let off = slot * Opcode::SIZE;
+        let bytes: [u8; Opcode::SIZE] =
+            event_slots[off..off + Opcode::SIZE].try_into().unwrap();
+        out.push(Opcode::from_bytes(&bytes));
+    }
+    header::set_u32(header, memory::OFF_EVENT_READ_CURSOR, write as u32);
+    out
 }

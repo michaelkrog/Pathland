@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Pathland GTK4 desktop demo: native engine over a zero-copy shared-memory ring, rendering opcodes to GtkBox/GtkLabel/GtkButton"
+description = "Pathland GTK4 desktop demo: authors the DSL and renders through the shared pathland-gtk renderer (no direct GTK usage)"
 publish = false
 
 [[bin]]
@@ -14,9 +14,6 @@ path = "src/main.rs"
 [dependencies]
 pathland-opcode = { path = "../pathland-opcode" }
 pathland-engine = { path = "../pathland-engine" }
-pathland-host = { path = "../pathland-host" }
 pathland-transport = { path = "../pathland-transport" }
 pathland-view = { path = "../pathland-view" }
-gtk = { package = "gtk4", version = "0.9" }
-glib = "0.20"
-pango = "0.20"
+pathland-gtk = { path = "../pathland-gtk" }

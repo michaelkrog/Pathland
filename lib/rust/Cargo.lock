@@ -1364,7 +1364,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pathland-gtk-demo"
+name = "pathland-gtk"
 version = "0.1.0"
 dependencies = [
  "glib",
@@ -1372,6 +1372,18 @@ dependencies = [
  "pango",
  "pathland-engine",
  "pathland-host",
+ "pathland-native",
+ "pathland-opcode",
+ "pathland-transport",
+ "pathland-view",
+]
+
+[[package]]
+name = "pathland-gtk-demo"
+version = "0.1.0"
+dependencies = [
+ "pathland-engine",
+ "pathland-gtk",
  "pathland-opcode",
  "pathland-transport",
  "pathland-view",

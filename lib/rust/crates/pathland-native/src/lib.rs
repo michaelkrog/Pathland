@@ -16,7 +16,9 @@ use std::collections::{BTreeMap, HashMap};
 
 use pathland_engine::Engine;
 use pathland_opcode::{component_type, property_id, MemoryLayout};
-use pathland_transport::RingTransport;
+use pathland_transport::{
+    DriverTransport, FrameSource, OpcodeBatch, RingTransport, TransportError,
+};
 use pathland_view::{component_type_id, Node};
 
 mod capi;
@@ -187,6 +189,29 @@ impl NativeHost {
 impl Default for NativeHost {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+/// The host is a `FrameSource` over its shared ring: a renderer drains the
+/// guest→host frames the engine produced.
+impl FrameSource for NativeHost {
+    fn next_frame(&mut self) -> Result<Option<OpcodeBatch<'_>>, TransportError> {
+        self.ring.next_frame()
+    }
+}
+
+/// The host can also write raw inputs (host → guest) into its event ring.
+impl DriverTransport for NativeHost {
+    fn send_input(&mut self, event: &pathland_opcode::Event) -> Result<(), TransportError> {
+        self.ring.send_input(event)
+    }
+}
+
+impl NativeHost {
+    /// Drain raw-input events written by a renderer into the host → guest event
+    /// ring (guest side). The application polls this to receive inputs.
+    pub fn drain_events(&mut self) -> Vec<pathland_opcode::Event> {
+        self.ring.drain_events()
     }
 }
 

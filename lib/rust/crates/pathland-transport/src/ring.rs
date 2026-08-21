@@ -78,14 +78,21 @@ impl FrameSource for RingTransport {
 
 impl DriverTransport for RingTransport {
     fn send_input(&mut self, event: &pathland_opcode::Event) -> Result<(), TransportError> {
-        // Events cross the boundary as EVENT-category opcodes in the ring. The
-        // host writes them at the producer side of the shared transport; a full
-        // host → guest ring is reserved for a later phase. For now route through
-        // the guest input path (in-process call).
-        let _ = event;
-        Err(TransportError::Protocol(
-            crate::ProtocolError::BadInput,
-        ))
+        // The host writes the raw input as an EVENT-category opcode into the
+        // host → guest event ring; the guest drains it via `drain_events`.
+        let mut host = Host::new(&mut self.mem, &self.layout);
+        host.send_event(event).map_err(|_| {
+            TransportError::Protocol(crate::ProtocolError::BadInput)
+        })
+    }
+}
+
+impl RingTransport {
+    /// Drain raw-input events written by the host into the host → guest event
+    /// ring, decoding each `EVENT` opcode (guest side).
+    pub fn drain_events(&mut self) -> Vec<pathland_opcode::Event> {
+        let mut guest = self.producer();
+        guest.drain_events()
     }
 }
 
@@ -121,5 +128,49 @@ mod tests {
     fn ring_empty_when_no_frame() {
         let mut ring = RingTransport::new();
         assert!(ring.next_frame().unwrap().is_none());
+    }
+
+    #[test]
+    fn next_frame_returns_none_after_drain() {
+        let mut ring = RingTransport::new();
+        {
+            let mut guest = ring.producer();
+            guest.begin_frame();
+            guest.create_node(1, 0x0002).unwrap();
+            guest.end_frame();
+        }
+        // First drain yields the frame.
+        assert!(ring.next_frame().unwrap().is_some());
+        // Subsequent drains yield None (no empty-frame loop).
+        assert!(ring.next_frame().unwrap().is_none());
+        assert!(ring.next_frame().unwrap().is_none());
+    }
+
+    #[test]
+    fn ring_carries_events_host_to_guest() {
+        use pathland_opcode::Event;
+        let mut ring = RingTransport::new();
+        // Host (renderer) reports a click.
+        DriverTransport::send_input(
+            &mut ring,
+            &Event::PointerUp {
+                target: 4,
+                x: 1.0,
+                y: 2.0,
+                secondary: false,
+            },
+        )
+        .unwrap();
+        // Guest (app) drains it as a typed event.
+        assert_eq!(
+            ring.drain_events(),
+            vec![Event::PointerUp {
+                target: 4,
+                x: 1.0,
+                y: 2.0,
+                secondary: false,
+            }]
+        );
+        assert!(ring.drain_events().is_empty());
     }
 }
