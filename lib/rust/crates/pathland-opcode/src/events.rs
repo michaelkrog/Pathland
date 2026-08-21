@@ -273,6 +273,28 @@ mod tests {
     }
 
     #[test]
+    fn unknown_event_command_is_rejected() {
+        // EVENT category with a command that does not exist in the protocol.
+        let op = Opcode::new(crate::category::EVENT, 0xFF, 0, 1, 0, 0);
+        assert_eq!(Event::try_from(op), Err(EventError::UnknownCommand));
+    }
+
+    #[test]
+    fn pointer_move_round_trips_with_combined_hover_flags() {
+        // Both hovering and leaving set simultaneously must survive the round trip.
+        let e = Event::PointerMove {
+            target: 5,
+            x: 10.0,
+            y: 20.0,
+            hovering: true,
+            leaving: true,
+        };
+        assert_eq!(round_trip(e), e);
+        // The flags word carries both bits.
+        assert_eq!(e.encode().flags(), flag::HOVER_ENTER | flag::HOVER_LEAVE);
+    }
+
+    #[test]
     fn matches_conformance_vector_bytes() {
         // EVENT:POINTER_DOWN (target=5, x=10.0, y=20.0)
         let down = Event::PointerDown {

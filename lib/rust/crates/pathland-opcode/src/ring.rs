@@ -258,3 +258,125 @@ pub(crate) fn read_events(
     header::set_u32(header, memory::OFF_EVENT_READ_CURSOR, write as u32);
     out
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::memory::header;
+    use alloc::vec;
+
+    /// A tiny initialized linear memory with `slot_count` slots and a bare
+    /// arena.
+    fn tiny_mem(slot_count: usize) -> Vec<u8> {
+        let layout = crate::memory::MemoryLayout {
+            slot_count,
+            arena_bytes: 64,
+        };
+        let mut mem = vec![0u8; layout.total_bytes()];
+        crate::init_memory(&mut mem, &layout);
+        mem
+    }
+
+    #[test]
+    fn push_reports_full_at_exact_capacity() {
+        let slot_count = 4usize;
+        let mut mem = tiny_mem(slot_count);
+        let mask = slot_count - 1;
+
+        // With a 4-slot ring, capacity is slot_count - 1 = 3 opcodes.
+        let (head, rest) = mem.split_at_mut(crate::memory::HEADER_SIZE);
+        let (slots, _rest) = rest.split_at_mut(slot_count * Opcode::SIZE);
+
+        for i in 0..3 {
+            push(slots, head, mask, &Opcode::new(crate::category::TREE, 1, 0, i, 0, 0)).unwrap();
+        }
+        assert_eq!(
+            push(slots, head, mask, &Opcode::new(crate::category::TREE, 1, 0, 9, 0, 0)),
+            Err(RingError::Full)
+        );
+        // writeCursor stopped at slot_count - 1, never wrapping.
+        assert_eq!(header::get_u32(head, crate::memory::OFF_WRITE_CURSOR), 3);
+    }
+
+    #[test]
+    fn cursor_masks_out_of_range_header_values() {
+        let mut mem = tiny_mem(8);
+        let (head, _) = mem.split_at_mut(crate::memory::HEADER_SIZE);
+        header::set_u32(head, crate::memory::OFF_WRITE_CURSOR, 17);
+        // mask = 7, so 17 & 7 = 1.
+        assert_eq!(cursor(head, crate::memory::OFF_WRITE_CURSOR, 7), 1);
+    }
+
+    #[test]
+    fn push_event_and_read_events_round_trip() {
+        let slot_count = 4usize;
+        let mut mem = tiny_mem(slot_count);
+        let mask = slot_count - 1;
+
+        let (head, rest) = mem.split_at_mut(crate::memory::HEADER_SIZE);
+        let (_slots, rest) = rest.split_at_mut(slot_count * Opcode::SIZE);
+        let (event_slots, _arena) = rest.split_at_mut(slot_count * Opcode::SIZE);
+
+        let op = Opcode::new(crate::category::EVENT, crate::event::POINTER_UP, 0, 5, 0, 0);
+        push_event(event_slots, head, mask, &op).unwrap();
+
+        let drained = read_events(event_slots, head, mask);
+        assert_eq!(drained, vec![op]);
+        // Second read is empty (readCursor advanced).
+        assert!(read_events(event_slots, head, mask).is_empty());
+        assert_eq!(
+            header::get_u32(head, crate::memory::OFF_EVENT_READ_CURSOR),
+            header::get_u32(head, crate::memory::OFF_EVENT_WRITE_CURSOR)
+        );
+    }
+
+    #[test]
+    fn push_event_reports_full_and_recovers() {
+        let slot_count = 2usize;
+        let mut mem = tiny_mem(slot_count);
+        let mask = slot_count - 1;
+
+        let (head, rest) = mem.split_at_mut(crate::memory::HEADER_SIZE);
+        let (_slots, rest) = rest.split_at_mut(slot_count * Opcode::SIZE);
+        let (event_slots, _arena) = rest.split_at_mut(slot_count * Opcode::SIZE);
+
+        let op = Opcode::new(crate::category::EVENT, crate::event::POINTER_UP, 0, 5, 0, 0);
+        assert!(push_event(event_slots, head, mask, &op).is_ok());
+        assert_eq!(
+            push_event(event_slots, head, mask, &op),
+            Err(RingError::Full)
+        );
+
+        // Guest drains, freeing the slot; the host can write again.
+        let drained = read_events(event_slots, head, mask);
+        assert_eq!(drained.len(), 1);
+        assert!(push_event(event_slots, head, mask, &op).is_ok());
+    }
+
+    #[test]
+    fn read_events_returns_empty_on_wrapped_cursors() {
+        let slot_count = 4usize;
+        let mut mem = tiny_mem(slot_count);
+        let mask = slot_count - 1;
+
+        let (head, rest) = mem.split_at_mut(crate::memory::HEADER_SIZE);
+        let (_slots, rest) = rest.split_at_mut(slot_count * Opcode::SIZE);
+        let (event_slots, _arena) = rest.split_at_mut(slot_count * Opcode::SIZE);
+
+        // Write two events (writeCursor = 2), guest reads none yet.
+        let op = Opcode::new(crate::category::EVENT, crate::event::POINTER_UP, 0, 5, 0, 0);
+        push_event(event_slots, head, mask, &op).unwrap();
+        push_event(event_slots, head, mask, &op).unwrap();
+
+        // Simulate a wrapped producer: readCursor advanced to 3 (masked 3)
+        // while eventWriteCursor wrapped to 5 (masked 1). Now masked
+        // write(1) < masked read(3), which the guard treats as unwrapped-only.
+        header::set_u32(head, crate::memory::OFF_EVENT_READ_CURSOR, 3);
+        header::set_u32(head, crate::memory::OFF_EVENT_WRITE_CURSOR, 5);
+
+        // The unwrapped-run guard drains nothing rather than garbage.
+        assert!(read_events(event_slots, head, mask).is_empty());
+        // And it must not advance readCursor in the wrapped case.
+        assert_eq!(header::get_u32(head, crate::memory::OFF_EVENT_READ_CURSOR), 3);
+    }
+}
