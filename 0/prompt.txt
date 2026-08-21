@@ -1,1 +1,1 @@
-This project has 4 elements overall: 1) A retained ui model, 2) an opcode engine, 3) a renderer/driver/host and 4) a transport for how the opcode engine delivers opcodes from retained model to the renderer/driver/host. I want to settle on a term for the renderer/driver/host and I want to document these elements in the beginning of the readme.md with a visual aid.
+commit on new branch
