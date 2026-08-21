@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0JNJT61WQ6QWT32KG2BQHQ3",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java",
+    "lib/java/pathland-demo/src/main/java/pathland/EventReader.java",
+    "lib/java/pathland-demo/src/main/java/pathland/PathlandGtk.java",
+    "lib/java/pathland-demo/src/main/java/pathland/PathlandNative.java",
+    "lib/rust/README.md",
+    "lib/rust/crates/pathland-gtk-demo/src/main.rs",
+    "lib/rust/crates/pathland-gtk/src/capi.rs",
+    "lib/rust/crates/pathland-gtk/src/lib.rs",
+    "lib/rust/crates/pathland-native/src/capi.rs",
+    "lib/rust/crates/pathland-native/src/lib.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 551280,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 5740544,
+    "output_tokens": 20906,
+    "api_call_count": 71
+  }
+}
