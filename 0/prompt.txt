@@ -1,1 +1,1 @@
-Under lib/rust there are a number of crates. Maybe it has been divided into too many? Altso the overall architecture of the system has 3 elements (retained ui model, opcode engine and renderer), but it is hard to see which crates is relevant for which element? The elements are described in readme.md. Create a plan for simply it the strucutre
+commit
