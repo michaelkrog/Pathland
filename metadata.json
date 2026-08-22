@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0N4BYE4SJ1CRKE0JEX4ANY2",
+  "strategy": "manual-commit",
+  "branch": "feature/signals",
+  "checkpoints_count": 19,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo/src/main/java/demo/DemoHeadless.java",
+    "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Bridge.java",
+    "lib/java/pathland-demo/src/main/java/pathland/PathlandNative.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Signal.java",
+    "lib/rust/crates/pathland-core/src/engine.rs",
+    "lib/rust/crates/pathland-core/src/lib.rs",
+    "lib/rust/crates/pathland-core/src/node.rs",
+    "lib/rust/crates/pathland-core/src/signal.rs",
+    "lib/rust/crates/pathland-core/tests/engine.rs",
+    "lib/rust/crates/pathland-core/tests/signal.rs",
+    "lib/rust/crates/pathland-view-native/src/capi.rs",
+    "lib/rust/crates/pathland-view-native/src/lib.rs",
+    "lib/rust/crates/pathland-view-native/tests/native.rs",
+    "lib/rust/crates/pathland-view/src/lib.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1321970,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 26791936,
+    "output_tokens": 29678,
+    "api_call_count": 86
+  }
+}

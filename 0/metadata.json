@@ -1,0 +1,100 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0N4BYE4SJ1CRKE0JEX4ANY2",
+  "session_id": "ses_fd7f88ea7ffesuigFXbnf9w31z",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-22T16:20:27.790737Z",
+  "branch": "feature/signals",
+  "checkpoints_count": 19,
+  "save_step_count": 5,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo/src/main/java/demo/DemoHeadless.java",
+    "lib/java/pathland-demo/src/main/java/demo/GtkDemo.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Bridge.java",
+    "lib/java/pathland-demo/src/main/java/pathland/PathlandNative.java",
+    "lib/java/pathland-demo/src/main/java/pathland/Signal.java",
+    "lib/rust/crates/pathland-core/src/engine.rs",
+    "lib/rust/crates/pathland-core/src/lib.rs",
+    "lib/rust/crates/pathland-core/src/node.rs",
+    "lib/rust/crates/pathland-core/src/signal.rs",
+    "lib/rust/crates/pathland-core/tests/engine.rs",
+    "lib/rust/crates/pathland-core/tests/signal.rs",
+    "lib/rust/crates/pathland-view-native/src/capi.rs",
+    "lib/rust/crates/pathland-view-native/src/lib.rs",
+    "lib/rust/crates/pathland-view-native/tests/native.rs",
+    "lib/rust/crates/pathland-view/src/lib.rs"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "27c5a4b9fb0c",
+  "checkpoint_transcript_start": 289,
+  "transcript_lines_at_start": 289,
+  "compact_transcript_start": 289,
+  "token_usage": {
+    "input_tokens": 1321970,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 26791936,
+    "output_tokens": 29678,
+    "api_call_count": 86
+  },
+  "session_metrics": {
+    "turn_count": 39
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-22T16:20:27.524789Z",
+    "agent_lines": 985,
+    "agent_removed": 19,
+    "human_added": 1,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 986,
+    "total_lines_changed": 1006,
+    "agent_percentage": 99.80119284294234,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 192,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 947,
+      "agent_lines_removed": 16
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 985,
+      "agent_lines_removed": 19
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 985,
+      "agent_lines_removed": 19
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 985,
+      "agent_lines_removed": 19
+    }
+  ]
+}
