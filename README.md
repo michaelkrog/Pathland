@@ -16,9 +16,8 @@ platform's **native elements** (GTK4 widgets on desktop, DOM elements in the
 browser, HTML server-side) and those native elements lay themselves out.
 
 On desktop the engine runs **natively**: other languages drive it through the
-flat **native C ABI** (`pathland-native`) over a zero-copy shared ring and render
-through the shared GTK renderer (`pathland-gtk`). **WASM/WIT are the
-browser/remote projection only**, not the primary path.
+flat **native C ABI** (`pathland-view-native`) over a zero-copy shared ring and render
+through the shared GTK renderer (`pathland-render-gtk`).
 
 **The engine does not compute layout and does not emit rects.** It describes
 *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:
@@ -47,8 +46,8 @@ project speaks, so they are settled and used consistently:
 1. **Retained UI** — the application's canonical retained UI tree. It is the
    single source of truth, owned by the application. It can be authored in
    **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —
-   desktop, mobile, embedded, or web — through a generated DSL, a WIT binding,
-   or the flat native C ABI.
+   desktop, mobile, or embedded — through a generated DSL or the flat native C
+   ABI.
 2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed
    **16-byte opcodes** (the producer). Emission is reactive: only changed nodes
    emit, so an unchanged tree emits zero opcodes. The engine is
@@ -90,19 +89,15 @@ remote/browser); transport is an implementation detail, not a fourth element.
 
 The implementation is under [`lib/rust/`](./lib/rust/):
 
-| Crate | Responsibility |
-|-------|----------------|
-| `pathland-opcode` | 16-byte opcode, ring buffer, bump arena, linear-memory layout (`no_std`) |
-| `pathland-view` | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |
-| `pathland-engine` | Retained view tree → declarative `TREE`/`STYLE` opcodes; diff-based reactive emission (zero-alloc steady state) |
-| `pathland-host` | Host reader: ring → native-element description (`std` convenience layer) |
-| `pathland-transport` | Opcode transport: shared-memory ring + network batch encode/decode + transport abstraction |
-| `pathland-native` | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
-| `pathland-gtk` | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
-| `pathland-gtk-demo` | Rust GTK4 demo: authors the DSL, renders through `pathland-gtk` (no GTK APIs) |
-| `pathland-codegen` | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |
-| `pathland-guest` | WASM guest component (browser/remote only) |
-| `pathland-wit-host` | WIT host bindings + DSL bridge (browser/remote only) |
+| Crate | Element | Responsibility |
+|-------|---------|----------------|
+| `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |
+| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |
+| `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
+| `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
+| `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
+| `pathland-codegen` | Tool | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |
+| `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |
 
 The DSL catalog lives in [`lib/ui/components.yaml`](./lib/ui/components.yaml);
 regenerate the Java DSL with `./generate.sh`.
@@ -118,27 +113,20 @@ cargo test
 
 ```bash
 # Rust demo
-cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-gtk-demo
+cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-render-gtk-demo
 
-# Java demo (JNA over pathland-native + pathland-gtk)
-PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native -p pathland-gtk
+# Java demo (JNA over pathland-view-native + pathland-render-gtk)
+PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-view-native -p pathland-render-gtk
 cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
 ```
 
 On macOS the Java demo must run GTK on the main thread:
 `MAVEN_OPTS="-XstartOnFirstThread"`.
 
-### Build for wasm32 (browser projection only)
-
-```bash
-RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \
-  cargo build --target wasm32-unknown-unknown
-```
-
 ## Components & Properties
 
-Component and property IDs are defined in `pathland-opcode`'s
-[`constants.rs`](./lib/rust/crates/pathland-opcode/src/constants.rs) and
+Component and property IDs are defined in `pathland-core`'s
+[`constants.rs`](./lib/rust/crates/pathland-core/src/constants.rs) and
 documented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,
 `VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties
 (`SPACING`, `ALIGNMENT`, …) drive native layout, styling modifiers (`PADDING`,
@@ -161,7 +149,8 @@ See the GitHub issues (#12, #13, #15, #16, #18):
 3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done
 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done
 5. **Catalog-driven DSL** (YAML → Java via `pathland-codegen`) — done
-6. Quarkus SSR + WebSocket demo — planned
+6. Quarkus SSR + WebSocket demo — planned (browser/remote projection; would
+   reintroduce a WASM guest + WIT host path)
 
 ## Versioning
 

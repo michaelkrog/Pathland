@@ -2,7 +2,7 @@
 //!
 //! The **Catalog-Driven DSL generator**. It reads the single source of truth at
 //! `lib/ui/components.yaml`, asserts every component/property id against
-//! `pathland_opcode::constants` (a hard error on mismatch — the consistency
+//! `pathland_core::constants` (a hard error on mismatch — the consistency
 //! safety net), and emits the checked-in SwiftUI-like DSL for each target
 //! language (currently Java).
 //!
@@ -18,7 +18,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use pathland_opcode::{component_type, property_id, size};
+use pathland_core::{component_type, property_id, size};
 
 // ---------------------------------------------------------------------------
 // YAML model
@@ -77,7 +77,7 @@ struct CompoundDef {
 }
 
 // ---------------------------------------------------------------------------
-// Assertions against pathland_opcode::constants
+// Assertions against pathland_core::constants
 // ---------------------------------------------------------------------------
 
 fn assert_ids(catalog: &Catalog) -> Vec<String> {
@@ -222,7 +222,7 @@ fn emit_constants(catalog: &Catalog, repo_root: &Path) {
     let mut out = String::new();
     out.push_str(&header("Constants"));
     out.push_str("package pathland;\n\n");
-    out.push_str("/** Protocol ids and size sentinels (mirrors pathland_opcode::constants). */\n");
+    out.push_str("/** Protocol ids and size sentinels (mirrors pathland_core::constants). */\n");
     out.push_str("public final class Constants {\n");
     out.push_str("    private Constants() {}\n\n");
 

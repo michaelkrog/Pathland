@@ -4,7 +4,7 @@
 # Usage: ./generate.sh
 #
 # 1. `pathland-codegen` parses lib/ui/components.yaml, asserts every id against
-#    pathland_opcode::constants (hard error on mismatch), and emits the
+#    pathland_core::constants (hard error on mismatch), and emits the
 #    checked-in Java DSL.
 # 2. `cargo test` re-runs the native crate test suite (the consistency + wire
 #    conformance safety net).

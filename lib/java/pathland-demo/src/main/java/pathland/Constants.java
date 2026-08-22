@@ -2,7 +2,7 @@
 // Source of truth: lib/ui/components.yaml (Constants)
 package pathland;
 
-/** Protocol ids and size sentinels (mirrors pathland_opcode::constants). */
+/** Protocol ids and size sentinels (mirrors pathland_core::constants). */
 public final class Constants {
     private Constants() {}
 

@@ -3,10 +3,10 @@ name = "pathland-view"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Pathland SwiftUI-style view DSL: core components and chainable modifiers producing a retained view tree for the guest engine"
+description = "Pathland SwiftUI-style view DSL: core components and chainable modifiers building a retained view tree (pathland_core::Node)"
 repository = "https://github.com/michaelkrog/Pathland"
 categories = ["graphics"]
 keywords = ["ui", "dsl", "swiftui", "wasm", "retained-mode"]
 
 [dependencies]
-pathland-opcode = { path = "../pathland-opcode" }
+pathland-core = { path = "../pathland-core" }
