@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0M5T0R1VJ8G75PA8P9DMZ3M",
+  "strategy": "manual-commit",
+  "branch": "refactor/crate-structure-simplification",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "lib/rust/Cargo.toml",
+    "lib/rust/README.md",
+    "lib/rust/crates/pathland-view-native/src/lib.rs",
+    "spec/OPCODE.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2486052,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 15439104,
+    "output_tokens": 16081,
+    "api_call_count": 60
+  }
+}
