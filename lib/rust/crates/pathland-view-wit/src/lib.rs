@@ -1,7 +1,7 @@
 //! # pathland-view-wit
 //!
 //! Host-side bindings for the `pathland:view/pathland` world plus a **DSL
-//! bridge**: instantiate the compiled `pathland-view-guest` component in wasmtime
+//! bridge**: instantiate the compiled `pathland-view-wasm` component in wasmtime
 //! and drive its flat `builder` interface from a `pathland_view::Node` tree.
 //!
 //! The bridge is what makes the DSL a uniform surface: a developer authors a
@@ -90,7 +90,7 @@ pub struct GuestHost {
 }
 
 impl GuestHost {
-    /// Instantiate the compiled `pathland-view-guest` component.
+    /// Instantiate the compiled `pathland-view-wasm` component.
     pub fn new(component_bytes: &[u8], app: impl AppHandler + 'static) -> Result<Self, HostError> {
         let mut config = Config::new();
         config.wasm_component_model(true);
@@ -226,9 +226,9 @@ mod tests {
     fn component_bytes() -> Vec<u8> {
         let path = concat!(
             env!("CARGO_MANIFEST_DIR"),
-            "/../../target/wasm32-wasip1/debug/pathland_guest.wasm"
+            "/../../target/wasm32-wasip1/debug/pathland_wasm.wasm"
         );
-        std::fs::read(path).expect("run `cargo component build -p pathland-view-guest` first")
+        std::fs::read(path).expect("run `cargo component build -p pathland-view-wasm` first")
     }
 
     #[test]

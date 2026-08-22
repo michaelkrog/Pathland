@@ -21,7 +21,7 @@ crates/
 │  # ── Retained-UI projections (host/driver surfaces for other languages) ─
 ├── pathland-view-native/   # native C-ABI shim + NativeHost over a zero-copy shared ring
 │                           #   (Swift/Java/C#; cdylib name stays "pathland_native")
-├── pathland-view-guest/    # WASM guest component (browser/remote projection)
+├── pathland-view-wasm/    # WASM projection (browser/remote)
 ├── pathland-view-wit/      # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)
 │  # ── Tool + demo (not an element) ──────────────────────────────────────
 ├── pathland-codegen/       # DSL code generator: parses lib/ui/components.yaml, asserts ids,

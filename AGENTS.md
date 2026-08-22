@@ -57,7 +57,7 @@ crates/pathland-render-gtk/ # RENDERER — host reader (RenderTree) + maps opcod
 crates/pathland-view-native/ # NATIVE C-ABI shim + NativeHost: flat world over a zero-copy
                           #   shared-memory ring, for Swift/Java/C#/other native hosts
                           #   (cdylib name stays "pathland_native")
-crates/pathland-view-guest/ # WASM guest component (wit world): retained tree + engine
+crates/pathland-view-wasm/ # WASM projection (wit world): retained tree + engine
                           #   + emit/take-batch + event ingress (wasm32-wasip1, browser)
 crates/pathland-view-wit/ # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)
 # ── Tool + demo ───────────────────────────────────────────────────────────
@@ -73,9 +73,9 @@ lib/java/pathland-demo/   # Java (Maven) demo: catalog-generated SwiftUI-like DS
                           #   pathland-view-native, rendered through pathland-render-gtk. No Swing, no GTK.
 ```
 
-- Test: `cd lib/rust && cargo test` (runs all native crates; `pathland-view-guest` is
+- Test: `cd lib/rust && cargo test` (runs all native crates; `pathland-view-wasm` is
   wasm-only and ignored by the native build).
-- WASM component build (browser goal): `cd lib/rust/crates/pathland-view-guest && cargo component build`
+- WASM component build (browser goal): `cd lib/rust/crates/pathland-view-wasm && cargo component build`
   (also needs `PATH="$HOME/.cargo/bin:$PATH"` so rustup's `cargo`/`rustc` are used).
 - Run the GTK demo (native, zero-copy shared ring): `cd lib/rust && cargo run -p pathland-render-gtk-demo`.
 - Run the Java demo (JNA over the native C-ABI shim + GTK renderer):
@@ -319,7 +319,7 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), the WIT component world (`wit/pathland.wit`) + WASM guest component (`pathland-view-guest`) + host bindings/bridge (`pathland-view-wit`, browser/remote only), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL), **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property), and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Tests green across the workspace.**
+**Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), the WIT component world (`wit/pathland.wit`) + WASM projection (`pathland-view-wasm`) + host bindings/bridge (`pathland-view-wit`, browser/remote only), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` + wasm32 builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL), **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property), and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Tests green across the workspace.**
 
 **Planned / deferred**: signals (Goal 2/#13), Quarkus SSR + WebSocket demo (Goal 4/#15), host → guest events over the network transport (the ring carries them; the network batch wire format does not yet), TEXT_FIELD editing, image rendering.
 

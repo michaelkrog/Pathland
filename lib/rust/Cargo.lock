@@ -1399,16 +1399,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pathland-view-guest"
-version = "0.1.0"
-dependencies = [
- "pathland-core",
- "pathland-core-transport",
- "pathland-view",
- "wit-bindgen-rt",
-]
-
-[[package]]
 name = "pathland-view-native"
 version = "0.1.0"
 dependencies = [
@@ -1416,6 +1406,16 @@ dependencies = [
  "pathland-core-transport",
  "pathland-render-gtk",
  "pathland-view",
+]
+
+[[package]]
+name = "pathland-view-wasm"
+version = "0.1.0"
+dependencies = [
+ "pathland-core",
+ "pathland-core-transport",
+ "pathland-view",
+ "wit-bindgen-rt",
 ]
 
 [[package]]

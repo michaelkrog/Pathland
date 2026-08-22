@@ -1,10 +1,10 @@
 [package]
-name = "pathland-view-guest"
+name = "pathland-view-wasm"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Pathland WASM guest component: retains the view tree and emits declarative TREE/STYLE opcodes via the pathland WIT world"
+description = "Pathland WASM projection (retained UI): the WASM component that retains the view tree and emits declarative TREE/STYLE opcodes via the pathland WIT world"
 
 [dependencies]
 wit-bindgen-rt = { version = "0.44.0", features = ["bitflags"] }
@@ -13,7 +13,7 @@ pathland-core-transport = { path = "../pathland-core-transport" }
 pathland-view = { path = "../pathland-view" }
 
 [lib]
-name = "pathland_guest"
+name = "pathland_wasm"
 crate-type = ["cdylib"]
 
 [package.metadata.component]

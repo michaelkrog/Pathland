@@ -97,7 +97,7 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
 | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
 | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
-| `pathland-view-guest` | Retained UI projection | WASM guest component (browser/remote only) |
+| `pathland-view-wasm` | Retained UI projection | WASM projection (browser/remote only) |
 | `pathland-view-wit` | Retained UI projection | WIT host bindings + DSL bridge (browser/remote only) |
 | `pathland-codegen` | Tool | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |
 | `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |

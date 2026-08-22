@@ -1,8 +1,8 @@
-//! # pathland-view-guest
+//! # pathland-view-wasm
 //!
-//! The Pathland **WASM guest component**. It owns the canonical retained view
-//! tree and the diff-based engine, and exposes the flat, language-agnostic
-//! `pathland:view/pathland` world:
+//! The Pathland **WASM projection** of the retained-UI side. This component owns
+//! the canonical retained view tree and the diff-based engine, and exposes the
+//! flat, language-agnostic `pathland:view/pathland` world:
 //!
 //! - **`builder`** — build/update the retained tree by node id.
 //! - **`engine`** — frame lifecycle + `emit` (writes delta opcodes into the
@@ -15,7 +15,7 @@
 //! language wraps the world in its own ergonomic surface.
 //!
 //! This crate is built as a WASM component with `cargo component build
-//! -p pathland-view-guest`. For the native workspace build it compiles to an empty
+//! -p pathland-view-wasm`. For the native workspace build it compiles to an empty
 //! crate (the implementation is gated on `target_arch = "wasm32"`).
 
 #![cfg(target_arch = "wasm32")]
