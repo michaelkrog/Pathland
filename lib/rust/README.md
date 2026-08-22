@@ -42,6 +42,16 @@ crates/
 PATH="$HOME/.cargo/bin:$PATH" cargo test
 ```
 
+## Verify the no_std / wasm32 direction guard
+
+`pathland-core` and `pathland-view` must stay `no_std` + `alloc` and compile for
+`wasm32-unknown-unknown`, so the core can still target a browser/embedded/remote
+projection later. Verify with:
+
+```bash
+./check-wasm.sh
+```
+
 ## Run the GTK desktop demo (native, zero-copy shared ring)
 
 ```bash

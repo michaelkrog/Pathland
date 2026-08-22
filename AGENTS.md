@@ -37,6 +37,16 @@ This document provides essential context for AI agents (or human contributors) w
 - **Reactive emission**: emission is diff-based. Only the nodes that changed emit opcodes (property diffs via `SET_PROPERTY`/`SET_TEXT`, structural diffs via `TREE` opcodes). An unchanged tree emits **zero** opcodes. Signals in the application mark the tree dirty; the engine reconciles.
 - **Zero dynamic heap allocations** during steady-state emission (proven by test).
 
+### no_std / wasm32 direction guard (NON-NEGOTIABLE)
+
+`pathland-core` and `pathland-view` must remain `#![no_std]` + `alloc` and
+compile for `wasm32-unknown-unknown`. This is the guarantee that the protocol
+core can still target a browser / embedded / remote projection later (goal #15,
+Quarkus SSR + WebSocket). The desktop path (`pathland-view-native`) is the only
+consumer today, but the core must not become desktop-only. Verify with
+`lib/rust/check-wasm.sh` (i.e. `cargo build -p pathland-core -p pathland-view
+--target wasm32-unknown-unknown`).
+
 ### Rust Workspace (`lib/rust/`)
 
 ```
