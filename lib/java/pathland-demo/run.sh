@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build and run the Pathland Java demo (JNA over pathland-native + GTK renderer).
+# Build and run the Pathland Java demo (JNA over pathland-view-native + GTK renderer).
 #
 # Usage:
 #   ./run.sh                 # run demo.GtkDemo
@@ -22,8 +22,8 @@ MAIN_CLASS="${1:-demo.GtkDemo}"
 
 export PATH="$HOME/.cargo/bin:$PATH"
 
-echo "==> Building native libs (pathland-native, pathland-gtk)"
-(cd "$RUST_DIR" && cargo build -p pathland-native -p pathland-gtk)
+echo "==> Building native libs (pathland-view-native, pathland-render-gtk)"
+(cd "$RUST_DIR" && cargo build -p pathland-view-native -p pathland-render-gtk)
 
 echo "==> Compiling Java demo"
 (cd "$DEMO_DIR" && mvn -q compile)

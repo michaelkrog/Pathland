@@ -1,0 +1,11 @@
+[package]
+name = "pathland-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Pathland opcode engine: retained tree types + diff-based emitter + 16-byte opcodes, ring buffer, arena, linear-memory layout"
+repository = "https://github.com/michaelkrog/Pathland"
+categories = ["encoding", "wasm", "graphics"]
+keywords = ["ui", "protocol", "opcode", "wasm", "ring-buffer"]
+
+[dependencies]

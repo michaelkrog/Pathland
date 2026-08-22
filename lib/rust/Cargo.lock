@@ -1350,87 +1350,44 @@ dependencies = [
 name = "pathland-codegen"
 version = "0.1.0"
 dependencies = [
- "pathland-opcode",
+ "pathland-core",
  "serde",
  "serde_yaml",
 ]
 
 [[package]]
-name = "pathland-engine"
+name = "pathland-core"
+version = "0.1.0"
+
+[[package]]
+name = "pathland-core-transport"
 version = "0.1.0"
 dependencies = [
- "pathland-opcode",
+ "pathland-core",
+ "pathland-render-gtk",
  "pathland-view",
 ]
 
 [[package]]
-name = "pathland-gtk"
+name = "pathland-render-gtk"
 version = "0.1.0"
 dependencies = [
  "glib",
  "gtk4",
  "pango",
- "pathland-engine",
- "pathland-host",
- "pathland-native",
- "pathland-opcode",
- "pathland-transport",
+ "pathland-core",
+ "pathland-core-transport",
  "pathland-view",
+ "pathland-view-native",
 ]
 
 [[package]]
-name = "pathland-gtk-demo"
+name = "pathland-render-gtk-demo"
 version = "0.1.0"
 dependencies = [
- "pathland-engine",
- "pathland-gtk",
- "pathland-opcode",
- "pathland-transport",
- "pathland-view",
-]
-
-[[package]]
-name = "pathland-guest"
-version = "0.1.0"
-dependencies = [
- "pathland-engine",
- "pathland-opcode",
- "pathland-transport",
- "pathland-view",
- "wit-bindgen-rt",
-]
-
-[[package]]
-name = "pathland-host"
-version = "0.1.0"
-dependencies = [
- "pathland-engine",
- "pathland-opcode",
- "pathland-view",
-]
-
-[[package]]
-name = "pathland-native"
-version = "0.1.0"
-dependencies = [
- "pathland-engine",
- "pathland-host",
- "pathland-opcode",
- "pathland-transport",
- "pathland-view",
-]
-
-[[package]]
-name = "pathland-opcode"
-version = "0.1.0"
-
-[[package]]
-name = "pathland-transport"
-version = "0.1.0"
-dependencies = [
- "pathland-engine",
- "pathland-host",
- "pathland-opcode",
+ "pathland-core",
+ "pathland-core-transport",
+ "pathland-render-gtk",
  "pathland-view",
 ]
 
@@ -1438,16 +1395,36 @@ dependencies = [
 name = "pathland-view"
 version = "0.1.0"
 dependencies = [
- "pathland-opcode",
+ "pathland-core",
 ]
 
 [[package]]
-name = "pathland-wit-host"
+name = "pathland-view-guest"
 version = "0.1.0"
 dependencies = [
- "pathland-host",
- "pathland-opcode",
- "pathland-transport",
+ "pathland-core",
+ "pathland-core-transport",
+ "pathland-view",
+ "wit-bindgen-rt",
+]
+
+[[package]]
+name = "pathland-view-native"
+version = "0.1.0"
+dependencies = [
+ "pathland-core",
+ "pathland-core-transport",
+ "pathland-render-gtk",
+ "pathland-view",
+]
+
+[[package]]
+name = "pathland-view-wit"
+version = "0.1.0"
+dependencies = [
+ "pathland-core",
+ "pathland-core-transport",
+ "pathland-render-gtk",
  "pathland-view",
  "wasmtime",
  "wasmtime-wasi",

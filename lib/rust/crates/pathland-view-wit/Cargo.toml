@@ -1,0 +1,18 @@
+[package]
+name = "pathland-view-wit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Pathland WIT host bindings + DSL bridge: instantiate the pathland guest component and drive its builder/engine from a pathland-view tree"
+
+[dependencies]
+pathland-core = { path = "../pathland-core" }
+pathland-core-transport = { path = "../pathland-core-transport" }
+pathland-view = { path = "../pathland-view" }
+wasmtime = { version = "47.0.3", features = ["component-model"] }
+wasmtime-wasi = { version = "47.0.3", features = ["p2"] }
+wit-bindgen = "0.60.0"
+
+[dev-dependencies]
+pathland-render-gtk = { path = "../pathland-render-gtk" }

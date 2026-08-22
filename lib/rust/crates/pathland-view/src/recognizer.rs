@@ -8,7 +8,7 @@
 //! This module is `no_std`; time is supplied by the caller (`now_ms`) so the
 //! recognizer stays independent of a platform clock.
 
-use pathland_opcode::Event;
+use pathland_core::Event;
 
 /// Recognizes a tap: a `POINTER_DOWN` followed by a `POINTER_UP` on the same
 /// target, within a movement slop and a time window.

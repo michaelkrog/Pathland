@@ -9,7 +9,7 @@ import java.util.Map;
 
 /**
  * Reads Pathland opcodes **zero-copy** from the shared-memory ring, matching the
- * stable wire layout in {@code pathland-opcode/src/memory.rs} and
+ * stable wire layout in {@code pathland-core/src/memory.rs} and
  * {@code spec/OPCODE.md}.
  *
  * The driver is shown the raw ring pointer by the Rust host
@@ -19,7 +19,7 @@ import java.util.Map;
  */
 public final class RingReader {
 
-    // Header field offsets (little-endian), see pathland-opcode::memory.
+    // Header field offsets (little-endian), see pathland_core::memory.
     static final int OFF_RING_OFFSET = 0x06;
     static final int OFF_SLOT_COUNT = 0x0E;
     static final int OFF_ARENA_OFFSET = 0x12;

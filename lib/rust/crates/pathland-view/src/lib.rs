@@ -2,8 +2,8 @@
 //!
 //! The Pathland SwiftUI-style view DSL. Core components (`VStack`, `HStack`,
 //! `Text`) and chainable modifiers (`spacing`, `padding`, `font_size`, `color`,
-//! `background`) build a retained **view tree** (`Node`) that
-//! `pathland-engine` turns into declarative `TREE`/`STYLE` opcodes.
+//! `background`) build a retained **view tree** (`pathland_core::Node`) that the
+//! diff emitter in `pathland-core` turns into declarative `TREE`/`STYLE` opcodes.
 //!
 //! ## Building a tree
 //!
@@ -74,10 +74,13 @@ pub use alloc::boxed::Box;
 /// Re-exported for `vstack!`/`hstack!` macro hygiene (`$crate::vec!`).
 pub use alloc::vec;
 
-use pathland_opcode::component_type;
-use pathland_opcode::property_id;
+use pathland_core::property_id;
 
-pub use pathland_opcode;
+pub use pathland_core;
+pub use pathland_core::{
+    assign_ids, collect_tap_handlers, component_type_id, value_type_for, Component, Engine, Gesture,
+    Node,
+};
 
 mod recognizer;
 
@@ -124,116 +127,6 @@ pub fn spacer() -> Spacer {
     Spacer
 }
 
-// ---------------------------------------------------------------------------
-// Retained view tree
-// ---------------------------------------------------------------------------
-
-/// A node in the retained view tree (the application's canonical UI tree).
-#[derive(Clone, PartialEq)]
-pub struct Node {
-    /// Stable node id (0 until `assign_ids`).
-    pub id: u32,
-    pub component: Component,
-    pub children: Vec<Node>,
-    /// Constraint/style properties (propertyId → value) emitted as
-    /// `STYLE:SET_PROPERTY`.
-    pub properties: BTreeMap<u16, u32>,
-    /// App-side gesture handlers (callbacks). These live only in the
-    /// application's retained tree and are **never** emitted as protocol.
-    pub gestures: Vec<Gesture>,
-}
-
-impl core::fmt::Debug for Node {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Node")
-            .field("id", &self.id)
-            .field("component", &self.component)
-            .field("children", &self.children)
-            .field("properties", &self.properties)
-            .field("gestures", &self.gestures.len())
-            .finish()
-    }
-}
-
-impl Node {
-    /// Build an empty node (id 0, no children/properties) for a component.
-    pub fn from_component(component: &Component) -> Self {
-        Self {
-            id: 0,
-            component: component.clone(),
-            children: Vec::new(),
-            properties: BTreeMap::new(),
-            gestures: Vec::new(),
-        }
-    }
-}
-
-/// An app-side gesture handler attached to a view.
-///
-/// Callbacks live only in the application's retained tree and are **never**
-/// emitted as protocol — the protocol carries only the declarative
-/// `EVENT_LISTENERS` signal. Tap is the first gesture; more can be added later.
-#[derive(Clone)]
-pub enum Gesture {
-    /// A tap gesture: invoke the closure when a tap is recognized.
-    Tap(Rc<RefCell<dyn FnMut() + 'static>>),
-}
-
-impl PartialEq for Gesture {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Gesture::Tap(a), Gesture::Tap(b)) => Rc::ptr_eq(a, b),
-        }
-    }
-}
-
-impl core::fmt::Debug for Gesture {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Gesture::Tap(_) => f.write_str("Tap(..)"),
-        }
-    }
-}
-
-/// Core component types. These describe **structure only** — spacing, padding,
-/// and sizing arrive as modifiers (properties), never as layout math here.
-#[derive(Clone, PartialEq)]
-pub enum Component {
-    /// Vertical stack (native vertical container).
-    VStack,
-    /// Horizontal stack (native horizontal container).
-    HStack,
-    /// Text leaf.
-    Text { text: String },
-    /// Interactive button.
-    Button { label: String },
-    /// Flexible spacer.
-    Spacer,
-}
-
-impl core::fmt::Debug for Component {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Component::VStack => f.write_str("VStack"),
-            Component::HStack => f.write_str("HStack"),
-            Component::Text { text } => f.debug_tuple("Text").field(text).finish(),
-            Component::Button { label } => f.debug_tuple("Button").field(label).finish(),
-            Component::Spacer => f.write_str("Spacer"),
-        }
-    }
-}
-
-/// Map a component to its protocol component type id.
-pub fn component_type_id(component: &Component) -> u16 {
-    match component {
-        Component::VStack => component_type::VSTACK,
-        Component::HStack => component_type::HSTACK,
-        Component::Text { .. } => component_type::TEXT,
-        Component::Button { .. } => component_type::BUTTON,
-        Component::Spacer => component_type::SPACER,
-    }
-}
-
 /// Cross-axis alignment values for stacks and the `Frame` compound modifier.
 ///
 /// These are emitted as the `ALIGNMENT` (0x0002) property with an `ENUM` value
@@ -259,20 +152,6 @@ impl Align {
             Align::Trailing => 2,
             Align::Fill => 3,
         }
-    }
-}
-
-/// The protocol value type for a property id.
-///
-/// Color-valued properties (COLOR, BACKGROUND_COLOR, …) are emitted with the
-/// `COLOR` value type; all other constraint/style properties are `F32`.
-pub fn value_type_for(prop: u16) -> u8 {
-    match prop {
-        property_id::COLOR
-        | property_id::BACKGROUND_COLOR
-        | property_id::BORDER_COLOR => pathland_opcode::value_type::COLOR,
-        property_id::EVENT_LISTENERS => pathland_opcode::value_type::U32,
-        _ => pathland_opcode::value_type::F32,
     }
 }
 
@@ -369,7 +248,7 @@ pub trait ViewExt: View + Sized {
     /// Chain `.pointer_events(mask)` — declare which raw pointer events this
     /// view wants the renderer to report (`EVENT_LISTENERS` bitmask). This is
     /// what makes any element (not just a button) emit raw events; combine
-    /// `pathland_opcode::listener::*` bits, e.g.
+    /// `pathland_core::listener::*` bits, e.g.
     /// `POINTER_DOWN | POINTER_UP`.
     fn pointer_events(self, mask: u32) -> Modified<Self, PointerEvents> {
         self.modifier(PointerEvents(mask))
@@ -521,8 +400,8 @@ impl ViewModifier for TapGesture {
         node.properties.insert(
             property_id::EVENT_LISTENERS,
             existing
-                | pathland_opcode::listener::POINTER_DOWN
-                | pathland_opcode::listener::POINTER_UP,
+                | pathland_core::listener::POINTER_DOWN
+                | pathland_core::listener::POINTER_UP,
         );
         node.gestures.push(Gesture::Tap(self.0.clone()));
     }
@@ -701,41 +580,7 @@ impl View for Button {
 
 /// A button view (shorthand for [`Button::new`]).
 pub fn button(label: &str) -> Button {
-    Button::new(label)
-}
-
-// ---------------------------------------------------------------------------
-// Id assignment
-// ---------------------------------------------------------------------------
-
-/// Assign stable unique sequential ids to a tree (pre-order; root first).
-///
-/// The engine keys its diff snapshot by node id, so call this after building
-/// the (possibly re-built) tree and before `Engine::emit`.
-pub fn assign_ids(root: &mut Node, next: &mut u32) {
-    root.id = *next;
-    *next += 1;
-    for child in &mut root.children {
-        assign_ids(child, next);
-    }
-}
-
-/// Collect a `node id → tap callback` map from a built (and id-assigned) tree.
-///
-/// Call after [`assign_ids`] so each node has its stable id; the returned map
-/// keys the recognizer's tap target to the closure registered by
-/// `.on_tap_gesture(...)`.
-pub fn collect_tap_handlers(
-    root: &Node,
-    out: &mut BTreeMap<u32, Rc<RefCell<dyn FnMut() + 'static>>>,
-) {
-    for gesture in &root.gestures {
-        let Gesture::Tap(handler) = gesture;
-        out.insert(root.id, handler.clone());
-    }
-    for child in &root.children {
-        collect_tap_handlers(child, out);
-    }
+     Button::new(label)
 }
 
 #[cfg(test)]
@@ -868,7 +713,7 @@ mod tests {
 
     #[test]
     fn frame_emits_width_height_alignment_as_properties() {
-        use pathland_opcode::size;
+        use pathland_core::size;
         let node = text("x")
             .frame(Some(size::FILL), Some(24.0), Some(Align::Center))
             .build();
@@ -899,7 +744,7 @@ mod tests {
 
     #[test]
     fn pointer_events_modifier_sets_listener_mask() {
-        let mask = pathland_opcode::listener::POINTER_DOWN | pathland_opcode::listener::POINTER_UP;
+        let mask = pathland_core::listener::POINTER_DOWN | pathland_core::listener::POINTER_UP;
         let node = text("x").pointer_events(mask).build();
         assert_eq!(
             node.properties.get(&property_id::EVENT_LISTENERS),
@@ -912,7 +757,7 @@ mod tests {
         let node = text("x").on_tap_gesture(|| {}).build();
         assert_eq!(
             node.properties.get(&property_id::EVENT_LISTENERS),
-            Some(&(pathland_opcode::listener::POINTER_DOWN | pathland_opcode::listener::POINTER_UP))
+            Some(&(pathland_core::listener::POINTER_DOWN | pathland_core::listener::POINTER_UP))
         );
         assert_eq!(node.gestures.len(), 1);
     }
@@ -927,14 +772,14 @@ mod tests {
     #[test]
     fn tap_gesture_ors_into_existing_listener_mask() {
         let node = text("x")
-            .pointer_events(pathland_opcode::listener::POINTER_MOVE)
+            .pointer_events(pathland_core::listener::POINTER_MOVE)
             .on_tap_gesture(|| {})
             .build();
         assert_eq!(
             node.properties.get(&property_id::EVENT_LISTENERS),
-            Some(&(pathland_opcode::listener::POINTER_MOVE
-                | pathland_opcode::listener::POINTER_DOWN
-                | pathland_opcode::listener::POINTER_UP))
+            Some(&(pathland_core::listener::POINTER_MOVE
+                | pathland_core::listener::POINTER_DOWN
+                | pathland_core::listener::POINTER_UP))
         );
     }
 

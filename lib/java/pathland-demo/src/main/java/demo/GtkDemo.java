@@ -19,7 +19,7 @@ import pathland.View;
  * Proves the cross-language + shared-renderer story for Java:
  *  - a SwiftUI-like DSL authoring surface (pathland.DSL)
  *  - drives Rust components via the flat pathland_native C ABI
- *  - renders through the shared pathland-gtk renderer (in-process via JNA)
+ *  - renders through the shared pathland-render-gtk renderer (in-process via JNA)
  *
  * The demo does not use Swing or any GTK API directly — it only authors the UI
  * with Pathland and hands it to the renderer. Native inputs round-trip as
@@ -27,7 +27,7 @@ import pathland.View;
  * and we drain the event ring via {@code pathland_native_drain_events}.
  *
  * Run:
- *   PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native -p pathland-gtk
+ *   PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-view-native -p pathland-render-gtk
  *   mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
  *
  * On macOS, GTK must run on the main thread: launch the JVM with

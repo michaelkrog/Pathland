@@ -7,27 +7,31 @@ WASM/WIT is the browser/remote projection only.
 
 ```
 crates/
-├── pathland-opcode/   # 16-byte opcode, ring buffer, bump arena, linear-memory layout (no_std)
-├── pathland-view/     # SwiftUI-style view DSL: VStack/HStack/Text/Button + decoupled
-│                      #   chainable modifiers (spacing/padding/fontSize/color/background) (no_std)
-├── pathland-engine/   # retained view tree -> declarative TREE/STYLE opcodes,
-│                      #   diff-based reactive emission (zero-alloc steady state)
-├── pathland-host/     # host reader: ring -> native-element description (std layer)
-├── pathland-transport/# opcode transport: shared-memory ring + network batch encode/decode
-│                      #   + batching policy + transport abstraction (RingTransport/FrameSource)
-├── pathland-guest/    # WASM guest component: retained tree + engine + emit/take-batch (browser)
-├── pathland-wit-host/ # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)
-├── pathland-native/   # native C-ABI shim + NativeHost: flat world over a zero-copy shared ring
-├── pathland-gtk/      # GTK4 RENDERER (rlib + cdylib): opcode frames -> native GTK widgets
-│                      #   (incremental); the only crate that touches GTK/glib/pango
-├── pathland-codegen/  # DSL code generator: parses lib/ui/components.yaml, asserts ids,
-│                      #   emits the checked-in Java DSL
-└── pathland-gtk-demo/ # GTK4 desktop demo: authors the DSL, renders through pathland-gtk
-                       #   (uses NO GTK APIs directly)
+│  # ── The three elements ────────────────────────────────────────────────
+├── pathland-view/          # RETAINED UI — SwiftUI-style view DSL: VStack/HStack/Text/
+│                           #   Button + chainable modifiers (spacing/padding/fontSize/
+│                           #   color/background) building a retained tree (no_std)
+├── pathland-core/          # OPCODE ENGINE — retained tree types (Node/Component) + the
+│                           #   diff-based reactive emitter + 16-byte opcode, ring buffer,
+│                           #   bump arena, constants, events (no_std, zero-alloc steady state)
+├── pathland-core-transport/# OPCODE ENGINE — transport: shared-memory ring owner + network
+│                           #   batch encode/decode + batching policy (std)
+├── pathland-render-gtk/    # RENDERER — opcode frames -> native GTK4 widgets (incremental);
+│                           #   the only crate that touches GTK/glib/pango
+│  # ── Retained-UI projections (host/driver surfaces for other languages) ─
+├── pathland-view-native/   # native C-ABI shim + NativeHost over a zero-copy shared ring
+│                           #   (Swift/Java/C#; cdylib name stays "pathland_native")
+├── pathland-view-guest/    # WASM guest component (browser/remote projection)
+├── pathland-view-wit/      # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)
+│  # ── Tool + demo (not an element) ──────────────────────────────────────
+├── pathland-codegen/       # DSL code generator: parses lib/ui/components.yaml, asserts ids,
+│                           #   emits the checked-in Java DSL
+└── pathland-render-gtk-demo/ # GTK4 desktop demo: authors the DSL, renders through
+                              #   pathland-render-gtk (uses NO GTK APIs directly)
 
 # Cross-language demo
-../java/pathland-demo/ # Java (Maven): SwiftUI-like DSL + JNA over pathland-native,
-                       #   rendered through pathland-gtk (uses NO Swing / NO GTK APIs)
+../java/pathland-demo/ # Java (Maven): SwiftUI-like DSL + JNA over pathland-view-native,
+                       #   rendered through pathland-render-gtk (uses NO Swing / NO GTK APIs)
 ```
 
 ## Specification
@@ -45,7 +49,7 @@ PATH="$HOME/.cargo/bin:$PATH" cargo test
 ## Run the GTK desktop demo (native, zero-copy shared ring)
 
 ```bash
-PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-gtk-demo
+PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-render-gtk-demo
 ```
 
 Requires GTK4 (`brew install gtk4` on macOS).
@@ -53,7 +57,7 @@ Requires GTK4 (`brew install gtk4` on macOS).
 ## Run the Java demo (cross-language, JNA over the native C-ABI shim + GTK renderer)
 
 ```bash
-PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-native -p pathland-gtk
+PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-view-native -p pathland-render-gtk
 cd ../java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
 ```
 
@@ -62,7 +66,7 @@ On macOS, GTK must run on the main thread: prefix the mvn command with
 
 The Java app uses a SwiftUI-like DSL, drives the Rust engine via the flat
 `pathland_native_*` C ABI (no per-component wrappers), and renders through the
-shared `pathland-gtk` renderer (in-process via JNA). It uses **no Swing and no
+shared `pathland-render-gtk` renderer (in-process via JNA). It uses **no Swing and no
 GTK APIs directly** — native inputs round-trip as `EVENT` opcodes through the
 shared ring, and the host drains them via `pathland_native_drain_events`. Verify
 headlessly with `-Dexec.mainClass=demo.DemoHeadless`.
@@ -84,8 +88,7 @@ The engine emits declarative structure (no rects). A signal changes a property;
 the next `emit` writes only the delta opcodes.
 
 ```rust
-use pathland_engine::Engine;
-use pathland_opcode::{init_memory, Guest, MemoryLayout};
+use pathland_core::{init_memory, Guest, MemoryLayout};
 use pathland_view::{assign_ids, text, vstack, View, ViewExt};
 
 let layout = MemoryLayout::default();
@@ -93,7 +96,7 @@ let mut mem = vec![0u8; layout.total_bytes()];
 init_memory(&mut mem, &layout);
 
 let mut guest = Guest::new(&mut mem, &layout);
-let mut engine = Engine::new();
+let mut engine = pathland_core::Engine::new();
 
 let mut root = vstack![text("Hello")]
     .spacing(4.0)
@@ -105,7 +108,7 @@ guest.begin_frame();
 engine.emit(&root, &mut guest).unwrap(); // full structure
 guest.end_frame();
 
-root.properties.insert(pathland_opcode::property_id::SPACING, 12.0f32.to_bits());
+root.properties.insert(pathland_core::property_id::SPACING, 12.0f32.to_bits());
 
 guest.begin_frame();
 engine.emit(&root, &mut guest).unwrap(); // exactly one SET_PROPERTY

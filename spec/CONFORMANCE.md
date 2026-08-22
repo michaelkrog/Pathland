@@ -9,8 +9,8 @@ This document provides **golden byte arrays** for the Pathland opcode protocol (
 - encode each opcode to exactly these 16 bytes, and
 - decode these bytes to the equivalent opcode.
 
-The vectors are enforced by the reference Rust encoder (`pathland-opcode`,
-`crates/pathland-opcode/src/conformance.rs`).
+The vectors are enforced by the reference Rust encoder (`pathland-core`,
+`crates/pathland-core/src/conformance.rs`).
 
 ## Opcode Layout
 
