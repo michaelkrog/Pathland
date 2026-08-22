@@ -10,6 +10,12 @@
 //! nodes that actually changed. An unchanged tree emits zero opcodes.
 //!
 //! The emit pass performs zero dynamic heap allocations in the steady state.
+//!
+//! ## Signals
+//!
+//! Nodes may bind their text or a property to a [`crate::SignalId`]. The engine
+//! resolves those bindings during emit (recording the dependency) and re-emits
+//! only the affected nodes on [`Engine::set_signal`] — no full tree walk.
 
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
@@ -17,6 +23,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use crate::node::{component_type_id, value_type_for, Component, Node};
+use crate::signal::{Dep, SignalId, SignalStore, SignalValue};
 use crate::Guest;
 
 /// Per-node state the engine remembers from the last emission.
@@ -40,14 +47,16 @@ pub struct EmitResult {
 
 /// The diff-based reactive emitter.
 ///
-/// `Engine` keeps the snapshot of what was last emitted. Calling `emit` with a
-/// (possibly mutated) retained tree writes only the delta opcodes. The steady
-/// state of the emit pass allocates nothing.
+/// `Engine` keeps the snapshot of what was last emitted and owns the signal
+/// store. Calling `emit` with a (possibly mutated) retained tree writes only
+/// the delta opcodes; `set_signal` writes deltas for only the bound nodes.
 pub struct Engine {
     /// nodeId to last emitted state (a preallocated slab; node ids are dense).
     snapshot: Vec<Option<SnapshotNode>>,
     /// Monotonic generation stamp for the current pass.
     gen: u64,
+    /// Reactive signal store (owns values + the reverse dependency index).
+    store: SignalStore,
 }
 
 impl Default for Engine {
@@ -61,6 +70,7 @@ impl Engine {
         Self {
             snapshot: Vec::new(),
             gen: 0,
+            store: SignalStore::default(),
         }
     }
 
@@ -71,6 +81,9 @@ impl Engine {
         guest: &mut Guest<'_>,
     ) -> Result<EmitResult, crate::RingError> {
         self.gen = self.gen.wrapping_add(1);
+        // Rebuild the signal dependency index from scratch; reconcile re-adds
+        // the bindings this tree actually uses, so stale subscriptions vanish.
+        self.store.clear_deps();
         let mut out = 0usize;
         self.reconcile_node(root, None, 0, guest, &mut out)?;
 
@@ -89,6 +102,100 @@ impl Engine {
     /// Number of nodes tracked in the snapshot (diagnostics).
     pub fn tracked_nodes(&self) -> usize {
         self.snapshot.iter().filter(|s| s.is_some()).count()
+    }
+
+    // --- Signals ---
+
+    /// Create a new signal with an initial value.
+    pub fn create_signal(&mut self, value: SignalValue) -> SignalId {
+        self.store.create(value)
+    }
+
+    /// Read a signal's current value.
+    pub fn get_signal(&self, id: SignalId) -> Option<&SignalValue> {
+        self.store.get(id)
+    }
+
+    /// Replace a signal's value and re-emit only the nodes that depend on it.
+    ///
+    /// Writes `SET_PROPERTY` / `SET_TEXT` deltas for the bound nodes whose
+    /// materialized value changed. Returns the number of opcodes written.
+    pub fn set_signal(
+        &mut self,
+        id: SignalId,
+        value: SignalValue,
+        guest: &mut Guest<'_>,
+    ) -> Result<usize, crate::RingError> {
+        if !self.store.set(id, value) {
+            return Ok(0);
+        }
+        let mut out = 0usize;
+        let deps: Vec<Dep> = self.store.deps(id).to_vec();
+        for dep in deps {
+            match dep {
+                Dep::Text { node } => {
+                    let new_text: Option<String> = self
+                        .store
+                        .get(id)
+                        .and_then(SignalValue::to_text)
+                        .map(ToOwned::to_owned);
+                    let prev_text = self.snapshot_text(node);
+                    if new_text.as_deref() != prev_text {
+                        if let Some(t) = new_text.as_deref() {
+                            guest.set_text(node, t)?;
+                            out += 1;
+                        }
+                        if let Some(s) = self.snapshot_mut(node) {
+                            s.text = new_text;
+                        }
+                    }
+                }
+                Dep::Property { node, prop } => {
+                    let new_value = self
+                        .store
+                        .get(id)
+                        .and_then(SignalValue::to_property_u32);
+                    let prev_value = self.snapshot_property(node, prop);
+                    if new_value != prev_value {
+                        if let Some(v) = new_value {
+                            guest.set_property(node, prop, value_type_for(prop), v)?;
+                            out += 1;
+                        }
+                        if let Some(s) = self.snapshot_mut(node) {
+                            match new_value {
+                                Some(v) => {
+                                    s.properties.insert(prop, v);
+                                }
+                                None => {
+                                    s.properties.remove(&prop);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    fn snapshot_mut(&mut self, node: u32) -> Option<&mut SnapshotNode> {
+        self.snapshot
+            .get_mut(node as usize)
+            .and_then(|s| s.as_mut())
+    }
+
+    fn snapshot_text(&self, node: u32) -> Option<&str> {
+        self.snapshot
+            .get(node as usize)
+            .and_then(|s| s.as_ref())
+            .and_then(|s| s.text.as_deref())
+    }
+
+    fn snapshot_property(&self, node: u32, prop: u16) -> Option<u32> {
+        self.snapshot
+            .get(node as usize)
+            .and_then(|s| s.as_ref())
+            .and_then(|s| s.properties.get(&prop).copied())
     }
 
     fn slot_mut(&mut self, id: u32) -> &mut Option<SnapshotNode> {
@@ -110,16 +217,37 @@ impl Engine {
     ) -> Result<(), crate::RingError> {
         let component_type = component_type_id(&node.component);
 
-        let text_borrowed = match &node.component {
-            Component::Text { text } => Some(text.as_str()),
-            Component::Button { label } => Some(label.as_str()),
+        // Resolve bindings (owned) before taking the mutable snapshot borrow.
+        let bound_text: Option<String> = node
+            .text_binding
+            .and_then(|sid| self.store.get(sid))
+            .and_then(SignalValue::to_text)
+            .map(ToOwned::to_owned);
+
+        let merged_props: Option<BTreeMap<u16, u32>> = if node.property_bindings.is_empty() {
+            None
+        } else {
+            let mut m = node.properties.clone();
+            for (prop, sid) in &node.property_bindings {
+                if let Some(v) = self.store.get(*sid).and_then(SignalValue::to_property_u32) {
+                    m.insert(*prop, v);
+                }
+            }
+            Some(m)
+        };
+
+        let text_borrowed: Option<&str> = match (&bound_text, &node.component) {
+            (Some(s), _) => Some(s.as_str()),
+            (None, Component::Text { text }) => Some(text.as_str()),
+            (None, Component::Button { label }) => Some(label.as_str()),
             _ => None,
         };
+        let props: &BTreeMap<u16, u32> = merged_props.as_ref().unwrap_or(&node.properties);
 
         let prev = self.slot_mut(node.id).take();
         let props_changed = match &prev {
-            Some(p) => p.properties != node.properties,
-            None => !node.properties.is_empty(),
+            Some(p) => &p.properties != props,
+            None => !props.is_empty(),
         };
         let text_changed = match &prev {
             Some(p) => p.text.as_deref() != text_borrowed,
@@ -134,7 +262,7 @@ impl Engine {
                     guest.insert_child(p, node.id, index as u32)?;
                     *out += 1;
                 }
-                for (prop, value) in &node.properties {
+                for (prop, value) in props {
                     guest.set_property(node.id, *prop, value_type_for(*prop), *value)?;
                     *out += 1;
                 }
@@ -169,7 +297,7 @@ impl Engine {
                         *out += 1;
                     }
                 }
-                for (prop, value) in &node.properties {
+                for (prop, value) in props {
                     if p.properties.get(prop) != Some(value) {
                         guest.set_property(node.id, *prop, value_type_for(*prop), *value)?;
                         *out += 1;
@@ -191,7 +319,7 @@ impl Engine {
         }
         let properties = match prev_props {
             Some(props) => props,
-            None => node.properties.clone(),
+            None => props.clone(),
         };
         let text = match prev_text {
             Some(t) => Some(t),
@@ -205,6 +333,14 @@ impl Engine {
             properties,
             gen: self.gen,
         });
+
+        // Record signal dependencies for this node.
+        if let Some(sid) = node.text_binding {
+            self.store.add_dep(sid, Dep::Text { node: node.id });
+        }
+        for (prop, sid) in &node.property_bindings {
+            self.store.add_dep(*sid, Dep::Property { node: node.id, prop: *prop });
+        }
 
         for (i, child) in node.children.iter().enumerate() {
             self.reconcile_node(child, Some(node.id), i, guest, out)?;

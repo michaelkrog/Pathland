@@ -10,6 +10,7 @@ import pathland.EventReader;
 import pathland.Node;
 import pathland.PathlandGtk;
 import pathland.PathlandNative;
+import pathland.Signal;
 import pathland.TapRecognizer;
 import pathland.View;
 
@@ -42,6 +43,8 @@ public final class GtkDemo {
     private final Pointer host;
     private final Bridge bridge;
     private int count = 0;
+    /** Reactive string signal bound to the counter text (node 3). */
+    private final Signal countSignal;
     /** node id → tap callback, refreshed on each render. */
     private final java.util.Map<Integer, Runnable> tapActions = new java.util.LinkedHashMap<>();
     private final TapRecognizer recognizer = new TapRecognizer();
@@ -52,6 +55,7 @@ public final class GtkDemo {
     public GtkDemo() {
         host = PathlandNative.INSTANCE.pathland_native_create();
         bridge = new Bridge(host);
+        countSignal = Signal.str(host, "Count: 0");
         onEvent = () -> {
             // Drain the event ring generically (EVENT opcodes), recognize taps,
             // and route each completed tap to its `onTapGesture` action. Data
@@ -69,15 +73,16 @@ public final class GtkDemo {
         };
     }
 
-    /** Rebuild the tree through the DSL, bridge it, then emit opcodes. */
+    /** Build the tree once, bind the counter text to a signal, then emit. */
     private void render() {
         View root = DSL.vstack(
                 Align.LEADING, 12f,
                 DSL.hstack(Align.CENTER, 8f,
-                        DSL.text("Count: " + count).frame(Constants.FILL, Float.NaN, Align.LEADING),
+                        DSL.text("Count: 0").frame(Constants.FILL, Float.NaN, Align.LEADING),
                         DSL.button("Increment").onTapGesture(() -> {
                             count += 1;
-                            render();
+                            // Setting the signal re-emits only node 3's text.
+                            countSignal.setString("Count: " + count);
                         })
                 ).padding(16f),
                 DSL.text("Pathland · Java · shared ring").color(0x888888)
@@ -86,6 +91,9 @@ public final class GtkDemo {
         Node tree = root.build();
         tapActions.clear();
         tapActions.putAll(bridge.importTreeAndEmit(tree));
+
+        // Bind the counter text (node 3: root=1, hstack=2, text=3) to the signal.
+        bridge.bindText(3, countSignal);
     }
 
     /** Emit the initial frame, then run the GTK renderer (blocks until closed). */

@@ -15,7 +15,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use pathland_core::Engine;
-use pathland_core::{component_type, property_id, MemoryLayout};
+use pathland_core::{component_type, property_id, MemoryLayout, SignalId, SignalValue};
 use pathland_core_transport::{
     DriverTransport, FrameSource, OpcodeBatch, RingTransport, TransportError,
 };
@@ -29,6 +29,10 @@ pub struct FlatNode {
     pub id: u32,
     pub view_component: pathland_view::Component,
     pub properties: BTreeMap<u16, u32>,
+    /// A signal the node's text is bound to (overrides the component text).
+    pub text_binding: Option<SignalId>,
+    /// Property signals (propertyId → signal), overriding static properties.
+    pub property_bindings: BTreeMap<u16, SignalId>,
     pub parent: Option<u32>,
     pub children: Vec<u32>,
 }
@@ -73,11 +77,15 @@ impl NativeHost {
             id,
             view_component: component.clone(),
             properties: BTreeMap::new(),
+            text_binding: None,
+            property_bindings: BTreeMap::new(),
             parent: None,
             children: Vec::new(),
         });
         entry.view_component = component;
         entry.properties.clear();
+        entry.text_binding = None;
+        entry.property_bindings.clear();
     }
 
     /// Insert `child` into `parent` at `index` (u32::MAX appends).
@@ -131,6 +139,49 @@ impl NativeHost {
         self.set_property(id, prop, value.to_bits());
     }
 
+    /// Bind a node's text to a signal (the signal's `Str` value wins over any
+    /// static text). Returns `true` if the node exists.
+    pub fn bind_text(&mut self, id: u32, signal: SignalId) -> bool {
+        if let Some(node) = self.nodes.get_mut(&id) {
+            node.text_binding = Some(signal);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Bind a node's property to a signal. Returns `true` if the node exists.
+    pub fn bind_property(&mut self, id: u32, prop: u16, signal: SignalId) -> bool {
+        if let Some(node) = self.nodes.get_mut(&id) {
+            node.property_bindings.insert(prop, signal);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Create a new signal with an initial value.
+    pub fn create_signal(&mut self, value: SignalValue) -> SignalId {
+        self.engine.create_signal(value)
+    }
+
+    /// Read a signal's current value.
+    pub fn get_signal(&self, id: SignalId) -> Option<SignalValue> {
+        self.engine.get_signal(id).cloned()
+    }
+
+    /// Replace a signal's value, re-emitting only the nodes that depend on it.
+    ///
+    /// Writes `SET_PROPERTY` / `SET_TEXT` deltas into the shared ring. Returns
+    /// `true` if any opcodes were written.
+    pub fn set_signal(&mut self, id: SignalId, value: SignalValue) -> bool {
+        let mut guest = self.ring.producer();
+        guest.begin_frame();
+        let n = self.engine.set_signal(id, value, &mut guest).unwrap_or(0);
+        guest.end_frame();
+        n > 0
+    }
+
     /// Emit the retained tree as opcodes into the shared ring.
     ///
     /// Returns `true` if a frame was written (i.e. the tree is non-empty).
@@ -177,6 +228,8 @@ impl NativeHost {
         let mut node = Node::from_component(&flat.view_component);
         node.id = flat.id;
         node.properties = flat.properties.clone();
+        node.text_binding = flat.text_binding;
+        node.property_bindings = flat.property_bindings.clone();
         for child_id in &flat.children {
             if let Some(child) = self.materialize(*child_id) {
                 node.children.push(child);
