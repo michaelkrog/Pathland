@@ -92,7 +92,7 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 | Crate | Element | Responsibility |
 |-------|---------|----------------|
 | `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |
-| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |
+| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |
 | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
 | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
 | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |

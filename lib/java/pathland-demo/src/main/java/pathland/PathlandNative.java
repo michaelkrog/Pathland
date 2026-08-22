@@ -39,4 +39,18 @@ public interface PathlandNative extends Library {
     // --- raw-input events (host → guest) ---
     /** Drains pending EVENT opcodes into {@code out} (16 bytes each); returns count. */
     int pathland_native_drain_events(Pointer host, Pointer out, int max);
+
+    // --- signals (reactive state owned by the Rust engine) ---
+    int pathland_native_signal_create_f32(Pointer host, float value);
+    int pathland_native_signal_create_u32(Pointer host, int value);
+    int pathland_native_signal_create_bool(Pointer host, byte value);
+    int pathland_native_signal_create_enum(Pointer host, byte value);
+    int pathland_native_signal_create_string(Pointer host, String value);
+    byte pathland_native_signal_set_f32(Pointer host, int id, float value);
+    byte pathland_native_signal_set_u32(Pointer host, int id, int value);
+    byte pathland_native_signal_set_bool(Pointer host, int id, byte value);
+    byte pathland_native_signal_set_enum(Pointer host, int id, byte value);
+    byte pathland_native_signal_set_string(Pointer host, int id, String value);
+    byte pathland_native_node_bind_text(Pointer host, int node, int signal);
+    byte pathland_native_node_bind_property(Pointer host, int node, int prop, int signal);
 }

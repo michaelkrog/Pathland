@@ -11,6 +11,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
+use crate::signal::SignalId;
 use crate::{component_type, property_id, value_type};
 
 /// A node in the retained view tree (the application's canonical UI tree).
@@ -23,6 +24,12 @@ pub struct Node {
     /// Constraint/style properties (propertyId to value) emitted as
     /// `STYLE:SET_PROPERTY`.
     pub properties: BTreeMap<u16, u32>,
+    /// A signal the node's text is bound to (overrides `Component::Text` /
+    /// `Component::Button` label when set).
+    pub text_binding: Option<SignalId>,
+    /// Property signals (propertyId to signal), overriding the static
+    /// `properties` entry for that id when both are present.
+    pub property_bindings: BTreeMap<u16, SignalId>,
     /// App-side gesture handlers (callbacks). These live only in the
     /// application's retained tree and are **never** emitted as protocol.
     pub gestures: Vec<Gesture>,
@@ -35,6 +42,8 @@ impl core::fmt::Debug for Node {
             .field("component", &self.component)
             .field("children", &self.children)
             .field("properties", &self.properties)
+            .field("text_binding", &self.text_binding)
+            .field("property_bindings", &self.property_bindings)
             .field("gestures", &self.gestures.len())
             .finish()
     }
@@ -48,6 +57,8 @@ impl Node {
             component: component.clone(),
             children: Vec::new(),
             properties: BTreeMap::new(),
+            text_binding: None,
+            property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
         }
     }

@@ -90,4 +90,23 @@ public final class Bridge {
     public void emit() {
         PathlandNative.INSTANCE.pathland_native_emit(host);
     }
+
+    /**
+     * Bind a node's text to a signal, then re-emit (records the dependency and
+     * publishes the signal's current value). Subsequent {@link Signal#setString}
+     * calls re-emit only that node's {@code SET_TEXT} — no full tree rebuild.
+     */
+    public void bindText(int nodeId, Signal signal) {
+        PathlandNative.INSTANCE.pathland_native_node_bind_text(host, nodeId, signal.id());
+        emit();
+    }
+
+    /**
+     * Bind a node's property to a signal, then re-emit (records the dependency).
+     * Subsequent {@link Signal} set calls re-emit only that property.
+     */
+    public void bindProperty(int nodeId, int prop, Signal signal) {
+        PathlandNative.INSTANCE.pathland_native_node_bind_property(host, nodeId, prop, signal.id());
+        emit();
+    }
 }

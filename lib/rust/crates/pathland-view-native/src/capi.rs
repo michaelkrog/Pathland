@@ -18,6 +18,8 @@
 
 use std::ffi::{c_char, c_void, CStr};
 
+use pathland_core::{SignalId, SignalValue};
+
 use super::{component_from_id, NativeHost};
 
 /// Opaque handle to a [`NativeHost`].
@@ -202,4 +204,126 @@ pub unsafe extern "C" fn pathland_native_drain_events(
         std::ptr::copy_nonoverlapping(bytes.as_ptr(), out.add(i * 16), 16);
     }
     n as u32
+}
+
+// ---------------------------------------------------------------------------
+// Signals (reactive state owned by the engine)
+// ---------------------------------------------------------------------------
+
+fn as_signal_id(id: u32) -> SignalId {
+    SignalId(id)
+}
+
+/// Create a float signal. Returns its handle (an opaque `SignalId`).
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_create_f32(host: HostHandle, value: f32) -> u32 {
+    as_host(host).create_signal(SignalValue::F32(value)).0
+}
+
+/// Create a raw u32 signal (color `0xAARRGGBB`, listener mask, …).
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_create_u32(host: HostHandle, value: u32) -> u32 {
+    as_host(host).create_signal(SignalValue::U32(value)).0
+}
+
+/// Create a boolean signal.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_create_bool(host: HostHandle, value: u8) -> u32 {
+    as_host(host).create_signal(SignalValue::Bool(value != 0)).0
+}
+
+/// Create an enum signal (wire value 0..n).
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_create_enum(host: HostHandle, value: u8) -> u32 {
+    as_host(host).create_signal(SignalValue::Enum(value)).0
+}
+
+/// Create a string signal from a NUL-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_create_string(
+    host: HostHandle,
+    text: *const c_char,
+) -> u32 {
+    if text.is_null() {
+        return u32::MAX;
+    }
+    let s = CStr::from_ptr(text).to_string_lossy().into_owned();
+    as_host(host).create_signal(SignalValue::Str(s)).0
+}
+
+/// Set a float signal's value; re-emits only the nodes bound to it. Returns 1
+/// if any opcode was written.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_set_f32(
+    host: HostHandle,
+    id: u32,
+    value: f32,
+) -> u8 {
+    u8::from(as_host(host).set_signal(as_signal_id(id), SignalValue::F32(value)))
+}
+
+/// Set a raw u32 signal's value.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_set_u32(
+    host: HostHandle,
+    id: u32,
+    value: u32,
+) -> u8 {
+    u8::from(as_host(host).set_signal(as_signal_id(id), SignalValue::U32(value)))
+}
+
+/// Set a boolean signal's value.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_set_bool(
+    host: HostHandle,
+    id: u32,
+    value: u8,
+) -> u8 {
+    u8::from(as_host(host).set_signal(as_signal_id(id), SignalValue::Bool(value != 0)))
+}
+
+/// Set an enum signal's value.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_set_enum(
+    host: HostHandle,
+    id: u32,
+    value: u8,
+) -> u8 {
+    u8::from(as_host(host).set_signal(as_signal_id(id), SignalValue::Enum(value)))
+}
+
+/// Set a string signal's value from a NUL-terminated UTF-8 C string.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_signal_set_string(
+    host: HostHandle,
+    id: u32,
+    text: *const c_char,
+) -> u8 {
+    if text.is_null() {
+        return 0;
+    }
+    let s = CStr::from_ptr(text).to_string_lossy().into_owned();
+    u8::from(as_host(host).set_signal(as_signal_id(id), SignalValue::Str(s)))
+}
+
+/// Bind a node's text to a signal (the signal's string value wins over static
+/// text). Returns 1 if the node exists.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_node_bind_text(
+    host: HostHandle,
+    node: u32,
+    signal: u32,
+) -> u8 {
+    u8::from(as_host(host).bind_text(node, as_signal_id(signal)))
+}
+
+/// Bind a node's property to a signal. Returns 1 if the node exists.
+#[no_mangle]
+pub unsafe extern "C" fn pathland_native_node_bind_property(
+    host: HostHandle,
+    node: u32,
+    prop: u32,
+    signal: u32,
+) -> u8 {
+    u8::from(as_host(host).bind_property(node, prop as u16, as_signal_id(signal)))
 }

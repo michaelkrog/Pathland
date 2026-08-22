@@ -9,6 +9,7 @@ import pathland.Listeners;
 import pathland.Node;
 import pathland.PathlandNative;
 import pathland.RingReader;
+import pathland.Signal;
 import pathland.View;
 
 /**
@@ -91,7 +92,24 @@ public final class DemoHeadless {
             System.exit(1);
         }
 
+        // Signal path: bind node 3's text to a string signal, then set the signal.
+        // Setting must re-emit only node 3's text (no full tree rebuild).
+        Signal count = Signal.str(host, "Count: 8");
+        bridge.bindText(3, count);
+        count.setString("Count: 9");
+        Pointer mem3 = PathlandNative.INSTANCE.pathland_native_ring_ptr(host);
+        String found3 = null;
+        for (RingReader.TextEntry e : RingReader.readTextEntries(mem3)) {
+            if (e.text.startsWith("Count:")) {
+                found3 = e.text;
+            }
+        }
+        if (!"Count: 9".equals(found3)) {
+            System.err.println("FAIL: expected 'Count: 9' after signal set but got '" + found3 + "'");
+            System.exit(1);
+        }
+
         PathlandNative.INSTANCE.pathland_native_destroy(host);
-        System.out.println("OK: Java DSL -> Rust engine -> shared ring -> zero-copy read = 'Count: 8'; onTapGesture listener + action verified");
+        System.out.println("OK: Java DSL -> Rust engine -> shared ring -> zero-copy read = 'Count: 9'; onTapGesture + signal verified");
     }
 }

@@ -41,6 +41,8 @@ fn text_node(text: &str) -> Node {
         component: Component::Text { text: text.into() },
         children: Vec::new(),
         properties: BTreeMap::new(),
+        text_binding: None,
+        property_bindings: BTreeMap::new(),
         gestures: Vec::new(),
     }
 }
@@ -51,6 +53,8 @@ fn vstack(children: Vec<Node>) -> Node {
         component: Component::VStack,
         children,
         properties: BTreeMap::new(),
+        text_binding: None,
+        property_bindings: BTreeMap::new(),
         gestures: Vec::new(),
     }
 }
@@ -61,6 +65,8 @@ fn hstack(children: Vec<Node>) -> Node {
         component: Component::HStack,
         children,
         properties: BTreeMap::new(),
+        text_binding: None,
+        property_bindings: BTreeMap::new(),
         gestures: Vec::new(),
     }
 }

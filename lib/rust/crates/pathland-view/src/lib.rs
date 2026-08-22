@@ -448,6 +448,8 @@ impl View for VStack {
             component: Component::VStack,
             children: self.children.iter().map(|c| c.build()).collect(),
             properties: BTreeMap::new(),
+            text_binding: None,
+            property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
         }
     }
@@ -490,6 +492,8 @@ impl View for HStack {
             component: Component::HStack,
             children: self.children.iter().map(|c| c.build()).collect(),
             properties: BTreeMap::new(),
+            text_binding: None,
+            property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
         }
     }
@@ -517,6 +521,8 @@ impl View for Text {
             },
             children: Vec::new(),
             properties: BTreeMap::new(),
+            text_binding: None,
+            property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
         }
     }
@@ -546,6 +552,8 @@ impl View for Spacer {
             component: Component::Spacer,
             children: Vec::new(),
             properties: BTreeMap::new(),
+            text_binding: None,
+            property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
         }
     }
@@ -573,6 +581,8 @@ impl View for Button {
             },
             children: Vec::new(),
             properties: BTreeMap::new(),
+            text_binding: None,
+            property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
         }
     }

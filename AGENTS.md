@@ -47,6 +47,20 @@ consumer today, but the core must not become desktop-only. Verify with
 `lib/rust/check-wasm.sh` (i.e. `cargo build -p pathland-core -p pathland-view
 --target wasm32-unknown-unknown`).
 
+### Reactive signals (Angular-style)
+
+`pathland-core::signal` provides writable signals that live in the engine. A
+node binds its text (`Node::text_binding`) or a property
+(`Node::property_bindings`) to a `SignalId`; during emit the engine resolves the
+binding and records the dependency, and `Engine::set_signal` re-emits **only the
+bound nodes** (`SET_TEXT` / `SET_PROPERTY`) — no full tree walk. Signal values
+are one of `F32`/`U32`/`Bool`/`Enum`/`Str` (packed to the wire's `u32` value or
+arena string). Foreign hosts reach signals via the flat C ABI
+(`pathland_native_signal_create_*` / `signal_set_*` / `node_bind_text` /
+`node_bind_property`) and the Java `Signal` type. Binding then calling `emit`
+records the dependency; a subsequent `set` is a partial emit. (Computed/derived
+signals + effects are the planned next step.)
+
 ### Rust Workspace (`lib/rust/`)
 
 ```
@@ -301,9 +315,9 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL), **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property), and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Tests green across the workspace.**
+**Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), **reactive signals** (`pathland-core::signal` — writable `Signal` values bound to node text/properties, so a signal change re-emits only the bound nodes, reachable from Java via the `pathland_native_signal_*` / `node_bind_*` C ABI), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL), **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property), and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Tests green across the workspace.**
 
-**Planned / deferred**: signals (Goal 2/#13), Quarkus SSR + WebSocket demo (Goal 4/#15, a browser/remote projection that would reintroduce a WASM guest + WIT host path), host → guest events over the network transport (the ring carries them; the network batch wire format does not yet), TEXT_FIELD editing, image rendering.
+**Planned / deferred**: computed/derived signals + effects (next step on top of writable signals), Quarkus SSR + WebSocket demo (Goal 4/#15, a browser/remote projection that would reintroduce a WASM guest + WIT host path), host → guest events over the network transport (the ring carries them; the network batch wire format does not yet), TEXT_FIELD editing, image rendering.
 
 ---
 
