@@ -9,8 +9,8 @@
 //! opcodes from the **shared-memory ring in place** — no serialization, no batch,
 //! no WASM.
 //!
-//! The surface mirrors `wit/pathland.wit` (`builder`, `engine`) but for a native
-//! shared-memory transport instead of a WASM/WIT ABI.
+//! The surface is the flat `builder`/`engine` world over a native shared-memory
+//! transport.
 
 use std::collections::{BTreeMap, HashMap};
 

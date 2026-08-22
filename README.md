@@ -17,8 +17,7 @@ browser, HTML server-side) and those native elements lay themselves out.
 
 On desktop the engine runs **natively**: other languages drive it through the
 flat **native C ABI** (`pathland-view-native`) over a zero-copy shared ring and render
-through the shared GTK renderer (`pathland-render-gtk`). **WASM/WIT are the
-browser/remote projection only**, not the primary path.
+through the shared GTK renderer (`pathland-render-gtk`).
 
 **The engine does not compute layout and does not emit rects.** It describes
 *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:
@@ -47,8 +46,8 @@ project speaks, so they are settled and used consistently:
 1. **Retained UI** — the application's canonical retained UI tree. It is the
    single source of truth, owned by the application. It can be authored in
    **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —
-   desktop, mobile, embedded, or web — through a generated DSL, a WIT binding,
-   or the flat native C ABI.
+   desktop, mobile, or embedded — through a generated DSL or the flat native C
+   ABI.
 2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed
    **16-byte opcodes** (the producer). Emission is reactive: only changed nodes
    emit, so an unchanged tree emits zero opcodes. The engine is
@@ -97,8 +96,6 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
 | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
 | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
-| `pathland-view-wasm` | Retained UI projection | WASM projection (browser/remote only) |
-| `pathland-view-wit` | Retained UI projection | WIT host bindings + DSL bridge (browser/remote only) |
 | `pathland-codegen` | Tool | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |
 | `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |
 
@@ -126,13 +123,6 @@ cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debu
 On macOS the Java demo must run GTK on the main thread:
 `MAVEN_OPTS="-XstartOnFirstThread"`.
 
-### Build for wasm32 (browser projection only)
-
-```bash
-RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \
-  cargo build --target wasm32-unknown-unknown
-```
-
 ## Components & Properties
 
 Component and property IDs are defined in `pathland-core`'s
@@ -159,7 +149,8 @@ See the GitHub issues (#12, #13, #15, #16, #18):
 3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done
 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done
 5. **Catalog-driven DSL** (YAML → Java via `pathland-codegen`) — done
-6. Quarkus SSR + WebSocket demo — planned
+6. Quarkus SSR + WebSocket demo — planned (browser/remote projection; would
+   reintroduce a WASM guest + WIT host path)
 
 ## Versioning
 

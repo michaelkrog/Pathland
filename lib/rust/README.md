@@ -2,8 +2,7 @@
 
 The Rust core of Pathland: the **opcode engine** that emits the declarative
 view structure as a fixed 16-byte opcode ring buffer into shared linear memory,
-consumed by host renderers. Runs natively on desktop (C ABI + GTK renderer);
-WASM/WIT is the browser/remote projection only.
+consumed by host renderers. Runs natively on desktop (C ABI + GTK renderer).
 
 ```
 crates/
@@ -18,11 +17,9 @@ crates/
 │                           #   batch encode/decode + batching policy (std)
 ├── pathland-render-gtk/    # RENDERER — opcode frames -> native GTK4 widgets (incremental);
 │                           #   the only crate that touches GTK/glib/pango
-│  # ── Retained-UI projections (host/driver surfaces for other languages) ─
+│  # ── Retained-UI projection (host/driver surface for other languages) ──
 ├── pathland-view-native/   # native C-ABI shim + NativeHost over a zero-copy shared ring
 │                           #   (Swift/Java/C#; cdylib name stays "pathland_native")
-├── pathland-view-wasm/    # WASM projection (browser/remote)
-├── pathland-view-wit/      # WIT host bindings + DSL bridge (wasmtime embed, remote hosts)
 │  # ── Tool + demo (not an element) ──────────────────────────────────────
 ├── pathland-codegen/       # DSL code generator: parses lib/ui/components.yaml, asserts ids,
 │                           #   emits the checked-in Java DSL
@@ -38,7 +35,6 @@ crates/
 
 - [`spec/OPCODE.md`](../../spec/OPCODE.md) — the 16-byte opcode protocol
 - [`spec/CONFORMANCE.md`](../../spec/CONFORMANCE.md) — golden byte vectors
-- [`wit/pathland.wit`](../../wit/pathland.wit) — the WIT component world
 
 ## Run tests
 
@@ -71,16 +67,6 @@ GTK APIs directly** — native inputs round-trip as `EVENT` opcodes through the
 shared ring, and the host drains them via `pathland_native_drain_events`. Verify
 headlessly with `-Dexec.mainClass=demo.DemoHeadless`.
 
-
-## Build for wasm32 (browser projection only)
-
-```bash
-RUSTC=~/.rustup/toolchains/stable-aarch64-apple-darwin/bin/rustc \
-  cargo build --target wasm32-unknown-unknown
-```
-
-> The Homebrew `cargo` on PATH resolves a rustc without the wasm std. Use the
-> rustup toolchain's rustc via `RUSTC=...` (or `rustup run stable cargo`).
 
 ## Engine example
 

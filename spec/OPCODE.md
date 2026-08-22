@@ -9,7 +9,7 @@
 
 ## Overview
 
-The Pathland Opcode Protocol is the **fixed-size instruction engine** at the heart of the Rust-first architecture. The **WASM guest engine** emits the application's **declarative view structure** — VStack, HStack, Text, spacing, padding, alignment — as a stream of fixed 16-byte opcodes into a **ring buffer** in **linear memory**. The host renderer consumes the ring and maps the structure onto that platform's **native elements** (GTK4 widgets, DOM elements, HTML).
+The Pathland Opcode Protocol is the **fixed-size instruction engine** at the heart of the Rust-first architecture. The **opcode engine** emits the application's **declarative view structure** — VStack, HStack, Text, spacing, padding, alignment — as a stream of fixed 16-byte opcodes into a **ring buffer** in **linear memory**. The host renderer consumes the ring and maps the structure onto that platform's **native elements** (GTK4 widgets, DOM elements, HTML).
 
 **The engine does not compute layout and does not emit rects.** Native renderers lay out their own native elements from the constraint properties the engine passes through. This is the Pathland principle: *always render through that platform's native elements.*
 
