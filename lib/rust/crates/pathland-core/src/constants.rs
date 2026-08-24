@@ -182,6 +182,21 @@ pub mod property_id {
     pub const EVENT_LISTENERS: u16 = 0x2005;
 }
 
+/// The protocol value type for a property id.
+///
+/// Color-valued properties (COLOR, BACKGROUND_COLOR, BORDER_COLOR) are emitted
+/// with the `COLOR` value type; `EVENT_LISTENERS` is a raw `U32` bitmask; all
+/// other constraint/style properties are `F32`.
+pub fn value_type_for(prop: u16) -> u8 {
+    match prop {
+        property_id::COLOR
+        | property_id::BACKGROUND_COLOR
+        | property_id::BORDER_COLOR => value_type::COLOR,
+        property_id::EVENT_LISTENERS => value_type::U32,
+        _ => value_type::F32,
+    }
+}
+
 /// Special size constants for `WIDTH` / `HEIGHT`.
 pub mod size {
     /// Fill the available space (parent main-axis remainder).

@@ -18,7 +18,7 @@
 
 use std::ffi::{c_char, c_void, CStr};
 
-use pathland_core::{SignalId, SignalValue};
+use pathland_engine::{SignalId, SignalValue};
 
 use super::{component_from_id, NativeHost};
 

@@ -3,9 +3,10 @@
 use std::collections::BTreeMap;
 
 use pathland_core::{
-    assign_ids, category, component_type_id, init_memory, listener, property_id, size, style,
-    tree, value_type, Component, Engine, Guest, Host, MemoryLayout, Node, Opcode,
+    category, init_memory, listener, property_id, size, style, tree, value_type, Guest, Host,
+    MemoryLayout, Opcode,
 };
+use pathland_engine::{assign_ids, component_type_id, Component, Engine, Node};
 
 fn with_guest() -> (Vec<u8>, MemoryLayout) {
     let layout = MemoryLayout::default();

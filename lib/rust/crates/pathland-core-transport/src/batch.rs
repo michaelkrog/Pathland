@@ -277,7 +277,7 @@ mod tests {
         // decode it, and apply to pathland-render-gtk's RenderTree — proving the
         // network path is interchangeable with the shared-memory ring.
         use pathland_gtk::RenderTree;
-        use pathland_core::Engine;
+        use pathland_engine::Engine;
         use pathland_core::{init_memory, Guest, MemoryLayout};
         use pathland_view::{assign_ids, text, vstack, View};
 

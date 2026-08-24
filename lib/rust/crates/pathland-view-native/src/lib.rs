@@ -14,8 +14,8 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use pathland_core::Engine;
-use pathland_core::{component_type, property_id, MemoryLayout, SignalId, SignalValue};
+use pathland_engine::{Engine, SignalId, SignalValue};
+use pathland_core::{component_type, property_id, MemoryLayout};
 use pathland_core_transport::{
     DriverTransport, FrameSource, OpcodeBatch, RingTransport, TransportError,
 };

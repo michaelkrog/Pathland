@@ -53,23 +53,17 @@ extern crate alloc;
 mod arena;
 mod conformance;
 mod constants;
-mod engine;
 mod events;
 mod memory;
-mod node;
 mod opcode;
 mod ring;
-mod signal;
 
 pub use arena::ArenaError;
 pub use constants::*;
-pub use engine::{EmitResult, Engine};
 pub use events::{Event, EventError};
 pub use memory::MemoryLayout;
-pub use node::*;
 pub use opcode::{Opcode, OPCODE_SIZE};
 pub use ring::RingError;
-pub use signal::{Dep, SignalId, SignalStore, SignalValue};
 
 use alloc::vec;
 use alloc::vec::Vec;

@@ -22,9 +22,11 @@ use alloc::collections::BTreeMap;
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use crate::node::{component_type_id, value_type_for, Component, Node};
+use pathland_core::value_type_for;
+use pathland_core::Guest;
+
+use crate::node::{component_type_id, Component, Node};
 use crate::signal::{Dep, SignalId, SignalStore, SignalValue};
-use crate::Guest;
 
 /// Per-node state the engine remembers from the last emission.
 #[derive(Debug, Clone, PartialEq)]
@@ -79,7 +81,7 @@ impl Engine {
         &mut self,
         root: &Node,
         guest: &mut Guest<'_>,
-    ) -> Result<EmitResult, crate::RingError> {
+    ) -> Result<EmitResult, pathland_core::RingError> {
         self.gen = self.gen.wrapping_add(1);
         // Rebuild the signal dependency index from scratch; reconcile re-adds
         // the bindings this tree actually uses, so stale subscriptions vanish.
@@ -125,7 +127,7 @@ impl Engine {
         id: SignalId,
         value: SignalValue,
         guest: &mut Guest<'_>,
-    ) -> Result<usize, crate::RingError> {
+    ) -> Result<usize, pathland_core::RingError> {
         if !self.store.set(id, value) {
             return Ok(0);
         }
@@ -214,7 +216,7 @@ impl Engine {
         index: usize,
         guest: &mut Guest<'_>,
         out: &mut usize,
-    ) -> Result<(), crate::RingError> {
+    ) -> Result<(), pathland_core::RingError> {
         let component_type = component_type_id(&node.component);
 
         // Resolve bindings (owned) before taking the mutable snapshot borrow.

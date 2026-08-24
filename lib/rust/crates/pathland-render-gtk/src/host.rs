@@ -168,7 +168,7 @@ pub fn describe(op: &Opcode) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pathland_core::Engine;
+    use pathland_engine::Engine;
     use pathland_core::{init_memory, Guest, MemoryLayout};
     use pathland_view::{assign_ids, text, vstack, View, ViewExt};
 

@@ -11,8 +11,9 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::cell::RefCell;
 
+use pathland_core::component_type;
+
 use crate::signal::SignalId;
-use crate::{component_type, property_id, value_type};
 
 /// A node in the retained view tree (the application's canonical UI tree).
 #[derive(Clone, PartialEq)]
@@ -127,20 +128,6 @@ pub fn component_type_id(component: &Component) -> u16 {
         Component::Text { .. } => component_type::TEXT,
         Component::Button { .. } => component_type::BUTTON,
         Component::Spacer => component_type::SPACER,
-    }
-}
-
-/// The protocol value type for a property id.
-///
-/// Color-valued properties (COLOR, BACKGROUND_COLOR, …) are emitted with the
-/// `COLOR` value type; all other constraint/style properties are `F32`.
-pub fn value_type_for(prop: u16) -> u8 {
-    match prop {
-        property_id::COLOR
-        | property_id::BACKGROUND_COLOR
-        | property_id::BORDER_COLOR => value_type::COLOR,
-        property_id::EVENT_LISTENERS => value_type::U32,
-        _ => value_type::F32,
     }
 }
 

@@ -464,8 +464,16 @@ name = "pathland-core-transport"
 version = "0.1.0"
 dependencies = [
  "pathland-core",
+ "pathland-engine",
  "pathland-render-gtk",
  "pathland-view",
+]
+
+[[package]]
+name = "pathland-engine"
+version = "0.1.0"
+dependencies = [
+ "pathland-core",
 ]
 
 [[package]]
@@ -477,6 +485,7 @@ dependencies = [
  "pango",
  "pathland-core",
  "pathland-core-transport",
+ "pathland-engine",
  "pathland-view",
  "pathland-view-native",
 ]
@@ -487,6 +496,7 @@ version = "0.1.0"
 dependencies = [
  "pathland-core",
  "pathland-core-transport",
+ "pathland-engine",
  "pathland-render-gtk",
  "pathland-view",
 ]
@@ -496,6 +506,7 @@ name = "pathland-view"
 version = "0.1.0"
 dependencies = [
  "pathland-core",
+ "pathland-engine",
 ]
 
 [[package]]
@@ -504,6 +515,7 @@ version = "0.1.0"
 dependencies = [
  "pathland-core",
  "pathland-core-transport",
+ "pathland-engine",
  "pathland-render-gtk",
  "pathland-view",
 ]

@@ -18,7 +18,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 use std::time::Instant;
 
-use pathland_core::Engine;
+use pathland_engine::Engine;
 use pathland_core::{listener, size};
 use pathland_core_transport::RingTransport;
 use pathland_view::{assign_ids, button, hstack, text, vstack, Align, Node, View, ViewExt};

@@ -3,9 +3,9 @@
 use std::collections::BTreeMap;
 
 use pathland_core::{
-    assign_ids, category, init_memory, property_id, style, value_type, Component, Engine, Guest,
-    Host, MemoryLayout, Node, Opcode, SignalValue,
+    category, init_memory, property_id, style, value_type, Guest, Host, MemoryLayout, Opcode,
 };
+use pathland_engine::{assign_ids, Component, Engine, Node, SignalId, SignalValue};
 
 fn with_guest() -> (Vec<u8>, MemoryLayout) {
     let layout = MemoryLayout::default();
@@ -50,7 +50,7 @@ fn emit_full(engine: &mut Engine, root: &Node, mem: &mut [u8], layout: &MemoryLa
 
 fn set_and_collect(
     engine: &mut Engine,
-    sig: pathland_core::SignalId,
+    sig: SignalId,
     value: SignalValue,
     mem: &mut [u8],
     layout: &MemoryLayout,

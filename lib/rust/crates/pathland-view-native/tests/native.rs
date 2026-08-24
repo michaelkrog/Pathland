@@ -3,7 +3,8 @@
 
 use pathland_gtk::RenderTree;
 use pathland_native::{component_from_id, NativeHost};
-use pathland_core::{property_id, SharedHeader, SignalValue, style};
+use pathland_core::{property_id, SharedHeader, style};
+use pathland_engine::SignalValue;
 use pathland_core_transport::FrameSource;
 
 #[test]
