@@ -1,12 +1,17 @@
 //! Pathland round-trip (HTML backend).
 //!
 //! The single application logic lives in [`pathland_roundtrip::roundtrip`];
-//! this entry point renders the opcode stream as an HTML document and prints it
-//! to the console. Run with `cargo run --bin html`.
+//! this entry point decodes the opcode stream into an HTML document and prints
+//! it to the console. Run with `cargo run --bin html`.
 
+use pathland_render_html::HtmlRenderer;
 use pathland_roundtrip::roundtrip;
 
 fn main() {
-    let (_native, html) = roundtrip::roundtrip(roundtrip::source());
-    println!("{html}");
+    let (emitter, root) = roundtrip::emit(roundtrip::source());
+
+    let mut renderer = HtmlRenderer::new();
+    roundtrip::decode(&emitter, &mut |frame| renderer.apply(frame));
+
+    println!("{}", renderer.render(root));
 }

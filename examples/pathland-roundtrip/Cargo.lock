@@ -4950,6 +4950,7 @@ dependencies = [
 name = "pathland-roundtrip"
 version = "0.1.0"
 dependencies = [
+ "pathland-core",
  "pathland-core-transport",
  "pathland-render-html",
  "pathland-waterui",

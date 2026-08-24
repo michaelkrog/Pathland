@@ -23,6 +23,9 @@ path = "../../lib/rust/crates/pathland-render-html"
 [dependencies.pathland-core-transport]
 path = "../../lib/rust/crates/pathland-core-transport"
 
+[dependencies.pathland-core]
+path = "../../lib/rust/crates/pathland-core"
+
 [workspace]
 
 # WaterUI's dev branch is written against patched vello/wgpu checkouts; mirror
