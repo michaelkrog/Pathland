@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0TJQRA018264598ENJ5RCBR",
+  "strategy": "manual-commit",
+  "branch": "feature/pathland-waterui-backend",
+  "checkpoints_count": 16,
+  "files_touched": [
+    "pathland-waterui/Cargo.toml",
+    "pathland-waterui/src/consumer.rs",
+    "pathland-waterui/src/lib.rs",
+    "pathland-waterui/src/producer.rs",
+    "pathland-waterui/tests/roundtrip.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 66872,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 12837120,
+    "output_tokens": 9305,
+    "api_call_count": 54
+  }
+}
