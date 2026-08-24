@@ -8,7 +8,11 @@
 
 use std::collections::BTreeMap;
 
-use pathland_core::{category, style, tree, Frame};
+use pathland_core::{category, component_type, style, tree, Frame};
+use waterui_core::AnyView;
+use waterui_layout::Spacer;
+use waterui_layout::stack::{HStack, HorizontalAlignment, VStack, VerticalAlignment};
+use waterui_text::Text;
 
 /// A decoded node in the retained description.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -35,7 +39,7 @@ impl Node {
 }
 
 /// Applies opcode frames incrementally into a retained node map.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 pub struct Consumer {
     nodes: BTreeMap<u32, Node>,
 }
@@ -115,6 +119,48 @@ impl Consumer {
     #[must_use]
     pub fn node(&self, id: u32) -> Option<&Node> {
         self.nodes.get(&id)
+    }
+
+    /// Reconstruct the subtree rooted at `id` as WaterUI views.
+    ///
+    /// Component types the consumer does not know how to rebuild are skipped
+    /// (and their children dropped). Rebuilt stacks use WaterUI's default
+    /// spacing/alignment, since the wire carries only the axis for now.
+    #[must_use]
+    pub fn rebuild(&self, id: u32) -> Option<AnyView> {
+        let node = self.nodes.get(&id)?;
+        match node.component {
+            component_type::VSTACK => {
+                let children: Vec<AnyView> = node
+                    .children
+                    .iter()
+                    .filter_map(|&child| self.rebuild(child))
+                    .collect();
+                Some(AnyView::new(VStack::new(
+                    HorizontalAlignment::Center,
+                    10.0,
+                    children,
+                )))
+            }
+            component_type::HSTACK => {
+                let children: Vec<AnyView> = node
+                    .children
+                    .iter()
+                    .filter_map(|&child| self.rebuild(child))
+                    .collect();
+                Some(AnyView::new(HStack::new(
+                    VerticalAlignment::Center,
+                    10.0,
+                    children,
+                )))
+            }
+            component_type::TEXT => {
+                let content = node.text.clone().unwrap_or_default();
+                Some(AnyView::new(Text::new(content)))
+            }
+            component_type::SPACER => Some(AnyView::new(Spacer::flexible())),
+            _ => None,
+        }
     }
 
     /// Number of retained nodes.
