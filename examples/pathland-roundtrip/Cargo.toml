@@ -1,0 +1,27 @@
+[package]
+name = "pathland-roundtrip"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Pathland round-trip demo: author a WaterUI view, project it through the Pathland opcode protocol, and render the reconstruction"
+
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[dependencies.waterui]
+path = "../../../waterui"
+default-features = false
+features = ["std"]
+
+[dependencies.waterui-ffi]
+path = "../../../waterui/ffi"
+default-features = false
+features = ["std", "c-api"]
+
+[dependencies.pathland-waterui]
+path = "../../pathland-waterui"
+
+[dependencies.pathland-core-transport]
+path = "../../lib/rust/crates/pathland-core-transport"
+
+[workspace]
