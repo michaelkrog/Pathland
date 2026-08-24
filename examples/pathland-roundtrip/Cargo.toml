@@ -17,6 +17,9 @@ path = "../../../waterui/ffi"
 [dependencies.pathland-waterui]
 path = "../../pathland-waterui"
 
+[dependencies.pathland-render-html]
+path = "../../lib/rust/crates/pathland-render-html"
+
 [dependencies.pathland-core-transport]
 path = "../../lib/rust/crates/pathland-core-transport"
 

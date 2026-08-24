@@ -4939,10 +4939,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "pathland-render-html"
+version = "0.1.0"
+dependencies = [
+ "pathland-core",
+ "pathland-core-transport",
+]
+
+[[package]]
 name = "pathland-roundtrip"
 version = "0.1.0"
 dependencies = [
  "pathland-core-transport",
+ "pathland-render-html",
  "pathland-waterui",
  "waterui",
  "waterui-ffi",

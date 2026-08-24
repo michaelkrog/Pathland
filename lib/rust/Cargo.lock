@@ -502,6 +502,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "pathland-render-html"
+version = "0.1.0"
+dependencies = [
+ "pathland-core",
+ "pathland-core-transport",
+]
+
+[[package]]
 name = "pathland-view"
 version = "0.1.0"
 dependencies = [

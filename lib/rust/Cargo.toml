@@ -8,6 +8,7 @@ members = [
     "crates/pathland-view-native",
     "crates/pathland-render-gtk",
     "crates/pathland-render-gtk-demo",
+    "crates/pathland-render-html",
     "crates/pathland-codegen",
 ]
 
