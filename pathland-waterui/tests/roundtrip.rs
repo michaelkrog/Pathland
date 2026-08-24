@@ -126,3 +126,38 @@ fn spacing_is_emitted() {
         .expect("spacing property");
     assert_eq!(f32::from_bits(bits), 16.0);
 }
+
+#[test]
+fn reactive_spacing_emits_delta() {
+    let env = Environment::new();
+    let spacing: waterui_core::Binding<f32> = binding(8.0f32);
+    let view = vstack((text("a"), text("b"))).spacing(spacing.clone());
+
+    let mut emitter = Emitter::new();
+    let root = emitter.emit(view, &env).expect("emit");
+
+    let mut consumer = Consumer::new();
+    drain(&emitter, &mut consumer);
+
+    let bits = consumer
+        .node(root)
+        .expect("root")
+        .properties
+        .get(&property_id::SPACING)
+        .copied()
+        .expect("spacing property");
+    assert_eq!(f32::from_bits(bits), 8.0);
+
+    // Change the binding; the producer must emit a SET_PROPERTY delta.
+    spacing.set(24.0);
+    drain(&emitter, &mut consumer);
+
+    let bits = consumer
+        .node(root)
+        .expect("root")
+        .properties
+        .get(&property_id::SPACING)
+        .copied()
+        .expect("spacing property");
+    assert_eq!(f32::from_bits(bits), 24.0);
+}

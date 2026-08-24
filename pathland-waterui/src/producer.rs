@@ -8,10 +8,11 @@
 //! for watcher-guard lifetimes). Any other view is a composite and is expanded
 //! via [`View::body`].
 //!
-//! Reactive text is the one piece of change detection the producer participates
-//! in: a [`TextConfig`] carries a [`Computed`] content signal, so the emitter
-//! subscribes to it and re-emits a `SET_TEXT` delta for that node whenever it
-//! changes. Everything else is WaterUI's job.
+//! Reactive fields are the one piece of change detection the producer
+//! participates in: a [`TextConfig`] carries a [`Computed`] content signal and
+//! a stack carries a [`Computed`] spacing signal, so the emitter subscribes to
+//! each and re-emits a `SET_TEXT` / `SET_PROPERTY` delta for that node whenever
+//! it changes. Everything else is WaterUI's job.
 
 use std::cell::RefCell;
 use std::rc::Rc;
@@ -30,8 +31,13 @@ use waterui_text::styled::StyledStr;
 /// Sentinel parent id for the root node (the ring treats `0` as "no parent").
 const ROOT_PARENT: u32 = 0;
 
-/// A reactive text binding: node id + its live content signal.
-type ReactiveText = (u32, Computed<StyledStr>);
+/// A reactive binding discovered during the walk.
+enum Reactive {
+    /// A node's text content, re-emitted as `SET_TEXT`.
+    Text { node: u32, content: Computed<StyledStr> },
+    /// A node's `f32` property, re-emitted as `SET_PROPERTY` (`value_type::F32`).
+    Property { node: u32, property: u16, value: Computed<f32> },
+}
 
 /// Emits WaterUI views as Pathland opcodes into a shared-memory ring.
 pub struct Emitter {
@@ -65,10 +71,11 @@ impl Emitter {
 
     /// Emit a view as one frame, returning the id of the root node.
     ///
-    /// Reactive text fields found during the walk are subscribed to so that a
-    /// later signal change emits a `SET_TEXT` delta for the affected node.
+    /// Reactive fields found during the walk are subscribed to so that a later
+    /// signal change emits a `SET_TEXT` / `SET_PROPERTY` delta for the affected
+    /// node.
     pub fn emit<V: View>(&mut self, view: V, env: &Environment) -> Result<u32, RingError> {
-        let mut reactive: Vec<ReactiveText> = Vec::new();
+        let mut reactive: Vec<Reactive> = Vec::new();
 
         let (root, next_id) = {
             let transport = Rc::clone(&self.transport);
@@ -91,17 +98,32 @@ impl Emitter {
         };
         self.next_id = next_id;
 
-        for (node_id, content) in reactive {
+        for binding in reactive {
             let transport = Rc::clone(&self.transport);
-            let guard = content.watch(move |ctx| {
-                let text = ctx.into_value().to_plain().to_string();
-                let mut borrow = transport.borrow_mut();
-                let mut guest = borrow.producer();
-                guest.begin_frame();
-                let _ = guest.set_text(node_id, &text);
-                guest.end_frame();
-            });
-            self.guards.push(Box::new(guard));
+            match binding {
+                Reactive::Text { node, content } => {
+                    let guard = content.watch(move |ctx| {
+                        let text = ctx.into_value().to_plain().to_string();
+                        let mut borrow = transport.borrow_mut();
+                        let mut guest = borrow.producer();
+                        guest.begin_frame();
+                        let _ = guest.set_text(node, &text);
+                        guest.end_frame();
+                    });
+                    self.guards.push(Box::new(guard));
+                }
+                Reactive::Property { node, property, value } => {
+                    let guard = value.watch(move |ctx| {
+                        let bits = ctx.into_value().to_bits();
+                        let mut borrow = transport.borrow_mut();
+                        let mut guest = borrow.producer();
+                        guest.begin_frame();
+                        let _ = guest.set_property(node, property, value_type::F32, bits);
+                        guest.end_frame();
+                    });
+                    self.guards.push(Box::new(guard));
+                }
+            }
         }
 
         Ok(root)
@@ -113,7 +135,7 @@ impl Emitter {
 struct Walk<'g, 'm> {
     guest: &'g mut Guest<'m>,
     next_id: u32,
-    reactive: &'g mut Vec<ReactiveText>,
+    reactive: &'g mut Vec<Reactive>,
 }
 
 impl<'g, 'm> Walk<'g, 'm> {
@@ -204,6 +226,11 @@ impl<'g, 'm> Walk<'g, 'm> {
                 value_type::F32,
                 spacing.get().to_bits(),
             )?;
+            self.reactive.push(Reactive::Property {
+                node: id,
+                property: property_id::SPACING,
+                value: spacing,
+            });
         }
 
         for child in contents {
@@ -238,7 +265,7 @@ impl<'g, 'm> Walk<'g, 'm> {
         self.insert(parent, id)?;
         self.guest.set_text(id, &text)?;
 
-        self.reactive.push((id, content));
+        self.reactive.push(Reactive::Text { node: id, content });
         Ok(id)
     }
 
