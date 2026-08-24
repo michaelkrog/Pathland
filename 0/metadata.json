@@ -1,0 +1,91 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0TPY7H6P3P4V2VW2YM07337",
+  "session_id": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-24T20:21:28.989421Z",
+  "branch": "feature/pathland-waterui-backend",
+  "checkpoints_count": 3,
+  "save_step_count": 2,
+  "files_touched": [
+    "examples/pathland-roundtrip/Cargo.lock",
+    "examples/pathland-roundtrip/Cargo.toml",
+    "examples/pathland-roundtrip/src/lib.rs"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "48218d773950",
+  "checkpoint_transcript_start": 263,
+  "transcript_lines_at_start": 263,
+  "compact_transcript_start": 263,
+  "token_usage": {
+    "input_tokens": 487633,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 15586176,
+    "output_tokens": 5061,
+    "api_call_count": 39
+  },
+  "session_metrics": {
+    "turn_count": 24
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-24T20:21:28.52145Z",
+    "agent_lines": 1969,
+    "agent_removed": 145,
+    "human_added": 3,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1972,
+    "total_lines_changed": 2117,
+    "agent_percentage": 99.85829003306566,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1387,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "examples/pathland-roundtrip/.water/android/app/build.gradle.kts": 179,
+        "examples/pathland-roundtrip/.water/android/app/proguard-rules.pro": 7,
+        "examples/pathland-roundtrip/.water/android/app/src/main/AndroidManifest.xml": 23,
+        "examples/pathland-roundtrip/.water/android/app/src/main/java/MainActivity.kt": 135,
+        "examples/pathland-roundtrip/.water/android/app/src/main/res/drawable/ic_launcher_foreground.xml": 19,
+        "examples/pathland-roundtrip/.water/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml": 5,
+        "examples/pathland-roundtrip/.water/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml": 5,
+        "examples/pathland-roundtrip/.water/android/app/src/main/res/values/colors.xml": 4,
+        "examples/pathland-roundtrip/.water/android/app/src/main/res/values/strings.xml": 3,
+        "examples/pathland-roundtrip/.water/android/app/src/main/res/values/themes.xml": 7,
+        "examples/pathland-roundtrip/.water/android/build-rust.sh": 35,
+        "examples/pathland-roundtrip/.water/android/build.gradle.kts": 6,
+        "examples/pathland-roundtrip/.water/android/gradle.properties": 5,
+        "examples/pathland-roundtrip/.water/android/gradle/wrapper/gradle-wrapper.properties": 7,
+        "examples/pathland-roundtrip/.water/android/gradlew": 248,
+        "examples/pathland-roundtrip/.water/android/gradlew.bat": 93,
+        "examples/pathland-roundtrip/.water/android/local.properties": 1,
+        "examples/pathland-roundtrip/.water/android/settings.gradle.kts": 39,
+        "examples/pathland-roundtrip/.water/apple/WaterUIApp.xcodeproj/project.pbxproj": 438,
+        "examples/pathland-roundtrip/.water/apple/WaterUIApp.xcodeproj/project.xcworkspace/contents.xcworkspacedata": 7,
+        "examples/pathland-roundtrip/.water/apple/WaterUIApp/WaterUIApp.entitlements": 5,
+        "examples/pathland-roundtrip/.water/apple/WaterUIApp/WaterUIAppApp.swift": 49,
+        "examples/pathland-roundtrip/.water/apple/build-rust.sh": 67
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 15949,
+      "agent_lines_removed": 145
+    }
+  ]
+}
