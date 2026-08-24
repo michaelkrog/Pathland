@@ -1,42 +1,121 @@
 //! Producer: walk a WaterUI view tree and emit Pathland opcodes.
 //!
-//! The emitter is a hand-rolled recursive walker over [`AnyView`]. It handles
-//! the raw native leaf types it knows about (container, text, spacer) and
-//! unwraps the two metadata wrappers WaterUI uses to smuggle state past the
-//! type-erasure boundary (`Metadata<Environment>` for the stack axis,
-//! `Metadata<Retain>` for watcher-guard lifetimes). Any other view is a
-//! composite and is expanded via [`View::body`].
+//! The emitter owns a [`RingTransport`] and walks the view tree with a
+//! hand-rolled recursive walker over [`AnyView`]. It handles the raw native
+//! leaf types it knows about (container, text, spacer) and unwraps the two
+//! metadata wrappers WaterUI uses to smuggle state past the type-erasure
+//! boundary (`Metadata<Environment>` for the stack axis, `Metadata<Retain>`
+//! for watcher-guard lifetimes). Any other view is a composite and is expanded
+//! via [`View::body`].
+//!
+//! Reactive text is the one piece of change detection the producer participates
+//! in: a [`TextConfig`] carries a [`Computed`] content signal, so the emitter
+//! subscribes to it and re-emits a `SET_TEXT` delta for that node whenever it
+//! changes. Everything else is WaterUI's job.
+
+use std::cell::RefCell;
+use std::rc::Rc;
 
 use pathland_core::{component_type, Guest, RingError};
-use waterui_core::{AnyView, Environment, Metadata, Native, Retain, Signal, View};
+use pathland_core_transport::RingTransport;
+use waterui_core::reactive::watcher::BoxWatcherGuard;
+use waterui_core::{AnyView, Computed, Environment, Metadata, Native, Retain, Signal, View};
 use waterui_layout::container::FixedContainer;
 use waterui_layout::spacer::Spacer;
 use waterui_layout::stack::Axis;
 use waterui_text::TextConfig;
+use waterui_text::styled::StyledStr;
 
 /// Sentinel parent id for the root node (the ring treats `0` as "no parent").
 const ROOT_PARENT: u32 = 0;
 
-/// Emits WaterUI views as Pathland opcodes into a [`Guest`] ring.
-pub struct Emitter<'a> {
-    guest: Guest<'a>,
+/// A reactive text binding: node id + its live content signal.
+type ReactiveText = (u32, Computed<StyledStr>);
+
+/// Emits WaterUI views as Pathland opcodes into a shared-memory ring.
+pub struct Emitter {
+    transport: Rc<RefCell<RingTransport>>,
     next_id: u32,
+    guards: Vec<BoxWatcherGuard>,
 }
 
-impl<'a> Emitter<'a> {
-    /// Create an emitter writing into the given guest ring.
-    pub fn new(guest: Guest<'a>) -> Self {
-        Self { guest, next_id: 1 }
+impl Default for Emitter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Emitter {
+    /// Create an emitter owning a fresh shared-memory ring.
+    #[must_use]
+    pub fn new() -> Self {
+        Self {
+            transport: Rc::new(RefCell::new(RingTransport::new())),
+            next_id: 1,
+            guards: Vec::new(),
+        }
+    }
+
+    /// The shared ring, for consumers that read frames in place.
+    #[must_use]
+    pub fn transport(&self) -> Rc<RefCell<RingTransport>> {
+        Rc::clone(&self.transport)
     }
 
     /// Emit a view as one frame, returning the id of the root node.
+    ///
+    /// Reactive text fields found during the walk are subscribed to so that a
+    /// later signal change emits a `SET_TEXT` delta for the affected node.
     pub fn emit<V: View>(&mut self, view: V, env: &Environment) -> Result<u32, RingError> {
-        self.guest.begin_frame();
-        let root = self.emit_any(AnyView::new(view), env, ROOT_PARENT)?;
-        self.guest.end_frame();
+        let mut reactive: Vec<ReactiveText> = Vec::new();
+
+        let (root, next_id) = {
+            let transport = Rc::clone(&self.transport);
+            let mut borrow = transport.borrow_mut();
+            let mut guest = borrow.producer();
+            guest.begin_frame();
+
+            let (root, next_id) = {
+                let mut walk = Walk {
+                    guest: &mut guest,
+                    next_id: self.next_id,
+                    reactive: &mut reactive,
+                };
+                let root = walk.any(AnyView::new(view), env, ROOT_PARENT)?;
+                (root, walk.next_id)
+            };
+
+            guest.end_frame();
+            (root, next_id)
+        };
+        self.next_id = next_id;
+
+        for (node_id, content) in reactive {
+            let transport = Rc::clone(&self.transport);
+            let guard = content.watch(move |ctx| {
+                let text = ctx.into_value().to_plain().to_string();
+                let mut borrow = transport.borrow_mut();
+                let mut guest = borrow.producer();
+                guest.begin_frame();
+                let _ = guest.set_text(node_id, &text);
+                guest.end_frame();
+            });
+            self.guards.push(Box::new(guard));
+        }
+
         Ok(root)
     }
+}
 
+/// The recursive walker: borrows the guest ring plus the reactive sink, and owns
+/// the node-id cursor for the duration of one emit pass.
+struct Walk<'g, 'm> {
+    guest: &'g mut Guest<'m>,
+    next_id: u32,
+    reactive: &'g mut Vec<ReactiveText>,
+}
+
+impl<'g, 'm> Walk<'g, 'm> {
     fn alloc_id(&mut self) -> u32 {
         let id = self.next_id;
         self.next_id += 1;
@@ -50,46 +129,41 @@ impl<'a> Emitter<'a> {
         Ok(())
     }
 
-    fn emit_any(
-        &mut self,
-        view: AnyView,
-        env: &Environment,
-        parent: u32,
-    ) -> Result<u32, RingError> {
+    fn any(&mut self, view: AnyView, env: &Environment, parent: u32) -> Result<u32, RingError> {
         // `Metadata<Environment>` carries a scoped environment (WaterUI injects
         // the stack `Axis` this way); recurse into the content with that env.
         if view.is::<Metadata<Environment>>() {
             let m = *view.downcast::<Metadata<Environment>>().expect("downcast environment");
-            return self.emit_any(m.content, &m.value, parent);
+            return self.any(m.content, &m.value, parent);
         }
         // `Metadata<Retain>` keeps watcher guards alive for the subtree's
         // lifetime; unwrap it (the retained value is dropped, which for a
         // static tree holds no guards).
         if view.is::<Metadata<Retain>>() {
             let m = *view.downcast::<Metadata<Retain>>().expect("downcast retain");
-            return self.emit_any(m.content, env, parent);
+            return self.any(m.content, env, parent);
         }
         if view.is::<Native<FixedContainer>>() {
             let c = *view
                 .downcast::<Native<FixedContainer>>()
                 .expect("downcast container");
-            return self.emit_container(c, env, parent);
+            return self.container(c, env, parent);
         }
         if view.is::<Native<TextConfig>>() {
             let c = *view.downcast::<Native<TextConfig>>().expect("downcast text");
-            return self.emit_text(c, parent);
+            return self.text_node(c, parent);
         }
         if view.is::<Native<Spacer>>() {
             let _s = *view.downcast::<Native<Spacer>>().expect("downcast spacer");
-            return self.emit_spacer(parent);
+            return self.spacer_node(parent);
         }
 
         // Composite view: expand its body and keep walking.
         let body = view.body(env);
-        self.emit_any(AnyView::new(body), env, parent)
+        self.any(AnyView::new(body), env, parent)
     }
 
-    fn emit_container(
+    fn container(
         &mut self,
         container: Native<FixedContainer>,
         env: &Environment,
@@ -108,12 +182,12 @@ impl<'a> Emitter<'a> {
         self.insert(parent, id)?;
 
         for child in contents {
-            self.emit_any(child, env, id)?;
+            self.any(child, env, id)?;
         }
         Ok(id)
     }
 
-    fn emit_text(&mut self, config: Native<TextConfig>, parent: u32) -> Result<u32, RingError> {
+    fn text_node(&mut self, config: Native<TextConfig>, parent: u32) -> Result<u32, RingError> {
         let config = config.into_inner();
         let text = config.content.get().to_plain().to_string();
 
@@ -121,10 +195,12 @@ impl<'a> Emitter<'a> {
         self.guest.create_node(id, component_type::TEXT)?;
         self.insert(parent, id)?;
         self.guest.set_text(id, &text)?;
+
+        self.reactive.push((id, config.content));
         Ok(id)
     }
 
-    fn emit_spacer(&mut self, parent: u32) -> Result<u32, RingError> {
+    fn spacer_node(&mut self, parent: u32) -> Result<u32, RingError> {
         let id = self.alloc_id();
         self.guest.create_node(id, component_type::SPACER)?;
         self.insert(parent, id)?;

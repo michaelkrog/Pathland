@@ -1,26 +1,25 @@
 //! Round-trip: WaterUI view → opcodes → retained description.
 
-use pathland_core::{component_type, init_memory, Guest, Host, MemoryLayout};
+use pathland_core::component_type;
+use pathland_core_transport::FrameSource;
 use pathland_waterui::{Consumer, Emitter};
-use waterui_core::{Environment, View};
+use waterui_core::{Environment, View, binding};
 use waterui_layout::stack::vstack;
 use waterui_text::text::text;
 
-fn emit_and_decode(view: impl View, env: &Environment) -> (u32, Consumer) {
-    let layout = MemoryLayout::default();
-    let mut mem = vec![0u8; layout.total_bytes()];
-    init_memory(&mut mem, &layout);
-
-    let root = {
-        let mut emitter = Emitter::new(Guest::new(&mut mem, &layout));
-        emitter.emit(view, env).expect("emit")
-    };
-
-    let mut host = Host::new(&mut mem, &layout);
-    let mut consumer = Consumer::new();
-    for frame in host.frames() {
-        consumer.apply(&frame);
+fn drain(emitter: &Emitter, consumer: &mut Consumer) {
+    let transport = emitter.transport();
+    let mut borrow = transport.borrow_mut();
+    while let Ok(Some(batch)) = borrow.next_frame() {
+        consumer.apply(batch.frame());
     }
+}
+
+fn emit_and_decode(view: impl View, env: &Environment) -> (u32, Consumer) {
+    let mut emitter = Emitter::new();
+    let root = emitter.emit(view, env).expect("emit");
+    let mut consumer = Consumer::new();
+    drain(&emitter, &mut consumer);
     (root, consumer)
 }
 
@@ -68,4 +67,32 @@ fn rebuild_is_lossless() {
     let (_root2, consumer2) = emit_and_decode(rebuilt, &env);
 
     assert_eq!(consumer, consumer2);
+}
+
+#[test]
+fn reactive_text_emits_delta() {
+    let env = Environment::new();
+    let count: waterui_core::Binding<&'static str> = binding("zero");
+    let view = vstack((text(count.clone()), text("static")));
+
+    let mut emitter = Emitter::new();
+    let root = emitter.emit(view, &env).expect("emit");
+
+    let mut consumer = Consumer::new();
+    drain(&emitter, &mut consumer);
+
+    let first_id = consumer.node(root).expect("root").children[0];
+    assert_eq!(
+        consumer.node(first_id).expect("first").text.as_deref(),
+        Some("zero")
+    );
+
+    // Change the binding; the producer must emit a SET_TEXT delta for the node.
+    count.set("one");
+    drain(&emitter, &mut consumer);
+
+    assert_eq!(
+        consumer.node(first_id).expect("first").text.as_deref(),
+        Some("one")
+    );
 }
