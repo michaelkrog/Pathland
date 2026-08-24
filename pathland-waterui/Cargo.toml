@@ -1,0 +1,14 @@
+[package]
+name = "pathland-waterui"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Pathland opcode backend for WaterUI: producer (view -> opcodes) and consumer (opcodes -> view)"
+license = "Apache-2.0"
+
+[dependencies]
+pathland-core = { path = "../lib/rust/crates/pathland-core" }
+pathland-core-transport = { path = "../lib/rust/crates/pathland-core-transport" }
+waterui-core = { path = "../../waterui/core" }
+waterui-layout = { path = "../../waterui/components/foundation/layout" }
+waterui-text = { path = "../../waterui/components/foundation/text" }
