@@ -16,13 +16,14 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use pathland_core::{component_type, Guest, RingError};
+use pathland_core::{component_type, property_id, value_type, Guest, RingError};
 use pathland_core_transport::RingTransport;
+use waterui_controls::button::ButtonConfig;
 use waterui_core::reactive::watcher::BoxWatcherGuard;
 use waterui_core::{AnyView, Computed, Environment, Metadata, Native, Retain, Signal, View};
 use waterui_layout::container::FixedContainer;
 use waterui_layout::spacer::Spacer;
-use waterui_layout::stack::Axis;
+use waterui_layout::stack::{Axis, LazyStackAxis};
 use waterui_text::TextConfig;
 use waterui_text::styled::StyledStr;
 
@@ -153,6 +154,10 @@ impl<'g, 'm> Walk<'g, 'm> {
             let c = *view.downcast::<Native<TextConfig>>().expect("downcast text");
             return self.text_node(c, parent);
         }
+        if view.is::<Native<ButtonConfig>>() {
+            let c = *view.downcast::<Native<ButtonConfig>>().expect("downcast button");
+            return self.button_node(c, parent);
+        }
         if view.is::<Native<Spacer>>() {
             let _s = *view.downcast::<Native<Spacer>>().expect("downcast spacer");
             return self.spacer_node(parent);
@@ -169,17 +174,37 @@ impl<'g, 'm> Walk<'g, 'm> {
         env: &Environment,
         parent: u32,
     ) -> Result<u32, RingError> {
-        let (_layout, contents) = container.into_inner().into_inner();
-        let axis = env.get::<Axis>().copied().unwrap_or(Axis::Vertical);
-        let ct = if axis.is_horizontal() {
-            component_type::HSTACK
-        } else {
-            component_type::VSTACK
+        let inner = container.into_inner();
+        let stack_axis = inner.stack_axis();
+        let (_layout, contents) = inner.into_inner();
+
+        let (ct, spacing) = match stack_axis {
+            Some(LazyStackAxis::Vertical { spacing, .. }) => (component_type::VSTACK, Some(spacing)),
+            Some(LazyStackAxis::Horizontal { spacing, .. }) => {
+                (component_type::HSTACK, Some(spacing))
+            }
+            None => {
+                let axis = env.get::<Axis>().copied().unwrap_or(Axis::Vertical);
+                let ct = if axis.is_horizontal() {
+                    component_type::HSTACK
+                } else {
+                    component_type::VSTACK
+                };
+                (ct, None)
+            }
         };
 
         let id = self.alloc_id();
         self.guest.create_node(id, ct)?;
         self.insert(parent, id)?;
+        if let Some(spacing) = spacing {
+            self.guest.set_property(
+                id,
+                property_id::SPACING,
+                value_type::F32,
+                spacing.get().to_bits(),
+            )?;
+        }
 
         for child in contents {
             self.any(child, env, id)?;
@@ -189,14 +214,31 @@ impl<'g, 'm> Walk<'g, 'm> {
 
     fn text_node(&mut self, config: Native<TextConfig>, parent: u32) -> Result<u32, RingError> {
         let config = config.into_inner();
-        let text = config.content.get().to_plain().to_string();
+        self.emit_leaf(component_type::TEXT, config.content, parent)
+    }
+
+    fn button_node(&mut self, config: Native<ButtonConfig>, parent: u32) -> Result<u32, RingError> {
+        let config = config.into_inner();
+        // `ButtonConfig` is produced by `Button::body(env)`, which resolves the
+        // label and stores the resolved content as the accessibility label.
+        let content = config.label.accessibility_label();
+        self.emit_leaf(component_type::BUTTON, content, parent)
+    }
+
+    fn emit_leaf(
+        &mut self,
+        ct: u16,
+        content: Computed<StyledStr>,
+        parent: u32,
+    ) -> Result<u32, RingError> {
+        let text = content.get().to_plain().to_string();
 
         let id = self.alloc_id();
-        self.guest.create_node(id, component_type::TEXT)?;
+        self.guest.create_node(id, ct)?;
         self.insert(parent, id)?;
         self.guest.set_text(id, &text)?;
 
-        self.reactive.push((id, config.content));
+        self.reactive.push((id, content));
         Ok(id)
     }
 

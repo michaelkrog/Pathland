@@ -1538,6 +1538,7 @@ version = "0.1.0"
 dependencies = [
  "pathland-core",
  "pathland-core-transport",
+ "waterui-controls",
  "waterui-core",
  "waterui-layout",
  "waterui-text",
@@ -2277,6 +2278,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "waterui-controls"
+version = "0.2.1"
+dependencies = [
+ "executor-core",
+ "nami",
+ "waterui-core",
+ "waterui-icon",
+ "waterui-layout",
+ "waterui-locale",
+ "waterui-macros",
+ "waterui-text",
+]
+
+[[package]]
 name = "waterui-core"
 version = "0.2.0"
 dependencies = [
@@ -2297,6 +2312,16 @@ dependencies = [
  "pastey",
  "waterui-build-support",
  "waterui-core",
+]
+
+[[package]]
+name = "waterui-icon"
+version = "0.2.0"
+dependencies = [
+ "waterui-core",
+ "waterui-graphics",
+ "waterui-str",
+ "waterui-text",
 ]
 
 [[package]]

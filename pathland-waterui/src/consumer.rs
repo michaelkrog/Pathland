@@ -8,7 +8,8 @@
 
 use std::collections::BTreeMap;
 
-use pathland_core::{category, component_type, style, tree, Frame};
+use pathland_core::{category, component_type, property_id, style, tree, Frame};
+use waterui_controls::button::button;
 use waterui_core::AnyView;
 use waterui_layout::Spacer;
 use waterui_layout::stack::{HStack, HorizontalAlignment, VStack, VerticalAlignment};
@@ -35,6 +36,13 @@ impl Node {
             properties: BTreeMap::new(),
             children: Vec::new(),
         }
+    }
+
+    /// The `SPACING` constraint, decoded from its `f32` wire value.
+    fn spacing(&self) -> Option<f32> {
+        self.properties
+            .get(&property_id::SPACING)
+            .map(|bits| f32::from_bits(*bits))
     }
 }
 
@@ -138,7 +146,7 @@ impl Consumer {
                     .collect();
                 Some(AnyView::new(VStack::new(
                     HorizontalAlignment::Center,
-                    10.0,
+                    node.spacing().unwrap_or(10.0),
                     children,
                 )))
             }
@@ -150,13 +158,17 @@ impl Consumer {
                     .collect();
                 Some(AnyView::new(HStack::new(
                     VerticalAlignment::Center,
-                    10.0,
+                    node.spacing().unwrap_or(10.0),
                     children,
                 )))
             }
             component_type::TEXT => {
                 let content = node.text.clone().unwrap_or_default();
                 Some(AnyView::new(Text::new(content)))
+            }
+            component_type::BUTTON => {
+                let content = node.text.clone().unwrap_or_default();
+                Some(AnyView::new(button(content)))
             }
             component_type::SPACER => Some(AnyView::new(Spacer::flexible())),
             _ => None,

@@ -12,3 +12,4 @@ pathland-core-transport = { path = "../lib/rust/crates/pathland-core-transport" 
 waterui-core = { path = "../../waterui/core" }
 waterui-layout = { path = "../../waterui/components/foundation/layout" }
 waterui-text = { path = "../../waterui/components/foundation/text" }
+waterui-controls = { path = "../../waterui/components/foundation/controls" }

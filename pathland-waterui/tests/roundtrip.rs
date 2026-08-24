@@ -1,8 +1,9 @@
 //! Round-trip: WaterUI view → opcodes → retained description.
 
-use pathland_core::component_type;
+use pathland_core::{component_type, property_id};
 use pathland_core_transport::FrameSource;
 use pathland_waterui::{Consumer, Emitter};
+use waterui_controls::button::button;
 use waterui_core::{Environment, View, binding};
 use waterui_layout::stack::vstack;
 use waterui_text::text::text;
@@ -95,4 +96,33 @@ fn reactive_text_emits_delta() {
         consumer.node(first_id).expect("first").text.as_deref(),
         Some("one")
     );
+}
+
+#[test]
+fn button_round_trips() {
+    let env = Environment::new();
+    let view = vstack((button("Click me"), text("after")));
+    let (root, consumer) = emit_and_decode(view, &env);
+
+    let root_node = consumer.node(root).expect("root");
+    let button_node = consumer
+        .node(root_node.children[0])
+        .expect("button child");
+    assert_eq!(button_node.component, component_type::BUTTON);
+    assert_eq!(button_node.text.as_deref(), Some("Click me"));
+}
+
+#[test]
+fn spacing_is_emitted() {
+    let env = Environment::new();
+    let view = vstack((text("a"), text("b"))).spacing(16.0);
+    let (root, consumer) = emit_and_decode(view, &env);
+
+    let root_node = consumer.node(root).expect("root");
+    let bits = root_node
+        .properties
+        .get(&property_id::SPACING)
+        .copied()
+        .expect("spacing property");
+    assert_eq!(f32::from_bits(bits), 16.0);
 }
