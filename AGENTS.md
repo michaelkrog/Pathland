@@ -68,10 +68,13 @@ signals + effects are the planned next step.)
 crates/pathland-view/     # RETAINED UI — SwiftUI-style view DSL: VStack/HStack/Text/Button +
                           #   decoupled modifiers (spacing/padding/fontSize/color/background)
                           #   + vstack!/hstack! macros (no_std)
-crates/pathland-core/     # OPCODE ENGINE — retained tree types (Node/Component) + the
-                          #   diff-based reactive emitter + 16-byte opcode, ring buffer,
-                          #   arena, constants, events, memory layout (no_std, zero-alloc)
-crates/pathland-core-transport/ # OPCODE ENGINE — transport: shared-memory ring owner +
+crates/pathland-core/     # PROTOCOL — 16-byte opcode, ring buffer, arena, constants, events,
+                          #   memory layout, Guest/Host/Frame surface (no_std, zero-alloc).
+                          #   Pure protocol; the emitter moved out to pathland-engine.
+crates/pathland-engine/   # EMITTER — retained tree types (Node/Component) + the diff-based
+                          #   reactive emitter + signals. Temporary: slated for removal once
+                          #   WaterUI owns change detection (see pathland-waterui).
+crates/pathland-core-transport/ # TRANSPORT — shared-memory ring owner (RingTransport) +
                           #   network batch encode/decode + batching policy (std)
 crates/pathland-render-gtk/ # RENDERER — host reader (RenderTree) + maps opcode frames onto
                           #   native GTK widgets incrementally; the only crate that touches
@@ -96,10 +99,28 @@ lib/java/pathland-demo/   # Java (Maven) demo: catalog-generated SwiftUI-like DS
 - Run the GTK demo (native, zero-copy shared ring): `cd lib/rust && cargo run -p pathland-render-gtk-demo`.
 - Run the Java demo (JNA over the native C-ABI shim + GTK renderer):
   `cd lib/java/pathland-demo && ./run.sh` (or `./run.sh demo.DemoHeadless` for the
-  headless verification). The script builds the native libs, compiles, and launches
-  `java` directly — on macOS GTK must run on the process's main thread, so it passes
-  `-XstartOnFirstThread` to `java` itself (`mvn exec:java` does not propagate the
-  flag correctly).
+  headless verification).
+
+### WaterUI backend (`pathland-waterui/`, outside `lib/rust/`)
+
+The bridge that makes WaterUI the application layer and Pathland the protocol:
+it lives in its own workspace (WaterUI is edition 2024) and path-depends on the
+local WaterUI checkout (`../../waterui`) plus `pathland-core` +
+`pathland-core-transport`.
+
+```
+pathland-waterui/
+  src/producer.rs   # Emitter: walk a WaterUI view tree → Pathland opcodes.
+                    #   Handles Native<FixedContainer> (VStack/HStack via env Axis),
+                    #   Native<TextConfig> (+ reactive SET_TEXT delta on signal change),
+                    #   Native<Spacer>, Metadata<Environment>/<Retain>; composites via body().
+  src/consumer.rs   # Consumer: apply opcode frames → retained node description,
+                    #   rebuild() reconstructs WaterUI views (lossless round-trip).
+  tests/roundtrip.rs # vstack/hstack/text round-trip, lossless rebuild, reactive delta.
+```
+
+- Test: `cd pathland-waterui && cargo test`.
+
 
 ### Native C-ABI shim (`pathland-view-native`)
 
@@ -316,6 +337,8 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 ## Project Status
 
 **Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), **reactive signals** (`pathland-core::signal` — writable `Signal` values bound to node text/properties, so a signal change re-emits only the bound nodes, reachable from Java via the `pathland_native_signal_*` / `node_bind_*` C ABI), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust + Java demos that render through it without touching GTK/Swing directly, the **catalog-driven DSL** (`lib/ui/components.yaml` + `pathland-codegen` → generated Java DSL), **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property), and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Tests green across the workspace.**
+
+**In progress**: the **WaterUI backend** (`pathland-waterui`, see the section above) — a producer (WaterUI view → opcodes) + consumer (opcodes → WaterUI views) bridge that round-trips VStack/HStack/Text/Spacer losslessly and emits reactive `SET_TEXT` deltas on signal change. This is the first step toward Goal #15 (WaterUI as the application/renderer layer, Pathland as the protocol/transport layer), after which the retained view tree, DSL, and GTK renderer are slated for removal.
 
 **Planned / deferred**: computed/derived signals + effects (next step on top of writable signals), Quarkus SSR + WebSocket demo (Goal 4/#15, a browser/remote projection that would reintroduce a WASM guest + WIT host path), host → guest events over the network transport (the ring carries them; the network batch wire format does not yet), TEXT_FIELD editing, image rendering.
 
