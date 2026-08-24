@@ -10,13 +10,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 
 [dependencies.waterui]
 path = "../../../waterui"
-default-features = false
-features = ["std"]
 
 [dependencies.waterui-ffi]
 path = "../../../waterui/ffi"
-default-features = false
-features = ["std", "c-api"]
 
 [dependencies.pathland-waterui]
 path = "../../pathland-waterui"
@@ -25,3 +21,15 @@ path = "../../pathland-waterui"
 path = "../../lib/rust/crates/pathland-core-transport"
 
 [workspace]
+
+# WaterUI's dev branch is written against patched vello/wgpu checkouts; mirror
+# its [patch.crates-io] here because patches do not propagate across a path
+# dependency into an external workspace.
+[patch.crates-io]
+vello = { git = "https://github.com/lexoliu/vello", branch = "fix-select-index-underflow" }
+vello_hybrid = { git = "https://github.com/lexoliu/vello", branch = "fix-select-index-underflow" }
+wgpu = { git = "https://github.com/lexoliu/wgpu", branch = "mali-negative-viewport" }
+wgpu-core = { git = "https://github.com/lexoliu/wgpu", branch = "mali-negative-viewport" }
+wgpu-hal = { git = "https://github.com/lexoliu/wgpu", branch = "mali-negative-viewport" }
+wgpu-types = { git = "https://github.com/lexoliu/wgpu", branch = "mali-negative-viewport" }
+naga = { git = "https://github.com/lexoliu/wgpu", branch = "mali-negative-viewport" }

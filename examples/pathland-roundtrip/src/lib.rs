@@ -15,7 +15,7 @@ fn main() -> impl View {
         text("transported, decoded, and reconstructed as a view tree."),
         spacer(),
         hstack((button("Hello"), button("World"))),
-    ));
+    )).padding_with(EdgeInsets::all(16.0));
 
     roundtrip(source)
 }
