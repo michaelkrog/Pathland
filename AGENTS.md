@@ -79,6 +79,9 @@ crates/pathland-core-transport/ # TRANSPORT — shared-memory ring owner (RingTr
 crates/pathland-render-gtk/ # RENDERER — host reader (RenderTree) + maps opcode frames onto
                           #   native GTK widgets incrementally; the only crate that touches
                           #   GTK/glib/pango. Exposes pathland_gtk_run for Java (JNA) hosts.
+crates/pathland-render-html/ # RENDERER — maps opcode frames onto declarative HTML (flex
+                          #   stacks, spans, buttons) as a pure function of the stream; the
+                          #   server-side/remote-projection target (Goal #15).
 # ── Retained-UI projection (host/driver surface) ──────────────────────────
 crates/pathland-view-native/ # NATIVE C-ABI shim + NativeHost: flat world over a zero-copy
                           #   shared-memory ring, for Swift/Java/C#/other native hosts
