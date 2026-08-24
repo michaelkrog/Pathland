@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 4.544604459999999,
+    "cost": 4.567373403999999,
     "tokens": {
-      "input": 2785928,
-      "output": 73504,
-      "reasoning": 199213,
+      "input": 2786129,
+      "output": 73814,
+      "reasoning": 199336,
       "cache": {
-        "read": 98450560,
+        "read": 99440512,
         "write": 0
       }
     },
     "time": {
       "created": 1787416959261,
-      "updated": 1787604113925
+      "updated": 1787604142449
     }
   },
   "messages": [
@@ -65760,21 +65760,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.011465476,
         "tokens": {
-          "input": 0,
-          "output": 0,
-          "reasoning": 0,
+          "total": 495195,
+          "input": 82,
+          "output": 142,
+          "reasoning": 123,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 494848
           }
         },
         "modelID": "deepseek-v4-pro",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787604113924
+          "created": 1787604113924,
+          "completed": 1787604142377
         },
+        "finish": "tool-calls",
         "id": "msg_035821a04002ZN77wEwSdVyrYs",
         "sessionID": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8"
       },
@@ -65802,20 +65805,115 @@
           "tool": "bash",
           "callID": "call_00_ozvzVmBCJGZ7ahpCIGMa1402",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git add examples/pathland-roundtrip && git commit -q -m \"refactor(demo): decode for the current backend only\n\nSplit roundtrip into source()/emit()/decode(): each entry point drains the\nopcode stream and decodes with only its own renderer (Consumer for macOS,\nHtmlRenderer for HTML), instead of decoding both unconditionally.\" && git log --oneline -1"
             },
+            "output": "5766fe2 refactor(demo): decode for the current backend only\n",
+            "metadata": {
+              "output": "5766fe2 refactor(demo): decode for the current backend only\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git add examples/pathland-roundtrip && git commit -q -m \"refactor(demo): decode for the current backend only\n\nSplit roundtrip into source()/emit()/decode(): each entry point drains the\nopcode stream and decodes with only its own renderer (Consumer for macOS,\nHtmlRenderer for HTML), instead of decoding both unconditionally.\" && git log --oneline -1",
             "time": {
-              "start": 1787604120207
+              "start": 1787604142246,
+              "end": 1787604142249
             }
           },
           "id": "prt_035822d890016tXa2OM6a4nzl0",
           "sessionID": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8",
           "messageID": "msg_035821a04002ZN77wEwSdVyrYs"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "09f6b4900f4402e0d683ad5c5e03c9aaf80ded02",
+          "type": "step-finish",
+          "tokens": {
+            "total": 495195,
+            "input": 82,
+            "output": 142,
+            "reasoning": 123,
+            "cache": {
+              "write": 0,
+              "read": 494848
+            }
+          },
+          "cost": 0.011465476,
+          "id": "prt_0358288fb0014dTJTDnADoedRp",
+          "sessionID": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8",
+          "messageID": "msg_035821a04002ZN77wEwSdVyrYs"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0357fea4d001k3qMISpgFkSBGb",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.011303468,
+        "tokens": {
+          "total": 495391,
+          "input": 119,
+          "output": 168,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 495104
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787604142448,
+          "completed": 1787604148799
+        },
+        "finish": "stop",
+        "id": "msg_035828970002xiMTzKz1zk5lGk",
+        "sessionID": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8"
+      },
+      "parts": [
+        {
+          "snapshot": "09f6b4900f4402e0d683ad5c5e03c9aaf80ded02",
+          "type": "step-start",
+          "id": "prt_0358293730015Vr8T0hQXEHpA6",
+          "sessionID": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8",
+          "messageID": "msg_035828970002xiMTzKz1zk5lGk"
+        },
+        {
+          "type": "text",
+          "text": "Done. Each entry point now decodes only its own backend (commit `5766fe2`).\n\n`src/roundtrip.rs` now exposes three shared pieces:\n- `source()` — author the view\n- `emit(view) -> (Emitter, root)` — produce opcodes\n- `decode(emitter, sink)` — drain frames into a per-backend sink\n\nEntry points:\n- `src/lib.rs` → `emit` + `decode` into `Consumer` → `rebuild()` (macOS)\n- `src/bin/html.rs` → `emit` + `decode` into `HtmlRenderer` → `render()` → `println!`\n\nVerified both: `cargo run --bin html` prints the HTML document; `water run --platform macos` starts the native app.",
+          "time": {
+            "start": 1787604146854,
+            "end": 1787604148704
+          },
+          "id": "prt_035829aa6001cF6086B6l73LmQ",
+          "sessionID": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8",
+          "messageID": "msg_035828970002xiMTzKz1zk5lGk"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "09f6b4900f4402e0d683ad5c5e03c9aaf80ded02",
+          "type": "step-finish",
+          "tokens": {
+            "total": 495391,
+            "input": 119,
+            "output": 168,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 495104
+            }
+          },
+          "cost": 0.011303468,
+          "id": "prt_03582a21300149RELPpxuR4ENf",
+          "sessionID": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8",
+          "messageID": "msg_035828970002xiMTzKz1zk5lGk"
         }
       ]
     }

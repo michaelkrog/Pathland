@@ -1,1 +1,1 @@
-Which do you recommend?
+roundtrip() emits opcodes and decodes them for both renderers. It should only be for the current backend.
