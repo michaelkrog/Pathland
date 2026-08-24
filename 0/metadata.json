@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0TQCDREV7ZEWC59RX3GPV4V",
+  "session_id": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-24T20:29:13.94435Z",
+  "branch": "feature/pathland-waterui-backend",
+  "checkpoints_count": 3,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "48218d773950",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 2256113,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 86877952,
+    "output_tokens": 68564,
+    "api_call_count": 302
+  },
+  "session_metrics": {
+    "turn_count": 24
+  }
+}
