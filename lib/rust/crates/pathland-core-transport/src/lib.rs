@@ -3,29 +3,38 @@
 //! How Pathland opcodes are transported from the guest engine to host
 //! renderers. There are two peer backends:
 //!
-//! - **Shared memory** (desktop/native): the ring buffer + arena in
+//! - **Shared memory** (desktop/native/WASM): the ring buffer + arena in
 //!   `pathland-core` (`Guest`/`Host`). Zero-copy. This crate treats it as
 //!   the local transport — no duplication.
-//! - **Network batch** (SSR → browser): opcodes + arena data serialized into
-//!   **batches**, flushed on a **time interval** or a **network-frame size**
-//!   (whichever comes first).
+//! - **Network batch** (SSR → browser): opcodes + string data serialized into
+//!   **batches**.
 //!
-//! `pathland_core::Frame` is the **transport seam**: the renderer's
-//! `RenderTree::apply_frame` consumes frames regardless of origin. `BatchDecoder`
-//! produces `Frame` views over decoded batches, so a network batch feeds the
-//! renderer exactly like a shared-memory frame.
+//! There are two network codecs, for two different relationships between the
+//! producer and the consumer:
 //!
-//! ## Batch wire format
+//! - **Self-contained frames** ([`encode_frame`] / [`decode_frame`]) — each
+//!   batch carries its own string section and `SET_TEXT` references strings by
+//!   a *relative* offset into that section. The consumer needs **no prior
+//!   state**: every message is independent. This is the streaming codec used
+//!   for live deltas over WebSocket.
+//! - **Arena-delta batches** ([`encode_batch`] / [`BatchEncoder`] /
+//!   [`BatchDecoder`]) — the batch carries only the bytes *appended* to the
+//!   arena since the previous batch, and `SET_TEXT` references absolute arena
+//!   offsets. The consumer mirrors the arena so those offsets stay valid. This
+//!   mirrors the shared-memory arena over a wire and is the ring-compatible
+//!   codec (kept for a future WASM/embedded guest).
+//!
+//! ## Batch wire format (both codecs share the header)
 //!
 //! ```text
 //! magic "PLPL" (u32 LE) | version (u16) | flags (u16) | frameCount (u32)
-//! | opcodeCount (u32) | opcodes (16 B × opcodeCount) | arenaDeltaLen (u32)
-//! | arena delta bytes
+//! | opcodeCount (u32) | opcodes (16 B × opcodeCount) | stringsLen (u32)
+//! | string bytes (length-prefixed entries: [u32 len][bytes])
 //! ```
 //!
-//! The arena is append-only (bump); batches carry only the bytes appended since
-//! the previous batch. The decoder appends them to a mirrored arena, so absolute
-//! `arenaRef` offsets stay valid — exactly as in shared memory.
+//! For a self-contained frame the trailing section is that frame's own string
+//! table; for an arena-delta batch it is the arena bytes appended since the
+//! last batch.
 //!
 //! ## Example (producer)
 //!
@@ -52,7 +61,10 @@ mod net;
 mod ring;
 mod traits;
 
-pub use batch::{encode_batch, decode_events, encode_events, Batch, BatchDecoder, BatchEncoder};
+pub use batch::{
+    decode_events, decode_frame, encode_batch, encode_events, encode_frame, Batch, BatchDecoder,
+    BatchEncoder,
+};
 pub use batching::{Batcher, BatchPolicy};
 pub use net::NetBatchEncoder;
 pub use ring::RingTransport;

@@ -12,17 +12,20 @@
 //! a stack carries a [`Computed`] spacing signal, so the emitter subscribes to
 //! each and re-emits a `SET_TEXT` / `SET_PROPERTY` delta whenever it changes.
 //!
-//! Frames are pushed to a **sink** as network batches (initial render + every
-//! delta), so a server can stream them to a browser over WebSocket without
-//! polling. Button actions are captured into a `nodeId → action` map so a host
-//! can dispatch inbound input events back into the application.
+//! Frames are **self-contained**: each one is pushed to a sink as
+//! `(opcodes, strings)`, where `SET_TEXT` references its string by a *relative*
+//! offset into that frame's own string section. A consumer therefore needs no
+//! prior state (no ring, no mirrored arena) to decode a frame. Button actions
+//! are captured into a `nodeId → action` map so a host can dispatch inbound
+//! input events back into the application.
 
 use std::cell::RefCell;
 use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use pathland_core::{Opcode, SharedHeader, component_type, property_id, value_type, Guest, RingError};
-use pathland_core_transport::{FrameSource, RingTransport};
+use pathland_core::{
+    Opcode, category, component_type, property_id, style, tree, value_type,
+};
 use waterui_controls::button::ButtonConfig;
 use waterui_core::handler::BoxedAction;
 use waterui_core::reactive::watcher::BoxWatcherGuard;
@@ -33,7 +36,7 @@ use waterui_layout::stack::{Axis, LazyStackAxis};
 use waterui_text::TextConfig;
 use waterui_text::styled::StyledStr;
 
-/// Sentinel parent id for the root node (the ring treats `0` as "no parent").
+/// Sentinel parent id for the root node (`0` means "no parent").
 const ROOT_PARENT: u32 = 0;
 
 /// A reactive binding discovered during the walk.
@@ -44,10 +47,53 @@ enum Reactive {
     Property { node: u32, property: u16, value: Computed<f32> },
 }
 
-/// Emits WaterUI views as Pathland opcodes, pushing frames to a sink.
+/// Accumulates a self-contained frame: opcodes plus a per-frame string section.
+///
+/// `SET_TEXT` opcodes reference their string by a **relative** offset into the
+/// string section (unlike the shared-memory ring, whose arena offsets are
+/// absolute). A frame is therefore self-describing — it can be serialized and
+/// decoded with no prior state and no mirrored arena.
+#[derive(Default)]
+struct FrameBuilder {
+    opcodes: Vec<Opcode>,
+    strings: Vec<u8>,
+}
+
+impl FrameBuilder {
+    fn create_node(&mut self, id: u32, component: u16) {
+        self.opcodes
+            .push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, id, component as u32, 0));
+    }
+
+    fn insert_child(&mut self, parent: u32, child: u32, index: u32) {
+        self.opcodes
+            .push(Opcode::new(category::TREE, tree::INSERT_CHILD, 0, parent, child, index));
+    }
+
+    fn set_property(&mut self, id: u32, prop: u16, vt: u8, value: u32) {
+        self.opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            id,
+            ((vt as u32) << 16) | prop as u32,
+            value,
+        ));
+    }
+
+    fn set_text(&mut self, id: u32, text: &str) {
+        let offset = self.strings.len() as u32;
+        self.strings
+            .extend_from_slice(&(text.len() as u32).to_le_bytes());
+        self.strings.extend_from_slice(text.as_bytes());
+        self.opcodes
+            .push(Opcode::new(category::STYLE, style::SET_TEXT, 0, id, offset, 0));
+    }
+}
+
+/// Emits WaterUI views as self-contained Pathland frames, pushing them to a sink.
 pub struct Emitter {
-    transport: Rc<RefCell<RingTransport>>,
-    sink: Rc<dyn Fn(u32, Vec<Opcode>, Vec<u8>)>,
+    sink: Rc<dyn Fn(Vec<Opcode>, Vec<u8>)>,
     actions: Rc<RefCell<BTreeMap<u32, BoxedAction<()>>>>,
     next_id: u32,
     guards: Vec<BoxWatcherGuard>,
@@ -60,19 +106,17 @@ impl Default for Emitter {
 }
 
 impl Emitter {
-    /// Create an emitter with a no-op sink (ring-only draining via
-    /// [`Emitter::transport`]).
+    /// Create an emitter with a no-op sink.
     #[must_use]
     pub fn new() -> Self {
-        Self::with_sink(|_, _, _| {})
+        Self::with_sink(|_, _| {})
     }
 
-    /// Create an emitter that pushes each frame `(frame_count, opcodes, arena)`
-    /// to `sink` (initial render + every reactive delta).
+    /// Create an emitter that pushes each frame `(opcodes, strings)` to `sink`
+    /// (the initial render + every reactive delta).
     #[must_use]
-    pub fn with_sink(sink: impl Fn(u32, Vec<Opcode>, Vec<u8>) + 'static) -> Self {
+    pub fn with_sink(sink: impl Fn(Vec<Opcode>, Vec<u8>) + 'static) -> Self {
         Self {
-            transport: Rc::new(RefCell::new(RingTransport::new())),
             sink: Rc::new(sink),
             actions: Rc::new(RefCell::new(BTreeMap::new())),
             next_id: 1,
@@ -80,38 +124,23 @@ impl Emitter {
         }
     }
 
-    /// The shared ring, for consumers that read frames in place.
-    #[must_use]
-    pub fn transport(&self) -> Rc<RefCell<RingTransport>> {
-        Rc::clone(&self.transport)
-    }
-
-    /// Emit a view as one frame, returning the id of the root node. The initial
-    /// frame is pushed to the sink; reactive fields are subscribed so a later
-    /// signal change pushes a `SET_TEXT` / `SET_PROPERTY` delta.
-    pub fn emit<V: View>(&mut self, view: V, env: &Environment) -> Result<u32, RingError> {
+    /// Emit a view as one self-contained frame, returning the id of the root
+    /// node. Reactive fields are subscribed so a later signal change pushes a
+    /// `SET_TEXT` / `SET_PROPERTY` delta frame.
+    pub fn emit<V: View>(&mut self, view: V, env: &Environment) -> u32 {
+        let mut builder = FrameBuilder::default();
         let mut reactive: Vec<Reactive> = Vec::new();
         let mut actions: Vec<(u32, BoxedAction<()>)> = Vec::new();
 
         let (root, next_id) = {
-            let transport = Rc::clone(&self.transport);
-            let mut borrow = transport.borrow_mut();
-            let mut guest = borrow.producer();
-            guest.begin_frame();
-
-            let (root, next_id) = {
-                let mut walk = Walk {
-                    guest: &mut guest,
-                    next_id: self.next_id,
-                    reactive: &mut reactive,
-                    actions: &mut actions,
-                };
-                let root = walk.any(AnyView::new(view), env, ROOT_PARENT)?;
-                (root, walk.next_id)
+            let mut walk = Walk {
+                builder: &mut builder,
+                next_id: self.next_id,
+                reactive: &mut reactive,
+                actions: &mut actions,
             };
-
-            guest.end_frame();
-            (root, next_id)
+            let root = walk.any(AnyView::new(view), env, ROOT_PARENT);
+            (root, walk.next_id)
         };
         self.next_id = next_id;
 
@@ -120,9 +149,8 @@ impl Emitter {
         }
 
         self.subscribe(reactive);
-        drain_push(&self.transport, &self.sink);
-
-        Ok(root)
+        (self.sink)(builder.opcodes, builder.strings);
+        root
     }
 
     /// Invoke the captured action for `node_id` (used to dispatch input events).
@@ -141,34 +169,23 @@ impl Emitter {
 
     fn subscribe(&mut self, reactive: Vec<Reactive>) {
         for binding in reactive {
-            let transport = Rc::clone(&self.transport);
             let sink = Rc::clone(&self.sink);
             match binding {
                 Reactive::Text { node, content } => {
                     let guard = content.watch(move |ctx| {
                         let text = ctx.into_value().to_plain().to_string();
-                        {
-                            let mut borrow = transport.borrow_mut();
-                            let mut guest = borrow.producer();
-                            guest.begin_frame();
-                            let _ = guest.set_text(node, &text);
-                            guest.end_frame();
-                        }
-                        drain_push(&transport, &sink);
+                        let mut builder = FrameBuilder::default();
+                        builder.set_text(node, &text);
+                        sink(builder.opcodes, builder.strings);
                     });
                     self.guards.push(Box::new(guard));
                 }
                 Reactive::Property { node, property, value } => {
                     let guard = value.watch(move |ctx| {
                         let bits = ctx.into_value().to_bits();
-                        {
-                            let mut borrow = transport.borrow_mut();
-                            let mut guest = borrow.producer();
-                            guest.begin_frame();
-                            let _ = guest.set_property(node, property, value_type::F32, bits);
-                            guest.end_frame();
-                        }
-                        drain_push(&transport, &sink);
+                        let mut builder = FrameBuilder::default();
+                        builder.set_property(node, property, value_type::F32, bits);
+                        sink(builder.opcodes, builder.strings);
                     });
                     self.guards.push(Box::new(guard));
                 }
@@ -177,55 +194,29 @@ impl Emitter {
     }
 }
 
-/// Drain any new frame from the ring and push it to the sink.
-fn drain_push(
-    transport: &Rc<RefCell<RingTransport>>,
-    sink: &Rc<dyn Fn(u32, Vec<Opcode>, Vec<u8>)>,
-) {
-    let opcodes: Vec<Opcode> = {
-        let mut borrow = transport.borrow_mut();
-        match borrow.next_frame() {
-            Ok(Some(batch)) => batch.frame().opcodes().collect(),
-            _ => return,
-        }
-    };
-
-    let (frame_count, arena_used): (u32, Vec<u8>) = {
-        let borrow = transport.borrow();
-        let buffer = borrow.buffer();
-        let header = SharedHeader::new(buffer);
-        let offset = header.arena_offset();
-        let cursor = header.arena_cursor() as usize;
-        (header.frame_count(), buffer[offset..offset + cursor].to_vec())
-    };
-
-    sink(frame_count, opcodes, arena_used);
-}
-
-/// The recursive walker: borrows the guest ring plus the reactive and action
+/// The recursive walker: borrows the frame builder plus the reactive and action
 /// sinks, and owns the node-id cursor for the duration of one emit pass.
-struct Walk<'g, 'm> {
-    guest: &'g mut Guest<'m>,
+struct Walk<'g> {
+    builder: &'g mut FrameBuilder,
     next_id: u32,
     reactive: &'g mut Vec<Reactive>,
     actions: &'g mut Vec<(u32, BoxedAction<()>)>,
 }
 
-impl<'g, 'm> Walk<'g, 'm> {
+impl<'g> Walk<'g> {
     fn alloc_id(&mut self) -> u32 {
         let id = self.next_id;
         self.next_id += 1;
         id
     }
 
-    fn insert(&mut self, parent: u32, child: u32) -> Result<(), RingError> {
+    fn insert(&mut self, parent: u32, child: u32) {
         if parent != ROOT_PARENT {
-            self.guest.insert_child(parent, child, pathland_core::APPEND)?;
+            self.builder.insert_child(parent, child, pathland_core::APPEND);
         }
-        Ok(())
     }
 
-    fn any(&mut self, view: AnyView, env: &Environment, parent: u32) -> Result<u32, RingError> {
+    fn any(&mut self, view: AnyView, env: &Environment, parent: u32) -> u32 {
         // `Metadata<Environment>` carries a scoped environment (WaterUI injects
         // the stack `Axis` this way); recurse into the content with that env.
         if view.is::<Metadata<Environment>>() {
@@ -268,7 +259,7 @@ impl<'g, 'm> Walk<'g, 'm> {
         container: Native<FixedContainer>,
         env: &Environment,
         parent: u32,
-    ) -> Result<u32, RingError> {
+    ) -> u32 {
         let inner = container.into_inner();
         let stack_axis = inner.stack_axis();
         let (_layout, contents) = inner.into_inner();
@@ -290,15 +281,11 @@ impl<'g, 'm> Walk<'g, 'm> {
         };
 
         let id = self.alloc_id();
-        self.guest.create_node(id, ct)?;
-        self.insert(parent, id)?;
+        self.builder.create_node(id, ct);
+        self.insert(parent, id);
         if let Some(spacing) = spacing {
-            self.guest.set_property(
-                id,
-                property_id::SPACING,
-                value_type::F32,
-                spacing.get().to_bits(),
-            )?;
+            self.builder
+                .set_property(id, property_id::SPACING, value_type::F32, spacing.get().to_bits());
             self.reactive.push(Reactive::Property {
                 node: id,
                 property: property_id::SPACING,
@@ -307,48 +294,43 @@ impl<'g, 'm> Walk<'g, 'm> {
         }
 
         for child in contents {
-            self.any(child, env, id)?;
+            self.any(child, env, id);
         }
-        Ok(id)
+        id
     }
 
-    fn text_node(&mut self, config: Native<TextConfig>, parent: u32) -> Result<u32, RingError> {
+    fn text_node(&mut self, config: Native<TextConfig>, parent: u32) -> u32 {
         let config = config.into_inner();
         self.emit_leaf(component_type::TEXT, config.content, parent)
     }
 
-    fn button_node(&mut self, config: Native<ButtonConfig>, parent: u32) -> Result<u32, RingError> {
+    fn button_node(&mut self, config: Native<ButtonConfig>, parent: u32) -> u32 {
         let config = config.into_inner();
         // `ButtonConfig` is produced by `Button::body(env)`, which resolves the
         // label and stores the resolved content as the accessibility label.
         let content = config.label.accessibility_label();
         let action = config.action;
-        let id = self.emit_leaf(component_type::BUTTON, content, parent)?;
+        let id = self.emit_leaf(component_type::BUTTON, content, parent);
         self.actions.push((id, action));
-        Ok(id)
+        id
     }
 
-    fn emit_leaf(
-        &mut self,
-        ct: u16,
-        content: Computed<StyledStr>,
-        parent: u32,
-    ) -> Result<u32, RingError> {
+    fn emit_leaf(&mut self, ct: u16, content: Computed<StyledStr>, parent: u32) -> u32 {
         let text = content.get().to_plain().to_string();
 
         let id = self.alloc_id();
-        self.guest.create_node(id, ct)?;
-        self.insert(parent, id)?;
-        self.guest.set_text(id, &text)?;
+        self.builder.create_node(id, ct);
+        self.insert(parent, id);
+        self.builder.set_text(id, &text);
 
         self.reactive.push(Reactive::Text { node: id, content });
-        Ok(id)
+        id
     }
 
-    fn spacer_node(&mut self, parent: u32) -> Result<u32, RingError> {
+    fn spacer_node(&mut self, parent: u32) -> u32 {
         let id = self.alloc_id();
-        self.guest.create_node(id, component_type::SPACER)?;
-        self.insert(parent, id)?;
-        Ok(id)
+        self.builder.create_node(id, component_type::SPACER);
+        self.insert(parent, id);
+        id
     }
 }

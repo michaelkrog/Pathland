@@ -123,8 +123,9 @@ pathland-waterui/
                     #   Native<TextConfig> (+ reactive SET_TEXT delta on signal change),
                     #   Native<ButtonConfig> (captures action → nodeId → action map),
                     #   Native<Spacer>, Metadata<Environment>/<Retain>; composites via body().
-                    #   Push model: frames (frame_count, opcodes, arena) go to a sink.
-  src/consumer.rs   # Consumer (test-only): apply opcode frames → retained node description,
+                    #   Emits self-contained frames: (opcodes, strings) where SET_TEXT
+                    #   uses a *relative* offset into the frame's string section (no ring).
+  src/consumer.rs   # Consumer (test-only): apply opcodes → retained node description,
                     #   rebuild() reconstructs WaterUI views (lossless round-trip check).
   tests/roundtrip.rs # vstack/hstack/text/button round-trip, reactive delta, action invoke.
 ```
@@ -136,9 +137,12 @@ pathland-waterui/
 The SSR + live-updates demo: a Rust (axum) server runs a WaterUI counter view,
 renders it to HTML with `data-pathland-id`, then streams opcode deltas over
 WebSocket (server timer + button clicks) and dispatches inbound `EVENT` batches
-back into button actions. The JS client (`static/app.js`) hydrates the SSR DOM,
-decodes batches (mirrored arena), applies `SET_TEXT` deltas, and sends `EVENT`
-opcodes. Lightweight deps — no gpu/Xcode; run with `cargo run`.
+back into button actions. Deltas are **self-contained** (one frame's opcodes +
+its own string section, relative offsets), so nothing is aggregated or sent on
+connect — the browser hydrates the SSR HTML and applies each message in place.
+The JS client (`static/app.js`) hydrates `[data-pathland-id]`, decodes
+self-contained batches, applies `SET_TEXT`, and sends `EVENT` opcodes.
+Lightweight deps — no gpu/Xcode; run with `cargo run`.
 
 
 ### Native C-ABI shim (`pathland-view-native`)

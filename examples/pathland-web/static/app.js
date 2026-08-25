@@ -1,4 +1,6 @@
-// Pathland web client: hydrate the SSR HTML, apply opcode deltas, send events.
+// Pathland web client: hydrate the SSR HTML, apply self-contained opcode
+// deltas, send events. Each batch carries its own string section, so no arena
+// mirror is needed.
 
 const CAT_STYLE = 2;
 const CMD_SET_TEXT = 3;
@@ -11,20 +13,11 @@ for (const el of document.querySelectorAll("[data-pathland-id]")) {
     byId.set(Number(el.getAttribute("data-pathland-id")), el);
 }
 
-// Mirrored arena (append-only). Absolute arenaRef offsets resolve against it.
-let arena = new Uint8Array(0);
-
-function appendArena(delta) {
-    const merged = new Uint8Array(arena.length + delta.length);
-    merged.set(arena, 0);
-    merged.set(delta, arena.length);
-    arena = merged;
-}
-
-function arenaString(offset) {
-    const view = new DataView(arena.buffer, arena.byteOffset, arena.byteLength);
+// Read a length-prefixed string (`[u32 len][bytes]`) at a relative offset.
+function readString(strings, offset) {
+    const view = new DataView(strings.buffer, strings.byteOffset, strings.byteLength);
     const len = view.getUint32(offset, true);
-    const bytes = arena.subarray(offset + 4, offset + 4 + len);
+    const bytes = strings.subarray(offset + 4, offset + 4 + len);
     return new TextDecoder().decode(bytes);
 }
 
@@ -32,11 +25,9 @@ function applyBatch(bytes) {
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const opcodeCount = view.getUint32(12, true);
     const opcodesEnd = 16 + opcodeCount * 16;
-    const arenaLen = view.getUint32(opcodesEnd, true);
-    const arenaStart = opcodesEnd + 4;
-
-    // Seed the arena first so SET_TEXT offsets resolve within this batch.
-    appendArena(bytes.subarray(arenaStart, arenaStart + arenaLen));
+    const stringsLen = view.getUint32(opcodesEnd, true);
+    const stringsStart = opcodesEnd + 4;
+    const strings = bytes.subarray(stringsStart, stringsStart + stringsLen);
 
     for (let i = 0; i < opcodeCount; i++) {
         const pos = 16 + i * 16;
@@ -46,7 +37,7 @@ function applyBatch(bytes) {
         const b = view.getUint32(pos + 8, true);
         if (category === CAT_STYLE && command === CMD_SET_TEXT) {
             const el = byId.get(a);
-            if (el) el.textContent = arenaString(b);
+            if (el) el.textContent = readString(strings, b);
         }
     }
 }

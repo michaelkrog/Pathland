@@ -281,6 +281,37 @@ pub fn decode_events(bytes: &[u8]) -> Result<(u32, Vec<Event>), BatchError> {
     Ok((batch.frame_count(), events))
 }
 
+/// Encode a **self-contained** frame as a network batch.
+///
+/// `opcodes` is the frame's commands and `strings` its per-frame string
+/// section: every `SET_TEXT` opcode references its string by a *relative*
+/// offset into `strings` (not an absolute arena offset). The batch therefore
+/// decodes with no prior state — no mirrored arena, no delta tracking — which
+/// is what makes each WebSocket message independent.
+///
+/// This is the network/stream codec. The shared-memory path uses
+/// [`encode_batch`]/[`BatchEncoder`] instead, whose arena offsets are absolute
+/// and mirrored on the consumer.
+pub fn encode_frame(opcodes: &[Opcode], strings: &[u8]) -> Vec<u8> {
+    encode_batch(0, crate::direction::GUEST_TO_HOST, opcodes, strings)
+}
+
+/// Decode a self-contained frame batch, returning `(opcodes, strings)`.
+///
+/// Stateless: unlike [`BatchDecoder`], no arena mirror is maintained, because
+/// the batch carries its own string section and the offsets are relative to it.
+pub fn decode_frame(bytes: &[u8]) -> Result<(Vec<Opcode>, Vec<u8>), BatchError> {
+    let parsed = parse(bytes)?;
+    let count = parsed.opcodes.len() / Opcode::SIZE;
+    let opcodes = (0..count)
+        .map(|i| {
+            let start = i * Opcode::SIZE;
+            Opcode::from_bytes(parsed.opcodes[start..start + Opcode::SIZE].try_into().unwrap())
+        })
+        .collect();
+    Ok((opcodes, parsed.arena_delta.to_vec()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -453,5 +484,23 @@ mod tests {
         let (frame_count, decoded) = decode_events(&bytes).unwrap();
         assert_eq!(frame_count, 7);
         assert_eq!(decoded, events);
+    }
+
+    #[test]
+    fn self_contained_frame_round_trips() {
+        // SET_TEXT with a relative offset into the frame's string section.
+        let mut strings = Vec::new();
+        strings.extend_from_slice(&(5u32).to_le_bytes());
+        strings.extend_from_slice(b"Hello");
+        let opcodes = vec![
+            Opcode::new(category::TREE, 0x01, 0, 1, 0x0002, 0),
+            Opcode::new(category::STYLE, 0x03, 0, 2, 0, 0), // SET_TEXT, B = relative offset 0
+        ];
+
+        let bytes = encode_frame(&opcodes, &strings);
+        let (decoded_ops, decoded_strings) = decode_frame(&bytes).unwrap();
+
+        assert_eq!(decoded_ops, opcodes);
+        assert_eq!(decoded_strings, strings);
     }
 }

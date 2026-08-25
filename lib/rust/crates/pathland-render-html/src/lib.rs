@@ -8,10 +8,22 @@
 //!
 //! This is the "server-side render" / remote-projection target (Goal #15): the
 //! same opcode stream that drives a native backend drives this HTML document.
+//!
+//! Frames are **self-contained**: `apply(opcodes, strings)` resolves `SET_TEXT`
+//! by a *relative* offset into the frame's own string section (no mirrored
+//! arena), and every rendered element carries a stable `data-pathland-id` so a
+//! client can hydrate it and apply later deltas in place.
 
 use std::collections::BTreeMap;
 
-use pathland_core::{category, component_type, property_id, style, tree, Frame};
+use pathland_core::{Opcode, category, component_type, property_id, style, tree};
+
+/// Read a length-prefixed string (`[u32 len][bytes]`) at `offset`.
+fn read_str(strings: &[u8], offset: u32) -> Option<&str> {
+    let off = offset as usize;
+    let len = u32::from_le_bytes(strings.get(off..off + 4)?.try_into().ok()?) as usize;
+    std::str::from_utf8(strings.get(off + 4..off + 4 + len)?).ok()
+}
 
 /// A decoded node in the retained description.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -57,18 +69,19 @@ impl HtmlRenderer {
         Self::default()
     }
 
-    /// Apply a frame's opcodes, mutating the retained description.
-    pub fn apply(&mut self, frame: &Frame<'_>) {
-        for op in frame.opcodes() {
+    /// Apply a self-contained frame's opcodes + string section, mutating the
+    /// retained description.
+    pub fn apply(&mut self, opcodes: &[Opcode], strings: &[u8]) {
+        for op in opcodes {
             match op.category() {
-                category::TREE => self.apply_tree(op.command(), op),
-                category::STYLE => self.apply_style(op.command(), op, frame),
+                category::TREE => self.apply_tree(op.command(), *op),
+                category::STYLE => self.apply_style(op.command(), *op, strings),
                 _ => {}
             }
         }
     }
 
-    fn apply_tree(&mut self, command: u8, op: pathland_core::Opcode) {
+    fn apply_tree(&mut self, command: u8, op: Opcode) {
         match command {
             tree::CREATE_NODE => {
                 let id = op.a();
@@ -102,10 +115,10 @@ impl HtmlRenderer {
         }
     }
 
-    fn apply_style(&mut self, command: u8, op: pathland_core::Opcode, frame: &Frame<'_>) {
+    fn apply_style(&mut self, command: u8, op: Opcode, strings: &[u8]) {
         match command {
             style::SET_TEXT => {
-                if let Ok(text) = frame.arena_str(op.b()) {
+                if let Some(text) = read_str(strings, op.b()) {
                     if let Some(node) = self.nodes.get_mut(&op.a()) {
                         node.text = Some(text.to_string());
                     }
@@ -193,33 +206,25 @@ fn escape(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pathland_core::{Guest, Host, MemoryLayout, init_memory};
+    use pathland_core::Opcode;
 
     #[test]
     fn renders_vstack_of_text() {
-        let layout = MemoryLayout::default();
-        let mut mem = vec![0u8; layout.total_bytes()];
-        init_memory(&mut mem, &layout);
+        // Hand-craft a self-contained frame: VSTACK(1) with a TEXT(2) child.
+        let mut opcodes = Vec::new();
+        let mut strings = Vec::new();
+        opcodes.push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, 1, component_type::VSTACK as u32, 0));
+        opcodes.push(Opcode::new(category::TREE, tree::INSERT_CHILD, 0, 0, 1, pathland_core::APPEND));
+        opcodes.push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, 2, component_type::TEXT as u32, 0));
+        opcodes.push(Opcode::new(category::TREE, tree::INSERT_CHILD, 0, 1, 2, pathland_core::APPEND));
+        strings.extend_from_slice(&(5u32).to_le_bytes());
+        strings.extend_from_slice(b"Hello");
+        opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 2, 0, 0));
 
-        let root = {
-            let mut guest = Guest::new(&mut mem, &layout);
-            guest.begin_frame();
-            guest.create_node(1, component_type::VSTACK).unwrap();
-            guest.insert_child(0, 1, pathland_core::APPEND).unwrap();
-            guest.create_node(2, component_type::TEXT).unwrap();
-            guest.insert_child(1, 2, pathland_core::APPEND).unwrap();
-            guest.set_text(2, "Hello").unwrap();
-            guest.end_frame();
-            1
-        };
-
-        let mut host = Host::new(&mut mem, &layout);
         let mut renderer = HtmlRenderer::new();
-        for frame in host.frames() {
-            renderer.apply(&frame);
-        }
+        renderer.apply(&opcodes, &strings);
 
-        let html = renderer.render(root);
+        let html = renderer.render(1);
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("flex-direction:column"));
         assert!(html.contains("<span data-pathland-id=\"2\">Hello</span>"));

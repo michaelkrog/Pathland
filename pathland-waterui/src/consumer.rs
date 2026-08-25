@@ -5,15 +5,26 @@
 //! properties, children`) so the frame can be inspected or rebuilt as WaterUI
 //! views. Per Pathland's statelessness principle, this is a cache of the
 //! renderer's own output, never application state.
+//!
+//! Frames are **self-contained**: `apply(opcodes, strings)` resolves `SET_TEXT`
+//! by a *relative* offset into the frame's own string section, so no mirrored
+//! arena is needed.
 
 use std::collections::BTreeMap;
 
-use pathland_core::{category, component_type, property_id, style, tree, Frame};
+use pathland_core::{Opcode, category, component_type, property_id, style, tree};
 use waterui_controls::button::button;
 use waterui_core::AnyView;
 use waterui_layout::Spacer;
 use waterui_layout::stack::{HStack, HorizontalAlignment, VStack, VerticalAlignment};
 use waterui_text::Text;
+
+/// Read a length-prefixed string (`[u32 len][bytes]`) at `offset`.
+fn read_str(strings: &[u8], offset: u32) -> Option<&str> {
+    let off = offset as usize;
+    let len = u32::from_le_bytes(strings.get(off..off + 4)?.try_into().ok()?) as usize;
+    std::str::from_utf8(strings.get(off + 4..off + 4 + len)?).ok()
+}
 
 /// A decoded node in the retained description.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,18 +70,19 @@ impl Consumer {
         Self::default()
     }
 
-    /// Apply a frame's opcodes, mutating the retained description.
-    pub fn apply(&mut self, frame: &Frame<'_>) {
-        for op in frame.opcodes() {
+    /// Apply a self-contained frame's opcodes + string section, mutating the
+    /// retained description.
+    pub fn apply(&mut self, opcodes: &[Opcode], strings: &[u8]) {
+        for op in opcodes {
             match op.category() {
-                category::TREE => self.apply_tree(op.command(), op),
-                category::STYLE => self.apply_style(op.command(), op, frame),
+                category::TREE => self.apply_tree(op.command(), *op),
+                category::STYLE => self.apply_style(op.command(), *op, strings),
                 _ => {}
             }
         }
     }
 
-    fn apply_tree(&mut self, command: u8, op: pathland_core::Opcode) {
+    fn apply_tree(&mut self, command: u8, op: Opcode) {
         match command {
             tree::CREATE_NODE => {
                 let id = op.a();
@@ -104,10 +116,10 @@ impl Consumer {
         }
     }
 
-    fn apply_style(&mut self, command: u8, op: pathland_core::Opcode, frame: &Frame<'_>) {
+    fn apply_style(&mut self, command: u8, op: Opcode, strings: &[u8]) {
         match command {
             style::SET_TEXT => {
-                if let Ok(text) = frame.arena_str(op.b()) {
+                if let Some(text) = read_str(strings, op.b()) {
                     if let Some(node) = self.nodes.get_mut(&op.a()) {
                         node.text = Some(text.to_string());
                     }

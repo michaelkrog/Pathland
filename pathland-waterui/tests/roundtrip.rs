@@ -13,17 +13,17 @@ use waterui_text::text::text;
 /// A harness that captures the emitter's pushed frames and applies them.
 struct Harness {
     _emitter: Emitter,
-    inbox: Rc<RefCell<Vec<(u32, Vec<Opcode>, Vec<u8>)>>>,
+    inbox: Rc<RefCell<Vec<(Vec<Opcode>, Vec<u8>)>>>,
 }
 
 impl Harness {
     fn new(view: impl View, env: &Environment) -> (Harness, u32) {
-        let inbox: Rc<RefCell<Vec<(u32, Vec<Opcode>, Vec<u8>)>>> = Rc::new(RefCell::new(Vec::new()));
+        let inbox: Rc<RefCell<Vec<(Vec<Opcode>, Vec<u8>)>>> = Rc::new(RefCell::new(Vec::new()));
         let sink_inbox = Rc::clone(&inbox);
-        let mut emitter = Emitter::with_sink(move |fc, ops, arena| {
-            sink_inbox.borrow_mut().push((fc, ops, arena));
+        let mut emitter = Emitter::with_sink(move |ops, strings| {
+            sink_inbox.borrow_mut().push((ops, strings));
         });
-        let root = emitter.emit(view, env).expect("emit");
+        let root = emitter.emit(view, env);
         (
             Harness {
                 _emitter: emitter,
@@ -35,13 +35,8 @@ impl Harness {
 
     fn apply_pending(&mut self, consumer: &mut Consumer) {
         let pending = std::mem::take(&mut *self.inbox.borrow_mut());
-        for (_fc, opcodes, arena) in pending {
-            let mut slots = Vec::with_capacity(opcodes.len() * Opcode::SIZE);
-            for op in &opcodes {
-                slots.extend_from_slice(&op.to_bytes());
-            }
-            let frame = pathland_core::Frame::from_parts(&slots, &arena, 0, slots.len());
-            consumer.apply(&frame);
+        for (opcodes, strings) in pending {
+            consumer.apply(&opcodes, &strings);
         }
     }
 }
