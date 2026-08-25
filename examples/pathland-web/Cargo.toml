@@ -1,0 +1,21 @@
+[package]
+name = "pathland-web"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Pathland web demo: SSR a WaterUI view to HTML and stream live deltas/events over WebSocket"
+
+[dependencies]
+pathland-core = { path = "../../lib/rust/crates/pathland-core" }
+pathland-core-transport = { path = "../../lib/rust/crates/pathland-core-transport" }
+pathland-render-html = { path = "../../lib/rust/crates/pathland-render-html" }
+pathland-waterui = { path = "../../pathland-waterui" }
+waterui-core = { path = "../../../waterui/core" }
+waterui-layout = { path = "../../../waterui/components/foundation/layout" }
+waterui-text = { path = "../../../waterui/components/foundation/text" }
+waterui-controls = { path = "../../../waterui/components/foundation/controls" }
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+bytes = "1"
+
+[workspace]

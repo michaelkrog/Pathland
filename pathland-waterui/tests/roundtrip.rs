@@ -3,31 +3,30 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use pathland_core::{component_type, property_id};
-use pathland_core_transport::BatchDecoder;
+use pathland_core::{Opcode, component_type, property_id};
 use pathland_waterui::{Consumer, Emitter};
 use waterui_controls::button::button;
 use waterui_core::{Environment, View, binding};
 use waterui_layout::stack::vstack;
 use waterui_text::text::text;
 
-/// A harness that captures the emitter's pushed batches and decodes them.
+/// A harness that captures the emitter's pushed frames and applies them.
 struct Harness {
     _emitter: Emitter,
-    decoder: BatchDecoder,
-    inbox: Rc<RefCell<Vec<Vec<u8>>>>,
+    inbox: Rc<RefCell<Vec<(u32, Vec<Opcode>, Vec<u8>)>>>,
 }
 
 impl Harness {
     fn new(view: impl View, env: &Environment) -> (Harness, u32) {
-        let inbox: Rc<RefCell<Vec<Vec<u8>>>> = Rc::new(RefCell::new(Vec::new()));
+        let inbox: Rc<RefCell<Vec<(u32, Vec<Opcode>, Vec<u8>)>>> = Rc::new(RefCell::new(Vec::new()));
         let sink_inbox = Rc::clone(&inbox);
-        let mut emitter = Emitter::with_sink(move |bytes| sink_inbox.borrow_mut().push(bytes));
+        let mut emitter = Emitter::with_sink(move |fc, ops, arena| {
+            sink_inbox.borrow_mut().push((fc, ops, arena));
+        });
         let root = emitter.emit(view, env).expect("emit");
         (
             Harness {
                 _emitter: emitter,
-                decoder: BatchDecoder::new(),
                 inbox,
             },
             root,
@@ -36,9 +35,13 @@ impl Harness {
 
     fn apply_pending(&mut self, consumer: &mut Consumer) {
         let pending = std::mem::take(&mut *self.inbox.borrow_mut());
-        for bytes in pending {
-            let batch = self.decoder.decode(&bytes).expect("decode batch");
-            consumer.apply(batch.as_frame());
+        for (_fc, opcodes, arena) in pending {
+            let mut slots = Vec::with_capacity(opcodes.len() * Opcode::SIZE);
+            for op in &opcodes {
+                slots.extend_from_slice(&op.to_bytes());
+            }
+            let frame = pathland_core::Frame::from_parts(&slots, &arena, 0, slots.len());
+            consumer.apply(&frame);
         }
     }
 }

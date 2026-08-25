@@ -22,7 +22,7 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use pathland_core::{Opcode, SharedHeader, component_type, property_id, value_type, Guest, RingError};
-use pathland_core_transport::{BatchEncoder, FrameSource, RingTransport};
+use pathland_core_transport::{FrameSource, RingTransport};
 use waterui_controls::button::ButtonConfig;
 use waterui_core::handler::BoxedAction;
 use waterui_core::reactive::watcher::BoxWatcherGuard;
@@ -44,11 +44,10 @@ enum Reactive {
     Property { node: u32, property: u16, value: Computed<f32> },
 }
 
-/// Emits WaterUI views as Pathland opcodes, pushing network batches to a sink.
+/// Emits WaterUI views as Pathland opcodes, pushing frames to a sink.
 pub struct Emitter {
     transport: Rc<RefCell<RingTransport>>,
-    encoder: Rc<RefCell<BatchEncoder>>,
-    sink: Rc<dyn Fn(Vec<u8>)>,
+    sink: Rc<dyn Fn(u32, Vec<Opcode>, Vec<u8>)>,
     actions: Rc<RefCell<BTreeMap<u32, BoxedAction<()>>>>,
     next_id: u32,
     guards: Vec<BoxWatcherGuard>,
@@ -65,16 +64,15 @@ impl Emitter {
     /// [`Emitter::transport`]).
     #[must_use]
     pub fn new() -> Self {
-        Self::with_sink(|_| {})
+        Self::with_sink(|_, _, _| {})
     }
 
-    /// Create an emitter that pushes each frame as a network batch to `sink`
-    /// (initial render + every reactive delta).
+    /// Create an emitter that pushes each frame `(frame_count, opcodes, arena)`
+    /// to `sink` (initial render + every reactive delta).
     #[must_use]
-    pub fn with_sink(sink: impl Fn(Vec<u8>) + 'static) -> Self {
+    pub fn with_sink(sink: impl Fn(u32, Vec<Opcode>, Vec<u8>) + 'static) -> Self {
         Self {
             transport: Rc::new(RefCell::new(RingTransport::new())),
-            encoder: Rc::new(RefCell::new(BatchEncoder::new())),
             sink: Rc::new(sink),
             actions: Rc::new(RefCell::new(BTreeMap::new())),
             next_id: 1,
@@ -122,7 +120,7 @@ impl Emitter {
         }
 
         self.subscribe(reactive);
-        drain_push(&self.transport, &self.encoder, &self.sink);
+        drain_push(&self.transport, &self.sink);
 
         Ok(root)
     }
@@ -144,7 +142,6 @@ impl Emitter {
     fn subscribe(&mut self, reactive: Vec<Reactive>) {
         for binding in reactive {
             let transport = Rc::clone(&self.transport);
-            let encoder = Rc::clone(&self.encoder);
             let sink = Rc::clone(&self.sink);
             match binding {
                 Reactive::Text { node, content } => {
@@ -157,7 +154,7 @@ impl Emitter {
                             let _ = guest.set_text(node, &text);
                             guest.end_frame();
                         }
-                        drain_push(&transport, &encoder, &sink);
+                        drain_push(&transport, &sink);
                     });
                     self.guards.push(Box::new(guard));
                 }
@@ -171,7 +168,7 @@ impl Emitter {
                             let _ = guest.set_property(node, property, value_type::F32, bits);
                             guest.end_frame();
                         }
-                        drain_push(&transport, &encoder, &sink);
+                        drain_push(&transport, &sink);
                     });
                     self.guards.push(Box::new(guard));
                 }
@@ -180,11 +177,10 @@ impl Emitter {
     }
 }
 
-/// Drain any new frame from the ring and push it to the sink as a batch.
+/// Drain any new frame from the ring and push it to the sink.
 fn drain_push(
     transport: &Rc<RefCell<RingTransport>>,
-    encoder: &Rc<RefCell<BatchEncoder>>,
-    sink: &Rc<dyn Fn(Vec<u8>)>,
+    sink: &Rc<dyn Fn(u32, Vec<Opcode>, Vec<u8>)>,
 ) {
     let opcodes: Vec<Opcode> = {
         let mut borrow = transport.borrow_mut();
@@ -203,8 +199,7 @@ fn drain_push(
         (header.frame_count(), buffer[offset..offset + cursor].to_vec())
     };
 
-    let bytes = encoder.borrow_mut().encode(frame_count, &opcodes, &arena_used);
-    sink(bytes);
+    sink(frame_count, opcodes, arena_used);
 }
 
 /// The recursive walker: borrows the guest ring plus the reactive and action
