@@ -135,7 +135,11 @@ async fn run() {
 }
 
 async fn index(State(state): State<AppState>) -> Html<String> {
-    Html(state.html_rx.borrow().clone())
+    let html = state.html_rx.borrow().replace(
+        "</body>",
+        "<script src=\"/app.js\" defer></script></body>",
+    );
+    Html(html)
 }
 
 async fn app_js() -> &'static str {
