@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0WFQA4K8B4XJHS8004EJAWD",
+  "session_id": "ses_fd5a5a6e2ffeY1hq46Am3I0Ca8",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-25T12:53:54.54323Z",
+  "branch": "feature/pathland-waterui-backend",
+  "checkpoints_count": 11,
+  "files_touched": [
+    "pathland-waterui/src/producer.rs",
+    "pathland-waterui/tests/roundtrip.rs",
+    "examples/pathland-web/Cargo.toml",
+    "examples/pathland-web/src/main.rs",
+    "examples/pathland-web/static/app.js"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "133360ffe518",
+  "checkpoint_transcript_start": 414,
+  "transcript_lines_at_start": 414,
+  "compact_transcript_start": 414,
+  "token_usage": {
+    "input_tokens": 6194,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 17883392,
+    "output_tokens": 9590,
+    "api_call_count": 29
+  },
+  "session_metrics": {
+    "turn_count": 37
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-25T12:53:53.989384Z",
+    "agent_lines": 337,
+    "agent_removed": 29,
+    "human_added": 3409,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 3746,
+    "total_lines_changed": 3775,
+    "agent_percentage": 9.695364238410596,
+    "metric_version": 2
+  }
+}
