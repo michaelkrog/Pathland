@@ -111,18 +111,34 @@ it lives in its own workspace (WaterUI is edition 2024) and path-depends on the
 local WaterUI checkout (`../../waterui`) plus `pathland-core` +
 `pathland-core-transport`.
 
+Pathland is **web-only**: native (Apple/GTK) renders through WaterUI directly,
+never through Pathland. The producer serializes a WaterUI view to opcodes; a
+server projects those opcodes to a browser (SSR → HTML, then live deltas +
+events over WebSocket).
+
 ```
 pathland-waterui/
   src/producer.rs   # Emitter: walk a WaterUI view tree → Pathland opcodes.
                     #   Handles Native<FixedContainer> (VStack/HStack via env Axis),
                     #   Native<TextConfig> (+ reactive SET_TEXT delta on signal change),
+                    #   Native<ButtonConfig> (captures action → nodeId → action map),
                     #   Native<Spacer>, Metadata<Environment>/<Retain>; composites via body().
-  src/consumer.rs   # Consumer: apply opcode frames → retained node description,
-                    #   rebuild() reconstructs WaterUI views (lossless round-trip).
-  tests/roundtrip.rs # vstack/hstack/text round-trip, lossless rebuild, reactive delta.
+                    #   Push model: frames (frame_count, opcodes, arena) go to a sink.
+  src/consumer.rs   # Consumer (test-only): apply opcode frames → retained node description,
+                    #   rebuild() reconstructs WaterUI views (lossless round-trip check).
+  tests/roundtrip.rs # vstack/hstack/text/button round-trip, reactive delta, action invoke.
 ```
 
 - Test: `cd pathland-waterui && cargo test`.
+
+### Web server (`examples/pathland-web/`)
+
+The SSR + live-updates demo: a Rust (axum) server runs a WaterUI counter view,
+renders it to HTML with `data-pathland-id`, then streams opcode deltas over
+WebSocket (server timer + button clicks) and dispatches inbound `EVENT` batches
+back into button actions. The JS client (`static/app.js`) hydrates the SSR DOM,
+decodes batches (mirrored arena), applies `SET_TEXT` deltas, and sends `EVENT`
+opcodes. Lightweight deps — no gpu/Xcode; run with `cargo run`.
 
 
 ### Native C-ABI shim (`pathland-view-native`)
