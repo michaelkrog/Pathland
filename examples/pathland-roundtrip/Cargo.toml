@@ -3,7 +3,7 @@ name = "pathland-roundtrip"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Pathland round-trip demo: author a WaterUI view, project it through the Pathland opcode protocol, and render the reconstruction"
+description = "Pathland native demo: a WaterUI app rendered directly through the platform backend (no Pathland)"
 
 [lib]
 crate-type = ["staticlib", "cdylib", "rlib"]
@@ -13,18 +13,6 @@ path = "../../../waterui"
 
 [dependencies.waterui-ffi]
 path = "../../../waterui/ffi"
-
-[dependencies.pathland-waterui]
-path = "../../pathland-waterui"
-
-[dependencies.pathland-render-html]
-path = "../../lib/rust/crates/pathland-render-html"
-
-[dependencies.pathland-core-transport]
-path = "../../lib/rust/crates/pathland-core-transport"
-
-[dependencies.pathland-core]
-path = "../../lib/rust/crates/pathland-core"
 
 [workspace]
 
