@@ -1,25 +1,30 @@
 //! Producer: walk a WaterUI view tree and emit Pathland opcodes.
 //!
-//! The emitter owns a [`RingTransport`] and walks the view tree with a
-//! hand-rolled recursive walker over [`AnyView`]. It handles the raw native
-//! leaf types it knows about (container, text, spacer) and unwraps the two
-//! metadata wrappers WaterUI uses to smuggle state past the type-erasure
-//! boundary (`Metadata<Environment>` for the stack axis, `Metadata<Retain>`
-//! for watcher-guard lifetimes). Any other view is a composite and is expanded
-//! via [`View::body`].
+//! The emitter walks the view tree with a hand-rolled recursive walker over
+//! [`AnyView`]. It handles the raw native leaf types it knows about (container,
+//! text, button, spacer) and unwraps the two metadata wrappers WaterUI uses to
+//! smuggle state past the type-erasure boundary (`Metadata<Environment>` for
+//! the stack axis, `Metadata<Retain>` for watcher-guard lifetimes). Any other
+//! view is a composite and is expanded via [`View::body`].
 //!
 //! Reactive fields are the one piece of change detection the producer
 //! participates in: a [`TextConfig`] carries a [`Computed`] content signal and
 //! a stack carries a [`Computed`] spacing signal, so the emitter subscribes to
-//! each and re-emits a `SET_TEXT` / `SET_PROPERTY` delta for that node whenever
-//! it changes. Everything else is WaterUI's job.
+//! each and re-emits a `SET_TEXT` / `SET_PROPERTY` delta whenever it changes.
+//!
+//! Frames are pushed to a **sink** as network batches (initial render + every
+//! delta), so a server can stream them to a browser over WebSocket without
+//! polling. Button actions are captured into a `nodeId → action` map so a host
+//! can dispatch inbound input events back into the application.
 
 use std::cell::RefCell;
+use std::collections::BTreeMap;
 use std::rc::Rc;
 
-use pathland_core::{component_type, property_id, value_type, Guest, RingError};
-use pathland_core_transport::RingTransport;
+use pathland_core::{Opcode, SharedHeader, component_type, property_id, value_type, Guest, RingError};
+use pathland_core_transport::{BatchEncoder, FrameSource, RingTransport};
 use waterui_controls::button::ButtonConfig;
+use waterui_core::handler::BoxedAction;
 use waterui_core::reactive::watcher::BoxWatcherGuard;
 use waterui_core::{AnyView, Computed, Environment, Metadata, Native, Retain, Signal, View};
 use waterui_layout::container::FixedContainer;
@@ -39,9 +44,12 @@ enum Reactive {
     Property { node: u32, property: u16, value: Computed<f32> },
 }
 
-/// Emits WaterUI views as Pathland opcodes into a shared-memory ring.
+/// Emits WaterUI views as Pathland opcodes, pushing network batches to a sink.
 pub struct Emitter {
     transport: Rc<RefCell<RingTransport>>,
+    encoder: Rc<RefCell<BatchEncoder>>,
+    sink: Rc<dyn Fn(Vec<u8>)>,
+    actions: Rc<RefCell<BTreeMap<u32, BoxedAction<()>>>>,
     next_id: u32,
     guards: Vec<BoxWatcherGuard>,
 }
@@ -53,11 +61,22 @@ impl Default for Emitter {
 }
 
 impl Emitter {
-    /// Create an emitter owning a fresh shared-memory ring.
+    /// Create an emitter with a no-op sink (ring-only draining via
+    /// [`Emitter::transport`]).
     #[must_use]
     pub fn new() -> Self {
+        Self::with_sink(|_| {})
+    }
+
+    /// Create an emitter that pushes each frame as a network batch to `sink`
+    /// (initial render + every reactive delta).
+    #[must_use]
+    pub fn with_sink(sink: impl Fn(Vec<u8>) + 'static) -> Self {
         Self {
             transport: Rc::new(RefCell::new(RingTransport::new())),
+            encoder: Rc::new(RefCell::new(BatchEncoder::new())),
+            sink: Rc::new(sink),
+            actions: Rc::new(RefCell::new(BTreeMap::new())),
             next_id: 1,
             guards: Vec::new(),
         }
@@ -69,13 +88,12 @@ impl Emitter {
         Rc::clone(&self.transport)
     }
 
-    /// Emit a view as one frame, returning the id of the root node.
-    ///
-    /// Reactive fields found during the walk are subscribed to so that a later
-    /// signal change emits a `SET_TEXT` / `SET_PROPERTY` delta for the affected
-    /// node.
+    /// Emit a view as one frame, returning the id of the root node. The initial
+    /// frame is pushed to the sink; reactive fields are subscribed so a later
+    /// signal change pushes a `SET_TEXT` / `SET_PROPERTY` delta.
     pub fn emit<V: View>(&mut self, view: V, env: &Environment) -> Result<u32, RingError> {
         let mut reactive: Vec<Reactive> = Vec::new();
+        let mut actions: Vec<(u32, BoxedAction<()>)> = Vec::new();
 
         let (root, next_id) = {
             let transport = Rc::clone(&self.transport);
@@ -88,6 +106,7 @@ impl Emitter {
                     guest: &mut guest,
                     next_id: self.next_id,
                     reactive: &mut reactive,
+                    actions: &mut actions,
                 };
                 let root = walk.any(AnyView::new(view), env, ROOT_PARENT)?;
                 (root, walk.next_id)
@@ -98,44 +117,103 @@ impl Emitter {
         };
         self.next_id = next_id;
 
+        for (id, action) in actions {
+            self.actions.borrow_mut().insert(id, action);
+        }
+
+        self.subscribe(reactive);
+        drain_push(&self.transport, &self.encoder, &self.sink);
+
+        Ok(root)
+    }
+
+    /// Invoke the captured action for `node_id` (used to dispatch input events).
+    ///
+    /// Returns `true` if a handler was found and invoked.
+    pub fn invoke(&self, node_id: u32, env: &Environment) -> bool {
+        let mut actions = self.actions.borrow_mut();
+        match actions.get_mut(&node_id) {
+            Some(action) => {
+                action(env);
+                true
+            }
+            None => false,
+        }
+    }
+
+    fn subscribe(&mut self, reactive: Vec<Reactive>) {
         for binding in reactive {
             let transport = Rc::clone(&self.transport);
+            let encoder = Rc::clone(&self.encoder);
+            let sink = Rc::clone(&self.sink);
             match binding {
                 Reactive::Text { node, content } => {
                     let guard = content.watch(move |ctx| {
                         let text = ctx.into_value().to_plain().to_string();
-                        let mut borrow = transport.borrow_mut();
-                        let mut guest = borrow.producer();
-                        guest.begin_frame();
-                        let _ = guest.set_text(node, &text);
-                        guest.end_frame();
+                        {
+                            let mut borrow = transport.borrow_mut();
+                            let mut guest = borrow.producer();
+                            guest.begin_frame();
+                            let _ = guest.set_text(node, &text);
+                            guest.end_frame();
+                        }
+                        drain_push(&transport, &encoder, &sink);
                     });
                     self.guards.push(Box::new(guard));
                 }
                 Reactive::Property { node, property, value } => {
                     let guard = value.watch(move |ctx| {
                         let bits = ctx.into_value().to_bits();
-                        let mut borrow = transport.borrow_mut();
-                        let mut guest = borrow.producer();
-                        guest.begin_frame();
-                        let _ = guest.set_property(node, property, value_type::F32, bits);
-                        guest.end_frame();
+                        {
+                            let mut borrow = transport.borrow_mut();
+                            let mut guest = borrow.producer();
+                            guest.begin_frame();
+                            let _ = guest.set_property(node, property, value_type::F32, bits);
+                            guest.end_frame();
+                        }
+                        drain_push(&transport, &encoder, &sink);
                     });
                     self.guards.push(Box::new(guard));
                 }
             }
         }
-
-        Ok(root)
     }
 }
 
-/// The recursive walker: borrows the guest ring plus the reactive sink, and owns
-/// the node-id cursor for the duration of one emit pass.
+/// Drain any new frame from the ring and push it to the sink as a batch.
+fn drain_push(
+    transport: &Rc<RefCell<RingTransport>>,
+    encoder: &Rc<RefCell<BatchEncoder>>,
+    sink: &Rc<dyn Fn(Vec<u8>)>,
+) {
+    let opcodes: Vec<Opcode> = {
+        let mut borrow = transport.borrow_mut();
+        match borrow.next_frame() {
+            Ok(Some(batch)) => batch.frame().opcodes().collect(),
+            _ => return,
+        }
+    };
+
+    let (frame_count, arena_used): (u32, Vec<u8>) = {
+        let borrow = transport.borrow();
+        let buffer = borrow.buffer();
+        let header = SharedHeader::new(buffer);
+        let offset = header.arena_offset();
+        let cursor = header.arena_cursor() as usize;
+        (header.frame_count(), buffer[offset..offset + cursor].to_vec())
+    };
+
+    let bytes = encoder.borrow_mut().encode(frame_count, &opcodes, &arena_used);
+    sink(bytes);
+}
+
+/// The recursive walker: borrows the guest ring plus the reactive and action
+/// sinks, and owns the node-id cursor for the duration of one emit pass.
 struct Walk<'g, 'm> {
     guest: &'g mut Guest<'m>,
     next_id: u32,
     reactive: &'g mut Vec<Reactive>,
+    actions: &'g mut Vec<(u32, BoxedAction<()>)>,
 }
 
 impl<'g, 'm> Walk<'g, 'm> {
@@ -249,7 +327,10 @@ impl<'g, 'm> Walk<'g, 'm> {
         // `ButtonConfig` is produced by `Button::body(env)`, which resolves the
         // label and stores the resolved content as the accessibility label.
         let content = config.label.accessibility_label();
-        self.emit_leaf(component_type::BUTTON, content, parent)
+        let action = config.action;
+        let id = self.emit_leaf(component_type::BUTTON, content, parent)?;
+        self.actions.push((id, action));
+        Ok(id)
     }
 
     fn emit_leaf(

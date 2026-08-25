@@ -1,7 +1,7 @@
 //! Batch wire format: encode/decode opcodes + arena delta into network batches.
 
 use alloc::vec::Vec;
-use pathland_core::{Frame, Opcode};
+use pathland_core::{Event, Frame, Opcode};
 
 use crate::{BATCH_MAGIC, BATCH_VERSION};
 
@@ -259,6 +259,28 @@ impl BatchDecoder {
     }
 }
 
+/// Encode raw-input events as a host → guest batch.
+///
+/// Events are `EVENT`-category opcodes; the batch reuses the wire format with
+/// the `HOST_TO_GUEST` direction flag and an empty arena delta.
+pub fn encode_events(frame_count: u32, events: &[Event]) -> Vec<u8> {
+    let opcodes: Vec<Opcode> = events.iter().map(Event::encode).collect();
+    encode_batch(frame_count, crate::direction::HOST_TO_GUEST, &opcodes, &[])
+}
+
+/// Decode a host → guest event batch, returning `(frame_count, events)`.
+///
+/// Unknown or malformed event opcodes are skipped.
+pub fn decode_events(bytes: &[u8]) -> Result<(u32, Vec<Event>), BatchError> {
+    let mut decoder = BatchDecoder::new();
+    let batch = decoder.decode(bytes)?;
+    let events = batch
+        .opcodes()
+        .filter_map(|op| Event::try_from(op).ok())
+        .collect();
+    Ok((batch.frame_count(), events))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -409,5 +431,27 @@ mod tests {
         }
         // Mirror cleared on RESET, then appended the fresh 7-byte entry.
         assert_eq!(decoder.arena_len(), 7);
+    }
+
+    #[test]
+    fn events_round_trip_host_to_guest() {
+        let events = vec![
+            Event::PointerUp {
+                target: 4,
+                x: 10.0,
+                y: 20.0,
+                secondary: false,
+            },
+            Event::PointerDown {
+                target: 5,
+                x: 1.0,
+                y: 2.0,
+                secondary: true,
+            },
+        ];
+        let bytes = encode_events(7, &events);
+        let (frame_count, decoded) = decode_events(&bytes).unwrap();
+        assert_eq!(frame_count, 7);
+        assert_eq!(decoded, events);
     }
 }

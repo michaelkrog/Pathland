@@ -52,7 +52,7 @@ mod net;
 mod ring;
 mod traits;
 
-pub use batch::{encode_batch, Batch, BatchDecoder, BatchEncoder};
+pub use batch::{encode_batch, decode_events, encode_events, Batch, BatchDecoder, BatchEncoder};
 pub use batching::{Batcher, BatchPolicy};
 pub use net::NetBatchEncoder;
 pub use ring::RingTransport;

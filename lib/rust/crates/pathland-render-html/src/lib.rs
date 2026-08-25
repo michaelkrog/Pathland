@@ -151,30 +151,31 @@ impl HtmlRenderer {
             .iter()
             .map(|&child| self.render_node(child))
             .collect();
+        let data_id = format!(" data-pathland-id=\"{id}\"");
 
         match node.component {
-            component_type::VSTACK => self.wrap_stack("column", node, &children),
-            component_type::HSTACK => self.wrap_stack("row", node, &children),
+            component_type::VSTACK => self.wrap_stack(id, "column", node, &children),
+            component_type::HSTACK => self.wrap_stack(id, "row", node, &children),
             component_type::TEXT => {
                 let text = escape(node.text.as_deref().unwrap_or_default());
-                format!("<span>{text}</span>")
+                format!("<span{data_id}>{text}</span>")
             }
             component_type::BUTTON => {
                 let text = escape(node.text.as_deref().unwrap_or_default());
-                format!("<button>{text}</button>")
+                format!("<button{data_id}>{text}</button>")
             }
-            component_type::SPACER => "<div style=\"flex:1\"></div>".to_string(),
+            component_type::SPACER => format!("<div{data_id} style=\"flex:1\"></div>"),
             _ => children,
         }
     }
 
-    fn wrap_stack(&self, direction: &str, node: &Node, children: &str) -> String {
+    fn wrap_stack(&self, id: u32, direction: &str, node: &Node, children: &str) -> String {
         let gap = node
             .spacing()
             .map(|s| format!("gap:{s}px;"))
             .unwrap_or_default();
         format!(
-            "<div style=\"display:flex;flex-direction:{direction};{gap}align-items:center\">{children}</div>"
+            "<div data-pathland-id=\"{id}\" style=\"display:flex;flex-direction:{direction};{gap}align-items:center\">{children}</div>"
         )
     }
 }
@@ -221,7 +222,8 @@ mod tests {
         let html = renderer.render(root);
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("flex-direction:column"));
-        assert!(html.contains("<span>Hello</span>"));
+        assert!(html.contains("<span data-pathland-id=\"2\">Hello</span>"));
+        assert!(html.contains("data-pathland-id=\"1\""));
     }
 
     #[test]
