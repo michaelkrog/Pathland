@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 2.292702524000001,
+    "cost": 2.3030786800000014,
     "tokens": {
-      "input": 4649224,
-      "output": 233398,
+      "input": 4652910,
+      "output": 234239,
       "reasoning": 31935,
       "cache": {
-        "read": 100532352,
+        "read": 101819520,
         "write": 0
       }
     },
     "time": {
       "created": 1787770524122,
-      "updated": 1787775367779
+      "updated": 1787775380779
     }
   },
   "messages": [
@@ -43997,21 +43997,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.003535632,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 428814,
+          "input": 327,
+          "output": 711,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 427776
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787775367778
+          "created": 1787775367778,
+          "completed": 1787775378200
         },
+        "finish": "tool-calls",
         "id": "msg_03fb73a62002zGYolV8eqoSxqv",
         "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR"
       },
@@ -44050,20 +44053,222 @@
           "tool": "bash",
           "callID": "call_4d9bb5200a44434c956d3afa",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git commit -m \"feat(java): native view DSL, reusable libraries, per-session Quarkus demo\n\nReplace the Rust codegen crate (catalog YAML -> generated Java) with a\nhand-written, framework-agnostic Java library set (org.pathland, Java 22+):\n\n- pathland-view (com.pathland.view): SwiftUI-like view DSL (View/VStack/Text/\n  Button/ButtonStyle via ScopedValue), Angular-parity signals/computed/effects\n  (lazy+memoized, glitch-free synchronous flush, equality suppression, error\n  caching, write discipline, untracked), fine-grained emitter with node-level\n  binding effects, PLPL wire codec, lazy FFM ring interop, StateStore.\n- pathland-render-html (com.pathland.render.html): pure-function SSR HTML\n  renderer with data-pathland-id hydration.\n- pathland-state-redis (com.pathland.state.redis): Lettuce RedisStateStore.\n- pathland-quarkus-demo: SSR + live 16-byte opcode deltas over WebSocket with\n  strict 1:1 per-session state (session cookie + per-session SSR, Redis or\n  in-memory persistence).\n\nRust side: add pathland-core-capi (libpathland_core) exposing a minimal SPSC\nring C ABI (pathland_ring_buffer_push, arena alloc, frame boundaries, zero-copy\nread, event drain/send) plus raw opcode push/event methods on pathland-core.\n\nRemove the codegen crate, lib/ui/components.yaml, generate.sh, and the JNA GTK\ndemo. Docs (README, AGENTS.md, lib/rust/README.md) updated.\" && git log --oneline -1"
             },
+            "output": "[feature/java-dsl 204f4b7] feat(java): native view DSL, reusable libraries, per-session Quarkus demo\n 109 files changed, 5084 insertions(+), 2351 deletions(-)\n delete mode 100755 generate.sh\n delete mode 100644 lib/java/pathland-demo/pom.xml\n delete mode 100755 lib/java/pathland-demo/run.sh\n delete mode 100644 lib/java/pathland-demo/src/main/java/demo/DemoHeadless.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/demo/GtkDemo.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Align.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Bridge.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/ComponentNode.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Constants.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/DSL.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/EventReader.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/FontWeight.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Listeners.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Modified.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Node.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/PathlandGtk.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/PathlandNative.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/RingReader.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Signal.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/TapGesture.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/TapRecognizer.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/TextAlign.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Truncation.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/View.java\n create mode 100644 lib/java/pathland-quarkus-demo/pom.xml\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/java/com/pathland/demo/IndexResource.java\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/java/com/pathland/demo/PathlandApp.java\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/java/com/pathland/demo/PathlandSocket.java\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/java/com/pathland/demo/SessionApp.java\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/resources/META-INF/resources/app.js\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/resources/application.properties\n create mode 100644 lib/java/pathland-render-html/pom.xml\n create mode 100644 lib/java/pathland-render-html/src/main/java/com/pathland/render/html/HtmlRenderer.java\n create mode 100644 lib/java/pathland-render-html/src/test/java/com/pathland/render/html/HtmlRendererTest.java\n create mode 100644 lib/java/pathland-state-redis/pom.xml\n create mode 100644 lib/java/pathland-state-redis/src/main/java/com/pathland/state/redis/RedisStateStore.java\n create mode 100644 lib/java/pathland-view/pom.xml\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Alignment.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/BorderedButtonStyle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Button.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ButtonStyle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ButtonStyleView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Categories.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Color.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Commands.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Components.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Environment.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/FontWeight.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/HStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Image.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Modified.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/PlainButtonStyle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Properties.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Rectangle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Spacer.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/TapGestureView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Text.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/TextAlignment.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/TextField.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Truncation.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/VStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ValueTypes.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/View.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ViewModifier.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ZStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/Frame.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/FrameOpcodeSink.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/Opcode.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/OpcodeSink.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/ReactiveValues.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/RenderResult.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/ValueEncoder.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ffm/PathlandCore.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ffm/RingOpcodeSink.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/ComputedSignal.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/Effect.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/EffectException.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/EffectOptions.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/EffectRef.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/ReactiveContext.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/ReactiveNode.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/Scheduler.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/Signal.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/Signals.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/WritableSignal.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/WritableSignalImpl.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/state/InMemoryStateStore.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/state/StateStore.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/state/StateStoreProvider.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/transport/Event.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/transport/FrameCodec.java\n create mode 100644 lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java\n create mode 100644 lib/java/pathland-view/src/test/java/com/pathland/view/ffm/RingOpcodeSinkTest.java\n create mode 100644 lib/java/pathland-view/src/test/java/com/pathland/view/signal/SignalsTest.java\n create mode 100644 lib/java/pom.xml\n delete mode 100644 lib/rust/crates/pathland-codegen/Cargo.toml\n delete mode 100644 lib/rust/crates/pathland-codegen/src/main.rs\n create mode 100644 lib/rust/crates/pathland-core-capi/Cargo.toml\n create mode 100644 lib/rust/crates/pathland-core-capi/src/lib.rs\n delete mode 100644 lib/ui/components.yaml\n204f4b7 feat(java): native view DSL, reusable libraries, per-session Quarkus demo\n",
+            "metadata": {
+              "output": "[feature/java-dsl 204f4b7] feat(java): native view DSL, reusable libraries, per-session Quarkus demo\n 109 files changed, 5084 insertions(+), 2351 deletions(-)\n delete mode 100755 generate.sh\n delete mode 100644 lib/java/pathland-demo/pom.xml\n delete mode 100755 lib/java/pathland-demo/run.sh\n delete mode 100644 lib/java/pathland-demo/src/main/java/demo/DemoHeadless.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/demo/GtkDemo.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Align.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Bridge.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/ComponentNode.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Constants.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/DSL.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/EventReader.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/FontWeight.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Listeners.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Modified.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Node.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/PathlandGtk.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/PathlandNative.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/RingReader.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Signal.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/TapGesture.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/TapRecognizer.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/TextAlign.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/Truncation.java\n delete mode 100644 lib/java/pathland-demo/src/main/java/pathland/View.java\n create mode 100644 lib/java/pathland-quarkus-demo/pom.xml\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/java/com/pathland/demo/IndexResource.java\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/java/com/pathland/demo/PathlandApp.java\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/java/com/pathland/demo/PathlandSocket.java\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/java/com/pathland/demo/SessionApp.java\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/resources/META-INF/resources/app.js\n create mode 100644 lib/java/pathland-quarkus-demo/src/main/resources/application.properties\n create mode 100644 lib/java/pathland-render-html/pom.xml\n create mode 100644 lib/java/pathland-render-html/src/main/java/com/pathland/render/html/HtmlRenderer.java\n create mode 100644 lib/java/pathland-render-html/src/test/java/com/pathland/render/html/HtmlRendererTest.java\n create mode 100644 lib/java/pathland-state-redis/pom.xml\n create mode 100644 lib/java/pathland-state-redis/src/main/java/com/pathland/state/redis/RedisStateStore.java\n create mode 100644 lib/java/pathland-view/pom.xml\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Alignment.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/BorderedButtonStyle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Button.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ButtonStyle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ButtonStyleView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Categories.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Color.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Commands.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Components.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Environment.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/FontWeight.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/HStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Image.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Modified.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/PlainButtonStyle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Properties.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Rectangle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Spacer.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/TapGestureView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Text.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/TextAlignment.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/TextField.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Truncation.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/VStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ValueTypes.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/View.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ViewModifier.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ZStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/Frame.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/FrameOpcodeSink.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/Opcode.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/OpcodeSink.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/ReactiveValues.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/RenderResult.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/emit/ValueEncoder.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ffm/PathlandCore.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ffm/RingOpcodeSink.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/ComputedSignal.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/Effect.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/EffectException.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/EffectOptions.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/EffectRef.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/ReactiveContext.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/ReactiveNode.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/Scheduler.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/Signal.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/Signals.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/WritableSignal.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/signal/WritableSignalImpl.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/state/InMemoryStateStore.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/state/StateStore.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/state/StateStoreProvider.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/transport/Event.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/transport/FrameCodec.java\n create mode 100644 lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java\n create mode 100644 lib/java/pathland-view/src/test/java/com/pathland/view/ffm/RingOpcodeSinkTest.java\n create mode 100644 lib/java/pathland-view/src/test/java/com/pathland/view/signal/SignalsTest.java\n create mode 100644 lib/java/pom.xml\n delete mode 100644 lib/rust/crates/pathland-codegen/Cargo.toml\n delete mode 100644 lib/rust/crates/pathland-codegen/src/main.rs\n create mode 100644 lib/rust/crates/pathland-core-capi/Cargo.toml\n create mode 100644 lib/rust/crates/pathland-core-capi/src/lib.rs\n delete mode 100644 lib/ui/components.yaml\n204f4b7 feat(java): native view DSL, reusable libraries, per-session Quarkus demo\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git commit -m \"feat(java): native view DSL, reusable libraries, per-session Quarkus demo\n\nReplace the Rust codegen crate (catalog YAML -> generated Java) with a\nhand-written, framework-agnostic Java library set (org.pathland, Java 22+):\n\n- pathland-view (com.pathland.view): SwiftUI-like view DSL (View/VStack/Text/\n  Button/ButtonStyle via ScopedValue), Angular-parity signals/computed/effects\n  (lazy+memoized, glitch-free synchronous flush, equality suppression, error\n  caching, write discipline, untracked), fine-grained emitter with node-level\n  binding effects, PLPL wire codec, lazy FFM ring interop, StateStore.\n- pathland-render-html (com.pathland.render.html): pure-function SSR HTML\n  renderer with data-pathland-id hydration.\n- pathland-state-redis (com.pathland.state.redis): Lettuce RedisStateStore.\n- pathland-quarkus-demo: SSR + live 16-byte opcode deltas over WebSocket with\n  strict 1:1 per-session state (session cookie + per-session SSR, Redis or\n  in-memory persistence).\n\nRust side: add pathland-core-capi (libpathland_core) exposing a minimal SPSC\nring C ABI (pathland_ring_buffer_push, arena alloc, frame boundaries, zero-copy\nread, event drain/send) plus raw opcode push/event methods on pathland-core.\n\nRemove the codegen crate, lib/ui/components.yaml, generate.sh, and the JNA GTK\ndemo. Docs (README, AGENTS.md, lib/rust/README.md) updated.\" && git log --oneline -1",
             "time": {
-              "start": 1787775374827
+              "start": 1787775378098,
+              "end": 1787775378100
             }
           },
           "id": "prt_03fb746ee0017ZifDch0ho4zFO",
           "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
           "messageID": "msg_03fb73a62002zGYolV8eqoSxqv"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "11537133f3ceacea6fb271bfede44badd85e4981",
+          "type": "step-finish",
+          "tokens": {
+            "total": 428814,
+            "input": 327,
+            "output": 711,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 427776
+            }
+          },
+          "cost": 0.003535632,
+          "id": "prt_03fb762e6001dbKdVTfEf7bswJ",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb73a62002zGYolV8eqoSxqv"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_03fb630a3001krHq2XxkVH37x8",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.003717636,
+        "tokens": {
+          "total": 431407,
+          "input": 3043,
+          "output": 76,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 428288
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787775378217,
+          "completed": 1787775380764
+        },
+        "finish": "tool-calls",
+        "id": "msg_03fb763290022Xjxe5ngSh0BK5",
+        "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR"
+      },
+      "parts": [
+        {
+          "snapshot": "11537133f3ceacea6fb271bfede44badd85e4981",
+          "type": "step-start",
+          "id": "prt_03fb769ed0018POUqBsrHNnTdt",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb763290022Xjxe5ngSh0BK5"
+        },
+        {
+          "type": "reasoning",
+          "text": "The commit succeeded. Let me verify the working tree is clean now.",
+          "time": {
+            "start": 1787775379952,
+            "end": 1787775380042
+          },
+          "id": "prt_03fb769f00015MIoIKpIzuB3n3",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb763290022Xjxe5ngSh0BK5"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "time": {
+            "start": 1787775380043,
+            "end": 1787775380668
+          },
+          "id": "prt_03fb76a4b001s0kDZLKP4d40s4",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb763290022Xjxe5ngSh0BK5"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "call_4b827822b0ef4e50b0824f74",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "cd /Users/michael/Development/michaelkrog/Pathland && git status --short"
+            },
+            "output": "(no output)",
+            "metadata": {
+              "output": "(no output)",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git status --short",
+            "time": {
+              "start": 1787775380436,
+              "end": 1787775380466
+            }
+          },
+          "id": "prt_03fb76a4d001MOs8VsenzB2ZAV",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb763290022Xjxe5ngSh0BK5"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "11537133f3ceacea6fb271bfede44badd85e4981",
+          "type": "step-finish",
+          "tokens": {
+            "total": 431407,
+            "input": 3043,
+            "output": 76,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 428288
+            }
+          },
+          "cost": 0.003717636,
+          "id": "prt_03fb76cf3001na6mAcH3SdU2Nv",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb763290022Xjxe5ngSh0BK5"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_03fb630a3001krHq2XxkVH37x8",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.003122888,
+        "tokens": {
+          "total": 431474,
+          "input": 316,
+          "output": 54,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 431104
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787775380778,
+          "completed": 1787775383223
+        },
+        "finish": "stop",
+        "id": "msg_03fb76d2a002VOVeA1xxTPiEN3",
+        "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR"
+      },
+      "parts": [
+        {
+          "snapshot": "11537133f3ceacea6fb271bfede44badd85e4981",
+          "type": "step-start",
+          "id": "prt_03fb77571001G5GfMP2NXzlwOm",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb76d2a002VOVeA1xxTPiEN3"
+        },
+        {
+          "type": "text",
+          "text": "Committed as `204f4b7` — `feat(java): native view DSL, reusable libraries, per-session Quarkus demo`. Working tree clean (109 files: 5,084 insertions, 2,351 deletions).",
+          "time": {
+            "start": 1787775382901,
+            "end": 1787775383121
+          },
+          "id": "prt_03fb77575001RorYkt6xT2MtZr",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb76d2a002VOVeA1xxTPiEN3"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "11537133f3ceacea6fb271bfede44badd85e4981",
+          "type": "step-finish",
+          "tokens": {
+            "total": 431474,
+            "input": 316,
+            "output": 54,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 431104
+            }
+          },
+          "cost": 0.003122888,
+          "id": "prt_03fb77688001KEn6h3v9WXXjvx",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_03fb76d2a002VOVeA1xxTPiEN3"
         }
       ]
     }
