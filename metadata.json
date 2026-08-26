@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0YWXEEFVCG58P02A7MK8KS5",
+  "strategy": "manual-commit",
+  "branch": "feature/pathland-waterui-backend",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "examples/pathland-web/Cargo.lock",
+    "examples/pathland-web/Cargo.toml",
+    "examples/pathland-web/src/main.rs"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 669932,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3695616,
+    "output_tokens": 20856,
+    "api_call_count": 14
+  }
+}
