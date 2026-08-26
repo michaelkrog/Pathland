@@ -11,3 +11,7 @@ lib/java/**/target/
 
 # macOS
 .DS_Store
+
+# IDE
+.idea/
+*.iml

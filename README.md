@@ -102,7 +102,7 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 ## Java Libraries
 
 The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/java/)
-(Maven reactor, `org.pathland`, Java 22+):
+(Maven reactor, `org.pathland`, Java 25+):
 
 | Module | Package | Responsibility |
 |--------|---------|----------------|
@@ -121,14 +121,21 @@ or a desktop app; a desktop host pushes opcodes into the Rust ring via FFM
 # Rust ring C ABI (only needed for the desktop FFM path)
 cd lib/rust && cargo build -p pathland-core-capi
 
-# Build + test the whole Java reactor
+# Build + test the whole Java reactor (needs JDK 25: maven.compiler.release=25)
+export JAVA_HOME=<jdk-25-home>
 cd lib/java && mvn -q install
 
-# Run the Quarkus SSR + WebSocket demo (packaged runner)
+# Run the Quarkus SSR + WebSocket demo in dev mode (hot reload)
+cd lib/java/pathland-quarkus-demo && mvn quarkus:dev      # http://localhost:8080
+
+# ...or run the packaged runner
 cd lib/java/pathland-quarkus-demo
 mvn -q package
 java -jar target/quarkus-app/quarkus-run.jar   # http://localhost:8080
 ```
+
+The libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 506) and
+**Quarkus ≥ 3.18** (dev mode's class-file reader must understand Java 25).
 
 ### Run tests
 

@@ -26,9 +26,10 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- FFM (Arena/MemorySegment) final in 22, ScopedValue final in 23; 25 keeps both stable. -->
+        <!-- ScopedValue (JEP 506) is final only in Java 25; FFM (JEP 454) is final in 22.
+             Quarkus >= 3.18 bundles ASM that reads Java 25 class files, so dev mode works. -->
         <maven.compiler.release>25</maven.compiler.release>
-        <quarkus.version>3.17.6</quarkus.version>
+        <quarkus.version>3.39.1</quarkus.version>
         <junit.version>5.10.2</junit.version>
         <lettuce.version>6.4.1.RELEASE</lettuce.version>
     </properties>

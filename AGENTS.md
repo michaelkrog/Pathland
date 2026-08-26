@@ -13,7 +13,7 @@ This document provides essential context for AI agents (or human contributors) w
 > alignment — as a fixed **16-byte opcode ring buffer** into shared linear
 > memory, consumed by host renderers. View components and modifiers are written
 > in Rust with a SwiftUI-like API, and in Java with the hand-written
-> **`com.pathland.view` DSL** (reusable library, Java 22+); both drive the engine
+> **`com.pathland.view` DSL** (reusable library, Java 25+); both drive the engine
 > through the flat **native C ABI** (`pathland-view-native`) over a zero-copy shared
 > ring on desktop.
 
@@ -97,7 +97,7 @@ crates/pathland-render-gtk-demo/ # Rust GTK4 demo: authors the DSL, emits into t
 
 ### Java libraries (`lib/java/`, framework-agnostic)
 
-The reusable Java library set (`org.pathland`, Maven reactor, Java 22+) — the same
+The reusable Java library set (`org.pathland`, Maven reactor, Java 25+) — the same
 hand-written DSL serves Spring Boot, Quarkus, and desktop apps:
 
 ```
@@ -117,7 +117,9 @@ lib/java/
 - Test: `cd lib/rust && cargo test` (runs all crates).
 - Build/test the Java libraries: `cd lib/java && mvn install`.
 - Run the GTK demo (native, zero-copy shared ring): `cd lib/rust && cargo run -p pathland-render-gtk-demo`.
-- Run the Quarkus demo (SSR + WebSocket deltas): `cd lib/java/pathland-quarkus-demo && mvn package && java -jar target/quarkus-app/quarkus-run.jar`.
+- Run the Quarkus demo (SSR + WebSocket deltas, dev mode):
+  `cd lib/java/pathland-quarkus-demo && mvn quarkus:dev` (or `mvn package && java -jar target/quarkus-app/quarkus-run.jar`).
+  Needs JDK 25 (ScopedValue is final in 25, JEP 506) and Quarkus ≥ 3.18.
 
 ### WaterUI backend (`pathland-waterui/`, outside `lib/rust/`)
 
@@ -206,7 +208,7 @@ not be parsed as GTK options).
 
 ### Native Java DSL (`com.pathland.view`, in `lib/java/pathland-view`)
 
-The **hand-written, zero-dependency Java 22+ DSL** (no codegen). It is the
+The **hand-written, zero-dependency Java 25+ DSL** (no codegen). It is the
 SwiftUI-like authoring surface shared by desktop, Spring Boot, and Quarkus
 apps. Components and modifiers:
 
@@ -219,7 +221,7 @@ apps. Components and modifiers:
   `visible`, …) chain on any view. No standalone width/height — use the
   compound `frame(width, height, alignment)` modifier. Typed enums
   (`Alignment`/`TextAlignment`/`FontWeight`/`Truncation`), not raw ints.
-- **Environment scoping via `ScopedValue`** (Java 21+): `.buttonStyle(ButtonStyle)`
+- **Environment scoping via `ScopedValue`** (Java 25+): `.buttonStyle(ButtonStyle)`
   injects a style down the whole child tree; `ButtonStyle.makeBody(Configuration)`
   with built-in `PlainButtonStyle` / `BorderedButtonStyle`. Custom wrappers via
   `ViewModifier.body(View)`.
