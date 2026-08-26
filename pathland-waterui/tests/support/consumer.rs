@@ -1,14 +1,18 @@
-//! Consumer: decode Pathland opcode frames into a retained node description.
+//! Test-only decoder: apply Pathland opcode frames into a retained node
+//! description.
 //!
 //! This mirrors `pathland-render-gtk`'s `RenderTree`, but keeps no platform
 //! widget — it retains only the declarative structure (`id → component, text,
-//! properties, children`) so the frame can be inspected or rebuilt as WaterUI
+//! properties, children`) so a frame can be inspected or rebuilt as WaterUI
 //! views. Per Pathland's statelessness principle, this is a cache of the
 //! renderer's own output, never application state.
 //!
 //! Frames are **self-contained**: `apply(opcodes, strings)` resolves `SET_TEXT`
 //! by a *relative* offset into the frame's own string section, so no mirrored
 //! arena is needed.
+//!
+//! This is test support only: it is not exported by the library and is used
+//! exclusively by `tests/roundtrip.rs`.
 
 use std::collections::BTreeMap;
 
@@ -61,11 +65,11 @@ impl Node {
 
 /// Applies opcode frames incrementally into a retained node map.
 #[derive(Debug, Default, PartialEq)]
-pub struct Consumer {
+pub struct TestConsumer {
     nodes: BTreeMap<u32, Node>,
 }
 
-impl Consumer {
+impl TestConsumer {
     /// Create an empty consumer.
     #[must_use]
     pub fn new() -> Self {

@@ -11,16 +11,20 @@ application.
 
 ## What it does
 
-Two sides of the same protocol, in one crate:
+The crate's runtime surface is a single side of the protocol:
 
 | Module | Direction | Purpose |
 |--------|-----------|---------|
 | `producer` (`Emitter`) | WaterUI view → Pathland opcodes | Walk a view tree and emit the declarative structure as self-contained frames |
-| `consumer` (`Consumer`) | Pathland opcodes → retained description | Decode frames into a retained node map; `rebuild()` reconstructs WaterUI views (lossless round-trip checks) |
 
-Neither side knows the other's private machinery — WaterUI owns change
-detection and native rendering, Pathland owns the 16-byte opcode wire format
-(see `spec/OPCODE.md`).
+The reverse direction (opcodes → retained description → WaterUI views) exists
+**only for the round-trip tests**. It lives in `tests/support/` as
+`TestConsumer` and is **not** part of the crate's public API — see
+[Testing](#testing).
+
+WaterUI owns change detection and native rendering, Pathland owns the 16-byte
+opcode wire format (see `spec/OPCODE.md`). Neither side knows the other's
+private machinery.
 
 ## Mapped components
 
@@ -99,5 +103,20 @@ export PATH="/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.
 cd pathland-waterui && cargo test
 ```
 
-Runs the producer → consumer round-trips (structure, reactive deltas, action
-and value dispatch) in `tests/roundtrip.rs`.
+Runs the producer round-trips in `tests/roundtrip.rs`: structure, reactive
+deltas, action and value dispatch, and the lossless round trip (emit → decode →
+rebuild → re-emit).
+
+The round-trip tests need a decoder that applies frames to a retained tree and
+rebuilds WaterUI views from it — `tests/support/consumer.rs` (`TestConsumer`).
+It is **test support only**, not part of the runtime API. Unlike the demo,
+which uses the real `pathland-render-html` renderer's retained node tree, the
+test decoder keeps a declarative description (component, text, properties,
+children) with no native elements.
+
+**Why a retained decoder?** The protocol is delta-based: each delta frame
+references existing nodes by id and carries only the change, so a decoder must
+keep the tree it has built so far — exactly as a rendering backend keeps its
+output tree (e.g. the DOM). `TestConsumer` is that retained output tree in
+miniature, kept so the tests can assert on accumulated state and prove a full
+WaterUI round trip is lossless.

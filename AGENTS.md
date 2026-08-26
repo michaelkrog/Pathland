@@ -125,9 +125,12 @@ pathland-waterui/
                     #   Native<Spacer>, Metadata<Environment>/<Retain>; composites via body().
                     #   Emits self-contained frames: (opcodes, strings) where SET_TEXT
                     #   uses a *relative* offset into the frame's string section (no ring).
-  src/consumer.rs   # Consumer (test-only): apply opcodes → retained node description,
-                    #   rebuild() reconstructs WaterUI views (lossless round-trip check).
-  tests/roundtrip.rs # vstack/hstack/text/button round-trip, reactive delta, action invoke.
+                    #   Toggle→SWITCH/CHECKBOX, Slider→SLIDER, border → BORDER_*.
+  tests/support/    # Test-only decoder (TestConsumer): apply opcodes → retained node
+                    #   description, rebuild() reconstructs WaterUI views (lossless
+                    #   round-trip check). NOT part of the library's public API.
+  tests/roundtrip.rs # vstack/hstack/text/button/toggle/slider round-trip, reactive
+                    #   deltas, action/value invoke.
 ```
 
 - Test: `cd pathland-waterui && cargo test`.

@@ -1,10 +1,13 @@
 //! Round-trip: WaterUI view → opcodes → retained description.
 
+mod support;
+
 use std::cell::RefCell;
 use std::rc::Rc;
 
 use pathland_core::{Opcode, border_edges, component_type, property_id};
-use pathland_waterui::{Consumer, Emitter};
+use pathland_waterui::Emitter;
+use support::consumer::TestConsumer;
 use waterui::color::{Color, signal_color};
 use waterui::ViewExt;
 use waterui_controls::button::button;
@@ -37,7 +40,7 @@ impl Harness {
         )
     }
 
-    fn apply_pending(&mut self, consumer: &mut Consumer) {
+    fn apply_pending(&mut self, consumer: &mut TestConsumer) {
         let pending = std::mem::take(&mut *self.inbox.borrow_mut());
         for (opcodes, strings) in pending {
             consumer.apply(&opcodes, &strings);
@@ -45,9 +48,9 @@ impl Harness {
     }
 }
 
-fn emit_and_decode(view: impl View, env: &Environment) -> (u32, Consumer) {
+fn emit_and_decode(view: impl View, env: &Environment) -> (u32, TestConsumer) {
     let (mut harness, root) = Harness::new(view, env);
-    let mut consumer = Consumer::new();
+    let mut consumer = TestConsumer::new();
     harness.apply_pending(&mut consumer);
     (root, consumer)
 }
@@ -105,7 +108,7 @@ fn reactive_text_emits_delta() {
     let view = vstack((text(count.clone()), text("static")));
 
     let (mut harness, root) = Harness::new(view, &env);
-    let mut consumer = Consumer::new();
+    let mut consumer = TestConsumer::new();
     harness.apply_pending(&mut consumer);
 
     let first_id = consumer.node(root).expect("root").children[0];
@@ -160,7 +163,7 @@ fn reactive_spacing_emits_delta() {
     let view = vstack((text("a"), text("b"))).spacing(spacing.clone());
 
     let (mut harness, root) = Harness::new(view, &env);
-    let mut consumer = Consumer::new();
+    let mut consumer = TestConsumer::new();
     harness.apply_pending(&mut consumer);
 
     let bits = consumer
@@ -237,10 +240,10 @@ fn reactive_border_color_emits_delta() {
     let view = vstack((text("a"),)).border(color, 2.0);
 
     let (mut harness, root) = Harness::new(view, &env);
-    let mut consumer = Consumer::new();
+    let mut consumer = TestConsumer::new();
     harness.apply_pending(&mut consumer);
 
-    let border_color = |consumer: &Consumer| -> u32 {
+    let border_color = |consumer: &TestConsumer| -> u32 {
         consumer
             .node(root)
             .expect("root")
@@ -294,11 +297,11 @@ fn reactive_toggle_emits_delta() {
     let view = vstack((toggle("Switch", &enabled),));
 
     let (mut harness, root) = Harness::new(view, &env);
-    let mut consumer = Consumer::new();
+    let mut consumer = TestConsumer::new();
     harness.apply_pending(&mut consumer);
 
     let switch_id = consumer.node(root).expect("root").children[0];
-    let selected = |consumer: &Consumer| {
+    let selected = |consumer: &TestConsumer| {
         consumer
             .node(switch_id)
             .expect("switch")
@@ -357,11 +360,11 @@ fn reactive_slider_emits_delta() {
     let view = vstack((slider("Volume", &volume).range(0.0..=1.0),));
 
     let (mut harness, root) = Harness::new(view, &env);
-    let mut consumer = Consumer::new();
+    let mut consumer = TestConsumer::new();
     harness.apply_pending(&mut consumer);
 
     let slider_id = consumer.node(root).expect("root").children[0];
-    let value = |consumer: &Consumer| {
+    let value = |consumer: &TestConsumer| {
         consumer
             .node(slider_id)
             .expect("slider")

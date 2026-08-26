@@ -3,7 +3,7 @@ name = "pathland-waterui"
 version = "0.1.0"
 edition = "2021"
 publish = false
-description = "Pathland opcode backend for WaterUI: producer (view -> opcodes) and consumer (opcodes -> view)"
+description = "Pathland opcode backend for WaterUI: producer (view -> opcodes); test-only round-trip decoder lives in tests/support"
 license = "Apache-2.0"
 
 [dependencies]
