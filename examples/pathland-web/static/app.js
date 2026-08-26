@@ -11,6 +11,7 @@ const CMD_VALUE_CHANGED = 6;
 
 const PROP_SELECTED = 0x2004;
 const PROP_VALUE = 0x2006;
+const PROP_BORDER_COLOR = 0x1004;
 
 // Hydrate the server-rendered DOM: node id -> element.
 const byId = new Map();
@@ -62,6 +63,14 @@ function applyBatch(bytes) {
                 if (!el) continue;
                 const input = el.querySelector("input[type=range]");
                 if (input) input.value = String(f32FromBits(c));
+            } else if (propId === PROP_BORDER_COLOR) {
+                const el = byId.get(a);
+                if (!el) continue;
+                const color = argbToRgba(c);
+                el.style.borderTopColor = color;
+                el.style.borderRightColor = color;
+                el.style.borderBottomColor = color;
+                el.style.borderLeftColor = color;
             }
         }
     }
@@ -70,6 +79,15 @@ function applyBatch(bytes) {
 // Decode a u32 holding f32 bits back into a JS number.
 function f32FromBits(bits) {
     return new Float32Array(new Uint32Array([bits]).buffer)[0];
+}
+
+// Format a packed 0xAARRGGBB color as an `rgba(...)` string.
+function argbToRgba(bits) {
+    const a = (bits >>> 24) & 0xff;
+    const r = (bits >>> 16) & 0xff;
+    const g = (bits >>> 8) & 0xff;
+    const b = bits & 0xff;
+    return `rgba(${r},${g},${b},${(a / 255).toFixed(3)})`;
 }
 
 // Encode a VALUE_CHANGED EVENT opcode (A=target, B=value as f32 bits).
