@@ -238,6 +238,15 @@ impl<'a> Guest<'a> {
         ring_fn::push_move_child(self.slots, self.header, self.mask(), parent, child, new_index)
     }
 
+    // --- Raw opcode push (guest → host) ---
+
+    /// Push a caller-built raw opcode into the ring. This is the escape hatch
+    /// for foreign hosts (C ABI / FFM) that construct the 16-byte opcode
+    /// themselves and write it into the shared ring in place.
+    pub fn push_opcode(&mut self, op: Opcode) -> Result<(), RingError> {
+        ring_fn::push(self.slots, self.header, self.mask(), &op)
+    }
+
     // --- STYLE ---
 
     pub fn set_property(
@@ -293,6 +302,23 @@ impl<'a> Guest<'a> {
         ops.into_iter()
             .filter_map(|op| Event::try_from(op).ok())
             .collect()
+    }
+
+    /// Drain raw `EVENT`-category opcodes from the host → guest event ring as
+    /// their 16-byte wire form (no decoding). Used by foreign hosts that want
+    /// the raw bytes.
+    pub fn drain_event_opcodes(&mut self) -> Vec<Opcode> {
+        let mask = self.mask();
+        ring_fn::read_events(&self.event_slots, self.header, mask)
+    }
+
+    /// Push a raw `EVENT`-category opcode into the host → guest event ring.
+    ///
+    /// This is the host-side write (the renderer reporting an input). Exposed
+    /// here (guest can hold the ring too) so a C-ABI shim can inject raw event
+    /// opcodes without round-tripping through the typed [`Event`] enum.
+    pub fn push_event_opcode(&mut self, op: Opcode) -> Result<(), RingError> {
+        ring_fn::push_event(self.event_slots, self.header, self.mask(), &op)
     }
 }
 

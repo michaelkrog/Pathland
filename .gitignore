@@ -8,3 +8,6 @@
 # Java (Maven) build output
 lib/java/**/target/
 *.class
+
+# macOS
+.DS_Store
