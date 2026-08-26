@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0YBK3HMRPZXKY1XYYMMDDX0",
+  "strategy": "manual-commit",
+  "branch": "feature/pathland-waterui-backend",
+  "checkpoints_count": 17,
+  "files_touched": [
+    "examples/pathland-web/Cargo.lock",
+    "examples/pathland-web/Cargo.toml",
+    "examples/pathland-web/src/main.rs",
+    "examples/pathland-web/static/app.js",
+    "lib/rust/crates/pathland-core/src/constants.rs",
+    "lib/rust/crates/pathland-render-html/src/lib.rs",
+    "pathland-waterui/Cargo.lock",
+    "pathland-waterui/Cargo.toml",
+    "pathland-waterui/src/consumer.rs",
+    "pathland-waterui/src/producer.rs",
+    "pathland-waterui/tests/roundtrip.rs",
+    "spec/OPCODE.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1347554,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 59630976,
+    "output_tokens": 41897,
+    "api_call_count": 196
+  }
+}
