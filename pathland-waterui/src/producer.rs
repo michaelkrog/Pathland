@@ -29,10 +29,11 @@ use pathland_core::{
 use waterui::border::Border;
 use waterui::color::ResolvedColor;
 use waterui_controls::button::ButtonConfig;
+use waterui_controls::slider::SliderConfig;
 use waterui_controls::toggle::{ToggleConfig, ToggleStyle};
 use waterui_core::handler::BoxedAction;
 use waterui_core::reactive::watcher::BoxWatcherGuard;
-use waterui_core::{AnyView, Computed, Environment, Metadata, Native, Retain, Signal, SignalExt, View};
+use waterui_core::{AnyView, Binding, Computed, Environment, Metadata, Native, Retain, Signal, SignalExt, View};
 use waterui_layout::EdgeSet;
 use waterui_layout::container::FixedContainer;
 use waterui_layout::spacer::Spacer;
@@ -129,6 +130,7 @@ impl FrameBuilder {
 pub struct Emitter {
     sink: Rc<dyn Fn(Vec<Opcode>, Vec<u8>)>,
     actions: Rc<RefCell<BTreeMap<u32, BoxedAction<()>>>>,
+    values: Rc<RefCell<BTreeMap<u32, Binding<f64>>>>,
     next_id: u32,
     guards: Vec<BoxWatcherGuard>,
 }
@@ -153,6 +155,7 @@ impl Emitter {
         Self {
             sink: Rc::new(sink),
             actions: Rc::new(RefCell::new(BTreeMap::new())),
+            values: Rc::new(RefCell::new(BTreeMap::new())),
             next_id: 1,
             guards: Vec::new(),
         }
@@ -165,6 +168,7 @@ impl Emitter {
         let mut builder = FrameBuilder::default();
         let mut reactive: Vec<Reactive> = Vec::new();
         let mut actions: Vec<(u32, BoxedAction<()>)> = Vec::new();
+        let mut values: Vec<(u32, Binding<f64>)> = Vec::new();
 
         let (root, next_id) = {
             let mut walk = Walk {
@@ -172,6 +176,7 @@ impl Emitter {
                 next_id: self.next_id,
                 reactive: &mut reactive,
                 actions: &mut actions,
+                values: &mut values,
             };
             let root = walk.any(AnyView::new(view), env, ROOT_PARENT);
             (root, walk.next_id)
@@ -180,6 +185,9 @@ impl Emitter {
 
         for (id, action) in actions {
             self.actions.borrow_mut().insert(id, action);
+        }
+        for (id, value) in values {
+            self.values.borrow_mut().insert(id, value);
         }
 
         self.subscribe(reactive);
@@ -195,6 +203,21 @@ impl Emitter {
         match actions.get_mut(&node_id) {
             Some(action) => {
                 action(env);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Write a value from a `VALUE_CHANGED` event into the control's binding.
+    ///
+    /// Returns `true` if a binding was found and updated. The renderer resolves
+    /// the value from its own geometry (already clamped to the control range).
+    pub fn set_value(&self, node_id: u32, value: f32) -> bool {
+        let mut values = self.values.borrow_mut();
+        match values.get_mut(&node_id) {
+            Some(binding) => {
+                binding.set(f64::from(value));
                 true
             }
             None => false,
@@ -235,6 +258,7 @@ struct Walk<'g> {
     next_id: u32,
     reactive: &'g mut Vec<Reactive>,
     actions: &'g mut Vec<(u32, BoxedAction<()>)>,
+    values: &'g mut Vec<(u32, Binding<f64>)>,
 }
 
 impl<'g> Walk<'g> {
@@ -287,6 +311,10 @@ impl<'g> Walk<'g> {
         if view.is::<Native<ToggleConfig>>() {
             let c = *view.downcast::<Native<ToggleConfig>>().expect("downcast toggle");
             return self.toggle_node(c, parent);
+        }
+        if view.is::<Native<SliderConfig>>() {
+            let c = *view.downcast::<Native<SliderConfig>>().expect("downcast slider");
+            return self.slider_node(c, parent);
         }
         if view.is::<Native<Spacer>>() {
             let _s = *view.downcast::<Native<Spacer>>().expect("downcast spacer");
@@ -387,6 +415,32 @@ impl<'g> Walk<'g> {
             toggle.set(!toggle.get());
         });
         self.actions.push((id, action));
+        id
+    }
+
+    fn slider_node(&mut self, config: Native<SliderConfig>, parent: u32) -> u32 {
+        let config = config.into_inner();
+        let label = config.label.accessibility_label();
+        let id = self.emit_leaf(component_type::SLIDER, label, parent);
+
+        let min = *config.range.start();
+        let max = *config.range.end();
+        self.builder
+            .set_property(id, property_id::MIN_VALUE, value_type::F32, (min as f32).to_bits());
+        self.builder
+            .set_property(id, property_id::MAX_VALUE, value_type::F32, (max as f32).to_bits());
+
+        let value: Computed<u32> = config.value.map(|v| (v as f32).to_bits()).computed();
+        self.builder
+            .set_property(id, property_id::VALUE, value_type::F32, value.get());
+        self.reactive.push(Reactive::Property {
+            node: id,
+            property: property_id::VALUE,
+            value_type: value_type::F32,
+            value,
+        });
+
+        self.values.push((id, config.value));
         id
     }
 

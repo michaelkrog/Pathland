@@ -14,6 +14,7 @@ use std::collections::BTreeMap;
 
 use pathland_core::{Opcode, category, component_type, property_id, style, tree};
 use waterui_controls::button::button;
+use waterui_controls::slider::slider;
 use waterui_controls::toggle::Toggle;
 use waterui_core::{AnyView, binding};
 use waterui_layout::Spacer;
@@ -201,6 +202,31 @@ impl Consumer {
                 Some(AnyView::new(toggle))
             }
             component_type::SPACER => Some(AnyView::new(Spacer::flexible())),
+            component_type::SLIDER => {
+                let value = node
+                    .properties
+                    .get(&property_id::VALUE)
+                    .copied()
+                    .map(f32::from_bits)
+                    .unwrap_or(0.0);
+                let min = node
+                    .properties
+                    .get(&property_id::MIN_VALUE)
+                    .copied()
+                    .map(f32::from_bits)
+                    .unwrap_or(0.0);
+                let max = node
+                    .properties
+                    .get(&property_id::MAX_VALUE)
+                    .copied()
+                    .map(f32::from_bits)
+                    .unwrap_or(1.0);
+                let label = node.text.clone().unwrap_or_default();
+                let state = binding(f64::from(value));
+                Some(AnyView::new(
+                    slider(label, &state).range(f64::from(min)..=f64::from(max)),
+                ))
+            }
             _ => None,
         }
     }

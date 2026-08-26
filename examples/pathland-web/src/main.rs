@@ -24,6 +24,7 @@ use pathland_core_transport::{decode_events, encode_frame};
 use pathland_render_html::HtmlRenderer;
 use pathland_waterui::Emitter;
 use waterui_controls::button::button;
+use waterui_controls::slider::slider;
 use waterui_controls::toggle::toggle;
 use waterui_core::{Binding, Computed, Environment, SignalExt, View, binding};
 use waterui_layout::stack::{hstack, vstack};
@@ -33,8 +34,9 @@ use waterui::color::*;
 use waterui::ViewExt;
 
 /// The application view (shared by the native and web demos).
-fn counter_view(count: Binding<i32>, notifications: Binding<bool>) -> impl View {
+fn counter_view(count: Binding<i32>, notifications: Binding<bool>, volume: Binding<f64>) -> impl View {
     let label: Computed<String> = count.map(|c| format!("Count: {c}")).computed();
+    let volume_label: Computed<String> = volume.map(|v| format!("Volume: {v:.2}")).computed();
     let border = signal_color(
         count
             .map(|c| if c % 2 == 0 { Color::red() } else { Color::blue() })
@@ -53,6 +55,8 @@ fn counter_view(count: Binding<i32>, notifications: Binding<bool>) -> impl View 
                 }),
                 toggle("Notifications", &notifications),
                 toggle("Checkbox", &notifications).checkbox(),
+                slider("Volume", &volume).range(0.0..=1.0),
+                text(volume_label),
             )),
         ))
         .padding()
@@ -81,7 +85,8 @@ async fn run() {
     let env = Environment::new();
     let count: Binding<i32> = binding(0);
     let notifications: Binding<bool> = binding(false);
-    let view = counter_view(count.clone(), notifications);
+    let volume: Binding<f64> = binding(0.5);
+    let view = counter_view(count.clone(), notifications, volume);
 
     let (batch_tx, _) = tokio::sync::broadcast::channel::<Bytes>(64);
     let (html_tx, html_rx) = tokio::sync::watch::channel::<String>(String::new());
@@ -127,8 +132,14 @@ async fn run() {
                     count.set(count.get() + 1);
                 }
                 Some(event) = event_rx.recv() => {
-                    if let Event::PointerUp { target, .. } = event {
-                        emitter.invoke(target, &env);
+                    match event {
+                        Event::PointerUp { target, .. } => {
+                            emitter.invoke(target, &env);
+                        }
+                        Event::ValueChanged { target, value } => {
+                            emitter.set_value(target, value);
+                        }
+                        _ => {}
                     }
                 }
             }

@@ -8,6 +8,7 @@ use pathland_waterui::{Consumer, Emitter};
 use waterui::color::{Color, signal_color};
 use waterui::ViewExt;
 use waterui_controls::button::button;
+use waterui_controls::slider::slider;
 use waterui_controls::toggle::toggle;
 use waterui_core::{Environment, SignalExt, View, binding};
 use waterui_layout::stack::vstack;
@@ -322,4 +323,67 @@ fn toggle_action_flips_binding() {
 
     assert!(harness._emitter.invoke(root, &env));
     assert_eq!(enabled.get(), true);
+}
+
+#[test]
+fn slider_round_trips() {
+    let env = Environment::new();
+    let volume: waterui_core::Binding<f64> = binding(0.5);
+    let view = vstack((slider("Volume", &volume).range(0.0..=1.0),));
+    let (root, consumer) = emit_and_decode(view, &env);
+
+    let root_node = consumer.node(root).expect("root");
+    let slider = consumer.node(root_node.children[0]).expect("slider");
+    assert_eq!(slider.component, component_type::SLIDER);
+    assert_eq!(slider.text.as_deref(), Some("Volume"));
+    assert_eq!(
+        slider.properties.get(&property_id::VALUE).copied(),
+        Some(0.5f32.to_bits())
+    );
+    assert_eq!(
+        slider.properties.get(&property_id::MIN_VALUE).copied(),
+        Some(0.0f32.to_bits())
+    );
+    assert_eq!(
+        slider.properties.get(&property_id::MAX_VALUE).copied(),
+        Some(1.0f32.to_bits())
+    );
+}
+
+#[test]
+fn reactive_slider_emits_delta() {
+    let env = Environment::new();
+    let volume: waterui_core::Binding<f64> = binding(0.25);
+    let view = vstack((slider("Volume", &volume).range(0.0..=1.0),));
+
+    let (mut harness, root) = Harness::new(view, &env);
+    let mut consumer = Consumer::new();
+    harness.apply_pending(&mut consumer);
+
+    let slider_id = consumer.node(root).expect("root").children[0];
+    let value = |consumer: &Consumer| {
+        consumer
+            .node(slider_id)
+            .expect("slider")
+            .properties
+            .get(&property_id::VALUE)
+            .copied()
+    };
+    assert_eq!(value(&consumer), Some(0.25f32.to_bits()));
+
+    volume.set(0.75);
+    harness.apply_pending(&mut consumer);
+    assert_eq!(value(&consumer), Some(0.75f32.to_bits()));
+}
+
+#[test]
+fn slider_set_value_writes_binding() {
+    let env = Environment::new();
+    let volume: waterui_core::Binding<f64> = binding(0.5);
+    let view = slider("Volume", &volume).range(0.0..=1.0);
+
+    let (harness, root) = Harness::new(view, &env);
+
+    assert!(harness._emitter.set_value(root, 0.75));
+    assert_eq!(volume.get(), 0.75);
 }

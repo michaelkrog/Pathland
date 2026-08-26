@@ -57,6 +57,10 @@ pub mod event {
     pub const KEY_DOWN: u8 = 0x04;
     /// `A=targetId, B=keyCode (u16, low), C=modifiers (u8, low)`
     pub const KEY_UP: u8 = 0x05;
+    /// `A=targetId, B=value (f32)` — a control's value changed (host → guest).
+    /// The renderer resolves the control's semantic value (e.g. a slider thumb
+    /// dragged to a point on its track); the guest/app writes it into its state.
+    pub const VALUE_CHANGED: u8 = 0x06;
 }
 
 /// Commands within the `META` category.
@@ -153,6 +157,10 @@ pub mod component_type {
     /// A checkbox-style boolean control (a toggle drawn as a square with a
     /// checkmark). Checked state is carried by [`property_id::SELECTED`].
     pub const CHECKBOX: u16 = 0x000D;
+    /// A slider: a continuous numeric value within a range, driven by a bound
+    /// value (`VALUE`) and a `MIN_VALUE`/`MAX_VALUE` range. Value changes flow
+    /// host → guest as `event::VALUE_CHANGED`.
+    pub const SLIDER: u16 = 0x000E;
 }
 
 /// Property IDs (u16, encoded in the low half of `B` of `STYLE::SET_PROPERTY`).
@@ -205,6 +213,12 @@ pub mod property_id {
     /// declarative signal the application sets so a renderer attaches native
     /// input recognition to any element — not just buttons.
     pub const EVENT_LISTENERS: u16 = 0x2005;
+    /// The current value of a value-bearing control (e.g. a `SLIDER`).
+    pub const VALUE: u16 = 0x2006;
+    /// The inclusive minimum of a value-bearing control's range (e.g. a `SLIDER`).
+    pub const MIN_VALUE: u16 = 0x2007;
+    /// The inclusive maximum of a value-bearing control's range (e.g. a `SLIDER`).
+    pub const MAX_VALUE: u16 = 0x2008;
 }
 
 /// The protocol value type for a property id.

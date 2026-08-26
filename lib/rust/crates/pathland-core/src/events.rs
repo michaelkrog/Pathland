@@ -50,6 +50,13 @@ pub enum Event {
         key_code: u16,
         modifiers: u8,
     },
+    /// A control's value changed (host → guest). The renderer resolves the
+    /// semantic value (e.g. a slider thumb dragged along its track) and reports
+    /// it here; the guest/app writes it into its bound state.
+    ValueChanged {
+        target: u32,
+        value: f32,
+    },
 }
 
 impl Event {
@@ -121,6 +128,14 @@ impl Event {
                 key_code as u32,
                 modifiers as u32,
             ),
+            Event::ValueChanged { target, value } => Opcode::new(
+                category::EVENT,
+                crate::event::VALUE_CHANGED,
+                0,
+                target,
+                value.to_bits(),
+                0,
+            ),
         }
     }
 }
@@ -188,6 +203,10 @@ impl TryFrom<Opcode> for Event {
                 target: op.a(),
                 key_code: op.b() as u16,
                 modifiers: op.c() as u8,
+            }),
+            crate::event::VALUE_CHANGED => Ok(Event::ValueChanged {
+                target: op.a(),
+                value: op.b_f32(),
             }),
             _ => Err(EventError::UnknownCommand),
         }
@@ -262,6 +281,15 @@ mod tests {
             target: 5,
             key_code: 0x41,
             modifiers: 0x01,
+        };
+        assert_eq!(round_trip(e), e);
+    }
+
+    #[test]
+    fn value_changed_round_trips() {
+        let e = Event::ValueChanged {
+            target: 7,
+            value: 0.625,
         };
         assert_eq!(round_trip(e), e);
     }

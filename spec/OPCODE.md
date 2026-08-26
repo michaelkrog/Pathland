@@ -194,11 +194,19 @@ wants reported.
 | `ENABLED` | `0x2003` | U8 | Whether the control is enabled |
 | `SELECTED` | `0x2004` | U8 | Checked/selected state of a `SWITCH`/`CHECKBOX` |
 | `EVENT_LISTENERS` | `0x2005` | U32 | Bitmask of raw-input events to report |
+| `VALUE` | `0x2006` | F32 | Current value of a value-bearing control (e.g. `SLIDER`) |
+| `MIN_VALUE` | `0x2007` | F32 | Inclusive minimum of a `SLIDER`'s range |
+| `MAX_VALUE` | `0x2008` | F32 | Inclusive maximum of a `SLIDER`'s range |
 
 `CHECKBOX` (`0x000D`) is a component type alongside `SWITCH` (`0x0006`): both
 render natively as a boolean control; `SWITCH` is the sliding-pill form and
 `CHECKBOX` the square-with-checkmark form. The renderer owns their visual
 presentation (see [Design Token System](#design-token-system)).
+
+`SLIDER` (`0x000E`) is a continuous numeric control: the guest emits its
+`VALUE` plus the `MIN_VALUE`/`MAX_VALUE` range, and the renderer reports value
+changes back as `VALUE_CHANGED` events (host → guest), resolving the semantic
+value from its own track geometry (see [EVENT](#event-0x03--host--guest)).
 
 ### EVENT (0x03) — host → guest
 
@@ -237,6 +245,7 @@ element.
 | `POINTER_UP` | `0x03` | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` | Pointer button released at viewport-relative point |
 | `KEY_DOWN` | `0x04` | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` | Key pressed (bit 1 = auto-repeat) |
 | `KEY_UP` | `0x05` | targetId | keyCode (u16, low) | modifiers (u8, low) | — | Key released |
+| `VALUE_CHANGED` | `0x06` | targetId | value (f32) | 0 | — | A value-bearing control changed (e.g. slider); the renderer resolves the semantic value from its track geometry |
 
 ### META (0x04)
 

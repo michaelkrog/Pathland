@@ -64,6 +64,15 @@ impl Node {
             != 0
     }
 
+    /// An `F32` property value, or a default when absent.
+    fn f32_property(&self, prop: u16, default: f32) -> f32 {
+        self.properties
+            .get(&prop)
+            .copied()
+            .map(f32::from_bits)
+            .unwrap_or(default)
+    }
+
     /// Border CSS, decoded from `BORDER_WIDTH`/`BORDER_COLOR`/`BORDER_RADIUS`/
     /// `BORDER_EDGES` (empty when the node has no border).
     fn border_style(&self) -> String {
@@ -208,6 +217,8 @@ impl HtmlRenderer {
              .pathland-toggle input[role=\"switch\"]:checked {{ background: #2196F3; }}\n\
              .pathland-toggle input[role=\"switch\"]::after {{ content: \"\"; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: white; transition: left 0.15s; }}\n\
              .pathland-toggle input[role=\"switch\"]:checked::after {{ left: 22px; }}\n\
+             .pathland-slider {{ display: inline-flex; align-items: center; gap: 10px; }}\n\
+             .pathland-slider input[type=\"range\"] {{ flex: 1; accent-color: #2196F3; }}\n\
              </style>\n</head>\n<body>{body}</body>\n</html>\n"
         )
     }
@@ -263,6 +274,16 @@ impl HtmlRenderer {
                     format!("flex:1;{border}")
                 };
                 format!("<div{data_id} style=\"{style}\"></div>")
+            }
+            component_type::SLIDER => {
+                let min = node.f32_property(property_id::MIN_VALUE, 0.0);
+                let max = node.f32_property(property_id::MAX_VALUE, 1.0);
+                let value = node.f32_property(property_id::VALUE, min);
+                let text = escape(node.text.as_deref().unwrap_or_default());
+                let style = style_attr(&border);
+                format!(
+                    "<label{data_id} class=\"pathland-slider\"{style}><input type=\"range\" min=\"{min}\" max=\"{max}\" step=\"any\" value=\"{value}\"><span class=\"pathland-text\">{text}</span></label>"
+                )
             }
             _ => children,
         }
@@ -451,5 +472,57 @@ mod tests {
         assert!(html.contains("<input type=\"checkbox\">"));
         assert!(!html.contains("<input type=\"checkbox\" role=\"switch\""));
         assert!(html.contains("<span class=\"pathland-text\">Email</span>"));
+    }
+
+    #[test]
+    fn renders_slider() {
+        use pathland_core::value_type;
+
+        let mut opcodes = Vec::new();
+        let mut strings = Vec::new();
+        opcodes.push(Opcode::new(
+            category::TREE,
+            tree::CREATE_NODE,
+            0,
+            1,
+            component_type::SLIDER as u32,
+            0,
+        ));
+        strings.extend_from_slice(&(6u32).to_le_bytes());
+        strings.extend_from_slice(b"Volume");
+        opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 1, 0, 0));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::F32 as u32) << 16) | property_id::MIN_VALUE as u32,
+            0.0f32.to_bits(),
+        ));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::F32 as u32) << 16) | property_id::MAX_VALUE as u32,
+            1.0f32.to_bits(),
+        ));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::F32 as u32) << 16) | property_id::VALUE as u32,
+            0.5f32.to_bits(),
+        ));
+
+        let mut renderer = HtmlRenderer::new();
+        renderer.apply(&opcodes, &strings);
+        let html = renderer.render(1);
+
+        assert!(html.contains(
+            "<input type=\"range\" min=\"0\" max=\"1\" step=\"any\" value=\"0.5\">"
+        ));
+        assert!(html.contains("<span class=\"pathland-text\">Volume</span>"));
     }
 }

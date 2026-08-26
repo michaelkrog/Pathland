@@ -7,8 +7,10 @@ const CMD_SET_PROPERTY = 1;
 const CMD_SET_TEXT = 3;
 const CAT_EVENT = 3;
 const CMD_POINTER_UP = 3;
+const CMD_VALUE_CHANGED = 6;
 
 const PROP_SELECTED = 0x2004;
+const PROP_VALUE = 0x2006;
 
 // Hydrate the server-rendered DOM: node id -> element.
 const byId = new Map();
@@ -55,9 +57,37 @@ function applyBatch(bytes) {
                 if (!el) continue;
                 const input = el.querySelector("input[type=checkbox]");
                 if (input) input.checked = (c & 0xff) !== 0;
+            } else if (propId === PROP_VALUE) {
+                const el = byId.get(a);
+                if (!el) continue;
+                const input = el.querySelector("input[type=range]");
+                if (input) input.value = String(f32FromBits(c));
             }
         }
     }
+}
+
+// Decode a u32 holding f32 bits back into a JS number.
+function f32FromBits(bits) {
+    return new Float32Array(new Uint32Array([bits]).buffer)[0];
+}
+
+// Encode a VALUE_CHANGED EVENT opcode (A=target, B=value as f32 bits).
+function encodeValueChanged(target, value) {
+    const out = new Uint8Array(16 + 16 + 4);
+    const header = new DataView(out.buffer);
+    header.setUint32(0, 0x504c504c, true); // magic "PLPL"
+    header.setUint16(4, 1, true); // version
+    header.setUint16(6, 1, true); // flags = HOST_TO_GUEST
+    header.setUint32(8, 0, true); // frameCount
+    header.setUint32(12, 1, true); // opcodeCount
+    const op = new DataView(out.buffer, 16);
+    op.setUint8(0, CAT_EVENT);
+    op.setUint8(1, CMD_VALUE_CHANGED);
+    op.setUint32(4, target, true); // a = target node id
+    const bits = new Uint32Array(new Float32Array([value]).buffer)[0];
+    op.setUint32(8, bits, true); // b = value (f32 bits)
+    return out;
 }
 
 // Encode a single PointerUp EVENT opcode as a host -> guest batch.
@@ -92,4 +122,14 @@ document.addEventListener("change", (event) => {
     if (!toggle || ws.readyState !== WebSocket.OPEN) return;
     const target = Number(toggle.getAttribute("data-pathland-id"));
     ws.send(encodePointerUp(target));
+});
+
+// Sliders report their value live while dragging (real-time).
+document.addEventListener("input", (event) => {
+    const slider = event.target.closest("input[type=range]");
+    if (!slider || ws.readyState !== WebSocket.OPEN) return;
+    const label = slider.closest("label.pathland-slider[data-pathland-id]");
+    if (!label) return;
+    const target = Number(label.getAttribute("data-pathland-id"));
+    ws.send(encodeValueChanged(target, Number(slider.value)));
 });
