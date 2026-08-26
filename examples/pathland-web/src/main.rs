@@ -20,7 +20,7 @@ use axum::response::{Html, Response};
 use axum::routing::get;
 use bytes::Bytes;
 use pathland_core::{Event, Opcode};
-use pathland_core_transport::{decode_events, encode_frame};
+use pathland_core_transport::{decode_events, encode_frame, frame_from_slices};
 use pathland_render_html::HtmlRenderer;
 use pathland_waterui::Emitter;
 use waterui::color::{Color, signal_color};
@@ -108,8 +108,11 @@ async fn run() {
         let batch_tx = batch_tx.clone();
         let html_tx = html_tx.clone();
         move |opcodes: Vec<Opcode>, strings: Vec<u8>| {
-            // 1. apply the frame to the retained HTML tree (SSR state)
-            html.borrow_mut().apply(&opcodes, &strings);
+            // 1. apply the frame to the retained HTML tree (SSR state) — through
+            //    the in-process transport seam (Frame)
+            let mut slots = Vec::new();
+            let frame = frame_from_slices(&mut slots, &strings, &opcodes);
+            html.borrow_mut().apply_frame(&frame);
             // 2. encode the self-contained frame and broadcast to WS clients
             let batch = encode_frame(&opcodes, &strings);
             let _ = batch_tx.send(Bytes::from(batch));

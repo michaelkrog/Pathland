@@ -62,8 +62,8 @@ mod ring;
 mod traits;
 
 pub use batch::{
-    decode_events, decode_frame, encode_batch, encode_events, encode_frame, Batch, BatchDecoder,
-    BatchEncoder,
+    decode_events, decode_frame, encode_batch, encode_events, encode_frame, frame_from_slices,
+    Batch, BatchDecoder, BatchEncoder,
 };
 pub use batching::{Batcher, BatchPolicy};
 pub use net::NetBatchEncoder;

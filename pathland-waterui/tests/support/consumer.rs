@@ -16,7 +16,10 @@
 
 use std::collections::BTreeMap;
 
-use pathland_core::{Opcode, category, component_type, property_id, style, tree, value_type};
+use pathland_core::{
+    Frame, Opcode, category, component_type, property_id, style, tree, value_type,
+};
+use pathland_core_transport::frame_from_slices;
 use waterui_controls::button::button;
 use waterui_controls::slider::slider;
 use waterui_controls::text_field::TextField;
@@ -26,13 +29,6 @@ use waterui_layout::Spacer;
 use waterui_layout::stack::{HStack, HorizontalAlignment, VStack, VerticalAlignment};
 use waterui_text::Text;
 use waterui_text::styled::StyledStr;
-
-/// Read a length-prefixed string (`[u32 len][bytes]`) at `offset`.
-fn read_str(strings: &[u8], offset: u32) -> Option<&str> {
-    let off = offset as usize;
-    let len = u32::from_le_bytes(strings.get(off..off + 4)?.try_into().ok()?) as usize;
-    std::str::from_utf8(strings.get(off + 4..off + 4 + len)?).ok()
-}
 
 /// A decoded node in the retained description.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -81,16 +77,24 @@ impl TestConsumer {
         Self::default()
     }
 
-    /// Apply a self-contained frame's opcodes + string section, mutating the
-    /// retained description.
-    pub fn apply(&mut self, opcodes: &[Opcode], strings: &[u8]) {
-        for op in opcodes {
+    /// Apply a transport `Frame` (a self-contained opcode frame + string
+    /// section), mutating the retained description.
+    pub fn apply_frame(&mut self, frame: &Frame) {
+        for op in frame.opcodes() {
             match op.category() {
-                category::TREE => self.apply_tree(op.command(), *op),
-                category::STYLE => self.apply_style(op.command(), *op, strings),
+                category::TREE => self.apply_tree(op.command(), op),
+                category::STYLE => self.apply_style(op.command(), op, frame),
                 _ => {}
             }
         }
+    }
+
+    /// Apply a frame from raw opcodes + a string section via the in-process
+    /// transport seam ([`frame_from_slices`] → [`Self::apply_frame`]).
+    pub fn apply(&mut self, opcodes: &[Opcode], strings: &[u8]) {
+        let mut slots = Vec::with_capacity(opcodes.len() * Opcode::SIZE);
+        let frame = frame_from_slices(&mut slots, strings, opcodes);
+        self.apply_frame(&frame);
     }
 
     fn apply_tree(&mut self, command: u8, op: Opcode) {
@@ -127,10 +131,10 @@ impl TestConsumer {
         }
     }
 
-    fn apply_style(&mut self, command: u8, op: Opcode, strings: &[u8]) {
+    fn apply_style(&mut self, command: u8, op: Opcode, frame: &Frame) {
         match command {
             style::SET_TEXT => {
-                if let Some(text) = read_str(strings, op.b()) {
+                if let Some(text) = frame.arena_str(op.b()).ok() {
                     if let Some(node) = self.nodes.get_mut(&op.a()) {
                         node.text = Some(text.to_string());
                     }
@@ -141,7 +145,7 @@ impl TestConsumer {
                 if let Some(node) = self.nodes.get_mut(&op.a()) {
                     let vt = (op.b() >> 16) as u8;
                     if vt == value_type::STRING {
-                        if let Some(text) = read_str(strings, op.c()) {
+                        if let Some(text) = frame.arena_str(op.c()).ok() {
                             node.strings.insert(property, text.to_string());
                         }
                     } else {

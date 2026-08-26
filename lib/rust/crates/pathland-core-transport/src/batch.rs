@@ -316,6 +316,24 @@ pub fn decode_events(bytes: &[u8]) -> Result<(u32, Vec<Event>), BatchError> {
     Ok((batch.frame_count(), events))
 }
 
+/// Build a self-contained `Frame` view over in-memory opcodes + a string
+/// section — the **in-process transport seam**.
+///
+/// `slots` is reused as the opcode byte buffer (cleared, then the 16-byte
+/// opcodes written in), so the returned `Frame` borrows both `slots` and
+/// `strings` with no serialization. This is how an in-process consumer receives
+/// the same `Frame` view a ring or network decoder would produce.
+pub fn frame_from_slices<'a>(
+    slots: &'a mut Vec<u8>,
+    strings: &'a [u8],
+    opcodes: &[Opcode],
+) -> Frame<'a> {
+    slots.clear();
+    slots.extend(opcodes.iter().flat_map(Opcode::to_bytes));
+    let bytes: &'a [u8] = slots;
+    Frame::from_parts(bytes, strings, 0, bytes.len())
+}
+
 /// Encode a **self-contained** frame as a network batch.
 ///
 /// `opcodes` is the frame's commands and `strings` its per-frame string
