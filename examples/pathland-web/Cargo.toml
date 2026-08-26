@@ -14,6 +14,7 @@ waterui-core = { path = "../../../waterui/core" }
 waterui-layout = { path = "../../../waterui/components/foundation/layout" }
 waterui-text = { path = "../../../waterui/components/foundation/text" }
 waterui-controls = { path = "../../../waterui/components/foundation/controls" }
+waterui = { path = "../../../waterui", default-features = false }
 axum = { version = "0.8", features = ["ws"] }
 tokio = { version = "1", features = ["full"] }
 bytes = "1"

@@ -14,7 +14,8 @@ use std::collections::BTreeMap;
 
 use pathland_core::{Opcode, category, component_type, property_id, style, tree};
 use waterui_controls::button::button;
-use waterui_core::AnyView;
+use waterui_controls::toggle::Toggle;
+use waterui_core::{AnyView, binding};
 use waterui_layout::Spacer;
 use waterui_layout::stack::{HStack, HorizontalAlignment, VStack, VerticalAlignment};
 use waterui_text::Text;
@@ -181,6 +182,23 @@ impl Consumer {
             component_type::BUTTON => {
                 let content = node.text.clone().unwrap_or_default();
                 Some(AnyView::new(button(content)))
+            }
+            component_type::SWITCH | component_type::CHECKBOX => {
+                let checked = node
+                    .properties
+                    .get(&property_id::SELECTED)
+                    .copied()
+                    .unwrap_or(0)
+                    != 0;
+                let label = node.text.clone().unwrap_or_default();
+                let state = binding(checked);
+                let toggle = Toggle::new(&state).label(label);
+                let toggle = if node.component == component_type::CHECKBOX {
+                    toggle.checkbox()
+                } else {
+                    toggle.switch()
+                };
+                Some(AnyView::new(toggle))
             }
             component_type::SPACER => Some(AnyView::new(Spacer::flexible())),
             _ => None,

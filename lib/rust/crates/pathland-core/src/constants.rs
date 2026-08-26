@@ -103,6 +103,25 @@ pub mod listener {
     pub const POINTER: u32 = POINTER_DOWN | POINTER_MOVE | POINTER_UP;
 }
 
+/// Bits for the `BORDER_EDGES` style property (a u32 bitmask).
+///
+/// Each bit selects one edge of a node's border. `LEADING`/`TRAILING` are
+/// direction-aware; a renderer resolves them to physical `left`/`right`
+/// according to its layout direction (LTR by default).
+pub mod border_edges {
+    /// Top edge (bit 0).
+    pub const TOP: u32 = 1 << 0;
+    /// Leading edge (bit 1) — physical left in LTR.
+    pub const LEADING: u32 = 1 << 1;
+    /// Bottom edge (bit 2).
+    pub const BOTTOM: u32 = 1 << 2;
+    /// Trailing edge (bit 3) — physical right in LTR.
+    pub const TRAILING: u32 = 1 << 3;
+
+    /// All four edges.
+    pub const ALL: u32 = TOP | LEADING | BOTTOM | TRAILING;
+}
+
 /// Value types for `STYLE` properties (u8, encoded in the high byte of `B`).
 pub mod value_type {
     pub const U8: u8 = 0x01;
@@ -131,6 +150,9 @@ pub mod component_type {
     pub const LIST: u16 = 0x000A;
     pub const GRID: u16 = 0x000B;
     pub const COMMENT: u16 = 0x000C;
+    /// A checkbox-style boolean control (a toggle drawn as a square with a
+    /// checkmark). Checked state is carried by [`property_id::SELECTED`].
+    pub const CHECKBOX: u16 = 0x000D;
 }
 
 /// Property IDs (u16, encoded in the low half of `B` of `STYLE::SET_PROPERTY`).
@@ -170,6 +192,9 @@ pub mod property_id {
     pub const PADDING_RIGHT: u16 = 0x1013;
     pub const PADDING_BOTTOM: u16 = 0x1014;
     pub const PADDING_LEFT: u16 = 0x1015;
+    /// `BORDER_EDGES` — a u32 bitmask (see [`crate::border_edges`]) selecting
+    /// which edges of a node's border are drawn.
+    pub const BORDER_EDGES: u16 = 0x1016;
     // Semantic (0x2000 range)
     pub const ROLE: u16 = 0x2001;
     pub const STATE: u16 = 0x2002;
@@ -185,14 +210,15 @@ pub mod property_id {
 /// The protocol value type for a property id.
 ///
 /// Color-valued properties (COLOR, BACKGROUND_COLOR, BORDER_COLOR) are emitted
-/// with the `COLOR` value type; `EVENT_LISTENERS` is a raw `U32` bitmask; all
-/// other constraint/style properties are `F32`.
+/// with the `COLOR` value type; `EVENT_LISTENERS` and `BORDER_EDGES` are raw
+/// `U32` bitmasks; all other constraint/style properties are `F32`.
 pub fn value_type_for(prop: u16) -> u8 {
     match prop {
         property_id::COLOR
         | property_id::BACKGROUND_COLOR
         | property_id::BORDER_COLOR => value_type::COLOR,
-        property_id::EVENT_LISTENERS => value_type::U32,
+        property_id::EVENT_LISTENERS | property_id::BORDER_EDGES => value_type::U32,
+        property_id::SELECTED => value_type::U8,
         _ => value_type::F32,
     }
 }

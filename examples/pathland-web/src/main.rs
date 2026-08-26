@@ -24,22 +24,39 @@ use pathland_core_transport::{decode_events, encode_frame};
 use pathland_render_html::HtmlRenderer;
 use pathland_waterui::Emitter;
 use waterui_controls::button::button;
+use waterui_controls::toggle::toggle;
 use waterui_core::{Binding, Computed, Environment, SignalExt, View, binding};
-use waterui_layout::stack::vstack;
+use waterui_layout::stack::{hstack, vstack};
 use waterui_text::text::text;
 
+use waterui::color::*;
+use waterui::ViewExt;
+
 /// The application view (shared by the native and web demos).
-fn counter_view(count: Binding<i32>) -> impl View {
+fn counter_view(count: Binding<i32>, notifications: Binding<bool>) -> impl View {
     let label: Computed<String> = count.map(|c| format!("Count: {c}")).computed();
+    let border = signal_color(
+        count
+            .map(|c| if c % 2 == 0 { Color::red() } else { Color::blue() })
+            .computed(),
+    );
     vstack((
-        text("Pathland web"),
-        text(label),
-        button("Increment").action({
-            let c = count.clone();
-            move || {
-                c.set(c.get() + 1);
-            }
-        }),
+        hstack((
+            vstack((
+                text("Pathland web"),
+                text(label),
+                button("Increment").action({
+                    let c = count.clone();
+                    move || {
+                        c.set(c.get() + 1);
+                    }
+                }),
+                toggle("Notifications", &notifications),
+                toggle("Checkbox", &notifications).checkbox(),
+            )),
+        ))
+        .padding()
+        .border(border, 2.0),
     ))
 }
 
@@ -63,7 +80,8 @@ fn main() {
 async fn run() {
     let env = Environment::new();
     let count: Binding<i32> = binding(0);
-    let view = counter_view(count.clone());
+    let notifications: Binding<bool> = binding(false);
+    let view = counter_view(count.clone(), notifications);
 
     let (batch_tx, _) = tokio::sync::broadcast::channel::<Bytes>(64);
     let (html_tx, html_rx) = tokio::sync::watch::channel::<String>(String::new());

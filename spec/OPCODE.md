@@ -164,9 +164,41 @@ per-edge variants map to widget margins / CSS `padding`, alongside
 | `PADDING_RIGHT` | `0x1013` | F32 | Right padding |
 | `PADDING_BOTTOM` | `0x1014` | F32 | Bottom padding |
 | `PADDING_LEFT` | `0x1015` | F32 | Left padding |
+| `BORDER_EDGES` | `0x1016` | U32 | Which border edges to draw (bitmask, see [`border_edges`] flags) |
+
+`BORDER_EDGES` is a u32 bitmask (`SET_PROPERTY` with the `U32` value type)
+selecting which edges of a node's border are drawn. Bits are direction-aware:
+
+| Bit | Mask | Edge | Physical (LTR) |
+|-----|------|------|----------------|
+| 0 | `0x00000001` | `TOP` | top |
+| 1 | `0x00000002` | `LEADING` | left |
+| 2 | `0x00000004` | `BOTTOM` | bottom |
+| 3 | `0x00000008` | `TRAILING` | right |
 
 Full property catalog: see the Rust `constants.rs` (carried forward from the
 historical protocol).
+
+#### Semantic properties
+
+Semantic properties describe a node's meaning and interaction state rather than
+its layout or decoration. Currently exercised: `SELECTED` carries the boolean
+checked state of a `SWITCH`/`CHECKBOX` (`SET_PROPERTY` with the `U8` value type,
+`0` = off, `1` = on). `EVENT_LISTENERS` (below) declares which raw inputs a node
+wants reported.
+
+| Property | Value | Type | Meaning |
+|----------|-------|------|---------|
+| `ROLE` | `0x2001` | ENUM | Accessibility role |
+| `STATE` | `0x2002` | ENUM | Control state |
+| `ENABLED` | `0x2003` | U8 | Whether the control is enabled |
+| `SELECTED` | `0x2004` | U8 | Checked/selected state of a `SWITCH`/`CHECKBOX` |
+| `EVENT_LISTENERS` | `0x2005` | U32 | Bitmask of raw-input events to report |
+
+`CHECKBOX` (`0x000D`) is a component type alongside `SWITCH` (`0x0006`): both
+render natively as a boolean control; `SWITCH` is the sliding-pill form and
+`CHECKBOX` the square-with-checkmark form. The renderer owns their visual
+presentation (see [Design Token System](#design-token-system)).
 
 ### EVENT (0x03) — host → guest
 

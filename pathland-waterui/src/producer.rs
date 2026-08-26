@@ -24,12 +24,16 @@ use std::collections::BTreeMap;
 use std::rc::Rc;
 
 use pathland_core::{
-    Opcode, category, component_type, property_id, style, tree, value_type,
+    Opcode, border_edges, category, component_type, property_id, style, tree, value_type,
 };
+use waterui::border::Border;
+use waterui::color::ResolvedColor;
 use waterui_controls::button::ButtonConfig;
+use waterui_controls::toggle::{ToggleConfig, ToggleStyle};
 use waterui_core::handler::BoxedAction;
 use waterui_core::reactive::watcher::BoxWatcherGuard;
-use waterui_core::{AnyView, Computed, Environment, Metadata, Native, Retain, Signal, View};
+use waterui_core::{AnyView, Computed, Environment, Metadata, Native, Retain, Signal, SignalExt, View};
+use waterui_layout::EdgeSet;
 use waterui_layout::container::FixedContainer;
 use waterui_layout::spacer::Spacer;
 use waterui_layout::stack::{Axis, LazyStackAxis};
@@ -43,8 +47,38 @@ const ROOT_PARENT: u32 = 0;
 enum Reactive {
     /// A node's text content, re-emitted as `SET_TEXT`.
     Text { node: u32, content: Computed<StyledStr> },
-    /// A node's `f32` property, re-emitted as `SET_PROPERTY` (`value_type::F32`).
-    Property { node: u32, property: u16, value: Computed<f32> },
+    /// A node's property, re-emitted as `SET_PROPERTY` with an explicit value
+    /// type (`value` carries the raw wire bits: `f32` bits for F32, packed
+    /// `0xAARRGGBB` for COLOR, etc.).
+    Property { node: u32, property: u16, value_type: u8, value: Computed<u32> },
+}
+
+/// Pack a resolved color into the wire `0xAARRGGBB` representation.
+fn pack_color(color: ResolvedColor) -> u32 {
+    let srgb = color.to_srgb();
+    let r = (srgb.red.clamp(0.0, 1.0) * 255.0).round() as u32;
+    let g = (srgb.green.clamp(0.0, 1.0) * 255.0).round() as u32;
+    let b = (srgb.blue.clamp(0.0, 1.0) * 255.0).round() as u32;
+    let a = (color.opacity.clamp(0.0, 1.0) * 255.0).round() as u32;
+    (a << 24) | (r << 16) | (g << 8) | b
+}
+
+/// Encode an [`EdgeSet`] as the `BORDER_EDGES` bitmask.
+fn edge_bits(edges: &EdgeSet) -> u32 {
+    let mut bits = 0;
+    if edges.top {
+        bits |= border_edges::TOP;
+    }
+    if edges.leading {
+        bits |= border_edges::LEADING;
+    }
+    if edges.bottom {
+        bits |= border_edges::BOTTOM;
+    }
+    if edges.trailing {
+        bits |= border_edges::TRAILING;
+    }
+    bits
 }
 
 /// Accumulates a self-contained frame: opcodes plus a per-frame string section.
@@ -180,11 +214,11 @@ impl Emitter {
                     });
                     self.guards.push(Box::new(guard));
                 }
-                Reactive::Property { node, property, value } => {
+                Reactive::Property { node, property, value_type, value } => {
                     let guard = value.watch(move |ctx| {
-                        let bits = ctx.into_value().to_bits();
+                        let bits = ctx.into_value();
                         let mut builder = FrameBuilder::default();
-                        builder.set_property(node, property, value_type::F32, bits);
+                        builder.set_property(node, property, value_type, bits);
                         sink(builder.opcodes, builder.strings);
                     });
                     self.guards.push(Box::new(guard));
@@ -230,6 +264,12 @@ impl<'g> Walk<'g> {
             let m = *view.downcast::<Metadata<Retain>>().expect("downcast retain");
             return self.any(m.content, env, parent);
         }
+        if view.is::<Metadata<Border>>() {
+            let m = *view.downcast::<Metadata<Border>>().expect("downcast border");
+            let id = self.any(m.content, env, parent);
+            self.border_props(id, &m.value, env);
+            return id;
+        }
         if view.is::<Native<FixedContainer>>() {
             let c = *view
                 .downcast::<Native<FixedContainer>>()
@@ -243,6 +283,10 @@ impl<'g> Walk<'g> {
         if view.is::<Native<ButtonConfig>>() {
             let c = *view.downcast::<Native<ButtonConfig>>().expect("downcast button");
             return self.button_node(c, parent);
+        }
+        if view.is::<Native<ToggleConfig>>() {
+            let c = *view.downcast::<Native<ToggleConfig>>().expect("downcast toggle");
+            return self.toggle_node(c, parent);
         }
         if view.is::<Native<Spacer>>() {
             let _s = *view.downcast::<Native<Spacer>>().expect("downcast spacer");
@@ -284,12 +328,13 @@ impl<'g> Walk<'g> {
         self.builder.create_node(id, ct);
         self.insert(parent, id);
         if let Some(spacing) = spacing {
-            self.builder
-                .set_property(id, property_id::SPACING, value_type::F32, spacing.get().to_bits());
+            let value: Computed<u32> = spacing.map(f32::to_bits).computed();
+            self.builder.set_property(id, property_id::SPACING, value_type::F32, value.get());
             self.reactive.push(Reactive::Property {
                 node: id,
                 property: property_id::SPACING,
-                value: spacing,
+                value_type: value_type::F32,
+                value,
             });
         }
 
@@ -315,6 +360,36 @@ impl<'g> Walk<'g> {
         id
     }
 
+    fn toggle_node(&mut self, config: Native<ToggleConfig>, parent: u32) -> u32 {
+        let config = config.into_inner();
+        // WaterUI's `ToggleStyle` is backend-owned (switch vs checkbox); Pathland
+        // only models the two native primitives, so the producer maps the style
+        // here — `Automatic` defaults to a switch, mirroring WaterUI's backends.
+        let ct = match config.style {
+            ToggleStyle::Checkbox => component_type::CHECKBOX,
+            _ => component_type::SWITCH,
+        };
+        let label = config.label.accessibility_label();
+        let id = self.emit_leaf(ct, label, parent);
+
+        let value: Computed<u32> = config.toggle.map(u32::from).computed();
+        self.builder
+            .set_property(id, property_id::SELECTED, value_type::U8, value.get());
+        self.reactive.push(Reactive::Property {
+            node: id,
+            property: property_id::SELECTED,
+            value_type: value_type::U8,
+            value,
+        });
+
+        let toggle = config.toggle;
+        let action: BoxedAction<()> = Box::new(move |_env: &Environment| {
+            toggle.set(!toggle.get());
+        });
+        self.actions.push((id, action));
+        id
+    }
+
     fn emit_leaf(&mut self, ct: u16, content: Computed<StyledStr>, parent: u32) -> u32 {
         let text = content.get().to_plain().to_string();
 
@@ -332,5 +407,32 @@ impl<'g> Walk<'g> {
         self.builder.create_node(id, component_type::SPACER);
         self.insert(parent, id);
         id
+    }
+
+    /// Emit a [`Border`]'s constraints onto `id`, subscribing to its (reactive)
+    /// color so a change re-emits `SET_PROPERTY(BORDER_COLOR)`.
+    fn border_props(&mut self, id: u32, border: &Border, env: &Environment) {
+        self.builder
+            .set_property(id, property_id::BORDER_WIDTH, value_type::F32, border.width.to_bits());
+        if border.corner_radius != 0.0 {
+            self.builder.set_property(
+                id,
+                property_id::BORDER_RADIUS,
+                value_type::F32,
+                border.corner_radius.to_bits(),
+            );
+        }
+        self.builder
+            .set_property(id, property_id::BORDER_EDGES, value_type::U32, edge_bits(&border.edges));
+
+        let packed: Computed<u32> = border.color.resolve(env).map(pack_color).computed();
+        self.builder
+            .set_property(id, property_id::BORDER_COLOR, value_type::COLOR, packed.get());
+        self.reactive.push(Reactive::Property {
+            node: id,
+            property: property_id::BORDER_COLOR,
+            value_type: value_type::COLOR,
+            value: packed,
+        });
     }
 }

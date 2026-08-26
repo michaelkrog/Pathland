@@ -3,10 +3,13 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
-use pathland_core::{Opcode, component_type, property_id};
+use pathland_core::{Opcode, border_edges, component_type, property_id};
 use pathland_waterui::{Consumer, Emitter};
+use waterui::color::{Color, signal_color};
+use waterui::ViewExt;
 use waterui_controls::button::button;
-use waterui_core::{Environment, View, binding};
+use waterui_controls::toggle::toggle;
+use waterui_core::{Environment, SignalExt, View, binding};
 use waterui_layout::stack::vstack;
 use waterui_text::text::text;
 
@@ -197,4 +200,126 @@ fn button_action_is_captured_and_invoked() {
 
     assert!(harness._emitter.invoke(root, &env));
     assert_eq!(count.get(), 1);
+}
+
+#[test]
+fn border_round_trips() {
+    let env = Environment::new();
+    let view = vstack((text("a"),)).border(Color::red(), 2.0);
+    let (root, consumer) = emit_and_decode(view, &env);
+
+    let node = consumer.node(root).expect("root");
+    assert_eq!(
+        node.properties.get(&property_id::BORDER_WIDTH).copied(),
+        Some(2.0f32.to_bits())
+    );
+    // Material red `#F44336`, opaque.
+    assert_eq!(
+        node.properties.get(&property_id::BORDER_COLOR).copied(),
+        Some(0xFFF4_4336)
+    );
+    assert_eq!(
+        node.properties.get(&property_id::BORDER_EDGES).copied(),
+        Some(border_edges::ALL)
+    );
+}
+
+#[test]
+fn reactive_border_color_emits_delta() {
+    let env = Environment::new();
+    let count: waterui_core::Binding<i32> = binding(0);
+    let color = signal_color(
+        count
+            .map(|c| if c % 2 == 0 { Color::red() } else { Color::blue() })
+            .computed(),
+    );
+    let view = vstack((text("a"),)).border(color, 2.0);
+
+    let (mut harness, root) = Harness::new(view, &env);
+    let mut consumer = Consumer::new();
+    harness.apply_pending(&mut consumer);
+
+    let border_color = |consumer: &Consumer| -> u32 {
+        consumer
+            .node(root)
+            .expect("root")
+            .properties
+            .get(&property_id::BORDER_COLOR)
+            .copied()
+            .expect("border color")
+    };
+    assert_eq!(border_color(&consumer), 0xFFF4_4336);
+
+    count.set(1);
+    harness.apply_pending(&mut consumer);
+    // Material blue `#2196F3`, opaque.
+    assert_eq!(border_color(&consumer), 0xFF21_96F3);
+}
+
+#[test]
+fn toggle_round_trips() {
+    let env = Environment::new();
+    let enabled: waterui_core::Binding<bool> = binding(false);
+    let view = vstack((
+        toggle("Switch", &enabled),
+        toggle("Checkbox", &enabled).checkbox(),
+    ));
+    let (root, consumer) = emit_and_decode(view, &env);
+
+    let root_node = consumer.node(root).expect("root");
+    assert_eq!(root_node.children.len(), 2);
+
+    let switch = consumer.node(root_node.children[0]).expect("switch");
+    assert_eq!(switch.component, component_type::SWITCH);
+    assert_eq!(switch.text.as_deref(), Some("Switch"));
+    assert_eq!(
+        switch.properties.get(&property_id::SELECTED).copied(),
+        Some(0)
+    );
+
+    let checkbox = consumer.node(root_node.children[1]).expect("checkbox");
+    assert_eq!(checkbox.component, component_type::CHECKBOX);
+    assert_eq!(checkbox.text.as_deref(), Some("Checkbox"));
+    assert_eq!(
+        checkbox.properties.get(&property_id::SELECTED).copied(),
+        Some(0)
+    );
+}
+
+#[test]
+fn reactive_toggle_emits_delta() {
+    let env = Environment::new();
+    let enabled: waterui_core::Binding<bool> = binding(false);
+    let view = vstack((toggle("Switch", &enabled),));
+
+    let (mut harness, root) = Harness::new(view, &env);
+    let mut consumer = Consumer::new();
+    harness.apply_pending(&mut consumer);
+
+    let switch_id = consumer.node(root).expect("root").children[0];
+    let selected = |consumer: &Consumer| {
+        consumer
+            .node(switch_id)
+            .expect("switch")
+            .properties
+            .get(&property_id::SELECTED)
+            .copied()
+    };
+    assert_eq!(selected(&consumer), Some(0));
+
+    enabled.set(true);
+    harness.apply_pending(&mut consumer);
+    assert_eq!(selected(&consumer), Some(1));
+}
+
+#[test]
+fn toggle_action_flips_binding() {
+    let env = Environment::new();
+    let enabled: waterui_core::Binding<bool> = binding(false);
+    let view = toggle("Switch", &enabled);
+
+    let (harness, root) = Harness::new(view, &env);
+
+    assert!(harness._emitter.invoke(root, &env));
+    assert_eq!(enabled.get(), true);
 }
