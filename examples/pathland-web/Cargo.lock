@@ -2849,10 +2849,6 @@ dependencies = [
  "pathland-waterui",
  "tokio",
  "waterui",
- "waterui-controls",
- "waterui-core",
- "waterui-layout",
- "waterui-text",
 ]
 
 [[package]]

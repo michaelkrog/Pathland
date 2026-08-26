@@ -23,15 +23,11 @@ use pathland_core::{Event, Opcode};
 use pathland_core_transport::{decode_events, encode_frame};
 use pathland_render_html::HtmlRenderer;
 use pathland_waterui::Emitter;
-use waterui_controls::button::button;
-use waterui_controls::slider::slider;
-use waterui_controls::toggle::toggle;
-use waterui_core::{Binding, Computed, Environment, SignalExt, View, binding};
-use waterui_layout::stack::{hstack, vstack};
-use waterui_text::text::text;
-
-use waterui::color::*;
-use waterui::ViewExt;
+use waterui::color::{Color, signal_color};
+use waterui::component::{button, hstack, slider, toggle, vstack};
+use waterui::component::text::text;
+use waterui::reactive::binding;
+use waterui::{Binding, Computed, Environment, SignalExt, View, ViewExt};
 
 /// The application view (shared by the native and web demos).
 fn counter_view(count: Binding<i32>, notifications: Binding<bool>, volume: Binding<f64>) -> impl View {
