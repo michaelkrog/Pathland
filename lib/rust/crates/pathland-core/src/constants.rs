@@ -61,6 +61,10 @@ pub mod event {
     /// The renderer resolves the control's semantic value (e.g. a slider thumb
     /// dragged to a point on its track); the guest/app writes it into its state.
     pub const VALUE_CHANGED: u8 = 0x06;
+    /// `A=targetId, B=string offset` — a text field's value changed (host →
+    /// guest). The new text lives in the batch's string section, referenced by
+    /// the *relative* offset in `B` (the same convention as `STYLE::SET_TEXT`).
+    pub const TEXT_CHANGED: u8 = 0x07;
 }
 
 /// Commands within the `META` category.
@@ -219,6 +223,10 @@ pub mod property_id {
     pub const MIN_VALUE: u16 = 0x2007;
     /// The inclusive maximum of a value-bearing control's range (e.g. a `SLIDER`).
     pub const MAX_VALUE: u16 = 0x2008;
+    /// The caption label of a `TEXT_FIELD` (a `STRING` property).
+    pub const LABEL: u16 = 0x200A;
+    /// The placeholder text of a `TEXT_FIELD` (a `STRING` property).
+    pub const PROMPT: u16 = 0x200B;
 }
 
 /// The protocol value type for a property id.
@@ -233,6 +241,7 @@ pub fn value_type_for(prop: u16) -> u8 {
         | property_id::BORDER_COLOR => value_type::COLOR,
         property_id::EVENT_LISTENERS | property_id::BORDER_EDGES => value_type::U32,
         property_id::SELECTED => value_type::U8,
+        property_id::LABEL | property_id::PROMPT => value_type::STRING,
         _ => value_type::F32,
     }
 }

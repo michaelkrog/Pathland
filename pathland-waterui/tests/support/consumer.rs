@@ -16,14 +16,16 @@
 
 use std::collections::BTreeMap;
 
-use pathland_core::{Opcode, category, component_type, property_id, style, tree};
+use pathland_core::{Opcode, category, component_type, property_id, style, tree, value_type};
 use waterui_controls::button::button;
 use waterui_controls::slider::slider;
+use waterui_controls::text_field::TextField;
 use waterui_controls::toggle::Toggle;
 use waterui_core::{AnyView, binding};
 use waterui_layout::Spacer;
 use waterui_layout::stack::{HStack, HorizontalAlignment, VStack, VerticalAlignment};
 use waterui_text::Text;
+use waterui_text::styled::StyledStr;
 
 /// Read a length-prefixed string (`[u32 len][bytes]`) at `offset`.
 fn read_str(strings: &[u8], offset: u32) -> Option<&str> {
@@ -41,6 +43,8 @@ pub struct Node {
     pub text: Option<String>,
     /// Constraint/style properties (`propertyId → value`).
     pub properties: BTreeMap<u16, u32>,
+    /// `STRING`-typed properties resolved at apply time (`propertyId → text`).
+    pub strings: BTreeMap<u16, String>,
     /// Child node ids in insertion order.
     pub children: Vec<u32>,
 }
@@ -51,6 +55,7 @@ impl Node {
             component,
             text: None,
             properties: BTreeMap::new(),
+            strings: BTreeMap::new(),
             children: Vec::new(),
         }
     }
@@ -134,7 +139,14 @@ impl TestConsumer {
             style::SET_PROPERTY => {
                 let property = (op.b() & 0xFFFF) as u16;
                 if let Some(node) = self.nodes.get_mut(&op.a()) {
-                    node.properties.insert(property, op.c());
+                    let vt = (op.b() >> 16) as u8;
+                    if vt == value_type::STRING {
+                        if let Some(text) = read_str(strings, op.c()) {
+                            node.strings.insert(property, text.to_string());
+                        }
+                    } else {
+                        node.properties.insert(property, op.c());
+                    }
                 }
             }
             _ => {}
@@ -230,6 +242,11 @@ impl TestConsumer {
                 Some(AnyView::new(
                     slider(label, &state).range(f64::from(min)..=f64::from(max)),
                 ))
+            }
+            component_type::TEXT_FIELD => {
+                let value = node.text.clone().unwrap_or_default();
+                let state = binding(StyledStr::from(value));
+                Some(AnyView::new(TextField::styled(&state)))
             }
             _ => None,
         }

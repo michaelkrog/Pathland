@@ -197,6 +197,12 @@ wants reported.
 | `VALUE` | `0x2006` | F32 | Current value of a value-bearing control (e.g. `SLIDER`) |
 | `MIN_VALUE` | `0x2007` | F32 | Inclusive minimum of a `SLIDER`'s range |
 | `MAX_VALUE` | `0x2008` | F32 | Inclusive maximum of a `SLIDER`'s range |
+| `LABEL` | `0x200A` | STRING | Caption label of a `TEXT_FIELD` |
+| `PROMPT` | `0x200B` | STRING | Placeholder text of a `TEXT_FIELD` |
+
+`STRING` properties carry their text in the frame's string section: the
+property value is the *relative* offset of a length-prefixed entry, exactly as
+`SET_TEXT`'s `B` field does.
 
 `CHECKBOX` (`0x000D`) is a component type alongside `SWITCH` (`0x0006`): both
 render natively as a boolean control; `SWITCH` is the sliding-pill form and
@@ -246,6 +252,7 @@ element.
 | `KEY_DOWN` | `0x04` | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` | Key pressed (bit 1 = auto-repeat) |
 | `KEY_UP` | `0x05` | targetId | keyCode (u16, low) | modifiers (u8, low) | — | Key released |
 | `VALUE_CHANGED` | `0x06` | targetId | value (f32) | 0 | — | A value-bearing control changed (e.g. slider); the renderer resolves the semantic value from its track geometry |
+| `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the batch's string section, referenced by the *relative* `B` offset (same convention as `STYLE::SET_TEXT`) |
 
 ### META (0x04)
 

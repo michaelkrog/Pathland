@@ -16,7 +16,7 @@
 
 use std::collections::BTreeMap;
 
-use pathland_core::{Opcode, border_edges, category, component_type, property_id, style, tree};
+use pathland_core::{Opcode, border_edges, category, component_type, property_id, style, tree, value_type};
 
 /// Read a length-prefixed string (`[u32 len][bytes]`) at `offset`.
 fn read_str(strings: &[u8], offset: u32) -> Option<&str> {
@@ -34,6 +34,8 @@ pub struct Node {
     pub text: Option<String>,
     /// Constraint/style properties (`propertyId → value`).
     pub properties: BTreeMap<u16, u32>,
+    /// `STRING`-typed properties resolved at apply time (`propertyId → text`).
+    pub strings: BTreeMap<u16, String>,
     /// Child node ids in insertion order.
     pub children: Vec<u32>,
 }
@@ -44,6 +46,7 @@ impl Node {
             component,
             text: None,
             properties: BTreeMap::new(),
+            strings: BTreeMap::new(),
             children: Vec::new(),
         }
     }
@@ -193,7 +196,14 @@ impl HtmlRenderer {
             style::SET_PROPERTY => {
                 let property = (op.b() & 0xFFFF) as u16;
                 if let Some(node) = self.nodes.get_mut(&op.a()) {
-                    node.properties.insert(property, op.c());
+                    let vt = (op.b() >> 16) as u8;
+                    if vt == value_type::STRING {
+                        if let Some(text) = read_str(strings, op.c()) {
+                            node.strings.insert(property, text.to_string());
+                        }
+                    } else {
+                        node.properties.insert(property, op.c());
+                    }
                 }
             }
             _ => {}
@@ -219,6 +229,8 @@ impl HtmlRenderer {
              .pathland-toggle input[role=\"switch\"]:checked::after {{ left: 22px; }}\n\
              .pathland-slider {{ display: inline-flex; align-items: center; gap: 10px; }}\n\
              .pathland-slider input[type=\"range\"] {{ flex: 1; accent-color: #2196F3; }}\n\
+             .pathland-textfield {{ display: inline-flex; align-items: center; gap: 8px; }}\n\
+             .pathland-textfield input[type=\"text\"] {{ font: inherit; padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; }}\n\
              </style>\n</head>\n<body>{body}</body>\n</html>\n"
         )
     }
@@ -283,6 +295,25 @@ impl HtmlRenderer {
                 let style = style_attr(&border);
                 format!(
                     "<label{data_id} class=\"pathland-slider\"{style}><input type=\"range\" min=\"{min}\" max=\"{max}\" step=\"any\" value=\"{value}\"><span class=\"pathland-text\">{text}</span></label>"
+                )
+            }
+            component_type::TEXT_FIELD => {
+                let value = escape(node.text.as_deref().unwrap_or_default());
+                let label = escape(
+                    node.strings
+                        .get(&property_id::LABEL)
+                        .map(String::as_str)
+                        .unwrap_or_default(),
+                );
+                let prompt = escape(
+                    node.strings
+                        .get(&property_id::PROMPT)
+                        .map(String::as_str)
+                        .unwrap_or_default(),
+                );
+                let style = style_attr(&border);
+                format!(
+                    "<label{data_id} class=\"pathland-textfield\"{style}><span class=\"pathland-label\">{label}</span><input type=\"text\" value=\"{value}\" placeholder=\"{prompt}\"></label>"
                 )
             }
             _ => children,
@@ -524,5 +555,57 @@ mod tests {
             "<input type=\"range\" min=\"0\" max=\"1\" step=\"any\" value=\"0.5\">"
         ));
         assert!(html.contains("<span class=\"pathland-text\">Volume</span>"));
+    }
+
+    #[test]
+    fn renders_text_field() {
+        use pathland_core::value_type;
+
+        let mut opcodes = Vec::new();
+        let mut strings = Vec::new();
+        opcodes.push(Opcode::new(
+            category::TREE,
+            tree::CREATE_NODE,
+            0,
+            1,
+            component_type::TEXT_FIELD as u32,
+            0,
+        ));
+        // value (node text)
+        strings.extend_from_slice(&(3u32).to_le_bytes());
+        strings.extend_from_slice(b"Bob");
+        opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 1, 0, 0));
+        // label (STRING property)
+        strings.extend_from_slice(&(5u32).to_le_bytes());
+        strings.extend_from_slice(b"Name:");
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::STRING as u32) << 16) | property_id::LABEL as u32,
+            7, // relative offset of the label entry in the string section
+        ));
+        // prompt (STRING property)
+        strings.extend_from_slice(&(5u32).to_le_bytes());
+        strings.extend_from_slice(b"Enter");
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::STRING as u32) << 16) | property_id::PROMPT as u32,
+            16, // relative offset of the prompt entry
+        ));
+
+        let mut renderer = HtmlRenderer::new();
+        renderer.apply(&opcodes, &strings);
+        let html = renderer.render(1);
+
+        assert!(html.contains("class=\"pathland-textfield\""));
+        assert!(html.contains("<span class=\"pathland-label\">Name:</span>"));
+        assert!(html.contains(
+            "<input type=\"text\" value=\"Bob\" placeholder=\"Enter\">"
+        ));
     }
 }

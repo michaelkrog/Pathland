@@ -1,7 +1,7 @@
 //! Batch wire format: encode/decode opcodes + arena delta into network batches.
 
 use alloc::vec::Vec;
-use pathland_core::{Event, Frame, Opcode};
+use pathland_core::{Event, Frame, Opcode, category, event};
 
 use crate::{BATCH_MAGIC, BATCH_VERSION};
 
@@ -262,21 +262,56 @@ impl BatchDecoder {
 /// Encode raw-input events as a host → guest batch.
 ///
 /// Events are `EVENT`-category opcodes; the batch reuses the wire format with
-/// the `HOST_TO_GUEST` direction flag and an empty arena delta.
+/// the `HOST_TO_GUEST` direction flag. `TextChanged` events carry their text in
+/// the batch's string section (a length-prefixed entry referenced by the
+/// opcode's `B` offset), so the string section is only empty when there are no
+/// text events.
 pub fn encode_events(frame_count: u32, events: &[Event]) -> Vec<u8> {
-    let opcodes: Vec<Opcode> = events.iter().map(Event::encode).collect();
-    encode_batch(frame_count, crate::direction::HOST_TO_GUEST, &opcodes, &[])
+    let mut opcodes = Vec::new();
+    let mut strings = Vec::new();
+    for ev in events {
+        match ev {
+            Event::TextChanged { target, value } => {
+                let offset = strings.len() as u32;
+                strings.extend_from_slice(&(value.len() as u32).to_le_bytes());
+                strings.extend_from_slice(value.as_bytes());
+                opcodes.push(Opcode::new(
+                    category::EVENT,
+                    event::TEXT_CHANGED,
+                    0,
+                    *target,
+                    offset,
+                    0,
+                ));
+            }
+            other => opcodes.push(other.encode()),
+        }
+    }
+    encode_batch(frame_count, crate::direction::HOST_TO_GUEST, &opcodes, &strings)
 }
 
 /// Decode a host → guest event batch, returning `(frame_count, events)`.
 ///
-/// Unknown or malformed event opcodes are skipped.
+/// Unknown or malformed event opcodes are skipped. `TextChanged` opcodes
+/// resolve their text from the batch's string section.
 pub fn decode_events(bytes: &[u8]) -> Result<(u32, Vec<Event>), BatchError> {
     let mut decoder = BatchDecoder::new();
     let batch = decoder.decode(bytes)?;
     let events = batch
         .opcodes()
-        .filter_map(|op| Event::try_from(op).ok())
+        .filter_map(|op| {
+            if op.category() == category::EVENT && op.command() == event::TEXT_CHANGED {
+                batch
+                    .arena_str(op.b())
+                    .ok()
+                    .map(|text| Event::TextChanged {
+                        target: op.a(),
+                        value: text.to_string(),
+                    })
+            } else {
+                Event::try_from(op).ok()
+            }
+        })
         .collect();
     Ok((batch.frame_count(), events))
 }
@@ -483,6 +518,26 @@ mod tests {
         let bytes = encode_events(7, &events);
         let (frame_count, decoded) = decode_events(&bytes).unwrap();
         assert_eq!(frame_count, 7);
+        assert_eq!(decoded, events);
+    }
+
+    #[test]
+    fn text_changed_round_trips_through_batch() {
+        let events = vec![
+            Event::TextChanged {
+                target: 9,
+                value: "hello world".to_string(),
+            },
+            Event::PointerUp {
+                target: 4,
+                x: 1.0,
+                y: 2.0,
+                secondary: false,
+            },
+        ];
+        let bytes = encode_events(3, &events);
+        let (frame_count, decoded) = decode_events(&bytes).unwrap();
+        assert_eq!(frame_count, 3);
         assert_eq!(decoded, events);
     }
 

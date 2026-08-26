@@ -24,15 +24,22 @@ use pathland_core_transport::{decode_events, encode_frame};
 use pathland_render_html::HtmlRenderer;
 use pathland_waterui::Emitter;
 use waterui::color::{Color, signal_color};
-use waterui::component::{button, hstack, slider, toggle, vstack};
+use waterui::component::{TextField, button, hstack, slider, toggle, vstack};
 use waterui::component::text::text;
 use waterui::reactive::binding;
+use waterui::text::styled::StyledStr;
 use waterui::{Binding, Computed, Environment, SignalExt, View, ViewExt};
 
 /// The application view (shared by the native and web demos).
-fn counter_view(count: Binding<i32>, notifications: Binding<bool>, volume: Binding<f64>) -> impl View {
+fn counter_view(
+    count: Binding<i32>,
+    notifications: Binding<bool>,
+    volume: Binding<f64>,
+    name: Binding<StyledStr>,
+) -> impl View {
     let label: Computed<String> = count.map(|c| format!("Count: {c}")).computed();
     let volume_label: Computed<String> = volume.map(|v| format!("Volume: {v:.2}")).computed();
+    let name_label: Computed<String> = name.map(|n| n.to_plain().to_string()).computed();
     let border = signal_color(
         count
             .map(|c| if c % 2 == 0 { Color::red() } else { Color::blue() })
@@ -53,6 +60,8 @@ fn counter_view(count: Binding<i32>, notifications: Binding<bool>, volume: Bindi
                 toggle("Checkbox", &notifications).checkbox(),
                 slider("Volume", &volume).range(0.0..=1.0),
                 text(volume_label),
+                TextField::styled(&name).label("Name"),
+                text(name_label),
             )),
         ))
         .padding()
@@ -82,7 +91,8 @@ async fn run() {
     let count: Binding<i32> = binding(0);
     let notifications: Binding<bool> = binding(false);
     let volume: Binding<f64> = binding(0.5);
-    let view = counter_view(count.clone(), notifications, volume);
+    let name: Binding<StyledStr> = binding(StyledStr::from(""));
+    let view = counter_view(count.clone(), notifications, volume, name);
 
     let (batch_tx, _) = tokio::sync::broadcast::channel::<Bytes>(64);
     let (html_tx, html_rx) = tokio::sync::watch::channel::<String>(String::new());
@@ -134,6 +144,9 @@ async fn run() {
                         }
                         Event::ValueChanged { target, value } => {
                             emitter.set_value(target, value);
+                        }
+                        Event::TextChanged { target, value } => {
+                            emitter.set_text(target, &value);
                         }
                         _ => {}
                     }

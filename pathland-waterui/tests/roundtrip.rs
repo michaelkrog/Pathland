@@ -12,9 +12,11 @@ use waterui::color::{Color, signal_color};
 use waterui::ViewExt;
 use waterui_controls::button::button;
 use waterui_controls::slider::slider;
+use waterui_controls::text_field::TextField;
 use waterui_controls::toggle::toggle;
 use waterui_core::{Environment, SignalExt, View, binding};
 use waterui_layout::stack::vstack;
+use waterui_text::styled::StyledStr;
 use waterui_text::text::text;
 
 /// A harness that captures the emitter's pushed frames and applies them.
@@ -389,4 +391,57 @@ fn slider_set_value_writes_binding() {
 
     assert!(harness._emitter.set_value(root, 0.75));
     assert_eq!(volume.get(), 0.75);
+}
+
+#[test]
+fn text_field_round_trips() {
+    let env = Environment::new();
+    let name: waterui_core::Binding<StyledStr> = binding(StyledStr::from("Bob"));
+    let view = vstack((TextField::styled(&name).label("Name"),));
+    let (root, consumer) = emit_and_decode(view, &env);
+
+    let root_node = consumer.node(root).expect("root");
+    let field = consumer.node(root_node.children[0]).expect("field");
+    assert_eq!(field.component, component_type::TEXT_FIELD);
+    assert_eq!(field.text.as_deref(), Some("Bob"));
+    assert_eq!(
+        field.strings.get(&property_id::LABEL).map(String::as_str),
+        Some("Name")
+    );
+}
+
+#[test]
+fn reactive_text_field_emits_delta() {
+    let env = Environment::new();
+    let name: waterui_core::Binding<StyledStr> = binding(StyledStr::from(""));
+    let view = vstack((TextField::styled(&name).label("Name"),));
+
+    let (mut harness, root) = Harness::new(view, &env);
+    let mut consumer = TestConsumer::new();
+    harness.apply_pending(&mut consumer);
+
+    let field_id = consumer.node(root).expect("root").children[0];
+    assert_eq!(
+        consumer.node(field_id).expect("field").text.as_deref(),
+        Some("")
+    );
+
+    name.set(StyledStr::from("Alice"));
+    harness.apply_pending(&mut consumer);
+    assert_eq!(
+        consumer.node(field_id).expect("field").text.as_deref(),
+        Some("Alice")
+    );
+}
+
+#[test]
+fn text_field_set_text_writes_binding() {
+    let env = Environment::new();
+    let name: waterui_core::Binding<StyledStr> = binding(StyledStr::from(""));
+    let view = TextField::styled(&name).label("Name");
+
+    let (harness, root) = Harness::new(view, &env);
+
+    assert!(harness._emitter.set_text(root, "Hello"));
+    assert_eq!(name.get().to_plain().to_string(), "Hello");
 }

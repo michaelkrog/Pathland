@@ -8,10 +8,15 @@ const CMD_SET_TEXT = 3;
 const CAT_EVENT = 3;
 const CMD_POINTER_UP = 3;
 const CMD_VALUE_CHANGED = 6;
+const CMD_TEXT_CHANGED = 7;
+
+const VAL_STRING = 5;
 
 const PROP_SELECTED = 0x2004;
 const PROP_VALUE = 0x2006;
 const PROP_BORDER_COLOR = 0x1004;
+const PROP_LABEL = 0x200a;
+const PROP_PROMPT = 0x200b;
 
 // Hydrate the server-rendered DOM: node id -> element.
 const byId = new Map();
@@ -46,14 +51,30 @@ function applyBatch(bytes) {
             const el = byId.get(a);
             if (!el) continue;
             const text = readString(strings, b);
-            // Toggles carry their label in an inner span (the outer <label>
-            // also holds the <input>, so textContent would clobber it).
-            const span = el.querySelector(".pathland-text");
-            if (span) span.textContent = text;
-            else el.textContent = text;
+            // Text fields carry their value in the input; other controls carry
+            // their label in an inner span (textContent would clobber the input).
+            const input = el.querySelector("input[type=text]");
+            if (input) input.value = text;
+            else {
+                const span = el.querySelector(".pathland-text");
+                if (span) span.textContent = text;
+                else el.textContent = text;
+            }
         } else if (category === CAT_STYLE && command === CMD_SET_PROPERTY) {
             const propId = b & 0xffff;
-            if (propId === PROP_SELECTED) {
+            const valueType = (b >>> 16) & 0xff;
+            if (valueType === VAL_STRING) {
+                const el = byId.get(a);
+                if (!el) continue;
+                const text = readString(strings, c);
+                if (propId === PROP_LABEL) {
+                    const span = el.querySelector(".pathland-label");
+                    if (span) span.textContent = text;
+                } else if (propId === PROP_PROMPT) {
+                    const input = el.querySelector("input[type=text]");
+                    if (input) input.placeholder = text;
+                }
+            } else if (propId === PROP_SELECTED) {
                 const el = byId.get(a);
                 if (!el) continue;
                 const input = el.querySelector("input[type=checkbox]");
@@ -108,6 +129,29 @@ function encodeValueChanged(target, value) {
     return out;
 }
 
+// Encode a TEXT_CHANGED EVENT opcode; the text rides in the batch's string
+// section (A=target, B=relative offset into that section).
+function encodeTextChanged(target, text) {
+    const textBytes = new TextEncoder().encode(text);
+    const out = new Uint8Array(16 + 16 + 4 + 4 + textBytes.length);
+    const header = new DataView(out.buffer);
+    header.setUint32(0, 0x504c504c, true); // magic "PLPL"
+    header.setUint16(4, 1, true); // version
+    header.setUint16(6, 1, true); // flags = HOST_TO_GUEST
+    header.setUint32(8, 0, true); // frameCount
+    header.setUint32(12, 1, true); // opcodeCount
+    const op = new DataView(out.buffer, 16);
+    op.setUint8(0, CAT_EVENT);
+    op.setUint8(1, CMD_TEXT_CHANGED);
+    op.setUint32(4, target, true); // a = target node id
+    op.setUint32(8, 0, true); // b = relative string offset (first entry)
+    const view = new DataView(out.buffer);
+    view.setUint32(32, 4 + textBytes.length, true); // stringsLen
+    view.setUint32(36, textBytes.length, true); // entry length
+    out.set(textBytes, 40);
+    return out;
+}
+
 // Encode a single PointerUp EVENT opcode as a host -> guest batch.
 function encodePointerUp(target) {
     const out = new Uint8Array(16 + 16 + 4);
@@ -142,12 +186,20 @@ document.addEventListener("change", (event) => {
     ws.send(encodePointerUp(target));
 });
 
-// Sliders report their value live while dragging (real-time).
+// Sliders report their value live while dragging; text fields report their
+// text live while typing (both real-time).
 document.addEventListener("input", (event) => {
     const slider = event.target.closest("input[type=range]");
-    if (!slider || ws.readyState !== WebSocket.OPEN) return;
-    const label = slider.closest("label.pathland-slider[data-pathland-id]");
+    if (slider && ws.readyState === WebSocket.OPEN) {
+        const label = slider.closest("label.pathland-slider[data-pathland-id]");
+        if (label) {
+            ws.send(encodeValueChanged(Number(label.getAttribute("data-pathland-id")), Number(slider.value)));
+        }
+        return;
+    }
+    const input = event.target.closest("input[type=text]");
+    if (!input || ws.readyState !== WebSocket.OPEN) return;
+    const label = input.closest("label.pathland-textfield[data-pathland-id]");
     if (!label) return;
-    const target = Number(label.getAttribute("data-pathland-id"));
-    ws.send(encodeValueChanged(target, Number(slider.value)));
+    ws.send(encodeTextChanged(Number(label.getAttribute("data-pathland-id")), input.value));
 });

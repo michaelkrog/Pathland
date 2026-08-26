@@ -30,6 +30,7 @@ use waterui::border::Border;
 use waterui::color::ResolvedColor;
 use waterui_controls::button::ButtonConfig;
 use waterui_controls::slider::SliderConfig;
+use waterui_controls::text_field::ResolvedTextFieldConfig;
 use waterui_controls::toggle::{ToggleConfig, ToggleStyle};
 use waterui_core::handler::BoxedAction;
 use waterui_core::reactive::watcher::BoxWatcherGuard;
@@ -124,6 +125,23 @@ impl FrameBuilder {
         self.opcodes
             .push(Opcode::new(category::STYLE, style::SET_TEXT, 0, id, offset, 0));
     }
+
+    /// Set a `STRING`-typed property whose text lives in the frame's string
+    /// section (the opcode carries a relative offset, like `SET_TEXT`).
+    fn set_string_property(&mut self, id: u32, prop: u16, text: &str) {
+        let offset = self.strings.len() as u32;
+        self.strings
+            .extend_from_slice(&(text.len() as u32).to_le_bytes());
+        self.strings.extend_from_slice(text.as_bytes());
+        self.opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            id,
+            ((value_type::STRING as u32) << 16) | prop as u32,
+            offset,
+        ));
+    }
 }
 
 /// Emits WaterUI views as self-contained Pathland frames, pushing them to a sink.
@@ -131,6 +149,7 @@ pub struct Emitter {
     sink: Rc<dyn Fn(Vec<Opcode>, Vec<u8>)>,
     actions: Rc<RefCell<BTreeMap<u32, BoxedAction<()>>>>,
     values: Rc<RefCell<BTreeMap<u32, Binding<f64>>>>,
+    texts: Rc<RefCell<BTreeMap<u32, Binding<StyledStr>>>>,
     next_id: u32,
     guards: Vec<BoxWatcherGuard>,
 }
@@ -156,6 +175,7 @@ impl Emitter {
             sink: Rc::new(sink),
             actions: Rc::new(RefCell::new(BTreeMap::new())),
             values: Rc::new(RefCell::new(BTreeMap::new())),
+            texts: Rc::new(RefCell::new(BTreeMap::new())),
             next_id: 1,
             guards: Vec::new(),
         }
@@ -169,6 +189,7 @@ impl Emitter {
         let mut reactive: Vec<Reactive> = Vec::new();
         let mut actions: Vec<(u32, BoxedAction<()>)> = Vec::new();
         let mut values: Vec<(u32, Binding<f64>)> = Vec::new();
+        let mut texts: Vec<(u32, Binding<StyledStr>)> = Vec::new();
 
         let (root, next_id) = {
             let mut walk = Walk {
@@ -177,6 +198,7 @@ impl Emitter {
                 reactive: &mut reactive,
                 actions: &mut actions,
                 values: &mut values,
+                texts: &mut texts,
             };
             let root = walk.any(AnyView::new(view), env, ROOT_PARENT);
             (root, walk.next_id)
@@ -188,6 +210,9 @@ impl Emitter {
         }
         for (id, value) in values {
             self.values.borrow_mut().insert(id, value);
+        }
+        for (id, text) in texts {
+            self.texts.borrow_mut().insert(id, text);
         }
 
         self.subscribe(reactive);
@@ -218,6 +243,20 @@ impl Emitter {
         match values.get_mut(&node_id) {
             Some(binding) => {
                 binding.set(f64::from(value));
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Write text from a `TEXT_CHANGED` event into the field's binding.
+    ///
+    /// Returns `true` if a binding was found and updated.
+    pub fn set_text(&self, node_id: u32, value: &str) -> bool {
+        let mut texts = self.texts.borrow_mut();
+        match texts.get_mut(&node_id) {
+            Some(binding) => {
+                binding.set(StyledStr::from(value.to_string()));
                 true
             }
             None => false,
@@ -259,6 +298,7 @@ struct Walk<'g> {
     reactive: &'g mut Vec<Reactive>,
     actions: &'g mut Vec<(u32, BoxedAction<()>)>,
     values: &'g mut Vec<(u32, Binding<f64>)>,
+    texts: &'g mut Vec<(u32, Binding<StyledStr>)>,
 }
 
 impl<'g> Walk<'g> {
@@ -315,6 +355,12 @@ impl<'g> Walk<'g> {
         if view.is::<Native<SliderConfig>>() {
             let c = *view.downcast::<Native<SliderConfig>>().expect("downcast slider");
             return self.slider_node(c, parent);
+        }
+        if view.is::<Native<ResolvedTextFieldConfig>>() {
+            let c = *view
+                .downcast::<Native<ResolvedTextFieldConfig>>()
+                .expect("downcast text field");
+            return self.text_field_node(c, parent);
         }
         if view.is::<Native<Spacer>>() {
             let _s = *view.downcast::<Native<Spacer>>().expect("downcast spacer");
@@ -441,6 +487,33 @@ impl<'g> Walk<'g> {
         });
 
         self.values.push((id, config.value));
+        id
+    }
+
+    fn text_field_node(&mut self, config: Native<ResolvedTextFieldConfig>, parent: u32) -> u32 {
+        let config = config.into_inner();
+        let id = self.alloc_id();
+        self.builder.create_node(id, component_type::TEXT_FIELD);
+        self.insert(parent, id);
+
+        // The field's current value is the node's text, re-emitted reactively
+        // as `SET_TEXT` when the binding changes.
+        let value = config.value.clone();
+        let content: Computed<StyledStr> = value.computed();
+        self.builder.set_text(id, &content.get().to_plain().to_string());
+        self.reactive.push(Reactive::Text { node: id, content });
+
+        // Label + prompt are static `STRING` properties.
+        let label = config.label.accessibility_label().get().to_plain().to_string();
+        if !label.is_empty() {
+            self.builder.set_string_property(id, property_id::LABEL, &label);
+        }
+        let prompt = config.prompt.content.get().to_plain().to_string();
+        if !prompt.is_empty() {
+            self.builder.set_string_property(id, property_id::PROMPT, &prompt);
+        }
+
+        self.texts.push((id, value));
         id
     }
 
