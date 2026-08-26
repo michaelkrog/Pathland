@@ -1,0 +1,122 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M0ZXETWN0YZJRNB5287NRHB9",
+  "session_id": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-26T20:51:20.330032Z",
+  "branch": "feature/java-dsl",
+  "checkpoints_count": 10,
+  "save_step_count": 8,
+  "files_touched": [
+    ".gitignore",
+    "AGENTS.md",
+    "README.md",
+    "lib/java/pom.xml"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "87fb9d75d380",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 6616789,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 137884160,
+    "output_tokens": 267034,
+    "api_call_count": 475
+  },
+  "session_metrics": {
+    "turn_count": 21
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-26T20:51:20.144042Z",
+    "agent_lines": 22,
+    "agent_removed": 9,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 23,
+    "total_lines_changed": 32,
+    "agent_percentage": 96.875,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 72,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "lib/java/.idea/.gitignore": 3,
+        "lib/java/.idea/compiler.xml": 16,
+        "lib/java/.idea/encodings.xml": 15,
+        "lib/java/.idea/jarRepositories.xml": 20,
+        "lib/java/.idea/misc.xml": 12,
+        "lib/java/.idea/vcs.xml": 6
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 72,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 2,
+      "user_lines_removed": 2,
+      "agent_lines_added": 72,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "lib/java/.idea/misc.xml": 1,
+        "lib/java/pom.xml": 1
+      },
+      "user_removed_per_file": {
+        "lib/java/.idea/misc.xml": 1,
+        "lib/java/pom.xml": 1
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 1,
+      "user_lines_removed": 1,
+      "agent_lines_added": 73,
+      "agent_lines_removed": 1,
+      "user_added_per_file": {
+        "lib/java/.idea/misc.xml": 1
+      },
+      "user_removed_per_file": {
+        "lib/java/.idea/misc.xml": 1
+      }
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 24,
+      "agent_lines_removed": 10
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 96,
+      "agent_lines_removed": 31
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 115,
+      "agent_lines_removed": 35
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 162,
+      "agent_lines_removed": 41
+    }
+  ]
+}
