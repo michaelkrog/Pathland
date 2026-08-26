@@ -1,17 +1,13 @@
 package com.pathland.demo;
 
 import com.pathland.render.html.HtmlRenderer;
-import com.pathland.view.Color;
 import com.pathland.view.Environment;
-import com.pathland.view.View;
 import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.emit.RenderResult;
 import com.pathland.view.signal.EffectRef;
-import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
-import com.pathland.view.signal.WritableSignal;
 import com.pathland.view.state.StateStore;
 import com.pathland.view.transport.Event;
 import com.pathland.view.transport.FrameCodec;
@@ -38,11 +34,10 @@ final class SessionApp {
     private final StateStore<Integer> countStore;
     private final StateStore<String> nameStore;
 
-    // --- reactive state (per session) ---
-    private final WritableSignal<Integer> count;
-    private final WritableSignal<String> name;
-    private final Signal<String> countLabel;
-    private final Signal<String> nameLabel;
+    // --- reactive state (per session, owned by the view components) ---
+    private final CounterView root;
+    private final CounterControls controls;
+    private final NameField nameField;
 
     private final HtmlRenderer html = new HtmlRenderer();
     private final FrameOpcodeSink sink;
@@ -58,10 +53,13 @@ final class SessionApp {
         this.countStore = countStore;
         this.nameStore = nameStore;
 
-        this.count = Signals.signal("count", countStore.load(key("count"), Integer.class).orElse(0));
-        this.name = Signals.signal("name", nameStore.load(key("name"), String.class).orElse(""));
-        this.countLabel = Signals.computed("countLabel", () -> "Count: " + count.get());
-        this.nameLabel = Signals.computed("nameLabel", () -> "Name: " + name.get());
+        this.root = new CounterView();
+        this.controls = root.controls();
+        this.nameField = root.nameField();
+        // Restore the persisted state into the component-owned signals (before mount, so
+        // the initial render/SSR already shows it).
+        countStore.load(key("count"), Integer.class).ifPresent(controls.count()::set);
+        nameStore.load(key("name"), String.class).ifPresent(nameField.name()::set);
 
         // Every completed frame is applied to the session's HTML renderer (for SSR) and,
         // when connected, sent as a delta to THIS session's single client. No broadcast.
@@ -78,21 +76,21 @@ final class SessionApp {
         };
         this.emitter = new Emitter(sink);
 
-        RenderResult result = emitter.mount(rootView(), Environment.DEFAULT);
+        RenderResult result = emitter.mount(root.view(), Environment.DEFAULT);
         this.tapActions = result.tapActions();
         this.rootId = result.rootId();
 
         // Persist the session's state on change (cross-platform, multi-tenant keying).
         effects.add(Signals.effect(() -> {
             try {
-                countStore.save(key("count"), count.get());
+                countStore.save(key("count"), controls.count().get());
             } catch (RuntimeException e) {
                 log("persist count failed: " + e.getMessage());
             }
         }));
         effects.add(Signals.effect(() -> {
             try {
-                nameStore.save(key("name"), name.get());
+                nameStore.save(key("name"), nameField.name().get());
             } catch (RuntimeException e) {
                 log("persist name failed: " + e.getMessage());
             }
@@ -134,7 +132,7 @@ final class SessionApp {
                         action.run();
                     }
                 } else if (event.isTextChanged()) {
-                    name.set(event.text());
+                    nameField.name().set(event.text());
                 }
             }
         } catch (RuntimeException e) {
@@ -155,20 +153,6 @@ final class SessionApp {
         }
         emitter.destroy();
         connection = null;
-    }
-
-    /** The demo view — the exact same DSL a desktop or Spring Boot app would use. */
-    private View rootView() {
-        return View.vstack(
-                View.hstack(
-                        View.text(countLabel),
-                        View.button("Increment", () -> count.update(v -> v + 1))
-                ).padding(16),
-                View.textField("Your name", name),
-                View.text(nameLabel),
-                View.text("Pathland · Quarkus · per-session · 16-byte deltas")
-                        .color(Color.rgb(0x88, 0x88, 0x88))
-        ).padding(24);
     }
 
     private static void log(String message) {
