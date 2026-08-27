@@ -17,19 +17,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 0.00788148,
+    "cost": 0.008515499999999999,
     "tokens": {
-      "input": 20655,
-      "output": 1853,
+      "input": 21784,
+      "output": 1935,
       "reasoning": 1432,
       "cache": {
-        "read": 167040,
+        "read": 214400,
         "write": 0
       }
     },
     "time": {
       "created": 1787821642087,
-      "updated": 1787821709530
+      "updated": 1787821712788
     }
   },
   "messages": [
@@ -1025,21 +1025,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.000432776,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 24254,
+          "input": 1014,
+          "output": 72,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 23168
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787821709529
+          "created": 1787821709529,
+          "completed": 1787821712785
         },
+        "finish": "tool-calls",
         "id": "msg_0427a58d900164Mq5kyM4QifHT",
         "sessionID": "ses_fbd86ae99ffe5WgoIBHmrMNHFa"
       },
@@ -1056,20 +1059,115 @@
           "tool": "bash",
           "callID": "call_00_ET_LDIgVKqeNH3AUixzvwQc5038",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "git add README.md && git commit -m \"docs: reflect pathland-engine and pathland-render-html crates in README\""
             },
+            "output": "[main df639e7] docs: reflect pathland-engine and pathland-render-html crates in README\n 1 file changed, 11 insertions(+), 8 deletions(-)\n",
+            "metadata": {
+              "output": "[main df639e7] docs: reflect pathland-engine and pathland-render-html crates in README\n 1 file changed, 11 insertions(+), 8 deletions(-)\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "git add README.md && git commit -m \"docs: reflect pathland-engine and pathland-render-html crates in README\"",
             "time": {
-              "start": 1787821711426
+              "start": 1787821712698,
+              "end": 1787821712700
             }
           },
           "id": "prt_0427a600e001DgL4HISzFf07fV",
           "sessionID": "ses_fbd86ae99ffe5WgoIBHmrMNHFa",
           "messageID": "msg_0427a58d900164Mq5kyM4QifHT"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "bae6b145d0b865b6c612f0f26332bb583d0a6bcd",
+          "type": "step-finish",
+          "tokens": {
+            "total": 24254,
+            "input": 1014,
+            "output": 72,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 23168
+            }
+          },
+          "cost": 0.000432776,
+          "id": "prt_0427a6567001gAbdICbHHpFbeW",
+          "sessionID": "ses_fbd86ae99ffe5WgoIBHmrMNHFa",
+          "messageID": "msg_0427a58d900164Mq5kyM4QifHT"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0427a4fd3001gVF00JTO9MkyQG",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000201244,
+        "tokens": {
+          "total": 24317,
+          "input": 115,
+          "output": 10,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 24192
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821712787,
+          "completed": 1787821714670
+        },
+        "finish": "stop",
+        "id": "msg_0427a6593001V1l83OtFQMYtAV",
+        "sessionID": "ses_fbd86ae99ffe5WgoIBHmrMNHFa"
+      },
+      "parts": [
+        {
+          "snapshot": "bae6b145d0b865b6c612f0f26332bb583d0a6bcd",
+          "type": "step-start",
+          "id": "prt_0427a69a7001ISQAoTjvjCwEcx",
+          "sessionID": "ses_fbd86ae99ffe5WgoIBHmrMNHFa",
+          "messageID": "msg_0427a6593001V1l83OtFQMYtAV"
+        },
+        {
+          "type": "text",
+          "text": "Committed as `df639e7`.",
+          "time": {
+            "start": 1787821714548,
+            "end": 1787821714579
+          },
+          "id": "prt_0427a6c74001havIwJ0OsAh2TO",
+          "sessionID": "ses_fbd86ae99ffe5WgoIBHmrMNHFa",
+          "messageID": "msg_0427a6593001V1l83OtFQMYtAV"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "bae6b145d0b865b6c612f0f26332bb583d0a6bcd",
+          "type": "step-finish",
+          "tokens": {
+            "total": 24317,
+            "input": 115,
+            "output": 10,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 24192
+            }
+          },
+          "cost": 0.000201244,
+          "id": "prt_0427a6cc7001X5ZCGk7fsp2cbW",
+          "sessionID": "ses_fbd86ae99ffe5WgoIBHmrMNHFa",
+          "messageID": "msg_0427a6593001V1l83OtFQMYtAV"
         }
       ]
     }
