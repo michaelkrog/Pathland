@@ -49,12 +49,13 @@ project speaks, so they are settled and used consistently:
    **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —
    desktop, mobile, or embedded — through a generated DSL or the flat native C
    ABI.
-2. **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the
-   producer) using fine-grained, signal-based change detection: a signal bound to
-   a node's text or a property re-emits only that node's deltas, so only the
-   things that actually changed emit and an unchanged tree emits zero opcodes.
-   The engine is language-independent — the same opcode stream serves every
-   renderer.
+2. **Opcode engine** — the producer: reconciles the retained tree and emits it as
+   fixed **16-byte opcodes** using fine-grained, signal-based change detection: a
+   signal bound to a node's text or a property re-emits only that node's deltas,
+   so only the things that actually changed emit and an unchanged tree emits zero
+   opcodes. The engine is language-independent — the same opcode stream serves
+   every renderer. It spans a pure protocol core (`pathland-core`) and a
+   retained-tree emitter (`pathland-engine`).
 3. **Renderer** — consumes the opcode stream and maps it onto that platform's
    **native elements**, and reports raw inputs back as events. It is a pure
    function of the opcode stream (stateless) and never retains application
@@ -94,10 +95,12 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 
 | Crate | Element | Responsibility |
 |-------|---------|----------------|
-| `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |
-| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + fine-grained reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |
+| `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers building a `pathland-engine::Node` tree (`no_std`) |
+| `pathland-core` | Opcode engine | Protocol core: fixed 16-byte opcode, ring buffer, bump arena, events, memory layout, Guest/Host/Frame surface (`no_std`, zero-alloc) |
+| `pathland-engine` | Opcode engine | Emitter: retained tree types (`Node`/`Component`) + diff-based reactive emission + reactive **signals** (moved out of `pathland-core`) |
 | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
 | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
+| `pathland-render-html` | Renderer | HTML renderer: maps opcode frames onto declarative HTML (flex stacks, spans, buttons) as a pure function of the stream — the server-side/remote target |
 | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
 | `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |
 | `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |
