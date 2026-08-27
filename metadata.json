@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M114S526X9GTE2ABABBWZEEC",
+  "strategy": "manual-commit",
+  "branch": "feature/java-dsl",
+  "checkpoints_count": 10,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterControls.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterView.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/NameField.java",
+    "lib/java/pathland-demo-views/src/test/java/com/pathland/demo/CounterViewTest.java",
+    "lib/java/pathland-quarkus-demo/src/main/java/com/pathland/quarkus/SessionApp.java",
+    "lib/java/pathland-spring-boot-demo/src/main/java/com/pathland/spring/SessionApp.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/TextField.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/View.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/RenderResult.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/signal/ComputedSignal.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/signal/Signals.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 699090,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 12989056,
+    "output_tokens": 24835,
+    "api_call_count": 102
+  }
+}

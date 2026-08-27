@@ -1,0 +1,142 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M114S526X9GTE2ABABBWZEEC",
+  "session_id": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-27T08:18:34.335278Z",
+  "branch": "feature/java-dsl",
+  "checkpoints_count": 10,
+  "save_step_count": 8,
+  "files_touched": [
+    "AGENTS.md",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterControls.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterView.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/NameField.java",
+    "lib/java/pathland-demo-views/src/test/java/com/pathland/demo/CounterViewTest.java",
+    "lib/java/pathland-quarkus-demo/src/main/java/com/pathland/quarkus/SessionApp.java",
+    "lib/java/pathland-spring-boot-demo/src/main/java/com/pathland/spring/SessionApp.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/TextField.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/View.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/RenderResult.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/signal/ComputedSignal.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/signal/Signals.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "ab865f7c5c9f",
+  "checkpoint_transcript_start": 654,
+  "transcript_lines_at_start": 654,
+  "compact_transcript_start": 654,
+  "token_usage": {
+    "input_tokens": 699090,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 12989056,
+    "output_tokens": 24835,
+    "api_call_count": 102
+  },
+  "session_metrics": {
+    "turn_count": 13
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-27T08:18:33.94971Z",
+    "agent_lines": 144,
+    "agent_removed": 50,
+    "human_added": 0,
+    "human_modified": 7,
+    "human_removed": 3,
+    "total_committed": 150,
+    "total_lines_changed": 204,
+    "agent_percentage": 95.09803921568627,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 2,
+      "user_lines_removed": 2,
+      "agent_lines_added": 111,
+      "agent_lines_removed": 29,
+      "user_added_per_file": {
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterControls.java": 1,
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/NameField.java": 1
+      },
+      "user_removed_per_file": {
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterControls.java": 1,
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/NameField.java": 1
+      }
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 113,
+      "agent_lines_removed": 31
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 2,
+      "user_lines_removed": 2,
+      "agent_lines_added": 117,
+      "agent_lines_removed": 40,
+      "user_added_per_file": {
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterControls.java": 1,
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/NameField.java": 1
+      },
+      "user_removed_per_file": {
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterControls.java": 1,
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/NameField.java": 1
+      }
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 117,
+      "agent_lines_removed": 40
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 117,
+      "agent_lines_removed": 40
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 117,
+      "agent_lines_removed": 40
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 117,
+      "agent_lines_removed": 40
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 2,
+      "user_lines_removed": 5,
+      "agent_lines_added": 159,
+      "agent_lines_removed": 59,
+      "user_added_per_file": {
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterView.java": 2
+      },
+      "user_removed_per_file": {
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterView.java": 5
+      }
+    }
+  ]
+}
