@@ -6,11 +6,15 @@ import com.pathland.view.signal.Signal;
 import java.util.List;
 
 /**
- * A composable view (SwiftUI ergonomics). Implementations build a
- * {@link PathlandNode} subtree via {@link #render(Environment)}. The interface is open:
- * the library ships the leaf primitives, layout stacks, interactive controls, and
- * modifier wrappers, and application code (Quarkus, Spring Boot, desktop) defines its
- * own views by implementing {@code View} directly.
+ * A composable view (SwiftUI ergonomics). Composite views declare their subtree with
+ * {@link #body()}; the library's primitives (leaves, stacks, controls) instead override
+ * {@link #render(Environment)} to materialize a {@link PathlandNode}. The interface is
+ * open: the library ships the leaf primitives and modifier wrappers, and application
+ * code (Quarkus, Spring Boot, desktop) defines its own views by implementing
+ * {@code View} directly.
+ *
+ * <p>{@link #body()} is evaluated once at mount — reactivity comes from signals
+ * ({@link #text(Signal)}, {@code Signals.computed}), not from body re-evaluation.
  *
  * <p>Global modifiers are chainable on any view. Constructor (structural/layout)
  * properties are passed to the view constructors and are never chainable; spacing
@@ -18,8 +22,28 @@ import java.util.List;
  */
 public interface View {
 
-    /** Build this view's retained node(s). */
-    PathlandNode render(Environment env);
+    /**
+     * SwiftUI-style composition: a composite view returns its subtree here. Primitives
+     * return {@code this} (the identity body) and instead override
+     * {@link #render(Environment)}.
+     */
+    default View body() {
+        return this;
+    }
+
+    /**
+     * Materialize this view into retained node(s). Composite views resolve
+     * {@link #body()} first (recursively); primitives override this to build a
+     * {@link PathlandNode}.
+     */
+    default PathlandNode render(Environment env) {
+        View resolved = body();
+        if (resolved != this) {
+            return resolved.render(env);
+        }
+        throw new UnsupportedOperationException(
+                getClass().getName() + " must override body() (composite) or render() (primitive)");
+    }
 
     // ------------------------------------------------------------------
     // Global modifiers

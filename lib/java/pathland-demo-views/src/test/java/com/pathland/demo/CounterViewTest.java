@@ -7,6 +7,7 @@ import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.emit.Opcode;
+import com.pathland.view.emit.RenderResult;
 import com.pathland.view.state.InMemoryStateStore;
 import com.pathland.view.state.PersistentState;
 import com.pathland.view.state.StateStore;
@@ -48,10 +49,11 @@ class CounterViewTest {
         Emitter emitter = new Emitter(sink);
 
         CounterView root = new CounterView();
-        emitter.mount(root, new Environment(state));
+        RenderResult result = emitter.mount(root, new Environment(state));
 
-        // Mutate through the binder-wired State; it must persist automatically.
-        root.nameField().name().set("Bob");
+        // Drive the edit through the emitter's input registry (exactly as the host does),
+        // not by reaching into a view's signal.
+        result.textInputs().values().iterator().next().accept("Bob");
         assertEquals(Optional.of("Bob"), store.load("name:session-1", String.class));
 
         state.close();

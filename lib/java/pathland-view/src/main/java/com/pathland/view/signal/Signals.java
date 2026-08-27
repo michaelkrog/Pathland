@@ -41,18 +41,13 @@ public final class Signals {
 
     /** A lazy, memoized derived signal. */
     public static <T> Signal<T> computed(Supplier<T> fn) {
-        return new ComputedSignal<>(Objects.requireNonNull(fn, "computed body"), Objects::equals, null);
+        return new ComputedSignal<>(Objects.requireNonNull(fn, "computed body"), Objects::equals);
     }
 
     /** A derived signal with a custom equality comparator. */
     public static <T> Signal<T> computed(Supplier<T> fn, BiPredicate<T, T> equal) {
         return new ComputedSignal<>(
-                Objects.requireNonNull(fn, "computed body"), Objects.requireNonNull(equal, "equal"), null);
-    }
-
-    /** A named derived signal. */
-    public static <T> Signal<T> computed(String name, Supplier<T> fn) {
-        return new ComputedSignal<>(Objects.requireNonNull(fn, "computed body"), Objects::equals, name);
+                Objects.requireNonNull(fn, "computed body"), Objects.requireNonNull(equal, "equal"));
     }
 
     /** Register an effect; runs immediately, then on tracked dependency changes. */

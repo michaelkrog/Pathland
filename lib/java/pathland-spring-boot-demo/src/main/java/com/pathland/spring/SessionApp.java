@@ -1,7 +1,6 @@
 package com.pathland.spring;
 
 import com.pathland.demo.CounterView;
-import com.pathland.demo.NameField;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
 import com.pathland.view.emit.Emitter;
@@ -16,6 +15,7 @@ import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * One Pathland application instance per WebSocket connection (1:1). Identical to the
@@ -26,12 +26,13 @@ final class SessionApp {
 
     private final PersistentState state;
     private final CounterView root;
-    private final NameField nameField;
 
     private final HtmlRenderer html = new HtmlRenderer();
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
+    private final Map<Integer, Consumer<String>> textInputs;
+    private final Map<Integer, Consumer<Float>> valueInputs;
     private final int rootId;
 
     private volatile WebSocketSession session;
@@ -39,7 +40,6 @@ final class SessionApp {
     SessionApp(String sessionId, StateStore store) {
         this.state = new PersistentState(store, sessionId);
         this.root = new CounterView();
-        this.nameField = root.nameField();
 
         this.sink = new FrameOpcodeSink() {
             @Override
@@ -57,6 +57,8 @@ final class SessionApp {
         // Mount wires State fields, then renders and emits the structural frame.
         RenderResult result = emitter.mount(root, new Environment(state));
         this.tapActions = result.tapActions();
+        this.textInputs = result.textInputs();
+        this.valueInputs = result.valueInputs();
         this.rootId = result.rootId();
     }
 
@@ -87,7 +89,15 @@ final class SessionApp {
                         action.run();
                     }
                 } else if (event.isTextChanged()) {
-                    nameField.name().set(event.text());
+                    Consumer<String> sink = textInputs.get(event.target());
+                    if (sink != null) {
+                        sink.accept(event.text());
+                    }
+                } else if (event.isValueChanged()) {
+                    Consumer<Float> sink = valueInputs.get(event.target());
+                    if (sink != null) {
+                        sink.accept(event.value());
+                    }
                 }
             }
         } catch (RuntimeException e) {

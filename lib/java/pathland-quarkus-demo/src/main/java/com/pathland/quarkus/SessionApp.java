@@ -1,7 +1,6 @@
 package com.pathland.quarkus;
 
 import com.pathland.demo.CounterView;
-import com.pathland.demo.NameField;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
 import com.pathland.view.emit.Emitter;
@@ -15,6 +14,7 @@ import com.pathland.view.transport.FrameCodec;
 import io.quarkus.websockets.next.WebSocketConnection;
 
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * One Pathland application instance per WebSocket connection (1:1). Owns the session's
@@ -30,12 +30,13 @@ final class SessionApp {
 
     private final PersistentState state;
     private final CounterView root;
-    private final NameField nameField;
 
     private final HtmlRenderer html = new HtmlRenderer();
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
+    private final Map<Integer, Consumer<String>> textInputs;
+    private final Map<Integer, Consumer<Float>> valueInputs;
     private final int rootId;
 
     private volatile WebSocketConnection connection;
@@ -43,7 +44,6 @@ final class SessionApp {
     SessionApp(String sessionId, StateStore store) {
         this.state = new PersistentState(store, sessionId);
         this.root = new CounterView();
-        this.nameField = root.nameField();
 
         // Every completed frame is applied to the session's HTML renderer (for SSR) and,
         // when connected, sent as a delta to THIS session's single client. No broadcast.
@@ -63,6 +63,8 @@ final class SessionApp {
         // Mount wires State fields, then renders and emits the structural frame.
         RenderResult result = emitter.mount(root, new Environment(state));
         this.tapActions = result.tapActions();
+        this.textInputs = result.textInputs();
+        this.valueInputs = result.valueInputs();
         this.rootId = result.rootId();
     }
 
@@ -97,7 +99,15 @@ final class SessionApp {
                         action.run();
                     }
                 } else if (event.isTextChanged()) {
-                    nameField.name().set(event.text());
+                    Consumer<String> sink = textInputs.get(event.target());
+                    if (sink != null) {
+                        sink.accept(event.text());
+                    }
+                } else if (event.isValueChanged()) {
+                    Consumer<Float> sink = valueInputs.get(event.target());
+                    if (sink != null) {
+                        sink.accept(event.value());
+                    }
                 }
             }
         } catch (RuntimeException e) {

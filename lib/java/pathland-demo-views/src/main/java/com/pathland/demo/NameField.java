@@ -1,8 +1,6 @@
 package com.pathland.demo;
 
-import com.pathland.view.Environment;
 import com.pathland.view.View;
-import com.pathland.view.emit.PathlandNode;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
@@ -15,18 +13,13 @@ import com.pathland.view.state.State;
 public final class NameField implements View {
 
     State<String> name = new State<>("");
-
-    /** The underlying name state (the host routes {@code TEXT_CHANGED} events here). */
-    public State<String> name() {
-        return name;
-    }
+    Signal<String> nameLabel = Signals.computed(() -> "Name: " + name.get());
 
     @Override
-    public PathlandNode render(Environment env) {
-        Signal<String> nameLabel = Signals.computed("nameLabel", () -> "Name: " + name.get());
+    public View body() {
         return View.vstack(
                 View.textField("Your name", name.signal()),
                 View.text(nameLabel)
-        ).render(env);
+        );
     }
 }

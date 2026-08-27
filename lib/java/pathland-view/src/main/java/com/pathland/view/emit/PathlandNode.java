@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * A node in the retained view tree — the app's canonical tree, produced by
@@ -43,6 +44,12 @@ public final class PathlandNode {
 
     /** App-side tap callbacks (resolved by node id after the emitter assigns ids). */
     public final List<Runnable> tapActions = new ArrayList<>();
+
+    /** Writable text-input sink (text fields); the emitter routes TEXT_CHANGED into it. */
+    public Consumer<String> textInput;
+
+    /** Writable value-input sink (sliders/switches); the emitter routes VALUE_CHANGED into it. */
+    public Consumer<Float> valueInput;
 
     public PathlandNode(int component) {
         this.component = component;

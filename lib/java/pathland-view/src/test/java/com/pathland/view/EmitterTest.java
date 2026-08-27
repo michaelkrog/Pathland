@@ -4,6 +4,7 @@ import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.emit.Opcode;
+import com.pathland.view.emit.PathlandNode;
 import com.pathland.view.emit.RenderResult;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.WritableSignal;
@@ -115,6 +116,40 @@ class EmitterTest {
         assertTrue(countOps(frame, Categories.STYLE, Commands.Style.SET_PROPERTY) >= 4,
                 "bordered style adds background/border/radius/listeners");
         assertEquals(1, result.tapActions().size());
+    }
+
+    @Test
+    void textInputRoutesBackIntoTheSignal() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        WritableSignal<String> name = Signals.signal("");
+        RenderResult result = emitter.mount(View.textField("Your name", name), Environment.DEFAULT);
+
+        assertEquals(1, result.textInputs().size(), "the text field exposes one input sink");
+        assertEquals(0, result.valueInputs().size(), "a text field has no value input");
+
+        result.textInputs().values().iterator().next().accept("Ada");
+        assertEquals("Ada", name.get(), "TEXT_CHANGED writes straight into the bound signal");
+    }
+
+    @Test
+    void valueInputRoutesBackIntoTheSignal() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        WritableSignal<Float> value = Signals.signal(0f);
+        View slider = new View() {
+            @Override
+            public PathlandNode render(Environment env) {
+                PathlandNode node = new PathlandNode(Components.SLIDER);
+                node.valueInput = value::set;
+                return node;
+            }
+        };
+        RenderResult result = emitter.mount(slider, Environment.DEFAULT);
+
+        assertEquals(1, result.valueInputs().size(), "the value control exposes one input sink");
+        result.valueInputs().values().iterator().next().accept(0.75f);
+        assertEquals(0.75f, value.get(), "VALUE_CHANGED writes straight into the bound signal");
     }
 
     @Test

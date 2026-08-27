@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 /**
  * The fine-grained emitter. Mounts a {@link View} tree once: assigns stable node ids,
@@ -27,6 +28,8 @@ public final class Emitter {
 
     private final OpcodeSink sink;
     private final Map<Integer, Runnable> tapActions = new LinkedHashMap<>();
+    private final Map<Integer, Consumer<String>> textInputs = new LinkedHashMap<>();
+    private final Map<Integer, Consumer<Float>> valueInputs = new LinkedHashMap<>();
     private final List<EffectRef> bindings = new ArrayList<>();
     private int nextId = 1;
     private int rootId;
@@ -53,7 +56,9 @@ public final class Emitter {
         nextId = 1;
         assignIds(tree);
         tapActions.clear();
-        collectTaps(tree);
+        textInputs.clear();
+        valueInputs.clear();
+        collectInputs(tree);
 
         sink.beginFrame();
         emitNode(tree);
@@ -62,7 +67,7 @@ public final class Emitter {
         bindings.clear();
         registerBindings(tree);
         rootId = tree.id;
-        return new RenderResult(rootId, Map.copyOf(tapActions));
+        return new RenderResult(rootId, Map.copyOf(tapActions), Map.copyOf(textInputs), Map.copyOf(valueInputs));
     }
 
     /** The root node id (0 until mounted). */
@@ -85,12 +90,19 @@ public final class Emitter {
         }
     }
 
-    private void collectTaps(PathlandNode node) {
+    /** Collect tap actions + input sinks, keyed by node id, for the host's event routing. */
+    private void collectInputs(PathlandNode node) {
         for (Runnable action : node.tapActions) {
             tapActions.put(node.id, action);
         }
+        if (node.textInput != null) {
+            textInputs.put(node.id, node.textInput);
+        }
+        if (node.valueInput != null) {
+            valueInputs.put(node.id, node.valueInput);
+        }
         for (PathlandNode child : node.children) {
-            collectTaps(child);
+            collectInputs(child);
         }
     }
 

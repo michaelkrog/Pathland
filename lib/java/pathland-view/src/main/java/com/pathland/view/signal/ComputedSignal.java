@@ -18,8 +18,8 @@ final class ComputedSignal<T> extends ReactiveNode implements Signal<T> {
     private final BiPredicate<T, T> equal;
     private T cachedValue;
 
-    ComputedSignal(Supplier<T> fn, BiPredicate<T, T> equal, String name) {
-        super(name);
+    ComputedSignal(Supplier<T> fn, BiPredicate<T, T> equal) {
+        super(null);
         this.fn = Objects.requireNonNull(fn, "computed body");
         this.equal = equal;
     }

@@ -27,6 +27,7 @@ public final class TextField implements View {
         }
         node.textBinding = binding;
         node.text = binding.get();
+        node.textInput = binding::set;
         return node;
     }
 }
