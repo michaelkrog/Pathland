@@ -1,4 +1,4 @@
-package com.pathland.demo;
+package com.pathland.quarkus;
 
 import jakarta.inject.Inject;
 import jakarta.ws.rs.CookieParam;

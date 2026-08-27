@@ -9,21 +9,21 @@ import java.util.concurrent.ConcurrentMap;
  * apps can read state from request threads while a session actor writes it. Zero
  * dependencies; the fallback when no durable backend is configured.
  */
-public final class InMemoryStateStore<T> implements StateStore<T> {
+public final class InMemoryStateStore implements StateStore {
 
-    private final ConcurrentMap<String, T> states = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, Object> states = new ConcurrentHashMap<>();
 
     @Override
-    public Optional<T> load(String key, Class<T> clazz) {
-        T value = states.get(key);
+    public <T> Optional<T> load(String key, Class<T> clazz) {
+        Object value = states.get(key);
         if (value != null && clazz.isInstance(value)) {
-            return Optional.of(value);
+            return Optional.of(clazz.cast(value));
         }
         return Optional.empty();
     }
 
     @Override
-    public void save(String key, T state) {
+    public void save(String key, Object state) {
         states.put(key, state);
     }
 

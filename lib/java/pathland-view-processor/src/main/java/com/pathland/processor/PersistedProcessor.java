@@ -1,0 +1,134 @@
+package com.pathland.processor;
+
+import com.pathland.view.state.Persisted;
+
+import javax.annotation.processing.AbstractProcessor;
+import javax.annotation.processing.RoundEnvironment;
+import javax.annotation.processing.SupportedAnnotationTypes;
+import javax.lang.model.SourceVersion;
+import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
+import javax.lang.model.element.PackageElement;
+import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeMirror;
+import javax.lang.model.util.Elements;
+import javax.lang.model.util.Types;
+import javax.tools.Diagnostic;
+import javax.tools.JavaFileObject;
+import java.io.IOException;
+import java.io.Writer;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+/**
+ * Generates a {@code <View>_StateBinder} per {@code View} implementation that has
+ * {@link Persisted} fields and/or nested view fields. The binder's {@code connect(view,
+ * PersistentState)} wires each {@code @Persisted State} field (key = annotation value or
+ * field name) and recurses into nested view fields.
+ *
+ * <p>Generated binders are discovered at runtime by
+ * {@code PersistentState.connect} via the {@code <Class>_StateBinder} naming convention.
+ */
+@SupportedAnnotationTypes("com.pathland.view.state.Persisted")
+public final class PersistedProcessor extends AbstractProcessor {
+
+    private final Set<String> generated = new HashSet<>();
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+    }
+
+    @Override
+    public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
+        if (roundEnv.processingOver()) {
+            return false;
+        }
+        Elements elements = processingEnv.getElementUtils();
+        Types types = processingEnv.getTypeUtils();
+        TypeElement viewType = elements.getTypeElement("com.pathland.view.View");
+        TypeElement stateType = elements.getTypeElement("com.pathland.view.state.State");
+        if (viewType == null || stateType == null) {
+            return false; // pathland-view not on the processing classpath
+        }
+        TypeMirror viewErasure = types.erasure(viewType.asType());
+        TypeMirror stateErasure = types.erasure(stateType.asType());
+
+        for (Element root : roundEnv.getRootElements()) {
+            if (!(root instanceof TypeElement type) || type.getKind() != ElementKind.CLASS) {
+                continue;
+            }
+            if (!types.isAssignable(types.erasure(type.asType()), viewErasure)) {
+                continue;
+            }
+            List<String[]> persisted = new ArrayList<>(); // {fieldName, key}
+            List<String> nested = new ArrayList<>();
+            for (Element enclosed : type.getEnclosedElements()) {
+                if (enclosed.getKind() != ElementKind.FIELD) {
+                    continue;
+                }
+                VariableElement field = (VariableElement) enclosed;
+                Persisted annotation = field.getAnnotation(Persisted.class);
+                if (annotation != null) {
+                    if (!types.isAssignable(types.erasure(field.asType()), stateErasure)) {
+                        processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                                "@Persisted field must be of type State<T>: " + field.getSimpleName(), field);
+                        continue;
+                    }
+                    String key = annotation.value().isEmpty()
+                            ? field.getSimpleName().toString()
+                            : annotation.value();
+                    persisted.add(new String[]{field.getSimpleName().toString(), key});
+                } else if (types.isAssignable(types.erasure(field.asType()), viewErasure)) {
+                    nested.add(field.getSimpleName().toString());
+                }
+            }
+            if (persisted.isEmpty() && nested.isEmpty()) {
+                continue;
+            }
+            generateBinder(elements, type, persisted, nested);
+        }
+        return false;
+    }
+
+    private void generateBinder(Elements elements, TypeElement type, List<String[]> persisted, List<String> nested) {
+        PackageElement pkg = elements.getPackageOf(type);
+        String pkgName = pkg.getQualifiedName().toString();
+        String simple = type.getSimpleName().toString();
+        String binderName = simple + "_StateBinder";
+        String fq = pkgName.isEmpty() ? binderName : pkgName + "." + binderName;
+        if (!generated.add(fq)) {
+            return;
+        }
+
+        StringBuilder sb = new StringBuilder();
+        if (!pkgName.isEmpty()) {
+            sb.append("package ").append(pkgName).append(";\n\n");
+        }
+        sb.append("import com.pathland.view.state.PersistentState;\n\n");
+        sb.append("/** Generated by pathland-view-processor — wires @Persisted fields. */\n");
+        sb.append("public final class ").append(binderName).append(" {\n");
+        sb.append("    public static void connect(").append(simple).append(" v, PersistentState s) {\n");
+        for (String[] p : persisted) {
+            sb.append("        v.").append(p[0]).append(".bind(s, \"").append(p[1]).append("\");\n");
+        }
+        for (String n : nested) {
+            sb.append("        s.connect(v.").append(n).append(");\n");
+        }
+        sb.append("    }\n");
+        sb.append("}\n");
+
+        try {
+            JavaFileObject file = processingEnv.getFiler().createSourceFile(fq, type);
+            try (Writer w = file.openWriter()) {
+                w.write(sb.toString());
+            }
+        } catch (IOException e) {
+            processingEnv.getMessager().printMessage(Diagnostic.Kind.ERROR,
+                    "failed to write " + fq + ": " + e.getMessage());
+        }
+    }
+}

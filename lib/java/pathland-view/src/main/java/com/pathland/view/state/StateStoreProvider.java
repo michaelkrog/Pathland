@@ -7,8 +7,8 @@ package com.pathland.view.state;
  */
 public interface StateStoreProvider {
 
-    /** A store for {@code clazz}, optionally qualified (e.g. {@code "counter"}). */
-    <T> StateStore<T> store(Class<T> clazz, String... qualifiers);
+    /** A store, optionally qualified (e.g. {@code "redis"}). */
+    StateStore store(String... qualifiers);
 
     /** A human-readable platform name (e.g. {@code "redis"}, {@code "in-memory"}). */
     default String platform() {

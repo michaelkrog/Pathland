@@ -1,4 +1,4 @@
-package com.pathland.demo;
+package com.pathland.quarkus;
 
 import com.pathland.state.redis.RedisStateStore;
 import com.pathland.view.state.InMemoryStateStore;
@@ -19,8 +19,8 @@ import java.util.concurrent.Executors;
  * (never broadcast). The registry routes inbound events and tears sessions down.
  *
  * <p>All session work is serialized on a single actor thread (signals are single-threaded
- * by contract). Per-session SSR runs on the request thread against thread-safe
- * {@link StateStore}s (a throwaway {@link SessionApp}).
+ * by contract). Per-session SSR runs on the request thread against the thread-safe
+ * {@link StateStore} (a throwaway {@link SessionApp}).
  *
  * <p>State is persisted through {@link StateStore} keyed by session id — Redis when
  * reachable, with an in-memory fallback — so the identical view code runs unchanged on a
@@ -38,13 +38,11 @@ public class PathlandApp {
     });
 
     private final Map<String, SessionApp> sessions = new ConcurrentHashMap<>();
-    private StateStore<Integer> countStore;
-    private StateStore<String> nameStore;
+    private StateStore store;
 
     @PostConstruct
     void init() {
-        countStore = redisOrFallback("count", Integer.class, new InMemoryStateStore<>());
-        nameStore = redisOrFallback("name", String.class, new InMemoryStateStore<>());
+        store = redisOrFallback(new InMemoryStateStore());
     }
 
     // ------------------------------------------------------------------
@@ -53,7 +51,7 @@ public class PathlandApp {
 
     /** Render the SSR HTML for a session's persisted state (request thread). */
     public String renderHtml(String sessionId) {
-        SessionApp app = new SessionApp(sessionId, countStore, nameStore);
+        SessionApp app = new SessionApp(sessionId, store);
         try {
             return app.renderHtml();
         } finally {
@@ -72,7 +70,7 @@ public class PathlandApp {
             if (previous != null) {
                 previous.close();
             }
-            SessionApp app = new SessionApp(sessionId, countStore, nameStore);
+            SessionApp app = new SessionApp(sessionId, store);
             app.connect(connection);
             sessions.put(sessionId, app);
         });
@@ -110,14 +108,14 @@ public class PathlandApp {
         actor.shutdown();
     }
 
-    private <T> StateStore<T> redisOrFallback(String label, Class<T> clazz, StateStore<T> fallback) {
+    private StateStore redisOrFallback(StateStore fallback) {
         try {
-            StateStore<T> redis = new RedisStateStore.Provider().store(clazz);
-            redis.load("probe:" + label, clazz); // probe connectivity
-            log("state store: redis (" + label + ")");
+            StateStore redis = new RedisStateStore.Provider().store();
+            redis.load("probe", Object.class); // probe connectivity
+            log("state store: redis");
             return redis;
         } catch (RuntimeException e) {
-            log("state store: in-memory (" + label + ", Redis unavailable: " + e.getMessage() + ")");
+            log("state store: in-memory (Redis unavailable: " + e.getMessage() + ")");
             return fallback;
         }
     }

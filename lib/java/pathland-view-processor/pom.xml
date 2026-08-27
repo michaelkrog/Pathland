@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.pathland</groupId>
+        <artifactId>pathland-parent</artifactId>
+        <version>0.1.0</version>
+    </parent>
+
+    <artifactId>pathland-view-processor</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Pathland View Processor</name>
+    <description>
+        JSR 269 annotation processor for com.pathland.view.state.@Persisted. Generates
+        a &lt;View&gt;_StateBinder per view class that wires each @Persisted State field to
+        the session's PersistentState (auto-keyed by field name, recursing into nested
+        view fields). Framework-agnostic — used by Quarkus, Spring Boot, and desktop.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.pathland</groupId>
+            <artifactId>pathland-view</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+    </dependencies>
+</project>

@@ -25,10 +25,8 @@ import java.util.Optional;
  * application code runs on a multi-tenant scale-out server (this store), a desktop app
  * (File/SQLite), a browser (LocalStorage), or an embedded ESP32 (NVS Flash) by swapping
  * the store.
- *
- * @param <T> the state type (must be {@link Serializable})
  */
-public final class RedisStateStore<T> implements StateStore<T>, AutoCloseable {
+public final class RedisStateStore implements StateStore, AutoCloseable {
 
     private final RedisClient client;
     private final StatefulRedisConnection<String, byte[]> connection;
@@ -51,7 +49,7 @@ public final class RedisStateStore<T> implements StateStore<T>, AutoCloseable {
     }
 
     @Override
-    public Optional<T> load(String key, Class<T> clazz) {
+    public <T> Optional<T> load(String key, Class<T> clazz) {
         byte[] bytes = commands.get(key);
         if (bytes == null) {
             return Optional.empty();
@@ -68,7 +66,7 @@ public final class RedisStateStore<T> implements StateStore<T>, AutoCloseable {
     }
 
     @Override
-    public void save(String key, T state) {
+    public void save(String key, Object state) {
         if (!(state instanceof Serializable)) {
             throw new IllegalArgumentException("state must be Serializable, got " + state.getClass());
         }
@@ -97,9 +95,8 @@ public final class RedisStateStore<T> implements StateStore<T>, AutoCloseable {
     public static final class Provider implements StateStoreProvider {
 
         @Override
-        @SuppressWarnings("unchecked")
-        public <T> StateStore<T> store(Class<T> clazz, String... qualifiers) {
-            return (StateStore<T>) new RedisStateStore<>();
+        public StateStore store(String... qualifiers) {
+            return new RedisStateStore();
         }
 
         @Override

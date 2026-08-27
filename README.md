@@ -106,14 +106,17 @@ The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/j
 
 | Module | Package | Responsibility |
 |--------|---------|----------------|
-| `pathland-view` | `com.pathland.view` | SwiftUI-like view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`) |
+| `pathland-view` | `com.pathland.view` | SwiftUI-like view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`@Persisted`) |
+| `pathland-view-processor` | `com.pathland.processor` | JSR 269 annotation processor: generates `<View>_StateBinder` for `@Persisted State` fields (auto-keyed by field name) |
 | `pathland-render-html` | `com.pathland.render.html` | Pure-function HTML renderer over the opcode stream (SSR) with `data-pathland-id` hydration |
 | `pathland-state-redis` | `com.pathland.state.redis` | Redis-backed `StateStore` over Lettuce (Spring/Quarkus/desktop) |
-| `pathland-quarkus-demo` | `com.pathland.demo` | Quarkus SSR + WebSocket demo consuming the libraries |
+| `pathland-demo-views` | `com.pathland.demo` | Shared demo views (`CounterView`/`CounterControls`/`NameField`) using `@Persisted` |
+| `pathland-quarkus-demo` | `com.pathland.quarkus` | Quarkus SSR + WebSocket demo consuming the libraries |
+| `pathland-spring-boot-demo` | `com.pathland.spring` | Spring Boot SSR + WebSocket demo consuming the same libraries |
 
-The same `com.pathland.view` DSL runs unchanged on a Spring Boot app, a Quarkus app,
-or a desktop app; a desktop host pushes opcodes into the Rust ring via FFM
-(`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.
+The same `com.pathland.view` DSL (and `@Persisted` state) runs unchanged on a Spring Boot
+app, a Quarkus app, or a desktop app; a desktop host pushes opcodes into the Rust ring via
+FFM (`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.
 
 ### Build & run the Java libraries
 
@@ -132,10 +135,16 @@ cd lib/java/pathland-quarkus-demo && mvn quarkus:dev      # http://localhost:808
 cd lib/java/pathland-quarkus-demo
 mvn -q package
 java -jar target/quarkus-app/quarkus-run.jar   # http://localhost:8080
+
+# Run the Spring Boot SSR + WebSocket demo (same shared views)
+cd lib/java/pathland-spring-boot-demo
+mvn -q package
+java -jar target/pathland-spring-boot-demo-0.1.0.jar   # http://localhost:8080
 ```
 
-The libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 506) and
-**Quarkus ≥ 3.18** (dev mode's class-file reader must understand Java 25).
+The libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 506),
+**Quarkus ≥ 3.18** (dev mode's class-file reader must understand Java 25), and
+**Spring Boot ≥ 3.5** (Java 25 support).
 
 ### Run tests
 

@@ -8,15 +8,17 @@ import java.util.Optional;
  * or an embedded ESP32 (NVS Flash) by swapping the {@link StateStore} implementation —
  * component state is decoupled from the storage mechanism.
  *
- * @param <T> the state type
+ * <p>The store is untyped: {@link #load} takes the value's class for a type check and
+ * {@link #save} accepts any (serializable) value, so a single store serves every
+ * signal type.
  */
-public interface StateStore<T> {
+public interface StateStore {
 
-    /** Load state for {@code key}, or empty when absent. */
-    Optional<T> load(String key, Class<T> clazz);
+    /** Load state for {@code key} (type-checked against {@code clazz}), or empty when absent. */
+    <T> Optional<T> load(String key, Class<T> clazz);
 
     /** Persist {@code state} for {@code key}. */
-    void save(String key, T state);
+    void save(String key, Object state);
 
     /** Remove state for {@code key}. */
     void delete(String key);

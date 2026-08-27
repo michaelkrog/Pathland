@@ -7,17 +7,16 @@ import java.util.List;
 
 /**
  * A composable view (SwiftUI ergonomics). Implementations build a
- * {@link PathlandNode} subtree via {@link #render(Environment)}; the sealed
- * set covers the leaf primitives, layout stacks, interactive controls, and the
- * modifier wrapper.
+ * {@link PathlandNode} subtree via {@link #render(Environment)}. The interface is open:
+ * the library ships the leaf primitives, layout stacks, interactive controls, and
+ * modifier wrappers, and application code (Quarkus, Spring Boot, desktop) defines its
+ * own views by implementing {@code View} directly.
  *
  * <p>Global modifiers are chainable on any view. Constructor (structural/layout)
  * properties are passed to the view constructors and are never chainable; spacing
  * is a constructor property and {@code padding} is a modifier.
  */
-public sealed interface View
-        permits Text, Image, Color, Rectangle, VStack, HStack, ZStack, Spacer, Button, TextField,
-                Modified, ButtonStyleView, TapGestureView {
+public interface View {
 
     /** Build this view's retained node(s). */
     PathlandNode render(Environment env);

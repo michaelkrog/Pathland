@@ -1,4 +1,4 @@
-package com.pathland.demo;
+package com.pathland.quarkus;
 
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ClientProxy;
