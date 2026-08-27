@@ -17,7 +17,7 @@
     <description>
         Spring Boot demonstration app consuming the framework-agnostic Pathland libraries:
         SSR via pathland-render-html, live 16-byte opcode deltas over raw WebSocket, and
-        cross-platform state persisted through StateStore (@Persisted). Proves the same
+        cross-platform state persisted through StateStore (State fields). Proves the same
         view code and annotation processor used by the Quarkus demo run unchanged on Spring.
     </description>
 

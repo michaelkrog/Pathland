@@ -15,10 +15,10 @@
 
     <name>Pathland View Processor</name>
     <description>
-        JSR 269 annotation processor for com.pathland.view.state.@Persisted. Generates
-        a &lt;View&gt;_StateBinder per view class that wires each @Persisted State field to
-        the session's PersistentState (auto-keyed by field name, recursing into nested
-        view fields). Framework-agnostic — used by Quarkus, Spring Boot, and desktop.
+        JSR 269 annotation processor for com.pathland.view.state.State fields. Generates
+        a &lt;View&gt;_StateBinder per view class that wires each State field to the
+        session's PersistentState (auto-keyed by field name, recursing into nested view
+        fields). Framework-agnostic — used by Quarkus, Spring Boot, and desktop.
     </description>
 
     <dependencies>

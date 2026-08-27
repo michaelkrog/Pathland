@@ -7,11 +7,13 @@ import java.util.function.UnaryOperator;
 /**
  * A field-holder for a persisted signal (the Java realization of a SwiftUI-style
  * {@code @State} field, wired by the {@code pathland-view-processor} annotation
- * processor). Declared as a {@code @Persisted} field in a view and populated by the
- * generated binder before the first render.
+ * processor). Declared as a field in a view and populated by the generated binder before
+ * the first render. The processor detects {@code State} fields by type, so no annotation
+ * is required:
  *
  * <pre>{@code
- * @Persisted State<Integer> count = new State<>(0);
+ * State<Integer> count = new State<>(0);   // persisted under "count"
+ * State<Integer> total = new State<>(0, "total"); // explicit store key
  * count.get();              // current value
  * count.update(v -> v + 1); // mutate (persisted automatically)
  * }</pre>
@@ -21,15 +23,26 @@ import java.util.function.UnaryOperator;
 public final class State<T> {
 
     private final T initial;
+    private final String key;
     private WritableSignal<T> signal;
 
+    /** A state persisted under its field name. */
     public State(T initial) {
-        this.initial = initial;
+        this(initial, null);
     }
 
-    /** Called by the generated binder to connect this state to the store under {@code name}. */
-    public void bind(PersistentState state, String name) {
-        this.signal = state.signal(name, initial);
+    /** A state persisted under an explicit store key (overrides the field name). */
+    public State(T initial, String key) {
+        this.initial = initial;
+        this.key = key;
+    }
+
+    /**
+     * Called by the generated binder to connect this state to the store. The explicit
+     * {@link #State(Object, String) key}, when set, wins over {@code fieldName}.
+     */
+    public void bind(PersistentState state, String fieldName) {
+        this.signal = state.signal(key != null ? key : fieldName, initial);
     }
 
     /** The underlying signal (for {@code TextField}, {@code View.text(Signal)}, …). */

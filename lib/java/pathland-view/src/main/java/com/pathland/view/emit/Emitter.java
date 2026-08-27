@@ -43,7 +43,7 @@ public final class Emitter {
         }
         mounted = true;
 
-        // Wire @Persisted state before rendering (no-op for a stateless environment).
+        // Wire State fields before rendering (no-op for a stateless environment).
         com.pathland.view.state.PersistentState state = env.state();
         if (state != null) {
             state.connect(root);

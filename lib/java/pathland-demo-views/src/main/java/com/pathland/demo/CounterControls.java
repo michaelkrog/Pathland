@@ -5,17 +5,16 @@ import com.pathland.view.View;
 import com.pathland.view.emit.PathlandNode;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
-import com.pathland.view.state.Persisted;
 import com.pathland.view.state.State;
 
 /**
  * A view component: the count label plus its increment button. The {@code count} state is
- * declared with {@link Persisted} — the annotation processor wires it to the session's
- * store automatically (keyed {@code "count"}).
+ * a {@link State} field — the annotation processor wires it to the session's store
+ * automatically (keyed {@code "count"}).
  */
 public final class CounterControls implements View {
 
-    @Persisted State<Integer> count = new State<>(0);
+    State<Integer> count = new State<>(0);
 
     @Override
     public PathlandNode render(Environment env) {

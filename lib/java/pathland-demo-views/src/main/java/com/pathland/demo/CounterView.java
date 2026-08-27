@@ -8,7 +8,7 @@ import com.pathland.view.emit.PathlandNode;
 /**
  * The application's root view: the {@link CounterControls} and {@link NameField}
  * components plus a footer. Nested views are declared as (package-private) fields so the
- * generated binder can recurse into them and wire their {@code @Persisted} state.
+ * generated binder can recurse into them and wire their {@code State} state.
  */
 public final class CounterView implements View {
 

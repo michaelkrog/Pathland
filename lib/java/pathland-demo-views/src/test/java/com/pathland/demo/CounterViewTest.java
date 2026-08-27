@@ -17,7 +17,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** End-to-end: the generated binder wires @Persisted fields into the store. */
+/** End-to-end: the generated binder wires State fields into the store. */
 class CounterViewTest {
 
     @Test

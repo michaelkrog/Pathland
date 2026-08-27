@@ -108,13 +108,13 @@ lib/java/
                         #   node-level binding effects (com.pathland.view.emit), wire codec
                         #   (com.pathland.view.transport), lazy FFM ring interop
                         #   (com.pathland.view.ffm), cross-platform state
-                        #   (com.pathland.view.state: StateStore/PersistentState/@Persisted)
+                        #   (com.pathland.view.state: StateStore/PersistentState/State)
   pathland-view-processor/ # JSR 269 annotation processor: generates <View>_StateBinder
-                        #   for @Persisted State fields (auto-keyed by field name)
+                        #   for State fields (auto-keyed by field name)
   pathland-render-html/ # com.pathland.render.html — pure-function HTML renderer (SSR)
   pathland-state-redis/ # com.pathland.state.redis — Lettuce RedisStateStore
   pathland-demo-views/  # com.pathland.demo — shared demo views (CounterView/CounterControls/
-                        #   NameField) using @Persisted; consumed by both demos
+                        #   NameField) declaring State fields; consumed by both demos
   pathland-quarkus-demo/# Quarkus SSR + WebSocket demo (com.pathland.quarkus)
   pathland-spring-boot-demo/ # Spring Boot SSR + WebSocket demo (com.pathland.spring)
 ```
@@ -239,14 +239,15 @@ apps. Components and modifiers:
   `Signals.signal/computed/effect/untracked` — lazy+memoized computeds,
   glitch-free synchronous flush, equality suppression, error caching, write
   discipline (`allowWrites()`), circular-dependency detection.
-- **Persisted view state** (`com.pathland.view.state`): a `@Persisted State<T>` field
-  is auto-wired to the session's `PersistentState` (keyed by field name) by the
-  `pathland-view-processor` annotation processor, which generates a
-  `<View>_StateBinder` per view class. `PersistentState.signal(name, initial)`
-  auto-loads the persisted value and auto-saves on change (key `name:scope`), and
-  `StateStore` is untyped (one store serves all signal types). `Emitter.mount` calls
-  `PersistentState.connect(root)` before rendering, so views declare state and the
-  store is wired automatically.
+- **Persisted view state** (`com.pathland.view.state`): a `State<T>` field (e.g.
+  `State<Integer> count = new State<>(0);`) is auto-wired to the session's
+  `PersistentState` (keyed by field name, or `new State<>(0, "key")` for an explicit
+  key) by the `pathland-view-processor` annotation processor, which detects `State`
+  fields by type and generates a `<View>_StateBinder` per view class.
+  `PersistentState.signal(name, initial)` auto-loads the persisted value and
+  auto-saves on change (key `name:scope`), and `StateStore` is untyped (one store
+  serves all signal types). `Emitter.mount` calls `PersistentState.connect(root)`
+  before rendering, so views declare state and the store is wired automatically.
 - **Fine-grained emitter** (`com.pathland.view.emit`): mounts a view tree once,
   assigns stable ids, and registers a **node-level binding effect** per reactive
   text/property — a signal change re-emits only that node's `SET_TEXT` /
@@ -419,7 +420,7 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), **reactive signals** (`pathland-core::signal` — writable `Signal` values bound to node text/properties, so a signal change re-emits only the bound nodes, reachable from Java via the `pathland_native_signal_*` / `node_bind_*` C ABI), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust demos that render through it without touching GTK directly, the **native Java library set** — `com.pathland.view` (open `View` interface + SwiftUI-like DSL, **Angular-parity signals/computed/effects** with synchronous flush, fine-grained emitter with **node-level binding effects**, `PLPL` wire codec, lazy **FFM ring interop** into `libpathland_core`, cross-platform `StateStore` + **`@Persisted`/`PersistentState`** auto-wired by the `pathland-view-processor` annotation processor), `com.pathland.render.html` (pure-function SSR HTML renderer), `com.pathland.state.redis` (Lettuce `RedisStateStore`) — and the **Quarkus** (`pathland-quarkus-demo`) **and Spring Boot** (`pathland-spring-boot-demo`) **SSR + WebSocket demos**, both consuming the same shared views (`pathland-demo-views`) with per-session `@Persisted` state (Redis/in-memory). **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property) and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Tests green across the workspace.**
+**Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), **reactive signals** (`pathland-core::signal` — writable `Signal` values bound to node text/properties, so a signal change re-emits only the bound nodes, reachable from Java via the `pathland_native_signal_*` / `node_bind_*` C ABI), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust demos that render through it without touching GTK directly, the **native Java library set** — `com.pathland.view` (open `View` interface + SwiftUI-like DSL, **Angular-parity signals/computed/effects** with synchronous flush, fine-grained emitter with **node-level binding effects**, `PLPL` wire codec, lazy **FFM ring interop** into `libpathland_core`, cross-platform `StateStore` + **`State`/`PersistentState`** auto-wired by the `pathland-view-processor` annotation processor), `com.pathland.render.html` (pure-function SSR HTML renderer), `com.pathland.state.redis` (Lettuce `RedisStateStore`) — and the **Quarkus** (`pathland-quarkus-demo`) **and Spring Boot** (`pathland-spring-boot-demo`) **SSR + WebSocket demos**, both consuming the same shared views (`pathland-demo-views`) with per-session `State` fields (Redis/in-memory). **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property) and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Tests green across the workspace.**
 
 **In progress**: the **WaterUI backend** (`pathland-waterui`, see the section above) — a producer (WaterUI view → opcodes) + consumer (opcodes → WaterUI views) bridge that round-trips VStack/HStack/Text/Spacer losslessly and emits reactive `SET_TEXT` deltas on signal change. This is the first step toward making WaterUI the application/renderer layer and Pathland the protocol/transport layer.
 

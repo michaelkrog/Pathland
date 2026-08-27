@@ -16,7 +16,7 @@
     <name>Pathland Demo Views</name>
     <description>
         The framework-agnostic demo views (CounterView, CounterControls, NameField), shared
-        by the Quarkus and Spring Boot demos. Uses @Persisted State fields wired by the
+        by the Quarkus and Spring Boot demos. Uses State fields wired by the
         pathland-view-processor annotation processor.
     </description>
 

@@ -21,7 +21,7 @@ import java.util.Map;
  * {@link PersistentState}, retained tree, fine-grained emitter, HTML renderer, and the
  * single connection it sends deltas to.
  *
- * <p>State wiring is automatic: {@code @Persisted} fields in the shared views are connected
+ * <p>State wiring is automatic: {@code State} fields in the shared views are connected
  * to the store at mount time (see {@link Emitter#mount}). The same class is also used
  * (throwaway) for per-session SSR. The connection is wired only for the live (WebSocket)
  * path, and only <em>after</em> mount, so the mount's full frame is never re-sent.
@@ -60,7 +60,7 @@ final class SessionApp {
         };
         this.emitter = new Emitter(sink);
 
-        // Mount wires @Persisted state, then renders and emits the structural frame.
+        // Mount wires State fields, then renders and emits the structural frame.
         RenderResult result = emitter.mount(root, new Environment(state));
         this.tapActions = result.tapActions();
         this.rootId = result.rootId();

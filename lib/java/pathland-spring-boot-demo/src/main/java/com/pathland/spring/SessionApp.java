@@ -54,7 +54,7 @@ final class SessionApp {
         };
         this.emitter = new Emitter(sink);
 
-        // Mount wires @Persisted state, then renders and emits the structural frame.
+        // Mount wires State fields, then renders and emits the structural frame.
         RenderResult result = emitter.mount(root, new Environment(state));
         this.tapActions = result.tapActions();
         this.rootId = result.rootId();
