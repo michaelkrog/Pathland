@@ -1,0 +1,1 @@
+It looks to me as if the readme.md describes the diff incorrectly. It is expected that the retained model has a fine-grained (fx. signal based) change detection,  and only emits changes for the things that have actaully changed.

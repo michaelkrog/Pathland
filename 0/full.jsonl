@@ -1,0 +1,1232 @@
+{
+  "info": {
+    "id": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+    "slug": "quiet-circuit",
+    "projectID": "78d1a2f36539bb4b093a29b0b4355974b1efbb61",
+    "directory": "/Users/michael/Development/michaelkrog/Pathland",
+    "path": "",
+    "title": "Readme diff incorrect for signal-based change detection",
+    "agent": "build",
+    "model": {
+      "id": "deepseek-v4-flash",
+      "providerID": "opencode-go",
+      "variant": "default"
+    },
+    "version": "1.18.23",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0.042041119999999994,
+    "tokens": {
+      "input": 84105,
+      "output": 2000,
+      "reasoning": 4893,
+      "cache": {
+        "read": 195200,
+        "write": 0
+      }
+    },
+    "time": {
+      "created": 1787821085581,
+      "updated": 1787821270050
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1787821085595
+        },
+        "agent": "plan",
+        "model": {
+          "providerID": "opencode-go",
+          "modelID": "deepseek-v4-pro"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_04270d39b001jYjdScBinfSiRB",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "It looks to me as if the readme.md describes the diff incorrectly. It is expected that the retained model has a fine-grained (fx. signal based) change detection,  and only emits changes for the things that have actaully changed.",
+          "id": "prt_04270d39b002gf9miemA3xIS0m",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270d39b001jYjdScBinfSiRB"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04270d39b001jYjdScBinfSiRB",
+        "role": "assistant",
+        "mode": "plan",
+        "agent": "plan",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.01043262,
+        "tokens": {
+          "total": 15597,
+          "input": 15492,
+          "output": 46,
+          "reasoning": 59,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821085992,
+          "completed": 1787821088681
+        },
+        "finish": "tool-calls",
+        "id": "msg_04270d528002yiNSDTsYWep3P6",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-start",
+          "id": "prt_04270d9ed001InBd3n7sJDSK8O",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270d528002yiNSDTsYWep3P6"
+        },
+        {
+          "type": "reasoning",
+          "text": "The user says the README.md describes the diff incorrectly. They say it's expected that the retained model has fine-grained (fx. signal based) change detection, and only emits changes for things that have actually changed.\n\nLet me find the README.md and see what it says about diff.",
+          "time": {
+            "start": 1787821087466,
+            "end": 1787821088339
+          },
+          "id": "prt_04270daea001cHGW50jvRSAhvc",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270d528002yiNSDTsYWep3P6"
+        },
+        {
+          "type": "tool",
+          "tool": "glob",
+          "callID": "call_00_4CEbiG5RXaOiePzYjHUZ5447",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "**/README.md"
+            },
+            "output": "/Users/michael/Development/michaelkrog/Pathland/README.md\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/README.md",
+            "metadata": {
+              "count": 2,
+              "truncated": false
+            },
+            "title": "",
+            "time": {
+              "start": 1787821088511,
+              "end": 1787821088529
+            }
+          },
+          "id": "prt_04270de550010awOu1OuwvKCjx",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270d528002yiNSDTsYWep3P6"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-finish",
+          "tokens": {
+            "total": 15597,
+            "input": 15492,
+            "output": 46,
+            "reasoning": 59,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0.01043262,
+          "id": "prt_04270df7c001Y9ZGFPHXuNQri6",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270d528002yiNSDTsYWep3P6"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04270d39b001jYjdScBinfSiRB",
+        "role": "assistant",
+        "mode": "plan",
+        "agent": "plan",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000560516,
+        "tokens": {
+          "total": 15703,
+          "input": 156,
+          "output": 59,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 15488
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821088682,
+          "completed": 1787821090890
+        },
+        "finish": "tool-calls",
+        "id": "msg_04270dfaa002paBZQJZMix5wrG",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-start",
+          "id": "prt_04270e30c001a8UsOKZ6JiAlNf",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270dfaa002paBZQJZMix5wrG"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "call_00_ET_3OQI6doxsVy5xzSsMMt55609",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md"
+            },
+            "output": "<path>/Users/michael/Development/michaelkrog/Pathland/README.md</path>\n<type>file</type>\n<content>\n1: # Pathland Protocol\n2: \n3: > A cross-platform, cross-language UI protocol inspired by SwiftUI\n4: \n5: ## Overview\n6: \n7: Pathland is a **protocol-first** UI framework for **retained-mode UI** with\n8: multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\n9: designed to be **language-agnostic** and **platform-agnostic**.\n10: \n11: As of August 2026 the core is a **Rust opcode engine**. It emits the\n12: application's **declarative view structure** — VStack, HStack, Text, spacing,\n13: padding, alignment — as a fixed **16-byte opcode ring buffer** into shared\n14: linear memory. Each platform's renderer maps the opcode stream onto that\n15: platform's **native elements** (GTK4 widgets on desktop, DOM elements in the\n16: browser, HTML server-side) and those native elements lay themselves out.\n17: \n18: On desktop the engine runs **natively**: other languages drive it through the\n19: flat **native C ABI** (`pathland-view-native`) over a zero-copy shared ring and render\n20: through the shared GTK renderer (`pathland-render-gtk`).\n21: \n22: **The engine does not compute layout and does not emit rects.** It describes\n23: *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n24: signals in the application ensure only changed nodes emit opcodes, so an\n25: unchanged tree emits zero opcodes.\n26: \n27: ## The Three Elements\n28: \n29: Pathland is composed of three elements. They are the vocabulary the whole\n30: project speaks, so they are settled and used consistently:\n31: \n32: ```\n33: ┌────────────────────┐        ┌─────────────────────┐\n34: │ 1. Retained UI     │        │ 3. Renderer         │\n35: │ the app's UI tree  │────┐   │ maps opcodes onto   │\n36: │ (any language,     │    │   │ native elements +   │\n37: │  any platform)     │    │   │ event reporting     │\n38: └────────────────────┘    │   └───────────▲─────────┘\n39:                          │                │\n40: ┌────────────────────┐    │                │\n41: │ 2. Opcode engine   │◄───┘                │\n42: │ diffs + emits      │─────────────────────┘\n43: └────────────────────┘\n44: ```\n45: \n46: 1. **Retained UI** — the application's canonical retained UI tree. It is the\n47:    single source of truth, owned by the application. It can be authored in\n48:    **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —\n49:    desktop, mobile, or embedded — through a generated DSL or the flat native C\n50:    ABI.\n51: 2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n52:    **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n53:    emit, so an unchanged tree emits zero opcodes. The engine is\n54:    language-independent — the same opcode stream serves every renderer.\n55: 3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n56:    **native elements**, and reports raw inputs back as events. It is a pure\n57:    function of the opcode stream (stateless) and never retains application\n58:    state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n59:    host and is pumped by a driver — they are not separate elements.* The same\n60:    opcode stream targets **different UI systems**: a GTK4 renderer on desktop,\n61:    an AppKit/SwiftUI renderer on macOS, a WinUI renderer on Windows, an LVGL\n62:    renderer on embedded, a DOM renderer in the browser.\n63: \n64: The opcodes are carried from the engine to the renderer by a transport (a\n65: zero-copy shared-memory ring on desktop/native, a serialized network batch for\n66: remote/browser); transport is an implementation detail, not a fourth element.\n67: \n68: ## Core Principles\n69: \n70: - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n71: - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n72: - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n73: - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n74: - **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n75: - **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n76: - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n77: - **Zero-copy**: ring and arena are plain regions of shared linear memory\n78: - **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n79: - **Hand-written Java DSL**: the SwiftUI-like view DSL lives as a reusable Java library (`com.pathland.view`), not generated code — one ergonomic surface for desktop, server (Spring/Quarkus), and embedded hosts\n80: \n81: ## Documentation\n82: \n83: ### Specification\n84: \n85: - [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens\n86: - [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations\n87: \n88: ## Rust Workspace\n89: \n90: The implementation is under [`lib/rust/`](./lib/rust/):\n91: \n92: | Crate | Element | Responsibility |\n93: |-------|---------|----------------|\n94: | `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |\n95: | `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n96: | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |\n97: | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n98: | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |\n99: | `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |\n100: | `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |\n101: \n102: ## Java Libraries\n103: \n104: The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/java/)\n105: (Maven reactor, `org.pathland`, Java 25+):\n106: \n107: | Module | Package | Responsibility |\n108: |--------|---------|----------------|\n109: | `pathland-view` | `com.pathland.view` | SwiftUI-like view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |\n110: | `pathland-view-processor` | `com.pathland.processor` | JSR 269 annotation processor: generates `<View>_StateBinder` for `State` fields (auto-keyed by field name) |\n111: | `pathland-render-html` | `com.pathland.render.html` | Pure-function HTML renderer over the opcode stream (SSR) with `data-pathland-id` hydration |\n112: | `pathland-state-redis` | `com.pathland.state.redis` | Redis-backed `StateStore` over Lettuce (Spring/Quarkus/desktop) |\n113: | `pathland-demo-views` | `com.pathland.demo` | Shared demo views (`CounterView`/`CounterControls`/`NameField`) declaring `State` fields |\n114: | `pathland-quarkus-demo` | `com.pathland.quarkus` | Quarkus SSR + WebSocket demo consuming the libraries |\n115: | `pathland-spring-boot-demo` | `com.pathland.spring` | Spring Boot SSR + WebSocket demo consuming the same libraries |\n116: \n117: The same `com.pathland.view` DSL (and `State` fields) runs unchanged on a Spring Boot\n118: app, a Quarkus app, or a desktop app; a desktop host pushes opcodes into the Rust ring via\n119: FFM (`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.\n120: \n121: ### Build & run the Java libraries\n122: \n123: ```bash\n124: # Rust ring C ABI (only needed for the desktop FFM path)\n125: cd lib/rust && cargo build -p pathland-core-capi\n126: \n127: # Build + test the whole Java reactor (needs JDK 25: maven.compiler.release=25)\n128: export JAVA_HOME=<jdk-25-home>\n129: cd lib/java && mvn -q install\n130: \n131: # Run the Quarkus SSR + WebSocket demo in dev mode (hot reload)\n132: cd lib/java/pathland-quarkus-demo && mvn quarkus:dev      # http://localhost:8080\n133: \n134: # ...or run the packaged runner\n135: cd lib/java/pathland-quarkus-demo\n136: mvn -q package\n137: java -jar target/quarkus-app/quarkus-run.jar   # http://localhost:8080\n138: \n139: # Run the Spring Boot SSR + WebSocket demo (same shared views)\n140: cd lib/java/pathland-spring-boot-demo\n141: mvn -q package\n142: java -jar target/pathland-spring-boot-demo-0.1.0.jar   # http://localhost:8080\n143: ```\n144: \n145: The libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 506),\n146: **Quarkus ≥ 3.18** (dev mode's class-file reader must understand Java 25), and\n147: **Spring Boot ≥ 3.5** (Java 25 support).\n148: \n149: ### Run tests\n150: \n151: ```bash\n152: cd lib/rust && cargo test\n153: cd lib/java && mvn test\n154: ```\n155: \n156: ### Run the GTK desktop demo (native, zero-copy shared ring)\n157: \n158: ```bash\n159: cd lib/rust && PATH=\"$HOME/.cargo/bin:$PATH\" cargo run -p pathland-render-gtk-demo\n160: ```\n161: \n162: ## Components & Properties\n163: \n164: Component and property IDs are defined in `pathland-core`'s\n165: [`constants.rs`](./lib/rust/crates/pathland-core/src/constants.rs) and\n166: documented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,\n167: `VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties\n168: (`SPACING`, `ALIGNMENT`, …) drive native layout, styling modifiers (`PADDING`,\n169: `COLOR`, `BACKGROUND_COLOR`, …) decorate any view, and `WIDTH`/`HEIGHT`\n170: use `-1` = FILL, `-2` = HUG_CONTENT.\n171: \n172: ## Design Tokens\n173: \n174: The renderer owns default token values; the application owns overrides.\n175: Tokens are identified by dot-separated paths (`color.primary`, `space.2`) and\n176: referenced via the `DESIGN_TOKEN` value type or overridden globally with\n177: `SET_DESIGN_TOKEN`. See [Design Token System](./spec/OPCODE.md#design-token-system).\n178: \n179: ## Roadmap (POC Goals)\n180: \n181: See the GitHub issues (#12, #13, #15, #16, #18):\n182: \n183: 1. **16-byte opcode engine** — done\n184: 2. **Core components & modifiers in Rust** (SwiftUI-like API) — done\n185: 3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done\n186: 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done\n187: 5. **Native Java library set** (hand-written `com.pathland.view` DSL + signals/computed/effects + reusable HTML renderer + state stores) — done\n188: 6. **Quarkus SSR + WebSocket demo** (SSR HTML via `pathland-render-html` + live 16-byte opcode deltas) — done\n189: \n190: ## Versioning\n191: \n192: Pathland follows **Semantic Versioning** (Major.Minor.Patch). The wire protocol\n193: version is 1 (see [OPCODE.md](./spec/OPCODE.md)).\n194: \n195: ## License\n196: \n197: Pathland is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.\n\n(End of file - total 197 lines)\n</content>",
+            "metadata": {
+              "preview": "# Pathland Protocol\n\n> A cross-platform, cross-language UI protocol inspired by SwiftUI\n\n## Overview\n\nPathland is a **protocol-first** UI framework for **retained-mode UI** with\nmultiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\ndesigned to be **language-agnostic** and **platform-agnostic**.\n\nAs of August 2026 the core is a **Rust opcode engine**. It emits the\napplication's **declarative view structure** — VStack, HStack, Text, spacing,\npadding, alignment — as a fixed **16-byte opcode ring buffer** into shared\nlinear memory. Each platform's renderer maps the opcode stream onto that\nplatform's **native elements** (GTK4 widgets on desktop, DOM elements in the\nbrowser, HTML server-side) and those native elements lay themselves out.\n\nOn desktop the engine runs **natively**: other languages drive it through the\nflat **native C ABI** (`pathland-view-native`) over a zero-copy shared ring and render\nthrough the shared GTK renderer (`pathland-render-gtk`).",
+              "truncated": false,
+              "loaded": [],
+              "display": {
+                "type": "file",
+                "path": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "text": "# Pathland Protocol\n\n> A cross-platform, cross-language UI protocol inspired by SwiftUI\n\n## Overview\n\nPathland is a **protocol-first** UI framework for **retained-mode UI** with\nmultiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\ndesigned to be **language-agnostic** and **platform-agnostic**.\n\nAs of August 2026 the core is a **Rust opcode engine**. It emits the\napplication's **declarative view structure** — VStack, HStack, Text, spacing,\npadding, alignment — as a fixed **16-byte opcode ring buffer** into shared\nlinear memory. Each platform's renderer maps the opcode stream onto that\nplatform's **native elements** (GTK4 widgets on desktop, DOM elements in the\nbrowser, HTML server-side) and those native elements lay themselves out.\n\nOn desktop the engine runs **natively**: other languages drive it through the\nflat **native C ABI** (`pathland-view-native`) over a zero-copy shared ring and render\nthrough the shared GTK renderer (`pathland-render-gtk`).\n\n**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.\n\n## The Three Elements\n\nPathland is composed of three elements. They are the vocabulary the whole\nproject speaks, so they are settled and used consistently:\n\n```\n┌────────────────────┐        ┌─────────────────────┐\n│ 1. Retained UI     │        │ 3. Renderer         │\n│ the app's UI tree  │────┐   │ maps opcodes onto   │\n│ (any language,     │    │   │ native elements +   │\n│  any platform)     │    │   │ event reporting     │\n└────────────────────┘    │   └───────────▲─────────┘\n                         │                │\n┌────────────────────┐    │                │\n│ 2. Opcode engine   │◄───┘                │\n│ diffs + emits      │─────────────────────┘\n└────────────────────┘\n```\n\n1. **Retained UI** — the application's canonical retained UI tree. It is the\n   single source of truth, owned by the application. It can be authored in\n   **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —\n   desktop, mobile, or embedded — through a generated DSL or the flat native C\n   ABI.\n2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n   emit, so an unchanged tree emits zero opcodes. The engine is\n   language-independent — the same opcode stream serves every renderer.\n3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n   **native elements**, and reports raw inputs back as events. It is a pure\n   function of the opcode stream (stateless) and never retains application\n   state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n   host and is pumped by a driver — they are not separate elements.* The same\n   opcode stream targets **different UI systems**: a GTK4 renderer on desktop,\n   an AppKit/SwiftUI renderer on macOS, a WinUI renderer on Windows, an LVGL\n   renderer on embedded, a DOM renderer in the browser.\n\nThe opcodes are carried from the engine to the renderer by a transport (a\nzero-copy shared-memory ring on desktop/native, a serialized network batch for\nremote/browser); transport is an implementation detail, not a fourth element.\n\n## Core Principles\n\n- **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n- **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n- **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n- **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n- **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n- **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n- **Zero-copy**: ring and arena are plain regions of shared linear memory\n- **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n- **Hand-written Java DSL**: the SwiftUI-like view DSL lives as a reusable Java library (`com.pathland.view`), not generated code — one ergonomic surface for desktop, server (Spring/Quarkus), and embedded hosts\n\n## Documentation\n\n### Specification\n\n- [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens\n- [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations\n\n## Rust Workspace\n\nThe implementation is under [`lib/rust/`](./lib/rust/):\n\n| Crate | Element | Responsibility |\n|-------|---------|----------------|\n| `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |\n| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n| `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |\n| `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n| `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |\n| `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |\n| `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |\n\n## Java Libraries\n\nThe reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/java/)\n(Maven reactor, `org.pathland`, Java 25+):\n\n| Module | Package | Responsibility |\n|--------|---------|----------------|\n| `pathland-view` | `com.pathland.view` | SwiftUI-like view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |\n| `pathland-view-processor` | `com.pathland.processor` | JSR 269 annotation processor: generates `<View>_StateBinder` for `State` fields (auto-keyed by field name) |\n| `pathland-render-html` | `com.pathland.render.html` | Pure-function HTML renderer over the opcode stream (SSR) with `data-pathland-id` hydration |\n| `pathland-state-redis` | `com.pathland.state.redis` | Redis-backed `StateStore` over Lettuce (Spring/Quarkus/desktop) |\n| `pathland-demo-views` | `com.pathland.demo` | Shared demo views (`CounterView`/`CounterControls`/`NameField`) declaring `State` fields |\n| `pathland-quarkus-demo` | `com.pathland.quarkus` | Quarkus SSR + WebSocket demo consuming the libraries |\n| `pathland-spring-boot-demo` | `com.pathland.spring` | Spring Boot SSR + WebSocket demo consuming the same libraries |\n\nThe same `com.pathland.view` DSL (and `State` fields) runs unchanged on a Spring Boot\napp, a Quarkus app, or a desktop app; a desktop host pushes opcodes into the Rust ring via\nFFM (`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.\n\n### Build & run the Java libraries\n\n```bash\n# Rust ring C ABI (only needed for the desktop FFM path)\ncd lib/rust && cargo build -p pathland-core-capi\n\n# Build + test the whole Java reactor (needs JDK 25: maven.compiler.release=25)\nexport JAVA_HOME=<jdk-25-home>\ncd lib/java && mvn -q install\n\n# Run the Quarkus SSR + WebSocket demo in dev mode (hot reload)\ncd lib/java/pathland-quarkus-demo && mvn quarkus:dev      # http://localhost:8080\n\n# ...or run the packaged runner\ncd lib/java/pathland-quarkus-demo\nmvn -q package\njava -jar target/quarkus-app/quarkus-run.jar   # http://localhost:8080\n\n# Run the Spring Boot SSR + WebSocket demo (same shared views)\ncd lib/java/pathland-spring-boot-demo\nmvn -q package\njava -jar target/pathland-spring-boot-demo-0.1.0.jar   # http://localhost:8080\n```\n\nThe libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 506),\n**Quarkus ≥ 3.18** (dev mode's class-file reader must understand Java 25), and\n**Spring Boot ≥ 3.5** (Java 25 support).\n\n### Run tests\n\n```bash\ncd lib/rust && cargo test\ncd lib/java && mvn test\n```\n\n### Run the GTK desktop demo (native, zero-copy shared ring)\n\n```bash\ncd lib/rust && PATH=\"$HOME/.cargo/bin:$PATH\" cargo run -p pathland-render-gtk-demo\n```\n\n## Components & Properties\n\nComponent and property IDs are defined in `pathland-core`'s\n[`constants.rs`](./lib/rust/crates/pathland-core/src/constants.rs) and\ndocumented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,\n`VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties\n(`SPACING`, `ALIGNMENT`, …) drive native layout, styling modifiers (`PADDING`,\n`COLOR`, `BACKGROUND_COLOR`, …) decorate any view, and `WIDTH`/`HEIGHT`\nuse `-1` = FILL, `-2` = HUG_CONTENT.\n\n## Design Tokens\n\nThe renderer owns default token values; the application owns overrides.\nTokens are identified by dot-separated paths (`color.primary`, `space.2`) and\nreferenced via the `DESIGN_TOKEN` value type or overridden globally with\n`SET_DESIGN_TOKEN`. See [Design Token System](./spec/OPCODE.md#design-token-system).\n\n## Roadmap (POC Goals)\n\nSee the GitHub issues (#12, #13, #15, #16, #18):\n\n1. **16-byte opcode engine** — done\n2. **Core components & modifiers in Rust** (SwiftUI-like API) — done\n3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done\n4. **Rust desktop app with GTK4 renderer** (native shared ring) — done\n5. **Native Java library set** (hand-written `com.pathland.view` DSL + signals/computed/effects + reusable HTML renderer + state stores) — done\n6. **Quarkus SSR + WebSocket demo** (SSR HTML via `pathland-render-html` + live 16-byte opcode deltas) — done\n\n## Versioning\n\nPathland follows **Semantic Versioning** (Major.Minor.Patch). The wire protocol\nversion is 1 (see [OPCODE.md](./spec/OPCODE.md)).\n\n## License\n\nPathland is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.",
+                "lineStart": 1,
+                "lineEnd": 197,
+                "totalLines": 197,
+                "truncated": false
+              }
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787821090602,
+              "end": 1787821090606
+            }
+          },
+          "id": "prt_04270e643001GGFxeZOBZ5R76C",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270dfaa002paBZQJZMix5wrG"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-finish",
+          "tokens": {
+            "total": 15703,
+            "input": 156,
+            "output": 59,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 15488
+            }
+          },
+          "cost": 0.000560516,
+          "id": "prt_04270e823001J4PJLUS6gyFnr6",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270dfaa002paBZQJZMix5wrG"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04270d39b001jYjdScBinfSiRB",
+        "role": "assistant",
+        "mode": "plan",
+        "agent": "plan",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.004969492,
+        "tokens": {
+          "total": 20261,
+          "input": 3463,
+          "output": 169,
+          "reasoning": 1013,
+          "cache": {
+            "write": 0,
+            "read": 15616
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821090891,
+          "completed": 1787821106931
+        },
+        "finish": "tool-calls",
+        "id": "msg_04270e84b002bTVZ9R7ycMlNUR",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-start",
+          "id": "prt_04270ec6f0012WPM3nY3rQ540R",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270e84b002bTVZ9R7ycMlNUR"
+        },
+        {
+          "type": "reasoning",
+          "text": "The user says the README describes the diff incorrectly. Let me look at the specific parts of the README that describe diff-based emission.\n\nKey lines:\n- Line 22-25: \"Emission is **diff-based and reactive**: signals in the application ensure only changed nodes emit opcodes, so an unchanged tree emits zero opcodes.\"\n- Line 51-53: \"**Opcode engine** — walks the retained tree, diffs it, and emits fixed **16-byte opcodes** (the producer). Emission is reactive: only changed nodes emit, so an unchanged tree emits zero opcodes.\"\n\nThe user's point: \"It is expected that the retained model has a fine-grained (fx. signal based) change detection, and only emits changes for the things that have actually changed.\"\n\nSo the concern is that the README describes the engine as \"walks the retained tree, diffs it\" — which implies a full tree walk + diff. But the actual design (per AGENTS.md) is fine-grained: signal-based change detection at the node level, so a signal change re-emits only the bound nodes, no full tree walk.\n\nLet me look at the AGENTS.md again for the reactive emission description:\n\n\"**Reactive emission**: emission is diff-based. Only the nodes that changed emit opcodes (property diffs via `SET_PROPERTY`/`SET_TEXT`, structural diffs via `TREE` opcodes). An unchanged tree emits **zero** opcodes. Signals in the application mark the tree dirty; the engine reconciles.\"\n\nAnd in the signal section: \"`Engine::set_signal` re-emits **only the bound nodes** (`SET_TEXT` / `SET_PROPERTY`) — no full tree walk.\"\n\nSo the discrepancy: the README says \"walks the retained tree, diffs it\" which suggests a full tree walk and diff. The user is saying this is incorrect — the actual model is fine-grained signal-based change detection that only emits changes for actually-changed things.\n\nLet me find all the relevant places in README.md that need correcting. Let me also check spec/OPCODE.md to understand the actual mechanism, but the user is specifically talking about README.md.\n\nLet me identify the specific incorrect descriptions:\n\n1. Line 24: \"Emission is **diff-based and reactive**: signals in the application ensure only changed nodes emit opcodes, so an unchanged tree emits zero opcodes.\" — This is actually okay-ish. It says \"signals ensure only changed nodes emit.\"\n\n2. Line 51-52: \"**Opcode engine** — walks the retained tree, diffs it, and emits fixed **16-byte opcodes** (the producer).\" — This says \"walks the retained tree, diffs it\" which implies full tree walk diffing.\n\n3. Line 74: \"**Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\" — fine.\n\n4. Line 42 (diagram): \"2. Opcode engine — diffs + emits\" — fine.\n\n5. Line 95: \"`pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + ...\" — mentions \"diff-based reactive emitter\".\n\nThe user's point is subtle. They want to clarify that the change detection is fine-grained (signal based), not a whole-tree diff. The phrase \"walks the retained tree, diffs it\" is misleading because it implies the engine diffs the whole tree each frame, whereas the actual mechanism is that signals mark specific nodes/bindings dirty, and only those re-emit.\n\nAlso the phrase \"diff-based\" might be slightly misleading — it's more \"fine-grained reactive emission\" driven by signals rather than a tree diff.\n\nLet me look more carefully. Let me also check the spec/OPCODE.md to see how it describes emission, so I can align terminology. But primarily the user asked about README.md.\n\nLet me search for other occurrences of \"diff\" in the README and the repo to understand context.\n\nActually, the user is focused. Let me look at the exact wording that's wrong. The user's framing: \"It looks to me as if the readme.md describes the diff incorrectly. It is expected that the retained model has a fine-grained (fx. signal based) change detection, and only emits changes for the things that have actually changed.\"\n\nSo they're pointing out that the README describes \"diff\" as the mechanism (engine walks tree and diffs), but the actual/expected design is fine-grained signal-based change detection.\n\nThe key incorrect phrase is line 52: \"walks the retained tree, diffs it\". Also line 51 in the diagram's \"2. Opcode engine ... diffs + emits\".\n\nLet me read the spec/OPCODE.md reactive emission section to get accurate terminology.",
+          "time": {
+            "start": 1787821092360,
+            "end": 1787821105327
+          },
+          "id": "prt_04270ee08001r4nn3xbd5dGml8",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270e84b002bTVZ9R7ycMlNUR"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "call_00_reEFvgnwEcnPfQpr8Mr54632",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "diff|reactive|Reactive|walk|dirty|reconcile|fine-grained",
+              "path": "/Users/michael/Development/michaelkrog/Pathland/spec"
+            },
+            "output": "Found 9 matches\n/Users/michael/Development/michaelkrog/Pathland/spec/OPCODE.md:\n  Line 20: - **Sub-millisecond execution**: every opcode is a fixed 16 bytes; emission is a diff over the retained tree with **zero dynamic heap allocations** in the steady state.\n\n  Line 22: - **Reactive emission**: only the nodes that changed emit opcodes. An unchanged tree emits **zero** opcodes (see [Reactive Emission](#reactive-emission)).\n\n  Line 23: - **Linear, deterministic decoding**: the host walks the ring with a single cursor.\n\n  Line 266: ## Reactive Emission\n\n  Line 270: - **Property diff**: a changed `spacing`/`padding`/`WIDTH`/`HEIGHT`/`ALIGNMENT`/\n\n  Line 272:   styling modifier, but it still diffs and emits like any other property.)\n\n  Line 273: - **Structural diff**: a node added/removed/moved emits the corresponding\n\n  Line 282: Signals in the application drive this: a signal marks the tree dirty; the\n\n  Line 283: engine's next `emit` reconciles and writes only the delta. The renderer applies\n",
+            "metadata": {
+              "matches": 9,
+              "truncated": false
+            },
+            "title": "diff|reactive|Reactive|walk|dirty|reconcile|fine-grained",
+            "time": {
+              "start": 1787821106026,
+              "end": 1787821106037
+            }
+          },
+          "id": "prt_0427120b0001oa0qwGmIEiO5Af",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270e84b002bTVZ9R7ycMlNUR"
+        },
+        {
+          "type": "tool",
+          "tool": "grep",
+          "callID": "call_01_uNCEEI2rXexca9jSJu1Y5975",
+          "state": {
+            "status": "completed",
+            "input": {
+              "pattern": "diff|walk|dirty|reconcile|re-emit|reemit",
+              "path": "/Users/michael/Development/michaelkrog/Pathland/README.md"
+            },
+            "output": "Found 86 matches\n/Users/michael/Development/michaelkrog/Pathland/AGENTS.md:\n  Line 37: - **Reactive emission**: emission is diff-based. Only the nodes that changed emit opcodes (property diffs via `SET_PROPERTY`/`SET_TEXT`, structural diffs via `TREE` opcodes). An unchanged tree emits **zero** opcodes. Signals in the application mark the tree dirty; the engine reconciles.\n\n  Line 55: binding and records the dependency, and `Engine::set_signal` re-emits **only the\n\n  Line 56: bound nodes** (`SET_TEXT` / `SET_PROPERTY`) — no full tree walk. Signal values\n\n  Line 74: crates/pathland-engine/   # EMITTER — retained tree types (Node/Component) + the diff-based\n\n  Line 144: lazily loaded, zero JNI) and owns the retained tree + diff emission itself.\n\n  Line 214:   text/property — a signal change re-emits only that node's `SET_TEXT` /\n\n  Line 239: **Primary Goal**: Write once, run anywhere - Enable UI code to be written once and deployed across web, mobile, desktop, and embedded platforms through different renderer implementations.\n\n  Line 241: **Status**: The Rust opcode engine (16-byte opcode, ring buffer, arena, diff-based reactive emission) is implemented and tested (`cargo test`). See the Architecture section above.\n\n  Line 264: - Only **actual changes** are transmitted (diff-based reactive emission)\n\n  Line 353: 3. Handle the value type in `pathland-core`'s diff emission (if a stack/text/size property)\n\n  Line 384: **Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), **reactive signals** (`pathland-core::signal` — writable `Signal` values bound to node text/properties, so a signal change re-emits only the bound nodes, reachable from Java via the `pathland_native_signal_*` / `node_bind_*` C ABI), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust demos that render through it without touching GTK directly, the **native Java library set** — `com.pathland.view` (open `View` interface + SwiftUI-like DSL, **Angular-parity signals/computed/effects** with synchronous flush, fine-grained emitter with **node-level binding effects**, `PLPL` wire codec, lazy **FFM ring interop** into `libpathland_core`, cross-platform `StateStore` + **`State`/`PersistentState`** auto-wired by the `pathland-view-processor` annotation processor), `com.pathland.render.html` (pure-function SSR HTML renderer), `com.pathland.state.redis` (Lettuce `RedisStateStore`) — and the **Quarkus** (`pathland-quarkus-demo`) **and Spring Boot** (`pathland-spring-boot-demo`) **SSR + WebSocket demos**, both consuming the same shared views (`pathland-demo-views`) with per-session `State` fields (Redis/in-memory). **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property) and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` ov...\n\n/Users/michael/Development/michaelkrog/Pathland/spec/OPCODE.md:\n  Line 20: - **Sub-millisecond execution**: every opcode is a fixed 16 bytes; emission is a diff over the retained tree with **zero dynamic heap allocations** in the steady state.\n\n  Line 23: - **Linear, deterministic decoding**: the host walks the ring with a single cursor.\n\n  Line 270: - **Property diff**: a changed `spacing`/`padding`/`WIDTH`/`HEIGHT`/`ALIGNMENT`/\n\n  Line 272:   styling modifier, but it still diffs and emits like any other property.)\n\n  Line 273: - **Structural diff**: a node added/removed/moved emits the corresponding\n\n  Line 282: Signals in the application drive this: a signal marks the tree dirty; the\n\n  Line 283: engine's next `emit` reconciles and writes only the delta. The renderer applies\n\n\n/Users/michael/Development/michaelkrog/Pathland/LICENSE:\n  Line 124:       may provide additional or different license terms and conditions\n\n\n/Users/michael/Development/michaelkrog/Pathland/README.md:\n  Line 23: *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n\n  Line 42: │ diffs + emits      │─────────────────────┘\n\n  Line 51: 2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n\n  Line 60:    opcode stream targets **different UI systems**: a GTK4 renderer on desktop,\n\n  Line 95: | `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/README.md:\n  Line 14: │                           #   diff-based reactive emitter + 16-byte opcode, ring buffer,\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/Modified.java:\n  Line 13:  * a node-level binding so a signal change re-emits only that property.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/signal/WritableSignal.java:\n  Line 7:  * that differs (per the equality comparator) propagates to dependent computed\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/signal/WritableSignalImpl.java:\n  Line 35:         propagate(); // marks consumers dirty, schedules effects, flushes synchronously\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java:\n  Line 20:  * per reactive text/property. A signal change re-emits only that binding's\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java:\n  Line 72:         assertEquals(3, only.a(), \"only node 3 re-emits\");\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/Text.java:\n  Line 8:  * bound text re-emits only this node's {@code SET_TEXT} when the signal changes.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/signal/ComputedSignal.java:\n  Line 42:         if (!dirty) {\n\n  Line 46:         dirty = false;\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/signal/ReactiveNode.java:\n  Line 17:  *       dirty and schedule effects when this node's value changes.</li>\n\n  Line 40:     boolean dirty = true;\n\n  Line 90:      * True when at least one producer's version differs from what this node last\n\n  Line 91:      * observed. Used to skip re-evaluation when a dirty mark turned out not to\n\n  Line 112:      * Re-evaluate dirty {@code computed} producers so their versions reflect any\n\n  Line 127:      * dirty and schedule the effects among them. Computed consumers are only flagged;\n\n  Line 139:         if (dirty) {\n\n  Line 142:         dirty = true;\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/signal/Effect.java:\n  Line 29:         if (!dirty) {\n\n  Line 33:         dirty = false;\n\n  Line 55:         dirty = false;\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-core/src/memory.rs:\n  Line 217:         // A different arena size must be rejected.\n\n  Line 224:         // A different slot count must be rejected.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/View.java:\n  Line 81:     /** Reactive foreground color: re-emits only this node's {@code COLOR} on change. */\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java:\n  Line 14:  * walks this tree to emit the structural opcodes, and registers fine-grained\n\n  Line 36:     /** property id → reactive signal (re-emits only that property on change). */\n\n  Line 39:     /** Reactive text binding (re-emits only {@code SET_TEXT} on change). */\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-render-gtk/src/lib.rs:\n  Line 97:     /// Apply one frame of opcode deltas and reconcile the GTK widget tree.\n\n  Line 128:         // 2. Pre-order walk: get-or-create widgets, update text/style, and\n\n  Line 129:         //    reconcile each stack's child list/order.\n\n  Line 149:         // Stacks: reconcile the box children (order/content) against the tree\n\n  Line 173:         // Attach (or reconcile) native input recognition for the node's event\n\n  Line 291: /// default; any node can request additional (or different) raw events via the\n\n  Line 427: /// (`RingTransport::drain_events`) and may re-emit a new frame.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-view-native/src/lib.rs:\n  Line 40: /// The native host: owns the retained tree, the diff engine, and the shared\n\n  Line 173:     /// Replace a signal's value, re-emitting only the nodes that depend on it.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-view-native/src/capi.rs:\n  Line 254: /// Set a float signal's value; re-emits only the nodes bound to it. Returns 1\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-render-gtk/src/capi.rs:\n  Line 49: /// may re-enter `pathland_native_*` to update the tree and re-emit.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-render-gtk-demo/src/main.rs:\n  Line 6: //! The developer authors the UI with the SwiftUI-style DSL; the diff emitter in\n\n  Line 97:     // and re-emit. The renderer's idle pump applies the delta.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/tests/engine.rs:\n  Line 1: //! Integration tests for the diff-based reactive emitter in `pathland-core`.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/Cargo.toml:\n  Line 6: description = \"Pathland retained view tree + diff-based reactive emitter (moved out of pathland-core)\"\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-view/src/lib.rs:\n  Line 6: //! diff emitter in `pathland-core` turns into declarative `TREE`/`STYLE` opcodes.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-core-capi/src/lib.rs:\n  Line 7: //! place** — the engine stays in Rust, the retained tree / diff stays in the\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/src/engine.rs:\n  Line 8: //! Emission is diff-based: on each `emit` the engine compares the current tree\n\n  Line 17: //! resolves those bindings during emit (recording the dependency) and re-emits\n\n  Line 18: //! only the affected nodes on [`Engine::set_signal`] — no full tree walk.\n\n  Line 50: /// The diff-based reactive emitter.\n\n  Line 86:         // Rebuild the signal dependency index from scratch; reconcile re-adds\n\n  Line 90:         self.reconcile_node(root, None, 0, guest, &mut out)?;\n\n  Line 121:     /// Replace a signal's value and re-emit only the nodes that depend on it.\n\n  Line 212:     fn reconcile_node(\n\n  Line 348:             self.reconcile_node(child, Some(node.id), i, guest, out)?;\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/tests/signal.rs:\n  Line 194:     assert_eq!(n, 2, \"both bound nodes re-emit\");\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/src/node.rs:\n  Line 4: //! of truth the engine diffs into declarative `TREE`/`STYLE` opcodes. It lives\n\n  Line 5: //! here (in the opcode-engine core) so the diff emitter can walk it without the\n\n  Line 136: /// The engine keys its diff snapshot by node id, so call this after building\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-core-transport/src/lib.rs:\n  Line 12: //! There are two network codecs, for two different relationships between the\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/src/lib.rs:\n  Line 3: //! The retained view tree (`Node`/`Component`) and the diff-based reactive\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/src/signal.rs:\n  Line 6: //! changes, only the nodes that read it re-emit their deltas.\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-core-transport/src/traits.rs:\n  Line 13: //! across a process/IPC boundary, with different backpressure and blocking\n\n\n/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-view/src/recognizer.rs:\n  Line 18: /// slop, leaving the node, or a down/up pair on different targets cancels the\n\n  Line 164:     fn up_on_different_target_is_not_a_tap() {\n",
+            "metadata": {
+              "matches": 86,
+              "truncated": false
+            },
+            "title": "diff|walk|dirty|reconcile|re-emit|reemit",
+            "time": {
+              "start": 1787821106683,
+              "end": 1787821106703
+            }
+          },
+          "id": "prt_0427123bf001lCzuaod85Dj9yt",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270e84b002bTVZ9R7ycMlNUR"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-finish",
+          "tokens": {
+            "total": 20261,
+            "input": 3463,
+            "output": 169,
+            "reasoning": 1013,
+            "cache": {
+              "write": 0,
+              "read": 15616
+            }
+          },
+          "cost": 0.004969492,
+          "id": "prt_0427126c9001Cw86twi3C8gMrm",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04270e84b002bTVZ9R7ycMlNUR"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04270d39b001jYjdScBinfSiRB",
+        "role": "assistant",
+        "mode": "plan",
+        "agent": "plan",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.003412288,
+        "tokens": {
+          "total": 24284,
+          "input": 3842,
+          "output": 181,
+          "reasoning": 37,
+          "cache": {
+            "write": 0,
+            "read": 20224
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821106933,
+          "completed": 1787821110648
+        },
+        "finish": "tool-calls",
+        "id": "msg_0427126f5002LOqrKLqSIVWWYh",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-start",
+          "id": "prt_042712ab8001pxZKYCxH2Y6CDn",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_0427126f5002LOqrKLqSIVWWYh"
+        },
+        {
+          "type": "reasoning",
+          "text": "Let me read the OPCODE.md reactive emission section (lines ~260-285) to understand the precise mechanism, and also look at the engine.rs docs to understand the actual algorithm.",
+          "time": {
+            "start": 1787821108525,
+            "end": 1787821109277
+          },
+          "id": "prt_042712d2d001bwi1KYIhZMjGVe",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_0427126f5002LOqrKLqSIVWWYh"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "call_00_leN1huPc2fxVBODfBC3G8244",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/spec/OPCODE.md",
+              "offset": 255,
+              "limit": 40
+            },
+            "output": "<path>/Users/michael/Development/michaelkrog/Pathland/spec/OPCODE.md</path>\n<type>file</type>\n<content>\n255: | `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the batch's string section, referenced by the *relative* `B` offset (same convention as `STYLE::SET_TEXT`) |\n256: \n257: ### META (0x04)\n258: \n259: | Command | Value | A | B | C | Description |\n260: |---------|-------|---|---|---|-------------|\n261: | `RESET` | `0x01` | 0 | 0 | 0 | Host must clear all rendered output |\n262: | `ENVIRONMENT` | `0x02` | viewportWidth (f32) | viewportHeight (f32) | 0 | Viewport size in logical points (host → guest) |\n263: \n264: ---\n265: \n266: ## Reactive Emission\n267: \n268: The engine emits **only what changed** relative to its previous emission:\n269: \n270: - **Property diff**: a changed `spacing`/`padding`/`WIDTH`/`HEIGHT`/`ALIGNMENT`/\n271:   text emits a single `SET_PROPERTY` / `SET_TEXT` for that node. (Padding is a\n272:   styling modifier, but it still diffs and emits like any other property.)\n273: - **Structural diff**: a node added/removed/moved emits the corresponding\n274:   `TREE` opcode(s).\n275: - **Steady state**: an unchanged tree emits **zero** opcodes.\n276: \n277: The **`frame` compound modifier** (width/height/alignment) is not a distinct\n278: protocol concept: it emits `WIDTH`/`HEIGHT`/`ALIGNMENT` as ordinary\n279: `STYLE:SET_PROPERTY` deltas, exactly like any other constraint property. There\n280: is no `frame` opcode or dedicated wire type.\n281: \n282: Signals in the application drive this: a signal marks the tree dirty; the\n283: engine's next `emit` reconciles and writes only the delta. The renderer applies\n284: each frame as a delta to its native elements.\n285: \n286: ---\n287: \n288: ## Linear Memory Layout\n289: \n290: The guest engine and host share a **single linear memory**. Regions are fixed at module start:\n291: \n292: ```\n293: +───────────────────────────────────────────────────────────────+\n294: | 0x0000  Header block (64 B)  — cursors, frame counter, layout  |\n\n(Showing lines 255-294 of 484. Use offset=295 to continue.)\n</content>",
+            "metadata": {
+              "preview": "| `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the batch's string section, referenced by the *relative* `B` offset (same convention as `STYLE::SET_TEXT`) |\n\n### META (0x04)\n\n| Command | Value | A | B | C | Description |\n|---------|-------|---|---|---|-------------|\n| `RESET` | `0x01` | 0 | 0 | 0 | Host must clear all rendered output |\n| `ENVIRONMENT` | `0x02` | viewportWidth (f32) | viewportHeight (f32) | 0 | Viewport size in logical points (host → guest) |\n\n---\n\n## Reactive Emission\n\nThe engine emits **only what changed** relative to its previous emission:\n\n- **Property diff**: a changed `spacing`/`padding`/`WIDTH`/`HEIGHT`/`ALIGNMENT`/\n  text emits a single `SET_PROPERTY` / `SET_TEXT` for that node. (Padding is a\n  styling modifier, but it still diffs and emits like any other property.)\n- **Structural diff**: a node added/removed/moved emits the corresponding\n  `TREE` opcode(s).",
+              "truncated": true,
+              "loaded": [],
+              "display": {
+                "type": "file",
+                "path": "/Users/michael/Development/michaelkrog/Pathland/spec/OPCODE.md",
+                "text": "| `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the batch's string section, referenced by the *relative* `B` offset (same convention as `STYLE::SET_TEXT`) |\n\n### META (0x04)\n\n| Command | Value | A | B | C | Description |\n|---------|-------|---|---|---|-------------|\n| `RESET` | `0x01` | 0 | 0 | 0 | Host must clear all rendered output |\n| `ENVIRONMENT` | `0x02` | viewportWidth (f32) | viewportHeight (f32) | 0 | Viewport size in logical points (host → guest) |\n\n---\n\n## Reactive Emission\n\nThe engine emits **only what changed** relative to its previous emission:\n\n- **Property diff**: a changed `spacing`/`padding`/`WIDTH`/`HEIGHT`/`ALIGNMENT`/\n  text emits a single `SET_PROPERTY` / `SET_TEXT` for that node. (Padding is a\n  styling modifier, but it still diffs and emits like any other property.)\n- **Structural diff**: a node added/removed/moved emits the corresponding\n  `TREE` opcode(s).\n- **Steady state**: an unchanged tree emits **zero** opcodes.\n\nThe **`frame` compound modifier** (width/height/alignment) is not a distinct\nprotocol concept: it emits `WIDTH`/`HEIGHT`/`ALIGNMENT` as ordinary\n`STYLE:SET_PROPERTY` deltas, exactly like any other constraint property. There\nis no `frame` opcode or dedicated wire type.\n\nSignals in the application drive this: a signal marks the tree dirty; the\nengine's next `emit` reconciles and writes only the delta. The renderer applies\neach frame as a delta to its native elements.\n\n---\n\n## Linear Memory Layout\n\nThe guest engine and host share a **single linear memory**. Regions are fixed at module start:\n\n```\n+───────────────────────────────────────────────────────────────+\n| 0x0000  Header block (64 B)  — cursors, frame counter, layout  |",
+                "lineStart": 255,
+                "lineEnd": 294,
+                "totalLines": 484,
+                "truncated": true
+              }
+            },
+            "title": "spec/OPCODE.md",
+            "time": {
+              "start": 1787821109755,
+              "end": 1787821109759
+            }
+          },
+          "id": "prt_04271301f001I1wzCvSvlfp34d",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_0427126f5002LOqrKLqSIVWWYh"
+        },
+        {
+          "type": "tool",
+          "tool": "read",
+          "callID": "call_01_P02R6HIF57sEp8mJlTs35873",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/src/engine.rs",
+              "offset": 1,
+              "limit": 130
+            },
+            "output": "<path>/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/src/engine.rs</path>\n<type>file</type>\n<content>\n1: //! Diff-based reactive emitter.\n2: //!\n3: //! The engine holds the application's retained view tree and emits the\n4: //! declarative structure as `TREE`/`STYLE` opcodes into the 16-byte ring\n5: //! buffer (VStack, HStack, Text, spacing, padding, alignment). It does not\n6: //! compute rects or layout; native renderers lay out their own elements.\n7: //!\n8: //! Emission is diff-based: on each `emit` the engine compares the current tree\n9: //! against a snapshot of what it last emitted and writes only the opcodes for\n10: //! nodes that actually changed. An unchanged tree emits zero opcodes.\n11: //!\n12: //! The emit pass performs zero dynamic heap allocations in the steady state.\n13: //!\n14: //! ## Signals\n15: //!\n16: //! Nodes may bind their text or a property to a [`crate::SignalId`]. The engine\n17: //! resolves those bindings during emit (recording the dependency) and re-emits\n18: //! only the affected nodes on [`Engine::set_signal`] — no full tree walk.\n19: \n20: use alloc::borrow::ToOwned;\n21: use alloc::collections::BTreeMap;\n22: use alloc::string::String;\n23: use alloc::vec::Vec;\n24: \n25: use pathland_core::value_type_for;\n26: use pathland_core::Guest;\n27: \n28: use crate::node::{component_type_id, Component, Node};\n29: use crate::signal::{Dep, SignalId, SignalStore, SignalValue};\n30: \n31: /// Per-node state the engine remembers from the last emission.\n32: #[derive(Debug, Clone, PartialEq)]\n33: struct SnapshotNode {\n34:     component_type: u16,\n35:     parent: Option<u32>,\n36:     index: usize,\n37:     text: Option<String>,\n38:     properties: BTreeMap<u16, u32>,\n39:     /// Generation stamp set on each emit pass; used to detect deleted nodes.\n40:     gen: u64,\n41: }\n42: \n43: /// Result of an emission pass.\n44: #[derive(Debug, Clone, Copy, PartialEq, Eq)]\n45: pub struct EmitResult {\n46:     /// Number of opcodes written to the ring.\n47:     pub opcodes: usize,\n48: }\n49: \n50: /// The diff-based reactive emitter.\n51: ///\n52: /// `Engine` keeps the snapshot of what was last emitted and owns the signal\n53: /// store. Calling `emit` with a (possibly mutated) retained tree writes only\n54: /// the delta opcodes; `set_signal` writes deltas for only the bound nodes.\n55: pub struct Engine {\n56:     /// nodeId to last emitted state (a preallocated slab; node ids are dense).\n57:     snapshot: Vec<Option<SnapshotNode>>,\n58:     /// Monotonic generation stamp for the current pass.\n59:     gen: u64,\n60:     /// Reactive signal store (owns values + the reverse dependency index).\n61:     store: SignalStore,\n62: }\n63: \n64: impl Default for Engine {\n65:     fn default() -> Self {\n66:         Self::new()\n67:     }\n68: }\n69: \n70: impl Engine {\n71:     pub fn new() -> Self {\n72:         Self {\n73:             snapshot: Vec::new(),\n74:             gen: 0,\n75:             store: SignalStore::default(),\n76:         }\n77:     }\n78: \n79:     /// Reconcile `root` against the snapshot, emitting only changed opcodes.\n80:     pub fn emit(\n81:         &mut self,\n82:         root: &Node,\n83:         guest: &mut Guest<'_>,\n84:     ) -> Result<EmitResult, pathland_core::RingError> {\n85:         self.gen = self.gen.wrapping_add(1);\n86:         // Rebuild the signal dependency index from scratch; reconcile re-adds\n87:         // the bindings this tree actually uses, so stale subscriptions vanish.\n88:         self.store.clear_deps();\n89:         let mut out = 0usize;\n90:         self.reconcile_node(root, None, 0, guest, &mut out)?;\n91: \n92:         for (id, slot) in self.snapshot.iter_mut().enumerate() {\n93:             if let Some(s) = slot {\n94:                 if s.gen != self.gen {\n95:                     guest.delete_node(id as u32)?;\n96:                     out += 1;\n97:                     *slot = None;\n98:                 }\n99:             }\n100:         }\n101:         Ok(EmitResult { opcodes: out })\n102:     }\n103: \n104:     /// Number of nodes tracked in the snapshot (diagnostics).\n105:     pub fn tracked_nodes(&self) -> usize {\n106:         self.snapshot.iter().filter(|s| s.is_some()).count()\n107:     }\n108: \n109:     // --- Signals ---\n110: \n111:     /// Create a new signal with an initial value.\n112:     pub fn create_signal(&mut self, value: SignalValue) -> SignalId {\n113:         self.store.create(value)\n114:     }\n115: \n116:     /// Read a signal's current value.\n117:     pub fn get_signal(&self, id: SignalId) -> Option<&SignalValue> {\n118:         self.store.get(id)\n119:     }\n120: \n121:     /// Replace a signal's value and re-emit only the nodes that depend on it.\n122:     ///\n123:     /// Writes `SET_PROPERTY` / `SET_TEXT` deltas for the bound nodes whose\n124:     /// materialized value changed. Returns the number of opcodes written.\n125:     pub fn set_signal(\n126:         &mut self,\n127:         id: SignalId,\n128:         value: SignalValue,\n129:         guest: &mut Guest<'_>,\n130:     ) -> Result<usize, pathland_core::RingError> {\n\n(Showing lines 1-130 of 352. Use offset=131 to continue.)\n</content>",
+            "metadata": {
+              "preview": "//! Diff-based reactive emitter.\n//!\n//! The engine holds the application's retained view tree and emits the\n//! declarative structure as `TREE`/`STYLE` opcodes into the 16-byte ring\n//! buffer (VStack, HStack, Text, spacing, padding, alignment). It does not\n//! compute rects or layout; native renderers lay out their own elements.\n//!\n//! Emission is diff-based: on each `emit` the engine compares the current tree\n//! against a snapshot of what it last emitted and writes only the opcodes for\n//! nodes that actually changed. An unchanged tree emits zero opcodes.\n//!\n//! The emit pass performs zero dynamic heap allocations in the steady state.\n//!\n//! ## Signals\n//!\n//! Nodes may bind their text or a property to a [`crate::SignalId`]. The engine\n//! resolves those bindings during emit (recording the dependency) and re-emits\n//! only the affected nodes on [`Engine::set_signal`] — no full tree walk.\n\nuse alloc::borrow::ToOwned;",
+              "truncated": true,
+              "loaded": [],
+              "display": {
+                "type": "file",
+                "path": "/Users/michael/Development/michaelkrog/Pathland/lib/rust/crates/pathland-engine/src/engine.rs",
+                "text": "//! Diff-based reactive emitter.\n//!\n//! The engine holds the application's retained view tree and emits the\n//! declarative structure as `TREE`/`STYLE` opcodes into the 16-byte ring\n//! buffer (VStack, HStack, Text, spacing, padding, alignment). It does not\n//! compute rects or layout; native renderers lay out their own elements.\n//!\n//! Emission is diff-based: on each `emit` the engine compares the current tree\n//! against a snapshot of what it last emitted and writes only the opcodes for\n//! nodes that actually changed. An unchanged tree emits zero opcodes.\n//!\n//! The emit pass performs zero dynamic heap allocations in the steady state.\n//!\n//! ## Signals\n//!\n//! Nodes may bind their text or a property to a [`crate::SignalId`]. The engine\n//! resolves those bindings during emit (recording the dependency) and re-emits\n//! only the affected nodes on [`Engine::set_signal`] — no full tree walk.\n\nuse alloc::borrow::ToOwned;\nuse alloc::collections::BTreeMap;\nuse alloc::string::String;\nuse alloc::vec::Vec;\n\nuse pathland_core::value_type_for;\nuse pathland_core::Guest;\n\nuse crate::node::{component_type_id, Component, Node};\nuse crate::signal::{Dep, SignalId, SignalStore, SignalValue};\n\n/// Per-node state the engine remembers from the last emission.\n#[derive(Debug, Clone, PartialEq)]\nstruct SnapshotNode {\n    component_type: u16,\n    parent: Option<u32>,\n    index: usize,\n    text: Option<String>,\n    properties: BTreeMap<u16, u32>,\n    /// Generation stamp set on each emit pass; used to detect deleted nodes.\n    gen: u64,\n}\n\n/// Result of an emission pass.\n#[derive(Debug, Clone, Copy, PartialEq, Eq)]\npub struct EmitResult {\n    /// Number of opcodes written to the ring.\n    pub opcodes: usize,\n}\n\n/// The diff-based reactive emitter.\n///\n/// `Engine` keeps the snapshot of what was last emitted and owns the signal\n/// store. Calling `emit` with a (possibly mutated) retained tree writes only\n/// the delta opcodes; `set_signal` writes deltas for only the bound nodes.\npub struct Engine {\n    /// nodeId to last emitted state (a preallocated slab; node ids are dense).\n    snapshot: Vec<Option<SnapshotNode>>,\n    /// Monotonic generation stamp for the current pass.\n    gen: u64,\n    /// Reactive signal store (owns values + the reverse dependency index).\n    store: SignalStore,\n}\n\nimpl Default for Engine {\n    fn default() -> Self {\n        Self::new()\n    }\n}\n\nimpl Engine {\n    pub fn new() -> Self {\n        Self {\n            snapshot: Vec::new(),\n            gen: 0,\n            store: SignalStore::default(),\n        }\n    }\n\n    /// Reconcile `root` against the snapshot, emitting only changed opcodes.\n    pub fn emit(\n        &mut self,\n        root: &Node,\n        guest: &mut Guest<'_>,\n    ) -> Result<EmitResult, pathland_core::RingError> {\n        self.gen = self.gen.wrapping_add(1);\n        // Rebuild the signal dependency index from scratch; reconcile re-adds\n        // the bindings this tree actually uses, so stale subscriptions vanish.\n        self.store.clear_deps();\n        let mut out = 0usize;\n        self.reconcile_node(root, None, 0, guest, &mut out)?;\n\n        for (id, slot) in self.snapshot.iter_mut().enumerate() {\n            if let Some(s) = slot {\n                if s.gen != self.gen {\n                    guest.delete_node(id as u32)?;\n                    out += 1;\n                    *slot = None;\n                }\n            }\n        }\n        Ok(EmitResult { opcodes: out })\n    }\n\n    /// Number of nodes tracked in the snapshot (diagnostics).\n    pub fn tracked_nodes(&self) -> usize {\n        self.snapshot.iter().filter(|s| s.is_some()).count()\n    }\n\n    // --- Signals ---\n\n    /// Create a new signal with an initial value.\n    pub fn create_signal(&mut self, value: SignalValue) -> SignalId {\n        self.store.create(value)\n    }\n\n    /// Read a signal's current value.\n    pub fn get_signal(&self, id: SignalId) -> Option<&SignalValue> {\n        self.store.get(id)\n    }\n\n    /// Replace a signal's value and re-emit only the nodes that depend on it.\n    ///\n    /// Writes `SET_PROPERTY` / `SET_TEXT` deltas for the bound nodes whose\n    /// materialized value changed. Returns the number of opcodes written.\n    pub fn set_signal(\n        &mut self,\n        id: SignalId,\n        value: SignalValue,\n        guest: &mut Guest<'_>,\n    ) -> Result<usize, pathland_core::RingError> {",
+                "lineStart": 1,
+                "lineEnd": 130,
+                "totalLines": 352,
+                "truncated": true
+              }
+            },
+            "title": "lib/rust/crates/pathland-engine/src/engine.rs",
+            "time": {
+              "start": 1787821110341,
+              "end": 1787821110345
+            }
+          },
+          "id": "prt_04271324f001xK7pD1IDNPQaMs",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_0427126f5002LOqrKLqSIVWWYh"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-finish",
+          "tokens": {
+            "total": 24284,
+            "input": 3842,
+            "output": 181,
+            "reasoning": 37,
+            "cache": {
+              "write": 0,
+              "read": 20224
+            }
+          },
+          "cost": 0.003412288,
+          "id": "prt_04271354d0018ZleG96X67oxIo",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_0427126f5002LOqrKLqSIVWWYh"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04270d39b001jYjdScBinfSiRB",
+        "role": "assistant",
+        "mode": "plan",
+        "agent": "plan",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.007020684,
+        "tokens": {
+          "total": 28925,
+          "input": 2184,
+          "output": 530,
+          "reasoning": 2019,
+          "cache": {
+            "write": 0,
+            "read": 24192
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821110650,
+          "completed": 1787821144416
+        },
+        "finish": "stop",
+        "id": "msg_04271357a002zuRnTpwjbUYGNQ",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-start",
+          "id": "prt_042713a09001IGk90i9I5w46Zq",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04271357a002zuRnTpwjbUYGNQ"
+        },
+        {
+          "type": "reasoning",
+          "text": "Now I understand the full picture. The user is saying the README.md describes the diff incorrectly. Specifically:\n\nThe actual mechanism (per AGENTS.md and engine.rs):\n- Fine-grained, signal-based change detection at the node level.\n- `Engine::set_signal` re-emits only the bound nodes — no full tree walk.\n- The full `emit` (structural reconcile) does walk the tree, but the fine-grained reactive updates come from signals marking specific nodes/bindings dirty, and only those nodes re-emit.\n\nThe README.md currently says (line 51-52):\n\"2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed **16-byte opcodes** (the producer). Emission is reactive: only changed nodes emit, so an unchanged tree emits zero opcodes.\"\n\nThe phrase \"walks the retained tree, diffs it\" is misleading — it implies the engine does a full-tree walk + diff every time. The actual design emphasizes fine-grained, signal-based change detection where only changed nodes/bindings emit.\n\nThe user's phrasing: \"It is expected that the retained model has a fine-grained (fx. signal based) change detection, and only emits changes for the things that have actually changed.\"\n\nSo the fix is to reword the README to emphasize fine-grained, signal-based change detection, not \"walks the retained tree, diffs it.\"\n\nLet me identify the specific places to change in README.md:\n\n1. Line 23-25: \"Emission is **diff-based and reactive**: signals in the application ensure only changed nodes emit opcodes, so an unchanged tree emits zero opcodes.\"\n\nActually this one is okay-ish, but could be more precise about fine-grained signal-based detection.\n\n2. Line 42: diagram \"diffs + emits\" — could change to \"reconciles + emits\" or \"emits deltas\".\n\n3. Line 51-53: \"**Opcode engine** — walks the retained tree, diffs it, and emits fixed **16-byte opcodes** (the producer). Emission is reactive: only changed nodes emit, so an unchanged tree emits zero opcodes.\"\n\nThis is the main one. \"walks the retained tree, diffs it\" should become \"reconciles the retained tree and emits only what changed\" or \"fine-grained signal-based change detection\".\n\n4. Line 74: \"**Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\" — okay.\n\n5. Line 95: \"diff-based reactive emitter + reactive signals\" — okay-ish but \"diff-based reactive emitter\" could stay; the table entry says \"Retained tree types (Node/Component) + diff-based reactive emitter + reactive signals\". Fine.\n\nLet me also note the diagram line 42: \"│ 2. Opcode engine   │◄───┘                │\" and \"│ diffs + emits      │\".\n\nNow, the user wants me to plan the change (Plan Mode). I should present a plan, not edit.\n\nLet me be precise about what's wrong and what the fix should be. The core issue: the README describes the engine as \"walks the retained tree, diffs it\" — a whole-tree diff — whereas the actual/expected model is fine-grained signal-based change detection where only actually-changed nodes emit.\n\nLet me formulate the plan with specific rewrites.\n\nKey changes:\n\n1. Line 51-52: Change \"walks the retained tree, diffs it\" to something like \"reconciles the retained tree and emits only the nodes that actually changed (fine-grained, signal-driven change detection)\".\n\n2. Line 42 diagram: \"diffs + emits\" → maybe \"reconciles + emits\" or \"emits only deltas\".\n\n3. Line 23-25: refine to emphasize fine-grained signal-based.\n\nLet me also check if there's a \"diff-based\" phrase that should be kept or removed. The AGENTS.md still uses \"diff-based\" a lot, so the term \"diff-based\" itself isn't wrong — but the mechanism being described as \"walks the retained tree, diffs it\" is what's wrong. Actually the user says \"describes the diff incorrectly\" and expects \"fine-grained (fx. signal based) change detection, and only emits changes for the things that have actually changed.\"\n\nSo the key fix: the README should describe the change detection as fine-grained/signal-based rather than \"walks the tree, diffs it\" (which sounds like a whole-tree reconciliation each emit).\n\nLet me draft precise edits. Since I'm in plan mode, I present the plan with exact proposed text changes.\n\nLet me write out the plan concisely.\n\nProposed edits to README.md:\n\n1. Line 22-25 (Overview paragraph). Current:\n```\n**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.\n```\nChange to emphasize fine-grained signal-driven change detection:\n```\n**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **fine-grained and reactive**:\nchange detection is signal-based, so only the nodes that actually changed emit\nopcodes and an unchanged tree emits zero opcodes.\n```\n\n2. Diagram line 42: \"diffs + emits\" → \"reconciles + emits\" (or \"emits only deltas\").\n\n3. Line 51-53. Current:\n```\n2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n   emit, so an unchanged tree emits zero opcodes. The engine is\n   language-independent — the same opcode stream serves every renderer.\n```\nChange to:\n```\n2. **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the\n   producer), using fine-grained, signal-based change detection: a signal change\n   re-emits only the nodes bound to it, and an unchanged tree emits zero opcodes.\n   The engine is language-independent — the same opcode stream serves every\n   renderer.\n```\n\n4. Line 74: \"**Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\" — could refine to mention fine-grained/signal-based. Optional. Maybe: \"**Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero\".\n\n5. Line 95 table: \"diff-based reactive emitter + reactive **signals**\" — this is consistent with AGENTS.md's \"diff-based reactive emitter\". I could leave it or refine to \"fine-grained reactive emitter\". Probably leave as is, but the term \"diff-based\" is okay here. Actually, to be consistent with the correction, maybe keep \"diff-based reactive emitter\" since AGENTS.md and engine docs still use \"diff-based\". The user's complaint is specifically about \"walks the retained tree, diffs it\" implying whole-tree diff. Hmm.\n\nActually, let me reconsider what the user precisely wants. The user says: \"It looks to me as if the readme.md describes the diff incorrectly. It is expected that the retained model has a fine-grained (fx. signal based) change detection, and only emits changes for the things that have actually changed.\"\n\nSo they're correcting the README's description of the diff mechanism. The main misleading phrase is \"walks the retained tree, diffs it\" (line 51) and possibly the overall \"diff-based\" framing. The expected description: fine-grained, signal-based change detection; only emits changes for actually-changed things.\n\nI'll focus the plan on:\n- Line 51-52 \"walks the retained tree, diffs it\" — the primary fix.\n- Line 42 diagram \"diffs + emits\".\n- Line 23-25 overview wording.\n- Line 74 principle wording (optional, for consistency).\n\nI should present this as a plan and ask if they want me to proceed / confirm scope. Since it's plan mode, I present the plan. I could also ask a clarifying question about how broad to go (e.g., whether to also touch spec/OPCODE.md and AGENTS.md, which also use \"diff\" terminology). But the user specifically said \"readme.md\".\n\nActually, let me double-check: is \"diff-based\" itself the wrong term? The AGENTS.md uses \"diff-based\" everywhere, and the user didn't complain about AGENTS.md. The user's specific complaint is about the README. The phrase \"walks the retained tree, diffs it\" suggests the engine does a full-tree walk and diff each time, which contradicts the fine-grained signal-based design.\n\nI'll present a focused plan. Let me also verify there's no other \"walk\" reference in README. From the grep, only line 51 has \"walks the retained tree, diffs it\" and line 42 \"diffs + emits\". Good.\n\nI think I have enough. Let me present a concise plan with exact proposed edits, and note the key conceptual correction. I don't think I need to ask clarifying questions — the intent is clear. But I might offer a small choice: keep \"diff-based\" terminology (consistent with AGENTS.md) vs. fully switch to \"fine-grained/signal-based\". I'll recommend the minimal, targeted correction.\n\nLet me write the plan.",
+          "time": {
+            "start": 1787821112430,
+            "end": 1787821137779
+          },
+          "id": "prt_042713c6e001YElNS6R3LKaToe",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04271357a002zuRnTpwjbUYGNQ"
+        },
+        {
+          "type": "text",
+          "text": "## Plan: Correct the diff description in `README.md`\n\n**Problem.** The README describes the engine as a whole-tree differ: *\"walks the retained tree, diffs it, and emits…\"* (line 51) and the diagram labels it *\"diffs + emits\"* (line 42). That misrepresents the actual model, which is fine-grained, signal-based change detection where only actually-changed nodes/bindings re-emit (cf. `engine.rs:12-18` \"re-emits only the affected nodes on `set_signal` — no full tree walk\", and `AGENTS.md:55-56`).\n\n**Proposed edits** (4 spots, all in `README.md`):\n\n1. **Overview (lines 23–25)** — drop \"diff-based\" for fine-grained/signal-driven wording:\n   > Emission is **fine-grained and reactive**: change detection is signal-based, so only the nodes that actually changed emit opcodes and an unchanged tree emits zero opcodes.\n\n2. **Diagram (line 42)** — `diffs + emits` → `reconciles + emits` (or \"emits only deltas\").\n\n3. **Element 2 \"Opcode engine\" (lines 51–53)** — replace \"walks the retained tree, diffs it\" with:\n   > **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the producer) using fine-grained, signal-based change detection: a signal change re-emits only the nodes bound to it, and an unchanged tree emits zero opcodes.\n\n4. **Core principles (line 74)** — tighten for consistency:\n   > **Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero.\n\n**Not changing** the table entry at line 95 (\"diff-based reactive emitter\") or the \"diff\" terminology in `AGENTS.md`/`spec/OPCODE.md`, since those are internally consistent and the user's complaint is scoped to `README.md`.\n\nTwo things to confirm before I make edits:\n\n1. Should I keep the word \"diff-based\" anywhere in the README (it appears in the AGENTS.md/spec and isn't inherently wrong), or fully replace it with \"fine-grained / signal-based\" throughout `README.md`?\n2. Do you also want the diagram line (42) and principles bullet (74) touched, or only the two prose spots (23–25 and 51–53)?",
+          "time": {
+            "start": 1787821137783,
+            "end": 1787821144318
+          },
+          "id": "prt_042719f76001STtzmvsF1mszBy",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04271357a002zuRnTpwjbUYGNQ"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-finish",
+          "tokens": {
+            "total": 28925,
+            "input": 2184,
+            "output": 530,
+            "reasoning": 2019,
+            "cache": {
+              "write": 0,
+              "read": 24192
+            }
+          },
+          "cost": 0.007020684,
+          "id": "prt_04271b9380012P8LhKupdJ5QJF",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04271357a002zuRnTpwjbUYGNQ"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1787821240665
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "opencode-go",
+          "modelID": "deepseek-v4-flash"
+        },
+        "summary": {
+          "diffs": [
+            {
+              "file": "README.md",
+              "patch": "Index: README.md\n===================================================================\n--- README.md\t\n+++ README.md\t\n@@ -1,197 +1,200 @@\n # Pathland Protocol\n \n > A cross-platform, cross-language UI protocol inspired by SwiftUI\n \n ## Overview\n \n Pathland is a **protocol-first** UI framework for **retained-mode UI** with\n multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but\n designed to be **language-agnostic** and **platform-agnostic**.\n \n As of August 2026 the core is a **Rust opcode engine**. It emits the\n application's **declarative view structure** — VStack, HStack, Text, spacing,\n padding, alignment — as a fixed **16-byte opcode ring buffer** into shared\n linear memory. Each platform's renderer maps the opcode stream onto that\n platform's **native elements** (GTK4 widgets on desktop, DOM elements in the\n browser, HTML server-side) and those native elements lay themselves out.\n \n On desktop the engine runs **natively**: other languages drive it through the\n flat **native C ABI** (`pathland-view-native`) over a zero-copy shared ring and render\n through the shared GTK renderer (`pathland-render-gtk`).\n \n **The engine does not compute layout and does not emit rects.** It describes\n *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n-signals in the application ensure only changed nodes emit opcodes, so an\n-unchanged tree emits zero opcodes.\n+change detection is fine-grained and signal-based — a signal bound to a node's\n+text or a property re-emits only that node's deltas, so only the things that\n+actually changed emit opcodes and an unchanged tree emits zero opcodes.\n \n ## The Three Elements\n \n Pathland is composed of three elements. They are the vocabulary the whole\n project speaks, so they are settled and used consistently:\n \n ```\n ┌────────────────────┐        ┌─────────────────────┐\n │ 1. Retained UI     │        │ 3. Renderer         │\n │ the app's UI tree  │────┐   │ maps opcodes onto   │\n │ (any language,     │    │   │ native elements +   │\n │  any platform)     │    │   │ event reporting     │\n └────────────────────┘    │   └───────────▲─────────┘\n                          │                │\n ┌────────────────────┐    │                │\n │ 2. Opcode engine   │◄───┘                │\n-│ diffs + emits      │─────────────────────┘\n+│ reconciles + emits │─────────────────────┘\n └────────────────────┘\n ```\n \n 1. **Retained UI** — the application's canonical retained UI tree. It is the\n    single source of truth, owned by the application. It can be authored in\n    **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —\n    desktop, mobile, or embedded — through a generated DSL or the flat native C\n    ABI.\n-2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n-   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n-   emit, so an unchanged tree emits zero opcodes. The engine is\n-   language-independent — the same opcode stream serves every renderer.\n+2. **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the\n+   producer) using fine-grained, signal-based change detection: a signal bound to\n+   a node's text or a property re-emits only that node's deltas, so only the\n+   things that actually changed emit and an unchanged tree emits zero opcodes.\n+   The engine is language-independent — the same opcode stream serves every\n+   renderer.\n 3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n    **native elements**, and reports raw inputs back as events. It is a pure\n    function of the opcode stream (stateless) and never retains application\n    state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n    host and is pumped by a driver — they are not separate elements.* The same\n    opcode stream targets **different UI systems**: a GTK4 renderer on desktop,\n    an AppKit/SwiftUI renderer on macOS, a WinUI renderer on Windows, an LVGL\n    renderer on embedded, a DOM renderer in the browser.\n \n The opcodes are carried from the engine to the renderer by a transport (a\n zero-copy shared-memory ring on desktop/native, a serialized network batch for\n remote/browser); transport is an implementation detail, not a fourth element.\n \n ## Core Principles\n \n - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n-- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n+- **Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero\n - **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n - **Zero-copy**: ring and arena are plain regions of shared linear memory\n - **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n - **Hand-written Java DSL**: the SwiftUI-like view DSL lives as a reusable Java library (`com.pathland.view`), not generated code — one ergonomic surface for desktop, server (Spring/Quarkus), and embedded hosts\n \n ## Documentation\n \n ### Specification\n \n - [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens\n - [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations\n \n ## Rust Workspace\n \n The implementation is under [`lib/rust/`](./lib/rust/):\n \n | Crate | Element | Responsibility |\n |-------|---------|----------------|\n | `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |\n-| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n+| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + fine-grained reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |\n | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |\n | `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |\n | `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |\n \n ## Java Libraries\n \n The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/java/)\n (Maven reactor, `org.pathland`, Java 25+):\n \n | Module | Package | Responsibility |\n |--------|---------|----------------|\n | `pathland-view` | `com.pathland.view` | SwiftUI-like view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |\n | `pathland-view-processor` | `com.pathland.processor` | JSR 269 annotation processor: generates `<View>_StateBinder` for `State` fields (auto-keyed by field name) |\n | `pathland-render-html` | `com.pathland.render.html` | Pure-function HTML renderer over the opcode stream (SSR) with `data-pathland-id` hydration |\n | `pathland-state-redis` | `com.pathland.state.redis` | Redis-backed `StateStore` over Lettuce (Spring/Quarkus/desktop) |\n | `pathland-demo-views` | `com.pathland.demo` | Shared demo views (`CounterView`/`CounterControls`/`NameField`) declaring `State` fields |\n | `pathland-quarkus-demo` | `com.pathland.quarkus` | Quarkus SSR + WebSocket demo consuming the libraries |\n | `pathland-spring-boot-demo` | `com.pathland.spring` | Spring Boot SSR + WebSocket demo consuming the same libraries |\n \n The same `com.pathland.view` DSL (and `State` fields) runs unchanged on a Spring Boot\n app, a Quarkus app, or a desktop app; a desktop host pushes opcodes into the Rust ring via\n FFM (`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.\n \n ### Build & run the Java libraries\n \n ```bash\n # Rust ring C ABI (only needed for the desktop FFM path)\n cd lib/rust && cargo build -p pathland-core-capi\n \n # Build + test the whole Java reactor (needs JDK 25: maven.compiler.release=25)\n export JAVA_HOME=<jdk-25-home>\n cd lib/java && mvn -q install\n \n # Run the Quarkus SSR + WebSocket demo in dev mode (hot reload)\n cd lib/java/pathland-quarkus-demo && mvn quarkus:dev      # http://localhost:8080\n \n # ...or run the packaged runner\n cd lib/java/pathland-quarkus-demo\n mvn -q package\n java -jar target/quarkus-app/quarkus-run.jar   # http://localhost:8080\n \n # Run the Spring Boot SSR + WebSocket demo (same shared views)\n cd lib/java/pathland-spring-boot-demo\n mvn -q package\n java -jar target/pathland-spring-boot-demo-0.1.0.jar   # http://localhost:8080\n ```\n \n The libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 506),\n **Quarkus ≥ 3.18** (dev mode's class-file reader must understand Java 25), and\n **Spring Boot ≥ 3.5** (Java 25 support).\n \n ### Run tests\n \n ```bash\n cd lib/rust && cargo test\n cd lib/java && mvn test\n ```\n \n ### Run the GTK desktop demo (native, zero-copy shared ring)\n \n ```bash\n cd lib/rust && PATH=\"$HOME/.cargo/bin:$PATH\" cargo run -p pathland-render-gtk-demo\n ```\n \n ## Components & Properties\n \n Component and property IDs are defined in `pathland-core`'s\n [`constants.rs`](./lib/rust/crates/pathland-core/src/constants.rs) and\n documented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,\n `VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties\n (`SPACING`, `ALIGNMENT`, …) drive native layout, styling modifiers (`PADDING`,\n `COLOR`, `BACKGROUND_COLOR`, …) decorate any view, and `WIDTH`/`HEIGHT`\n use `-1` = FILL, `-2` = HUG_CONTENT.\n \n ## Design Tokens\n \n The renderer owns default token values; the application owns overrides.\n Tokens are identified by dot-separated paths (`color.primary`, `space.2`) and\n referenced via the `DESIGN_TOKEN` value type or overridden globally with\n `SET_DESIGN_TOKEN`. See [Design Token System](./spec/OPCODE.md#design-token-system).\n \n ## Roadmap (POC Goals)\n \n See the GitHub issues (#12, #13, #15, #16, #18):\n \n 1. **16-byte opcode engine** — done\n 2. **Core components & modifiers in Rust** (SwiftUI-like API) — done\n 3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done\n 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done\n 5. **Native Java library set** (hand-written `com.pathland.view` DSL + signals/computed/effects + reusable HTML renderer + state stores) — done\n 6. **Quarkus SSR + WebSocket demo** (SSR HTML via `pathland-render-html` + live 16-byte opcode deltas) — done\n \n ## Versioning\n \n Pathland follows **Semantic Versioning** (Major.Minor.Patch). The wire protocol\n version is 1 (see [OPCODE.md](./spec/OPCODE.md)).\n \n ## License\n \n Pathland is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.\n",
+              "additions": 12,
+              "deletions": 9,
+              "status": "modified"
+            }
+          ]
+        },
+        "id": "msg_042733159001hL8JihyL0dbisY",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "Yes to both",
+          "id": "prt_04273315d001l8heYRT2o6pcvc",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042733159001hL8JihyL0dbisY"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_042733159001hL8JihyL0dbisY",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.00764082,
+        "tokens": {
+          "total": 30713,
+          "input": 28704,
+          "output": 244,
+          "reasoning": 1765,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821240933,
+          "completed": 1787821255186
+        },
+        "finish": "tool-calls",
+        "id": "msg_042733265002NXUH7GXfJaUR8K",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "type": "step-start",
+          "id": "prt_042733700001DrpN4fDlcuJPzl",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042733265002NXUH7GXfJaUR8K"
+        },
+        {
+          "type": "reasoning",
+          "text": "The user confirmed \"Yes to both\" — meaning:\n1. Keep the word \"diff-based\" anywhere in the README? Actually, let me re-read. My question was: \"Should I keep the word 'diff-based' anywhere in the README... or fully replace it with 'fine-grained / signal-based' throughout README.md?\"\n\nAnd: \"Do you also want the diagram line (42) and principles bullet (74) touched, or only the two prose spots?\"\n\n\"Yes to both\" — the two questions. For question 1, \"Yes\" to keeping \"diff-based\"? Or \"Yes\" to fully replacing? Hmm. The phrasing is ambiguous. The first option was \"keep the word 'diff-based' anywhere\" and second was \"fully replace it with 'fine-grained / signal-based' throughout\". The recommended... Actually I didn't mark a recommendation. \"Yes to both\" likely means: yes, keep diff-based somewhere is not a yes/no question clearly. Actually the first question's answer options: keep diff-based vs fully replace. \"Yes to both\" — hmm, both questions answered yes. For Q1, \"yes\" would mean... it's ambiguous. \n\nLet me think. Q1: \"Should I keep the word 'diff-based' anywhere in the README..., or fully replace it with 'fine-grained / signal-based' throughout README.md?\" A \"yes\" to this doesn't cleanly map. But the user's original message was that the README describes the diff incorrectly. The correction is that change detection is fine-grained and signal-based. I think \"yes to both\" means: yes do both proposed edits (the two prose spots + the diagram/principles), and yes keep \"diff-based\" where it's appropriate (i.e., keep terminology consistent). \n\nActually more likely: \"Yes to both\" = yes to keeping diff-based terminology (option 1) and yes to touching all 4 spots (option 2). Given the AGENTS.md uses \"diff-based\" heavily, keeping it is consistent. But the user's complaint is that README describes the diff incorrectly. The core issue was \"walks the retained tree, diffs it\" implying a whole-tree diff.\n\nI'll interpret: keep \"diff-based\" terminology (consistent with the rest of the repo), and touch all 4 spots. So edits:\n1. Overview: keep \"diff-based\" but fix framing? The user said the diff description is incorrect. The correct description: fine-grained signal-based change detection, only emits changes for what actually changed. So in the overview I'd rewrite to emphasize fine-grained signal-based change detection while possibly keeping \"diff-based\".\n\nLet me go with: replace \"walks the retained tree, diffs it\" framing, keep the term \"diff-based\" as a recognized term but describe the mechanism correctly (fine-grained, signal-based, re-emits only bound nodes, no full tree walk).\n\nLet me make the edits now. I'll do all 4 spots.\n\nEdit 1 - lines 22-25:\nCurrent:\n```\n**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.\n```\nNew:\n```\n**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nchange detection is fine-grained and signal-based — signals bound to a node's\ntext or properties re-emit only that node's deltas, so only the things that\nactually changed emit opcodes and an unchanged tree emits zero opcodes.\n```\n\nHmm, that's decent. Let me keep it a bit tighter.\n\nEdit 2 - diagram line 42: `│ diffs + emits      │` → `│ emits deltas      │`? The box width matters. Let me look at the exact diagram lines.\n\n```\n┌────────────────────┐        ┌─────────────────────┐\n│ 1. Retained UI     │        │ 3. Renderer         │\n│ the app's UI tree  │────┐   │ maps opcodes onto   │\n│ (any language,     │    │   │ native elements +   │\n│  any platform)     │    │   │ event reporting     │\n└────────────────────┘    │   └───────────▲─────────┘\n                         │                │\n┌────────────────────┐    │                │\n│ 2. Opcode engine   │◄───┘                │\n│ diffs + emits      │─────────────────────┘\n└────────────────────┘\n```\n\nLine 42: `│ diffs + emits      │─────────────────────┘`\nLine 41: `│ 2. Opcode engine   │◄───┘                │`\n\nThe box is 20 chars wide between borders: `─` x 20. Content `│ 2. Opcode engine   │` - that's `2. Opcode engine` padded. \"diffs + emits\" is 13 chars, with `│ ` prefix and `      │` suffix = 15+2 = total 20 content. `diffs + emits      ` = 13 + 6 = 19 chars between `│`s → `│ diffs + emits      │`. \n\nNew content: \"emits deltas\" = 12 chars, pad to 19: `emits deltas        ` (12+7). Or \"reconciles + emits\" = 17 chars, pad to 19: `reconciles + emits  ` (17+2). Both fit. I'll go with \"reconciles + emits\" to match my plan. Actually \"emits only deltas\" is 16 chars. Let me keep it descriptive and consistent with element 2 wording. I'll use \"reconciles + emits\" which matches the diff-based reactive emitter (reconcile against snapshot).\n\nEdit 3 - lines 51-53:\nCurrent:\n```\n2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n   emit, so an unchanged tree emits zero opcodes. The engine is\n   language-independent — the same opcode stream serves every renderer.\n```\nNew:\n```\n2. **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the\n   producer) using fine-grained, signal-based change detection: signals bound to\n   a node's text or properties re-emit only that node's deltas, so only the\n   things that actually changed emit and an unchanged tree emits zero opcodes.\n   The engine is language-independent — the same opcode stream serves every\n   renderer.\n```\n\nEdit 4 - line 74:\nCurrent: `- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero`\nNew: `- **Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero`\n\nLet me apply these edits. Also should I verify? These are markdown doc edits; no tests needed. I could run a quick check for box alignment in the diagram. The diagram has box widths of 20 content chars. Let me carefully keep alignment.\n\nLine 41: `│ 2. Opcode engine   │◄───┘                │` — content between first `│` pair: ` 2. Opcode engine   ` = 1+16+3 = 20. Good.\n\nFor line 42, content between `│`: ` diffs + emits      ` = 19. Wait that's only 19. Let me count the original precisely: `│ diffs + emits      │`. \" diffs + emits\" = 1+13=14, then \"      \" = 6 → 20 total? 14+6=20. Yes 20. Good.\n\nNew: `│ reconciles + emits  │` → \" reconciles + emits\" = 1+17=18, plus \"  \" = 2 → 20. Good.\n\nLet me apply.",
+          "time": {
+            "start": 1787821243402,
+            "end": 1787821254034
+          },
+          "id": "prt_042733c0a0018T9z7QCthKol9g",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042733265002NXUH7GXfJaUR8K"
+        },
+        {
+          "type": "tool",
+          "tool": "edit",
+          "callID": "call_00_5cJlCUk986OdWynM4Nmo8838",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "oldString": "**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nsignals in the application ensure only changed nodes emit opcodes, so an\nunchanged tree emits zero opcodes.",
+              "newString": "**The engine does not compute layout and does not emit rects.** It describes\n*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\nchange detection is fine-grained and signal-based — a signal bound to a node's\ntext or a property re-emits only that node's deltas, so only the things that\nactually changed emit opcodes and an unchanged tree emits zero opcodes."
+            },
+            "output": "Edit applied successfully.",
+            "metadata": {
+              "diagnostics": {},
+              "diff": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -20,10 +20,11 @@\n through the shared GTK renderer (`pathland-render-gtk`).\n \n **The engine does not compute layout and does not emit rects.** It describes\n *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n-signals in the application ensure only changed nodes emit opcodes, so an\n-unchanged tree emits zero opcodes.\n+change detection is fine-grained and signal-based — a signal bound to a node's\n+text or a property re-emits only that node's deltas, so only the things that\n+actually changed emit opcodes and an unchanged tree emits zero opcodes.\n \n ## The Three Elements\n \n Pathland is composed of three elements. They are the vocabulary the whole\n",
+              "filediff": {
+                "file": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "patch": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -20,10 +20,11 @@\n through the shared GTK renderer (`pathland-render-gtk`).\n \n **The engine does not compute layout and does not emit rects.** It describes\n *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:\n-signals in the application ensure only changed nodes emit opcodes, so an\n-unchanged tree emits zero opcodes.\n+change detection is fine-grained and signal-based — a signal bound to a node's\n+text or a property re-emits only that node's deltas, so only the things that\n+actually changed emit opcodes and an unchanged tree emits zero opcodes.\n \n ## The Three Elements\n \n Pathland is composed of three elements. They are the vocabulary the whole\n",
+                "additions": 3,
+                "deletions": 2
+              },
+              "truncated": false
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787821254917,
+              "end": 1787821254919
+            }
+          },
+          "id": "prt_042736594001cfVmmPM460tNfO",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042733265002NXUH7GXfJaUR8K"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "f8b6ce2ffcc269b862a25b32b31989145890c201",
+          "type": "step-finish",
+          "tokens": {
+            "total": 30713,
+            "input": 28704,
+            "output": 244,
+            "reasoning": 1765,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0.00764082,
+          "id": "prt_0427369e1001w1SpTisKfST2bA",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042733265002NXUH7GXfJaUR8K"
+        },
+        {
+          "type": "patch",
+          "hash": "538920edfc8ad89839fe337385d14f4770101dbe",
+          "files": [
+            "/Users/michael/Development/michaelkrog/Pathland/README.md"
+          ],
+          "id": "prt_042736a10001BKxLEJM44t1MmV",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042733265002NXUH7GXfJaUR8K"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_042733159001hL8JihyL0dbisY",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000319304,
+        "tokens": {
+          "total": 30842,
+          "input": 136,
+          "output": 114,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 30592
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821255188,
+          "completed": 1787821257339
+        },
+        "finish": "tool-calls",
+        "id": "msg_042736a140024g38ZKDr8WEPdr",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "f8b6ce2ffcc269b862a25b32b31989145890c201",
+          "type": "step-start",
+          "id": "prt_042736e4a0017pVaKSq9jwyoL3",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042736a140024g38ZKDr8WEPdr"
+        },
+        {
+          "type": "tool",
+          "tool": "edit",
+          "callID": "call_00_ET_Y87qV3VeUV5gHFv7F8UF3666",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "newString": "│ reconciles + emits │─────────────────────┘",
+              "oldString": "│ diffs + emits      │─────────────────────┘"
+            },
+            "output": "Edit applied successfully.",
+            "metadata": {
+              "diagnostics": {},
+              "diff": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -39,9 +39,9 @@\n └────────────────────┘    │   └───────────▲─────────┘\n                          │                │\n ┌────────────────────┐    │                │\n │ 2. Opcode engine   │◄───┘                │\n-│ diffs + emits      │─────────────────────┘\n+│ reconciles + emits │─────────────────────┘\n └────────────────────┘\n ```\n \n 1. **Retained UI** — the application's canonical retained UI tree. It is the\n",
+              "filediff": {
+                "file": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "patch": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -39,9 +39,9 @@\n └────────────────────┘    │   └───────────▲─────────┘\n                          │                │\n ┌────────────────────┐    │                │\n │ 2. Opcode engine   │◄───┘                │\n-│ diffs + emits      │─────────────────────┘\n+│ reconciles + emits │─────────────────────┘\n └────────────────────┘\n ```\n \n 1. **Retained UI** — the application's canonical retained UI tree. It is the\n",
+                "additions": 1,
+                "deletions": 1
+              },
+              "truncated": false
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787821257146,
+              "end": 1787821257148
+            }
+          },
+          "id": "prt_0427370d7001HbBHPZwntx2RcM",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042736a140024g38ZKDr8WEPdr"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "9c17de847c157e522e9fb1762f4fefa9c8e56eb8",
+          "type": "step-finish",
+          "tokens": {
+            "total": 30842,
+            "input": 136,
+            "output": 114,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 30592
+            }
+          },
+          "cost": 0.000319304,
+          "id": "prt_042737244001xuxYDEpSSFnVcb",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042736a140024g38ZKDr8WEPdr"
+        },
+        {
+          "type": "patch",
+          "hash": "f8b6ce2ffcc269b862a25b32b31989145890c201",
+          "files": [
+            "/Users/michael/Development/michaelkrog/Pathland/README.md"
+          ],
+          "id": "prt_042737279001cBR8OcuQgeamBk",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042736a140024g38ZKDr8WEPdr"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_042733159001hL8JihyL0dbisY",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.0004148,
+        "tokens": {
+          "total": 31114,
+          "input": 137,
+          "output": 257,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 30720
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821257340,
+          "completed": 1787821260148
+        },
+        "finish": "tool-calls",
+        "id": "msg_04273727c002sDrrmqcaW8xiQf",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "9c17de847c157e522e9fb1762f4fefa9c8e56eb8",
+          "type": "step-start",
+          "id": "prt_04273767d001pJvO7EEjHK7J7L",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273727c002sDrrmqcaW8xiQf"
+        },
+        {
+          "type": "tool",
+          "tool": "edit",
+          "callID": "call_00_ET_ut7RcHTt46tOLi0zx0J36653",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "newString": "2. **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the\n   producer) using fine-grained, signal-based change detection: a signal bound to\n   a node's text or a property re-emits only that node's deltas, so only the\n   things that actually changed emit and an unchanged tree emits zero opcodes.\n   The engine is language-independent — the same opcode stream serves every\n   renderer.",
+              "oldString": "2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n   emit, so an unchanged tree emits zero opcodes. The engine is\n   language-independent — the same opcode stream serves every renderer."
+            },
+            "output": "Edit applied successfully.",
+            "metadata": {
+              "diagnostics": {},
+              "diff": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -48,12 +48,14 @@\n    single source of truth, owned by the application. It can be authored in\n    **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —\n    desktop, mobile, or embedded — through a generated DSL or the flat native C\n    ABI.\n-2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n-   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n-   emit, so an unchanged tree emits zero opcodes. The engine is\n-   language-independent — the same opcode stream serves every renderer.\n+2. **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the\n+   producer) using fine-grained, signal-based change detection: a signal bound to\n+   a node's text or a property re-emits only that node's deltas, so only the\n+   things that actually changed emit and an unchanged tree emits zero opcodes.\n+   The engine is language-independent — the same opcode stream serves every\n+   renderer.\n 3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n    **native elements**, and reports raw inputs back as events. It is a pure\n    function of the opcode stream (stateless) and never retains application\n    state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n",
+              "filediff": {
+                "file": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "patch": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -48,12 +48,14 @@\n    single source of truth, owned by the application. It can be authored in\n    **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —\n    desktop, mobile, or embedded — through a generated DSL or the flat native C\n    ABI.\n-2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed\n-   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes\n-   emit, so an unchanged tree emits zero opcodes. The engine is\n-   language-independent — the same opcode stream serves every renderer.\n+2. **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the\n+   producer) using fine-grained, signal-based change detection: a signal bound to\n+   a node's text or a property re-emits only that node's deltas, so only the\n+   things that actually changed emit and an unchanged tree emits zero opcodes.\n+   The engine is language-independent — the same opcode stream serves every\n+   renderer.\n 3. **Renderer** — consumes the opcode stream and maps it onto that platform's\n    **native elements**, and reports raw inputs back as events. It is a pure\n    function of the opcode stream (stateless) and never retains application\n    state. *\"Host\" and \"driver\" are roles a renderer plays: it runs inside a\n",
+                "additions": 6,
+                "deletions": 4
+              },
+              "truncated": false
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787821259960,
+              "end": 1787821259961
+            }
+          },
+          "id": "prt_0427379a5001HwOhCRvnF7k52e",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273727c002sDrrmqcaW8xiQf"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "84f386a083e66b4fef02f30aaa40ed49675f20b1",
+          "type": "step-finish",
+          "tokens": {
+            "total": 31114,
+            "input": 137,
+            "output": 257,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 30720
+            }
+          },
+          "cost": 0.0004148,
+          "id": "prt_042737d3b001tiFDnbWNxP14RA",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273727c002sDrrmqcaW8xiQf"
+        },
+        {
+          "type": "patch",
+          "hash": "9c17de847c157e522e9fb1762f4fefa9c8e56eb8",
+          "files": [
+            "/Users/michael/Development/michaelkrog/Pathland/README.md"
+          ],
+          "id": "prt_042737d730011ObcvJCE5r1L6k",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273727c002sDrrmqcaW8xiQf"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_042733159001hL8JihyL0dbisY",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.00653224,
+        "tokens": {
+          "total": 29416,
+          "input": 29278,
+          "output": 138,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821260150,
+          "completed": 1787821266590
+        },
+        "finish": "tool-calls",
+        "id": "msg_042737d76002fRwKK6pvpSXOle",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "84f386a083e66b4fef02f30aaa40ed49675f20b1",
+          "type": "step-start",
+          "id": "prt_04273913d0011sDdcYtdO5mylC",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042737d76002fRwKK6pvpSXOle"
+        },
+        {
+          "type": "tool",
+          "tool": "edit",
+          "callID": "chatcmpl-tool-9f4a0d0a3e058fc0",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "newString": "- **Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero",
+              "oldString": "- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero"
+            },
+            "output": "Edit applied successfully.",
+            "metadata": {
+              "diagnostics": {},
+              "diff": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -73,9 +73,9 @@\n - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n-- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n+- **Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero\n - **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n - **Zero-copy**: ring and arena are plain regions of shared linear memory\n - **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n",
+              "filediff": {
+                "file": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "patch": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -73,9 +73,9 @@\n - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs\n - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode\n - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions\n - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent\n-- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero\n+- **Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero\n - **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees\n - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state\n - **Zero-copy**: ring and arena are plain regions of shared linear memory\n - **Single-producer / single-consumer**: guest engine produces; host renderer consumes\n",
+                "additions": 1,
+                "deletions": 1
+              },
+              "truncated": false
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787821266437,
+              "end": 1787821266439
+            }
+          },
+          "id": "prt_042739158001Jo6kMAVKqaCOND",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042737d76002fRwKK6pvpSXOle"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "d0c1a86fe0f7303a86427ecb194e08a85ab533a2",
+          "type": "step-finish",
+          "tokens": {
+            "total": 29416,
+            "input": 29278,
+            "output": 138,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0.00653224,
+          "id": "prt_04273966a001N48In1hP9q8wHz",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042737d76002fRwKK6pvpSXOle"
+        },
+        {
+          "type": "patch",
+          "hash": "84f386a083e66b4fef02f30aaa40ed49675f20b1",
+          "files": [
+            "/Users/michael/Development/michaelkrog/Pathland/README.md"
+          ],
+          "id": "prt_04273969c001V92GbgkqHkMeV3",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_042737d76002fRwKK6pvpSXOle"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_042733159001hL8JihyL0dbisY",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000395028,
+        "tokens": {
+          "total": 29637,
+          "input": 246,
+          "output": 207,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 29184
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821266591,
+          "completed": 1787821270047
+        },
+        "finish": "tool-calls",
+        "id": "msg_04273969f002PG7g9KNnHQxwFI",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "d0c1a86fe0f7303a86427ecb194e08a85ab533a2",
+          "type": "step-start",
+          "id": "prt_042739c41001u57fbBMnBtld1L",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273969f002PG7g9KNnHQxwFI"
+        },
+        {
+          "type": "tool",
+          "tool": "edit",
+          "callID": "chatcmpl-tool-bbe2cc0ddadaba03",
+          "state": {
+            "status": "completed",
+            "input": {
+              "filePath": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+              "newString": "| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + fine-grained reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |",
+              "oldString": "| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |"
+            },
+            "output": "Edit applied successfully.",
+            "metadata": {
+              "diagnostics": {},
+              "diff": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -94,9 +94,9 @@\n \n | Crate | Element | Responsibility |\n |-------|---------|----------------|\n | `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |\n-| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n+| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + fine-grained reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |\n | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |\n | `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |\n",
+              "filediff": {
+                "file": "/Users/michael/Development/michaelkrog/Pathland/README.md",
+                "patch": "Index: /Users/michael/Development/michaelkrog/Pathland/README.md\n===================================================================\n--- /Users/michael/Development/michaelkrog/Pathland/README.md\n+++ /Users/michael/Development/michaelkrog/Pathland/README.md\n@@ -94,9 +94,9 @@\n \n | Crate | Element | Responsibility |\n |-------|---------|----------------|\n | `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |\n-| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n+| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + fine-grained reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |\n | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |\n | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |\n | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |\n | `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |\n",
+                "additions": 1,
+                "deletions": 1
+              },
+              "truncated": false
+            },
+            "title": "README.md",
+            "time": {
+              "start": 1787821269898,
+              "end": 1787821269900
+            }
+          },
+          "id": "prt_042739c82001fQW3qFNMetnEyf",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273969f002PG7g9KNnHQxwFI"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "7ca1851aea9c381176b12efabc2016a4bf208ed4",
+          "type": "step-finish",
+          "tokens": {
+            "total": 29637,
+            "input": 246,
+            "output": 207,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 29184
+            }
+          },
+          "cost": 0.000395028,
+          "id": "prt_04273a3eb0013dxS8qtQuVl7vH",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273969f002PG7g9KNnHQxwFI"
+        },
+        {
+          "type": "patch",
+          "hash": "d0c1a86fe0f7303a86427ecb194e08a85ab533a2",
+          "files": [
+            "/Users/michael/Development/michaelkrog/Pathland/README.md"
+          ],
+          "id": "prt_04273a41e001MqdLR6tQVY9Pi4",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273969f002PG7g9KNnHQxwFI"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_042733159001hL8JihyL0dbisY",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.000343328,
+        "tokens": {
+          "total": 29706,
+          "input": 467,
+          "output": 55,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 29184
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787821270049,
+          "completed": 1787821272193
+        },
+        "finish": "stop",
+        "id": "msg_04273a421002KwcJcDu4YSeDzE",
+        "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d"
+      },
+      "parts": [
+        {
+          "snapshot": "7ca1851aea9c381176b12efabc2016a4bf208ed4",
+          "type": "step-start",
+          "id": "prt_04273aa0c001ZKDtY1Xg2aqu2A",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273a421002KwcJcDu4YSeDzE"
+        },
+        {
+          "type": "text",
+          "text": "Updated all four spots plus the table entry (line 95) for consistency. `README.md` now describes fine-grained, signal-based change detection that re-emits only the nodes bound to a changed signal, rather than \"walks the retained tree, diffs it\".",
+          "time": {
+            "start": 1787821271567,
+            "end": 1787821272109
+          },
+          "id": "prt_04273aa0f001h5K2WRgLJhbiBe",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273a421002KwcJcDu4YSeDzE"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "7ca1851aea9c381176b12efabc2016a4bf208ed4",
+          "type": "step-finish",
+          "tokens": {
+            "total": 29706,
+            "input": 467,
+            "output": 55,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 29184
+            }
+          },
+          "cost": 0.000343328,
+          "id": "prt_04273ac5b001U5MmkUP6Zkh4rU",
+          "sessionID": "ses_fbd8f2c72ffex724Z6hTqV9X1d",
+          "messageID": "msg_04273a421002KwcJcDu4YSeDzE"
+        }
+      ]
+    }
+  ]
+}
