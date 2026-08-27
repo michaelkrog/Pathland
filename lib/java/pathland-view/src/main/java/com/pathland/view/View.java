@@ -37,6 +37,10 @@ public interface View {
      * {@link PathlandNode}.
      */
     default PathlandNode render(Environment env) {
+        com.pathland.view.state.PersistentState state = env.state();
+        if (state != null) {
+            state.connect(this); // wire this view's State fields (idempotent)
+        }
         View resolved = body();
         if (resolved != this) {
             return resolved.render(env);

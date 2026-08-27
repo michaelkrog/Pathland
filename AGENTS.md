@@ -248,11 +248,12 @@ apps. Components and modifiers:
   `State<Integer> count = new State<>(0);`) is auto-wired to the session's
   `PersistentState` (keyed by field name, or `new State<>(0, "key")` for an explicit
   key) by the `pathland-view-processor` annotation processor, which detects `State`
-  fields by type and generates a `<View>_StateBinder` per view class.
-  `PersistentState.signal(name, initial)` auto-loads the persisted value and
-  auto-saves on change (key `name:scope`), and `StateStore` is untyped (one store
-  serves all signal types). `Emitter.mount` calls `PersistentState.connect(root)`
-  before rendering, so views declare state and the store is wired automatically.
+  fields by type and generates a `<View>_StateBinder` per view class. Each view
+  connects its own `State` when it renders (`View.render` calls `Environment.state()
+  → PersistentState.connect(view)`), so nested views can be instantiated inline in
+  `body()` and need not be declared as fields. `PersistentState.signal(name, initial)`
+  auto-loads the persisted value and auto-saves on change (key `name:scope`), and
+  `StateStore` is untyped (one store serves all signal types).
 - **Fine-grained emitter** (`com.pathland.view.emit`): mounts a view tree once,
   assigns stable ids, and registers a **node-level binding effect** per reactive
   text/property — a signal change re-emits only that node's `SET_TEXT` /

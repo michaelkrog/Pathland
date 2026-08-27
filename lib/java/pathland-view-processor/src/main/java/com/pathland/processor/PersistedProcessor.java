@@ -23,10 +23,11 @@ import java.util.Set;
 
 /**
  * Generates a {@code <View>_StateBinder} per {@code View} implementation that declares
- * {@code State} fields and/or nested view fields. Fields are detected by type (no
- * annotation): a {@code com.pathland.view.state.State} field is a persisted signal
- * (bound by field name — an explicit key lives on the {@code State} constructor), and a
- * {@code View} field is a nested view to recurse into.
+ * {@code State} fields. Fields are detected by type (no annotation): a
+ * {@code com.pathland.view.state.State} field is a persisted signal, bound by field name
+ * (an explicit key lives on the {@code State} constructor). Nested views are wired
+ * during render (each view connects itself via {@code Environment.state()}), so a view's
+ * children need not be declared as fields.
  *
  * <p>Generated binders are discovered at runtime by {@code PersistentState.connect} via
  * the {@code <Class>_StateBinder} naming convention.
@@ -64,7 +65,6 @@ public final class PersistedProcessor extends AbstractProcessor {
                 continue;
             }
             List<String> persisted = new ArrayList<>(); // field names
-            List<String> nested = new ArrayList<>();
             for (Element enclosed : type.getEnclosedElements()) {
                 if (enclosed.getKind() != ElementKind.FIELD) {
                     continue;
@@ -73,19 +73,17 @@ public final class PersistedProcessor extends AbstractProcessor {
                 TypeMirror fieldType = types.erasure(field.asType());
                 if (types.isAssignable(fieldType, stateErasure)) {
                     persisted.add(field.getSimpleName().toString());
-                } else if (types.isAssignable(fieldType, viewErasure)) {
-                    nested.add(field.getSimpleName().toString());
                 }
             }
-            if (persisted.isEmpty() && nested.isEmpty()) {
+            if (persisted.isEmpty()) {
                 continue;
             }
-            generateBinder(elements, type, persisted, nested);
+            generateBinder(elements, type, persisted);
         }
         return false;
     }
 
-    private void generateBinder(Elements elements, TypeElement type, List<String> persisted, List<String> nested) {
+    private void generateBinder(Elements elements, TypeElement type, List<String> persisted) {
         PackageElement pkg = elements.getPackageOf(type);
         String pkgName = pkg.getQualifiedName().toString();
         String simple = type.getSimpleName().toString();
@@ -105,9 +103,6 @@ public final class PersistedProcessor extends AbstractProcessor {
         sb.append("    public static void connect(").append(simple).append(" v, PersistentState s) {\n");
         for (String field : persisted) {
             sb.append("        v.").append(field).append(".bind(s, \"").append(field).append("\");\n");
-        }
-        for (String n : nested) {
-            sb.append("        s.connect(v.").append(n).append(");\n");
         }
         sb.append("    }\n");
         sb.append("}\n");
