@@ -21,8 +21,9 @@ through the shared GTK renderer (`pathland-render-gtk`).
 
 **The engine does not compute layout and does not emit rects.** It describes
 *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:
-signals in the application ensure only changed nodes emit opcodes, so an
-unchanged tree emits zero opcodes.
+change detection is fine-grained and signal-based — a signal bound to a node's
+text or a property re-emits only that node's deltas, so only the things that
+actually changed emit opcodes and an unchanged tree emits zero opcodes.
 
 ## The Three Elements
 
@@ -39,7 +40,7 @@ project speaks, so they are settled and used consistently:
                          │                │
 ┌────────────────────┐    │                │
 │ 2. Opcode engine   │◄───┘                │
-│ diffs + emits      │─────────────────────┘
+│ reconciles + emits │─────────────────────┘
 └────────────────────┘
 ```
 
@@ -48,10 +49,12 @@ project speaks, so they are settled and used consistently:
    **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —
    desktop, mobile, or embedded — through a generated DSL or the flat native C
    ABI.
-2. **Opcode engine** — walks the retained tree, diffs it, and emits fixed
-   **16-byte opcodes** (the producer). Emission is reactive: only changed nodes
-   emit, so an unchanged tree emits zero opcodes. The engine is
-   language-independent — the same opcode stream serves every renderer.
+2. **Opcode engine** — emits the retained tree as fixed **16-byte opcodes** (the
+   producer) using fine-grained, signal-based change detection: a signal bound to
+   a node's text or a property re-emits only that node's deltas, so only the
+   things that actually changed emit and an unchanged tree emits zero opcodes.
+   The engine is language-independent — the same opcode stream serves every
+   renderer.
 3. **Renderer** — consumes the opcode stream and maps it onto that platform's
    **native elements**, and reports raw inputs back as events. It is a pure
    function of the opcode stream (stateless) and never retains application
@@ -71,7 +74,7 @@ remote/browser); transport is an implementation detail, not a fourth element.
 - **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode
 - **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions
 - **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent
-- **Reactive emission**: only the nodes that changed emit opcodes; steady state emits zero
+- **Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero
 - **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees
 - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state
 - **Zero-copy**: ring and arena are plain regions of shared linear memory
@@ -92,7 +95,7 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 | Crate | Element | Responsibility |
 |-------|---------|----------------|
 | `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers (`no_std`) |
-| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + diff-based reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |
+| `pathland-core` | Opcode engine | Retained tree types (`Node`/`Component`) + fine-grained reactive emitter + reactive **signals** + 16-byte opcode, ring buffer, bump arena (`no_std`, zero-alloc steady state) |
 | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
 | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
 | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
