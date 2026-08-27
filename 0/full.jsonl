@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 7.925695084000004,
+    "cost": 7.930138820000005,
     "tokens": {
-      "input": 11310173,
-      "output": 320109,
+      "input": 11310911,
+      "output": 320385,
       "reasoning": 158361,
       "cache": {
-        "read": 200828032,
+        "read": 200983040,
         "write": 0
       }
     },
     "time": {
       "created": 1787770524122,
-      "updated": 1787814572737
+      "updated": 1787814581899
     }
   },
   "messages": [
@@ -69160,21 +69160,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.002469588,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 77889,
+          "input": 473,
+          "output": 232,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 77184
           }
         },
         "modelID": "deepseek-v4-pro",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787814572737
+          "created": 1787814572737,
+          "completed": 1787814581867
         },
+        "finish": "tool-calls",
         "id": "msg_0420d72c10022iVg34dg3d8lA5",
         "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR"
       },
@@ -69191,20 +69194,115 @@
           "tool": "bash",
           "callID": "call_00_ET_YZkdNttu41yM34DaJdVi2091",
           "state": {
-            "metadata": {
-              "output": " .../com/pathland/view/state/PersistentState.java   |  4 +-\n .../main/java/com/pathland/view/state/State.java   | 27 +++++++++----\n 16 files changed, 75 insertions(+), 102 deletions(-)\n"
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git add -A && git diff --cached --stat | tail -3 && git commit -m \"refactor(view): drop @Persisted, make State<T> the single persisted-state marker\n\nState<T> was already a dedicated persisted-signal holder, so the @Persisted\nannotation was redundant. Collapse to one construct:\n\n- Delete Persisted.java; the processor now detects State fields by type\n  (@SupportedAnnotationTypes(\\\"*\\\")), recursing into nested View fields.\n- State<T> gains an optional explicit-key constructor (new State<>(0, \\\"key\\\"));\n  bind() falls back to the field name when no key is given.\n- Update demo views, generated-binder shape, and docs/comments accordingly.\n\nUsage is now: State<Integer> count = new State<>(0);\" && git log --oneline -3"
             },
+            "output": " .../com/pathland/view/state/PersistentState.java   |  4 +-\n .../main/java/com/pathland/view/state/State.java   | 27 +++++++++----\n 16 files changed, 75 insertions(+), 102 deletions(-)\n[feature/java-dsl e13dd72] refactor(view): drop @Persisted, make State<T> the single persisted-state marker\n 16 files changed, 75 insertions(+), 102 deletions(-)\n delete mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/state/Persisted.java\ne13dd72 refactor(view): drop @Persisted, make State<T> the single persisted-state marker\nf69c53d feat(view): @Persisted state + annotation processor + Spring Boot demo\n6039009 refactor(demo): extract root view into self-contained components\n",
+            "metadata": {
+              "output": " .../com/pathland/view/state/PersistentState.java   |  4 +-\n .../main/java/com/pathland/view/state/State.java   | 27 +++++++++----\n 16 files changed, 75 insertions(+), 102 deletions(-)\n[feature/java-dsl e13dd72] refactor(view): drop @Persisted, make State<T> the single persisted-state marker\n 16 files changed, 75 insertions(+), 102 deletions(-)\n delete mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/state/Persisted.java\ne13dd72 refactor(view): drop @Persisted, make State<T> the single persisted-state marker\nf69c53d feat(view): @Persisted state + annotation processor + Spring Boot demo\n6039009 refactor(demo): extract root view into self-contained components\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git add -A && git diff --cached --stat | tail -3 && git commit -m \"refactor(view): drop @Persisted, make State<T> the single persisted-state marker\n\nState<T> was already a dedicated persisted-signal holder, so the @Persisted\nannotation was redundant. Collapse to one construct:\n\n- Delete Persisted.java; the processor now detects State fields by type\n  (@SupportedAnnotationTypes(\\\"*\\\")), recursing into nested View fields.\n- State<T> gains an optional explicit-key constructor (new State<>(0, \\\"key\\\"));\n  bind() falls back to the field name when no key is given.\n- Update demo views, generated-binder shape, and docs/comments accordingly.\n\nUsage is now: State<Integer> count = new State<>(0);\" && git log --oneline -3",
             "time": {
-              "start": 1787814577998
+              "start": 1787814581756,
+              "end": 1787814581758
             }
           },
           "id": "prt_0420d7dd20013ewbM25uXmhI8I",
           "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
           "messageID": "msg_0420d72c10022iVg34dg3d8lA5"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "8b3633d3f3731357fff1b46f86124a7a5f3a1523",
+          "type": "step-finish",
+          "tokens": {
+            "total": 77889,
+            "input": 473,
+            "output": 232,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 77184
+            }
+          },
+          "cost": 0.002469588,
+          "id": "prt_0420d9633001LOowm5T0fpsnbg",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_0420d72c10022iVg34dg3d8lA5"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0420d3c830013QprVQ4mTO7hcY",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001974148,
+        "tokens": {
+          "total": 78133,
+          "input": 265,
+          "output": 44,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 77824
+          }
+        },
+        "modelID": "deepseek-v4-pro",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787814581899,
+          "completed": 1787814585149
+        },
+        "finish": "stop",
+        "id": "msg_0420d968b0023jrE0lZseqHIuV",
+        "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR"
+      },
+      "parts": [
+        {
+          "snapshot": "8b3633d3f3731357fff1b46f86124a7a5f3a1523",
+          "type": "step-start",
+          "id": "prt_0420d9cfb001QoxloVoexiEVcW",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_0420d968b0023jrE0lZseqHIuV"
+        },
+        {
+          "type": "text",
+          "text": "Committed as `e13dd72` — `refactor(view): drop @Persisted, make State<T> the single persisted-state marker` (16 files, +75/−102). Working tree clean.",
+          "time": {
+            "start": 1787814584656,
+            "end": 1787814585039
+          },
+          "id": "prt_0420da150001HkNgofX72Hm2Ld",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_0420d968b0023jrE0lZseqHIuV"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "8b3633d3f3731357fff1b46f86124a7a5f3a1523",
+          "type": "step-finish",
+          "tokens": {
+            "total": 78133,
+            "input": 265,
+            "output": 44,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 77824
+            }
+          },
+          "cost": 0.001974148,
+          "id": "prt_0420da30b001H07ThcaAdTuZ8h",
+          "sessionID": "ses_fc092ae26ffeFu5gs5kxR3heHR",
+          "messageID": "msg_0420d968b0023jrE0lZseqHIuV"
         }
       ]
     }
