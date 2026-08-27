@@ -1,6 +1,0 @@
-waterui_path = "../../../waterui"
-
-[package]
-type = "playground"
-name = "Pathland Round-trip"
-bundle_identifier = "com.pathland.example.roundtrip"

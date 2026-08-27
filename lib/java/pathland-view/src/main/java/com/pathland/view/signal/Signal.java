@@ -7,7 +7,7 @@ package com.pathland.view.signal;
  *
  * <p>Signals are single-threaded by contract: reads and writes must happen on the
  * application's actor thread (the same model as Angular change detection and the
- * single-threaded app actor in {@code examples/pathland-web}).
+ * single-threaded app actors in the Quarkus/Spring demos).
  *
  * @param <T> the value type
  */

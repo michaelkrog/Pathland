@@ -72,8 +72,7 @@ crates/pathland-core/     # PROTOCOL — 16-byte opcode, ring buffer, arena, con
                           #   memory layout, Guest/Host/Frame surface (no_std, zero-alloc).
                           #   Pure protocol; the emitter moved out to pathland-engine.
 crates/pathland-engine/   # EMITTER — retained tree types (Node/Component) + the diff-based
-                          #   reactive emitter + signals. Temporary: slated for removal once
-                          #   WaterUI owns change detection (see pathland-waterui).
+                          #   reactive emitter + signals.
 crates/pathland-core-transport/ # TRANSPORT — shared-memory ring owner (RingTransport) +
                           #   network batch encode/decode + batching policy (std)
 crates/pathland-render-gtk/ # RENDERER — host reader (RenderTree) + maps opcode frames onto
@@ -128,50 +127,6 @@ lib/java/
 - Run the Spring Boot demo (SSR + WebSocket deltas):
   `cd lib/java/pathland-spring-boot-demo && mvn package && java -jar target/pathland-spring-boot-demo-0.1.0.jar`.
   Needs JDK 25 and Spring Boot ≥ 3.5.
-
-### WaterUI backend (`pathland-waterui/`, outside `lib/rust/`)
-
-The bridge that makes WaterUI the application layer and Pathland the protocol:
-it lives in its own workspace (WaterUI is edition 2024) and path-depends on the
-local WaterUI checkout (`../../waterui`) plus `pathland-core` +
-`pathland-core-transport`.
-
-Pathland is **web-only**: native (Apple/GTK) renders through WaterUI directly,
-never through Pathland. The producer serializes a WaterUI view to opcodes; a
-server projects those opcodes to a browser (SSR → HTML, then live deltas +
-events over WebSocket).
-
-```
-pathland-waterui/
-  src/producer.rs   # Emitter: walk a WaterUI view tree → Pathland opcodes.
-                    #   Handles Native<FixedContainer> (VStack/HStack via env Axis),
-                    #   Native<TextConfig> (+ reactive SET_TEXT delta on signal change),
-                    #   Native<ButtonConfig> (captures action → nodeId → action map),
-                    #   Native<Spacer>, Metadata<Environment>/<Retain>; composites via body().
-                    #   Emits self-contained frames: (opcodes, strings) where SET_TEXT
-                    #   uses a *relative* offset into the frame's string section (no ring).
-                    #   Toggle→SWITCH/CHECKBOX, Slider→SLIDER, border → BORDER_*.
-  tests/support/    # Test-only decoder (TestConsumer): apply opcodes → retained node
-                    #   description, rebuild() reconstructs WaterUI views (lossless
-                    #   round-trip check). NOT part of the library's public API.
-  tests/roundtrip.rs # vstack/hstack/text/button/toggle/slider round-trip, reactive
-                    #   deltas, action/value invoke.
-```
-
-- Test: `cd pathland-waterui && cargo test`.
-
-### Web server (`examples/pathland-web/`)
-
-The SSR + live-updates demo: a Rust (axum) server runs a WaterUI counter view,
-renders it to HTML with `data-pathland-id`, then streams opcode deltas over
-WebSocket (server timer + button clicks) and dispatches inbound `EVENT` batches
-back into button actions. Deltas are **self-contained** (one frame's opcodes +
-its own string section, relative offsets), so nothing is aggregated or sent on
-connect — the browser hydrates the SSR HTML and applies each message in place.
-The JS client (`static/app.js`) hydrates `[data-pathland-id]`, decodes
-self-contained batches, applies `SET_TEXT`, and sends `EVENT` opcodes.
-Lightweight deps — no gpu/Xcode; run with `cargo run`.
-
 
 ### Native C-ABI shim (`pathland-view-native` + `pathland-core-capi`)
 
@@ -428,7 +383,7 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 
 **Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), **reactive signals** (`pathland-core::signal` — writable `Signal` values bound to node text/properties, so a signal change re-emits only the bound nodes, reachable from Java via the `pathland_native_signal_*` / `node_bind_*` C ABI), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust demos that render through it without touching GTK directly, the **native Java library set** — `com.pathland.view` (open `View` interface + SwiftUI-like DSL, **Angular-parity signals/computed/effects** with synchronous flush, fine-grained emitter with **node-level binding effects**, `PLPL` wire codec, lazy **FFM ring interop** into `libpathland_core`, cross-platform `StateStore` + **`State`/`PersistentState`** auto-wired by the `pathland-view-processor` annotation processor), `com.pathland.render.html` (pure-function SSR HTML renderer), `com.pathland.state.redis` (Lettuce `RedisStateStore`) — and the **Quarkus** (`pathland-quarkus-demo`) **and Spring Boot** (`pathland-spring-boot-demo`) **SSR + WebSocket demos**, both consuming the same shared views (`pathland-demo-views`) with per-session `State` fields (Redis/in-memory). **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property) and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Generic input routing** — the emitter returns tap-action / text-input / value-input registries (`RenderResult`), so the host forwards raw `EVENT` batches straight into the bound `State` signals and never reaches into a view's internals. **Tests green across the workspace.**
 
-**In progress**: the **WaterUI backend** (`pathland-waterui`, see the section above) — a producer (WaterUI view → opcodes) + consumer (opcodes → WaterUI views) bridge that round-trips VStack/HStack/Text/Spacer losslessly and emits reactive `SET_TEXT` deltas on signal change. This is the first step toward making WaterUI the application/renderer layer and Pathland the protocol/transport layer.
+**In progress**: —
 
 **Planned / deferred**: host → guest events over the network transport (the ring carries them; the network batch wire format does not yet), value-control (slider/switch) editing + rendering, image rendering, cross-platform state backends beyond Redis + in-memory (File/SQLite for desktop, LocalStorage for browser/WASM, NVS Flash for ESP32 — the `StateStore` contract is already platform-neutral).
 
