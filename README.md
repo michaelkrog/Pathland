@@ -76,7 +76,7 @@ remote/browser); transport is an implementation detail, not a fourth element.
 - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state
 - **Zero-copy**: ring and arena are plain regions of shared linear memory
 - **Single-producer / single-consumer**: guest engine produces; host renderer consumes
-- **Catalog-driven DSL**: the ergonomic SwiftUI-like DSL in any language is generated from a single YAML catalog (`lib/ui/`), not hand-written
+- **Hand-written Java DSL**: the SwiftUI-like view DSL lives as a reusable Java library (`com.pathland.view`), not generated code — one ergonomic surface for desktop, server (Spring/Quarkus), and embedded hosts
 
 ## Documentation
 
@@ -96,32 +96,68 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
 | `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
 | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
-| `pathland-codegen` | Tool | DSL code generator: parses `lib/ui/components.yaml`, asserts ids, emits the Java DSL |
+| `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |
 | `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |
 
-The DSL catalog lives in [`lib/ui/components.yaml`](./lib/ui/components.yaml);
-regenerate the Java DSL with `./generate.sh`.
+## Java Libraries
+
+The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/java/)
+(Maven reactor, `org.pathland`, Java 25+):
+
+| Module | Package | Responsibility |
+|--------|---------|----------------|
+| `pathland-view` | `com.pathland.view` | SwiftUI-like view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |
+| `pathland-view-processor` | `com.pathland.processor` | JSR 269 annotation processor: generates `<View>_StateBinder` for `State` fields (auto-keyed by field name) |
+| `pathland-render-html` | `com.pathland.render.html` | Pure-function HTML renderer over the opcode stream (SSR) with `data-pathland-id` hydration |
+| `pathland-state-redis` | `com.pathland.state.redis` | Redis-backed `StateStore` over Lettuce (Spring/Quarkus/desktop) |
+| `pathland-demo-views` | `com.pathland.demo` | Shared demo views (`CounterView`/`CounterControls`/`NameField`) declaring `State` fields |
+| `pathland-quarkus-demo` | `com.pathland.quarkus` | Quarkus SSR + WebSocket demo consuming the libraries |
+| `pathland-spring-boot-demo` | `com.pathland.spring` | Spring Boot SSR + WebSocket demo consuming the same libraries |
+
+The same `com.pathland.view` DSL (and `State` fields) runs unchanged on a Spring Boot
+app, a Quarkus app, or a desktop app; a desktop host pushes opcodes into the Rust ring via
+FFM (`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.
+
+### Build & run the Java libraries
+
+```bash
+# Rust ring C ABI (only needed for the desktop FFM path)
+cd lib/rust && cargo build -p pathland-core-capi
+
+# Build + test the whole Java reactor (needs JDK 25: maven.compiler.release=25)
+export JAVA_HOME=<jdk-25-home>
+cd lib/java && mvn -q install
+
+# Run the Quarkus SSR + WebSocket demo in dev mode (hot reload)
+cd lib/java/pathland-quarkus-demo && mvn quarkus:dev      # http://localhost:8080
+
+# ...or run the packaged runner
+cd lib/java/pathland-quarkus-demo
+mvn -q package
+java -jar target/quarkus-app/quarkus-run.jar   # http://localhost:8080
+
+# Run the Spring Boot SSR + WebSocket demo (same shared views)
+cd lib/java/pathland-spring-boot-demo
+mvn -q package
+java -jar target/pathland-spring-boot-demo-0.1.0.jar   # http://localhost:8080
+```
+
+The libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 506),
+**Quarkus ≥ 3.18** (dev mode's class-file reader must understand Java 25), and
+**Spring Boot ≥ 3.5** (Java 25 support).
 
 ### Run tests
 
 ```bash
-cd lib/rust
-cargo test
+cd lib/rust && cargo test
+cd lib/java && mvn test
 ```
 
-### Run the demos (native, zero-copy shared ring + GTK renderer)
+### Run the GTK desktop demo (native, zero-copy shared ring)
 
 ```bash
-# Rust demo
 cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-render-gtk-demo
-
-# Java demo (JNA over pathland-view-native + pathland-render-gtk)
-PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-view-native -p pathland-render-gtk
-cd lib/java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
 ```
-
-On macOS the Java demo must run GTK on the main thread:
-`MAVEN_OPTS="-XstartOnFirstThread"`.
 
 ## Components & Properties
 
@@ -148,9 +184,8 @@ See the GitHub issues (#12, #13, #15, #16, #18):
 2. **Core components & modifiers in Rust** (SwiftUI-like API) — done
 3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done
 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done
-5. **Catalog-driven DSL** (YAML → Java via `pathland-codegen`) — done
-6. Quarkus SSR + WebSocket demo — planned (browser/remote projection; would
-   reintroduce a WASM guest + WIT host path)
+5. **Native Java library set** (hand-written `com.pathland.view` DSL + signals/computed/effects + reusable HTML renderer + state stores) — done
+6. **Quarkus SSR + WebSocket demo** (SSR HTML via `pathland-render-html` + live 16-byte opcode deltas) — done
 
 ## Versioning
 

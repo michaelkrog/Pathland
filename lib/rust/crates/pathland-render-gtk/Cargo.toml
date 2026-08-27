@@ -20,4 +20,5 @@ glib = "0.20"
 pango = "0.20"
 
 [dev-dependencies]
+pathland-engine = { path = "../pathland-engine" }
 pathland-view = { path = "../pathland-view" }

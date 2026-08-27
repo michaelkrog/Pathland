@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 pathland-core = { path = "../pathland-core" }
 pathland-core-transport = { path = "../pathland-core-transport" }
+pathland-engine = { path = "../pathland-engine" }
 pathland-view = { path = "../pathland-view" }
 
 [dev-dependencies]

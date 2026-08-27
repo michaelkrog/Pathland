@@ -2,12 +2,14 @@
 resolver = "2"
 members = [
     "crates/pathland-core",
+    "crates/pathland-engine",
     "crates/pathland-view",
     "crates/pathland-core-transport",
     "crates/pathland-view-native",
+    "crates/pathland-core-capi",
     "crates/pathland-render-gtk",
     "crates/pathland-render-gtk-demo",
-    "crates/pathland-codegen",
+    "crates/pathland-render-html",
 ]
 
 [workspace.package]

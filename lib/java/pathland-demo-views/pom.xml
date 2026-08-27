@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.pathland</groupId>
+        <artifactId>pathland-parent</artifactId>
+        <version>0.1.0</version>
+    </parent>
+
+    <artifactId>pathland-demo-views</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Pathland Demo Views</name>
+    <description>
+        The framework-agnostic demo views (CounterView, CounterControls, NameField), shared
+        by the Quarkus and Spring Boot demos. Uses State fields wired by the
+        pathland-view-processor annotation processor.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.pathland</groupId>
+            <artifactId>pathland-view</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <!-- Order the processor module before this one in the reactor; the actual
+             processing is configured via annotationProcessorPaths below. -->
+        <dependency>
+            <groupId>org.pathland</groupId>
+            <artifactId>pathland-view-processor</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.pathland</groupId>
+                            <artifactId>pathland-view-processor</artifactId>
+                            <version>${project.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

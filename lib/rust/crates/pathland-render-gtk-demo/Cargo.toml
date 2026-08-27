@@ -14,5 +14,6 @@ path = "src/main.rs"
 [dependencies]
 pathland-core = { path = "../pathland-core" }
 pathland-core-transport = { path = "../pathland-core-transport" }
+pathland-engine = { path = "../pathland-engine" }
 pathland-view = { path = "../pathland-view" }
 pathland-render-gtk = { path = "../pathland-render-gtk" }

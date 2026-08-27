@@ -12,5 +12,6 @@ keywords = ["ui", "protocol", "opcode", "transport", "batching"]
 pathland-core = { path = "../pathland-core" }
 
 [dev-dependencies]
+pathland-engine = { path = "../pathland-engine" }
 pathland-view = { path = "../pathland-view" }
 pathland-render-gtk = { path = "../pathland-render-gtk" }

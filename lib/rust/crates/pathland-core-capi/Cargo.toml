@@ -1,0 +1,18 @@
+[package]
+name = "pathland-core-capi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "Pathland core C ABI: minimal shared-memory SPSC ring for foreign hosts (libpathland_core)"
+publish = false
+
+[lib]
+name = "pathland_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Aliased (`plcore`) so the cdylib's own lib name `pathland_core` does not
+# collide with the dependency crate of the same lib name.
+plcore = { package = "pathland-core", path = "../pathland-core" }
+pathland-core-transport = { path = "../pathland-core-transport" }

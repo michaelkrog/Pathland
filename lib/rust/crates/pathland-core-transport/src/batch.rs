@@ -1,7 +1,7 @@
 //! Batch wire format: encode/decode opcodes + arena delta into network batches.
 
 use alloc::vec::Vec;
-use pathland_core::{Frame, Opcode};
+use pathland_core::{Event, Frame, Opcode, category, event};
 
 use crate::{BATCH_MAGIC, BATCH_VERSION};
 
@@ -259,6 +259,112 @@ impl BatchDecoder {
     }
 }
 
+/// Encode raw-input events as a host → guest batch.
+///
+/// Events are `EVENT`-category opcodes; the batch reuses the wire format with
+/// the `HOST_TO_GUEST` direction flag. `TextChanged` events carry their text in
+/// the batch's string section (a length-prefixed entry referenced by the
+/// opcode's `B` offset), so the string section is only empty when there are no
+/// text events.
+pub fn encode_events(frame_count: u32, events: &[Event]) -> Vec<u8> {
+    let mut opcodes = Vec::new();
+    let mut strings = Vec::new();
+    for ev in events {
+        match ev {
+            Event::TextChanged { target, value } => {
+                let offset = strings.len() as u32;
+                strings.extend_from_slice(&(value.len() as u32).to_le_bytes());
+                strings.extend_from_slice(value.as_bytes());
+                opcodes.push(Opcode::new(
+                    category::EVENT,
+                    event::TEXT_CHANGED,
+                    0,
+                    *target,
+                    offset,
+                    0,
+                ));
+            }
+            other => opcodes.push(other.encode()),
+        }
+    }
+    encode_batch(frame_count, crate::direction::HOST_TO_GUEST, &opcodes, &strings)
+}
+
+/// Decode a host → guest event batch, returning `(frame_count, events)`.
+///
+/// Unknown or malformed event opcodes are skipped. `TextChanged` opcodes
+/// resolve their text from the batch's string section.
+pub fn decode_events(bytes: &[u8]) -> Result<(u32, Vec<Event>), BatchError> {
+    let mut decoder = BatchDecoder::new();
+    let batch = decoder.decode(bytes)?;
+    let events = batch
+        .opcodes()
+        .filter_map(|op| {
+            if op.category() == category::EVENT && op.command() == event::TEXT_CHANGED {
+                batch
+                    .arena_str(op.b())
+                    .ok()
+                    .map(|text| Event::TextChanged {
+                        target: op.a(),
+                        value: text.to_string(),
+                    })
+            } else {
+                Event::try_from(op).ok()
+            }
+        })
+        .collect();
+    Ok((batch.frame_count(), events))
+}
+
+/// Build a self-contained `Frame` view over in-memory opcodes + a string
+/// section — the **in-process transport seam**.
+///
+/// `slots` is reused as the opcode byte buffer (cleared, then the 16-byte
+/// opcodes written in), so the returned `Frame` borrows both `slots` and
+/// `strings` with no serialization. This is how an in-process consumer receives
+/// the same `Frame` view a ring or network decoder would produce.
+pub fn frame_from_slices<'a>(
+    slots: &'a mut Vec<u8>,
+    strings: &'a [u8],
+    opcodes: &[Opcode],
+) -> Frame<'a> {
+    slots.clear();
+    slots.extend(opcodes.iter().flat_map(Opcode::to_bytes));
+    let bytes: &'a [u8] = slots;
+    Frame::from_parts(bytes, strings, 0, bytes.len())
+}
+
+/// Encode a **self-contained** frame as a network batch.
+///
+/// `opcodes` is the frame's commands and `strings` its per-frame string
+/// section: every `SET_TEXT` opcode references its string by a *relative*
+/// offset into `strings` (not an absolute arena offset). The batch therefore
+/// decodes with no prior state — no mirrored arena, no delta tracking — which
+/// is what makes each WebSocket message independent.
+///
+/// This is the network/stream codec. The shared-memory path uses
+/// [`encode_batch`]/[`BatchEncoder`] instead, whose arena offsets are absolute
+/// and mirrored on the consumer.
+pub fn encode_frame(opcodes: &[Opcode], strings: &[u8]) -> Vec<u8> {
+    encode_batch(0, crate::direction::GUEST_TO_HOST, opcodes, strings)
+}
+
+/// Decode a self-contained frame batch, returning `(opcodes, strings)`.
+///
+/// Stateless: unlike [`BatchDecoder`], no arena mirror is maintained, because
+/// the batch carries its own string section and the offsets are relative to it.
+pub fn decode_frame(bytes: &[u8]) -> Result<(Vec<Opcode>, Vec<u8>), BatchError> {
+    let parsed = parse(bytes)?;
+    let count = parsed.opcodes.len() / Opcode::SIZE;
+    let opcodes = (0..count)
+        .map(|i| {
+            let start = i * Opcode::SIZE;
+            Opcode::from_bytes(parsed.opcodes[start..start + Opcode::SIZE].try_into().unwrap())
+        })
+        .collect();
+    Ok((opcodes, parsed.arena_delta.to_vec()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -277,7 +383,7 @@ mod tests {
         // decode it, and apply to pathland-render-gtk's RenderTree — proving the
         // network path is interchangeable with the shared-memory ring.
         use pathland_gtk::RenderTree;
-        use pathland_core::Engine;
+        use pathland_engine::Engine;
         use pathland_core::{init_memory, Guest, MemoryLayout};
         use pathland_view::{assign_ids, text, vstack, View};
 
@@ -409,5 +515,65 @@ mod tests {
         }
         // Mirror cleared on RESET, then appended the fresh 7-byte entry.
         assert_eq!(decoder.arena_len(), 7);
+    }
+
+    #[test]
+    fn events_round_trip_host_to_guest() {
+        let events = vec![
+            Event::PointerUp {
+                target: 4,
+                x: 10.0,
+                y: 20.0,
+                secondary: false,
+            },
+            Event::PointerDown {
+                target: 5,
+                x: 1.0,
+                y: 2.0,
+                secondary: true,
+            },
+        ];
+        let bytes = encode_events(7, &events);
+        let (frame_count, decoded) = decode_events(&bytes).unwrap();
+        assert_eq!(frame_count, 7);
+        assert_eq!(decoded, events);
+    }
+
+    #[test]
+    fn text_changed_round_trips_through_batch() {
+        let events = vec![
+            Event::TextChanged {
+                target: 9,
+                value: "hello world".to_string(),
+            },
+            Event::PointerUp {
+                target: 4,
+                x: 1.0,
+                y: 2.0,
+                secondary: false,
+            },
+        ];
+        let bytes = encode_events(3, &events);
+        let (frame_count, decoded) = decode_events(&bytes).unwrap();
+        assert_eq!(frame_count, 3);
+        assert_eq!(decoded, events);
+    }
+
+    #[test]
+    fn self_contained_frame_round_trips() {
+        // SET_TEXT with a relative offset into the frame's string section.
+        let mut strings = Vec::new();
+        strings.extend_from_slice(&(5u32).to_le_bytes());
+        strings.extend_from_slice(b"Hello");
+        let opcodes = vec![
+            Opcode::new(category::TREE, 0x01, 0, 1, 0x0002, 0),
+            Opcode::new(category::STYLE, 0x03, 0, 2, 0, 0), // SET_TEXT, B = relative offset 0
+        ];
+
+        let bytes = encode_frame(&opcodes, &strings);
+        let (decoded_ops, decoded_strings) = decode_frame(&bytes).unwrap();
+
+        assert_eq!(decoded_ops, opcodes);
+        assert_eq!(decoded_strings, strings);
     }
 }

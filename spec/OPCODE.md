@@ -164,9 +164,55 @@ per-edge variants map to widget margins / CSS `padding`, alongside
 | `PADDING_RIGHT` | `0x1013` | F32 | Right padding |
 | `PADDING_BOTTOM` | `0x1014` | F32 | Bottom padding |
 | `PADDING_LEFT` | `0x1015` | F32 | Left padding |
+| `BORDER_EDGES` | `0x1016` | U32 | Which border edges to draw (bitmask, see [`border_edges`] flags) |
+
+`BORDER_EDGES` is a u32 bitmask (`SET_PROPERTY` with the `U32` value type)
+selecting which edges of a node's border are drawn. Bits are direction-aware:
+
+| Bit | Mask | Edge | Physical (LTR) |
+|-----|------|------|----------------|
+| 0 | `0x00000001` | `TOP` | top |
+| 1 | `0x00000002` | `LEADING` | left |
+| 2 | `0x00000004` | `BOTTOM` | bottom |
+| 3 | `0x00000008` | `TRAILING` | right |
 
 Full property catalog: see the Rust `constants.rs` (carried forward from the
 historical protocol).
+
+#### Semantic properties
+
+Semantic properties describe a node's meaning and interaction state rather than
+its layout or decoration. Currently exercised: `SELECTED` carries the boolean
+checked state of a `SWITCH`/`CHECKBOX` (`SET_PROPERTY` with the `U8` value type,
+`0` = off, `1` = on). `EVENT_LISTENERS` (below) declares which raw inputs a node
+wants reported.
+
+| Property | Value | Type | Meaning |
+|----------|-------|------|---------|
+| `ROLE` | `0x2001` | ENUM | Accessibility role |
+| `STATE` | `0x2002` | ENUM | Control state |
+| `ENABLED` | `0x2003` | U8 | Whether the control is enabled |
+| `SELECTED` | `0x2004` | U8 | Checked/selected state of a `SWITCH`/`CHECKBOX` |
+| `EVENT_LISTENERS` | `0x2005` | U32 | Bitmask of raw-input events to report |
+| `VALUE` | `0x2006` | F32 | Current value of a value-bearing control (e.g. `SLIDER`) |
+| `MIN_VALUE` | `0x2007` | F32 | Inclusive minimum of a `SLIDER`'s range |
+| `MAX_VALUE` | `0x2008` | F32 | Inclusive maximum of a `SLIDER`'s range |
+| `LABEL` | `0x200A` | STRING | Caption label of a `TEXT_FIELD` |
+| `PROMPT` | `0x200B` | STRING | Placeholder text of a `TEXT_FIELD` |
+
+`STRING` properties carry their text in the frame's string section: the
+property value is the *relative* offset of a length-prefixed entry, exactly as
+`SET_TEXT`'s `B` field does.
+
+`CHECKBOX` (`0x000D`) is a component type alongside `SWITCH` (`0x0006`): both
+render natively as a boolean control; `SWITCH` is the sliding-pill form and
+`CHECKBOX` the square-with-checkmark form. The renderer owns their visual
+presentation (see [Design Token System](#design-token-system)).
+
+`SLIDER` (`0x000E`) is a continuous numeric control: the guest emits its
+`VALUE` plus the `MIN_VALUE`/`MAX_VALUE` range, and the renderer reports value
+changes back as `VALUE_CHANGED` events (host → guest), resolving the semantic
+value from its own track geometry (see [EVENT](#event-0x03--host--guest)).
 
 ### EVENT (0x03) — host → guest
 
@@ -205,6 +251,8 @@ element.
 | `POINTER_UP` | `0x03` | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` | Pointer button released at viewport-relative point |
 | `KEY_DOWN` | `0x04` | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` | Key pressed (bit 1 = auto-repeat) |
 | `KEY_UP` | `0x05` | targetId | keyCode (u16, low) | modifiers (u8, low) | — | Key released |
+| `VALUE_CHANGED` | `0x06` | targetId | value (f32) | 0 | — | A value-bearing control changed (e.g. slider); the renderer resolves the semantic value from its track geometry |
+| `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the batch's string section, referenced by the *relative* `B` offset (same convention as `STYLE::SET_TEXT`) |
 
 ### META (0x04)
 

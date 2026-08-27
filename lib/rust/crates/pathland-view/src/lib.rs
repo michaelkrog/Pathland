@@ -2,7 +2,7 @@
 //!
 //! The Pathland SwiftUI-style view DSL. Core components (`VStack`, `HStack`,
 //! `Text`) and chainable modifiers (`spacing`, `padding`, `font_size`, `color`,
-//! `background`) build a retained **view tree** (`pathland_core::Node`) that the
+//! `background`) build a retained **view tree** (`pathland_engine::Node`) that the
 //! diff emitter in `pathland-core` turns into declarative `TREE`/`STYLE` opcodes.
 //!
 //! ## Building a tree
@@ -77,9 +77,8 @@ pub use alloc::vec;
 use pathland_core::property_id;
 
 pub use pathland_core;
-pub use pathland_core::{
-    assign_ids, collect_tap_handlers, component_type_id, value_type_for, Component, Engine, Gesture,
-    Node,
+pub use pathland_engine::{
+    assign_ids, collect_tap_handlers, component_type_id, Component, Engine, Gesture, Node,
 };
 
 mod recognizer;

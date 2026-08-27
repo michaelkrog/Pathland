@@ -8,12 +8,18 @@
 //! Encode a raw input with `Event::encode`, decode a ring opcode with
 //! `Event::try_from`.
 
+use alloc::string::String;
 use crate::category;
 use crate::flag;
 use crate::Opcode;
 
 /// A raw-input event (host → guest).
-#[derive(Debug, Clone, Copy, PartialEq)]
+///
+/// `Event` is **not** `Copy`: [`Event::TextChanged`] owns the new field text.
+/// Simple events round-trip through `encode`/`try_from` as pure 16-byte
+/// opcodes; `TextChanged` is encoded/decoded at the batch level (its text
+/// lives in the batch's string section, referenced by a relative offset).
+#[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     /// Pointer button pressed at a viewport-relative point.
     PointerDown {
@@ -50,12 +56,30 @@ pub enum Event {
         key_code: u16,
         modifiers: u8,
     },
+    /// A control's value changed (host → guest). The renderer resolves the
+    /// semantic value (e.g. a slider thumb dragged along its track) and reports
+    /// it here; the guest/app writes it into its bound state.
+    ValueChanged {
+        target: u32,
+        value: f32,
+    },
+    /// A text field's value changed (host → guest). The new text is resolved
+    /// from the batch's string section (see the doc comment on this enum).
+    TextChanged {
+        target: u32,
+        value: String,
+    },
 }
 
 impl Event {
-    /// Encode this raw input as a 16-byte opcode.
+    /// Encode this event as a 16-byte opcode.
+    ///
+    /// `TextChanged` cannot be fully encoded here — its text lives in the
+    /// batch's string section — so this emits the opcode with a zero `B`
+    /// offset; the batch-aware `encode_events`/`decode_events` pair in
+    /// `pathland-core-transport` writes the text and its real offset.
     pub fn encode(&self) -> Opcode {
-        match *self {
+        match self {
             Event::PointerDown {
                 target,
                 x,
@@ -64,8 +88,8 @@ impl Event {
             } => Opcode::new(
                 category::EVENT,
                 crate::event::POINTER_DOWN,
-                flag_for(secondary, false, false),
-                target,
+                flag_for(*secondary, false, false),
+                *target,
                 x.to_bits(),
                 y.to_bits(),
             ),
@@ -78,8 +102,8 @@ impl Event {
             } => Opcode::new(
                 category::EVENT,
                 crate::event::POINTER_MOVE,
-                flag_for(false, hovering, leaving),
-                target,
+                flag_for(false, *hovering, *leaving),
+                *target,
                 x.to_bits(),
                 y.to_bits(),
             ),
@@ -91,8 +115,8 @@ impl Event {
             } => Opcode::new(
                 category::EVENT,
                 crate::event::POINTER_UP,
-                flag_for(secondary, false, false),
-                target,
+                flag_for(*secondary, false, false),
+                *target,
                 x.to_bits(),
                 y.to_bits(),
             ),
@@ -104,10 +128,10 @@ impl Event {
             } => Opcode::new(
                 category::EVENT,
                 crate::event::KEY_DOWN,
-                if repeat { flag::KEY_REPEAT } else { 0 },
-                target,
-                key_code as u32,
-                modifiers as u32,
+                if *repeat { flag::KEY_REPEAT } else { 0 },
+                *target,
+                *key_code as u32,
+                *modifiers as u32,
             ),
             Event::KeyUp {
                 target,
@@ -117,9 +141,25 @@ impl Event {
                 category::EVENT,
                 crate::event::KEY_UP,
                 0,
-                target,
-                key_code as u32,
-                modifiers as u32,
+                *target,
+                *key_code as u32,
+                *modifiers as u32,
+            ),
+            Event::ValueChanged { target, value } => Opcode::new(
+                category::EVENT,
+                crate::event::VALUE_CHANGED,
+                0,
+                *target,
+                value.to_bits(),
+                0,
+            ),
+            Event::TextChanged { target, .. } => Opcode::new(
+                category::EVENT,
+                crate::event::TEXT_CHANGED,
+                0,
+                *target,
+                0,
+                0,
             ),
         }
     }
@@ -148,6 +188,10 @@ pub enum EventError {
     NotAnEvent,
     /// The opcode is an EVENT category opcode but an unknown command.
     UnknownCommand,
+    /// The opcode is `TEXT_CHANGED`, which needs the batch's string section to
+    /// resolve its text; decode it with `pathland-core-transport::decode_events`
+    /// instead of a bare opcode.
+    NeedsStringSection,
 }
 
 impl TryFrom<Opcode> for Event {
@@ -189,6 +233,11 @@ impl TryFrom<Opcode> for Event {
                 key_code: op.b() as u16,
                 modifiers: op.c() as u8,
             }),
+            crate::event::VALUE_CHANGED => Ok(Event::ValueChanged {
+                target: op.a(),
+                value: op.b_f32(),
+            }),
+            crate::event::TEXT_CHANGED => Err(EventError::NeedsStringSection),
             _ => Err(EventError::UnknownCommand),
         }
     }
@@ -210,7 +259,7 @@ mod tests {
             y: 20.0,
             secondary: true,
         };
-        assert_eq!(round_trip(e), e);
+        assert_eq!(round_trip(e.clone()), e);
     }
 
     #[test]
@@ -222,7 +271,7 @@ mod tests {
             hovering: true,
             leaving: false,
         };
-        assert_eq!(round_trip(e), e);
+        assert_eq!(round_trip(e.clone()), e);
 
         let leaving = Event::PointerMove {
             target: 5,
@@ -231,7 +280,7 @@ mod tests {
             hovering: false,
             leaving: true,
         };
-        assert_eq!(round_trip(leaving), leaving);
+        assert_eq!(round_trip(leaving.clone()), leaving);
     }
 
     #[test]
@@ -242,7 +291,7 @@ mod tests {
             y: 20.0,
             secondary: false,
         };
-        assert_eq!(round_trip(e), e);
+        assert_eq!(round_trip(e.clone()), e);
     }
 
     #[test]
@@ -253,7 +302,7 @@ mod tests {
             modifiers: 0x01,
             repeat: true,
         };
-        assert_eq!(round_trip(e), e);
+        assert_eq!(round_trip(e.clone()), e);
     }
 
     #[test]
@@ -263,7 +312,16 @@ mod tests {
             key_code: 0x41,
             modifiers: 0x01,
         };
-        assert_eq!(round_trip(e), e);
+        assert_eq!(round_trip(e.clone()), e);
+    }
+
+    #[test]
+    fn value_changed_round_trips() {
+        let e = Event::ValueChanged {
+            target: 7,
+            value: 0.625,
+        };
+        assert_eq!(round_trip(e.clone()), e);
     }
 
     #[test]
@@ -280,6 +338,14 @@ mod tests {
     }
 
     #[test]
+    fn text_changed_needs_string_section() {
+        // `TextChanged` is only decodable from a batch (its text lives in the
+        // string section); a bare opcode cannot resolve it.
+        let op = Opcode::new(crate::category::EVENT, crate::event::TEXT_CHANGED, 0, 7, 0, 0);
+        assert_eq!(Event::try_from(op), Err(EventError::NeedsStringSection));
+    }
+
+    #[test]
     fn pointer_move_round_trips_with_combined_hover_flags() {
         // Both hovering and leaving set simultaneously must survive the round trip.
         let e = Event::PointerMove {
@@ -289,7 +355,7 @@ mod tests {
             hovering: true,
             leaving: true,
         };
-        assert_eq!(round_trip(e), e);
+        assert_eq!(round_trip(e.clone()), e);
         // The flags word carries both bits.
         assert_eq!(e.encode().flags(), flag::HOVER_ENTER | flag::HOVER_LEAVE);
     }

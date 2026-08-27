@@ -20,16 +20,22 @@ crates/
 │  # ── Retained-UI projection (host/driver surface for other languages) ──
 ├── pathland-view-native/   # native C-ABI shim + NativeHost over a zero-copy shared ring
 │                           #   (Swift/Java/C#; cdylib name stays "pathland_native")
-│  # ── Tool + demo (not an element) ──────────────────────────────────────
-├── pathland-codegen/       # DSL code generator: parses lib/ui/components.yaml, asserts ids,
-│                           #   emits the checked-in Java DSL
+├── pathland-core-capi/     # minimal shared-memory ring C ABI for foreign hosts
+│                           #   (libpathland_core): create/destroy, ring push, frame
+│                           #   boundaries, zero-copy read, event drain/send
 └── pathland-render-gtk-demo/ # GTK4 desktop demo: authors the DSL, renders through
                               #   pathland-render-gtk (uses NO GTK APIs directly)
-
-# Cross-language demo
-../java/pathland-demo/ # Java (Maven): SwiftUI-like DSL + JNA over pathland-view-native,
-                       #   rendered through pathland-render-gtk (uses NO Swing / NO GTK APIs)
 ```
+
+## Java libraries (framework-agnostic)
+
+The reusable Java libraries live in `../java/` (Maven reactor, `org.pathland`):
+
+- `pathland-view` — SwiftUI-like view DSL + Angular-style signals/computed/effects,
+  fine-grained opcode emitter, wire codec, FFM ring interop (`com.pathland.view`)
+- `pathland-render-html` — pure-function HTML renderer (SSR) over the opcode stream
+- `pathland-state-redis` — Redis-backed `StateStore` (Lettuce)
+- `pathland-quarkus-demo` — Quarkus SSR + WebSocket demo consuming the libraries
 
 ## Specification
 
@@ -60,22 +66,19 @@ PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-render-gtk-demo
 
 Requires GTK4 (`brew install gtk4` on macOS).
 
-## Run the Java demo (cross-language, JNA over the native C-ABI shim + GTK renderer)
+## Run the Java libraries (build + test)
+
+The Java libraries build against `libpathland_core` when the native ring path is
+used (desktop/FFM). Build and test the whole reactor:
 
 ```bash
-PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-view-native -p pathland-render-gtk
-cd ../java/pathland-demo && mvn -q -Dpathland.rust.target=<lib/rust/target/debug> compile exec:java
+PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-core-capi
+cd ../java && mvn -q install
 ```
 
-On macOS, GTK must run on the main thread: prefix the mvn command with
-`MAVEN_OPTS="-XstartOnFirstThread"`.
-
-The Java app uses a SwiftUI-like DSL, drives the Rust engine via the flat
-`pathland_native_*` C ABI (no per-component wrappers), and renders through the
-shared `pathland-render-gtk` renderer (in-process via JNA). It uses **no Swing and no
-GTK APIs directly** — native inputs round-trip as `EVENT` opcodes through the
-shared ring, and the host drains them via `pathland_native_drain_events`. Verify
-headlessly with `-Dexec.mainClass=demo.DemoHeadless`.
+The `pathland-view` core (views, signals, emitter, codec, HTML renderer) needs no
+native library and runs on the JVM alone; only the FFM ring sink loads
+`libpathland_core`.
 
 
 ## Engine example

@@ -396,12 +396,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "itoa"
-version = "1.0.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
-
-[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -447,25 +441,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "pathland-codegen"
+name = "pathland-core"
+version = "0.1.0"
+
+[[package]]
+name = "pathland-core-capi"
 version = "0.1.0"
 dependencies = [
  "pathland-core",
- "serde",
- "serde_yaml",
+ "pathland-core-transport",
 ]
-
-[[package]]
-name = "pathland-core"
-version = "0.1.0"
 
 [[package]]
 name = "pathland-core-transport"
 version = "0.1.0"
 dependencies = [
  "pathland-core",
+ "pathland-engine",
  "pathland-render-gtk",
  "pathland-view",
+]
+
+[[package]]
+name = "pathland-engine"
+version = "0.1.0"
+dependencies = [
+ "pathland-core",
 ]
 
 [[package]]
@@ -477,6 +478,7 @@ dependencies = [
  "pango",
  "pathland-core",
  "pathland-core-transport",
+ "pathland-engine",
  "pathland-view",
  "pathland-view-native",
 ]
@@ -487,8 +489,17 @@ version = "0.1.0"
 dependencies = [
  "pathland-core",
  "pathland-core-transport",
+ "pathland-engine",
  "pathland-render-gtk",
  "pathland-view",
+]
+
+[[package]]
+name = "pathland-render-html"
+version = "0.1.0"
+dependencies = [
+ "pathland-core",
+ "pathland-core-transport",
 ]
 
 [[package]]
@@ -496,6 +507,7 @@ name = "pathland-view"
 version = "0.1.0"
 dependencies = [
  "pathland-core",
+ "pathland-engine",
 ]
 
 [[package]]
@@ -504,6 +516,7 @@ version = "0.1.0"
 dependencies = [
  "pathland-core",
  "pathland-core-transport",
+ "pathland-engine",
  "pathland-render-gtk",
  "pathland-view",
 ]
@@ -557,26 +570,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "ryu"
-version = "1.0.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
-
-[[package]]
 name = "semver"
 version = "1.0.28"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8a7852d02fc848982e0c167ef163aaff9cd91dc640ba85e263cb1ce46fae51cd"
-
-[[package]]
-name = "serde"
-version = "1.0.229"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
-dependencies = [
- "serde_core",
- "serde_derive",
-]
 
 [[package]]
 name = "serde_core"
@@ -605,19 +602,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6662b5879511e06e8999a8a235d848113e942c9124f211511b16466ee2995f26"
 dependencies = [
  "serde_core",
-]
-
-[[package]]
-name = "serde_yaml"
-version = "0.9.34+deprecated"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a8b1a1a2ebf674015cc02edccce75287f1a0130d394307b36743c2f5d504b47"
-dependencies = [
- "indexmap",
- "itoa",
- "ryu",
- "serde",
- "unsafe-libyaml",
 ]
 
 [[package]]
@@ -729,12 +713,6 @@ name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6e4313cd5fcd3dad5cafa179702e2b244f760991f45397d14d4ebf38247da75"
-
-[[package]]
-name = "unsafe-libyaml"
-version = "0.2.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "673aac59facbab8a9007c7f6108d11f63b603f7cabff99fabf650fea5c32b861"
 
 [[package]]
 name = "version-compare"

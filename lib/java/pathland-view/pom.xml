@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.pathland</groupId>
+        <artifactId>pathland-parent</artifactId>
+        <version>0.1.0</version>
+    </parent>
+
+    <artifactId>pathland-view</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Pathland View</name>
+    <description>
+        Framework-agnostic Pathland UI toolkit: SwiftUI-like view DSL (com.pathland.view),
+        Angular-style signals/computed/effects (com.pathland.view.signal), a fine-grained
+        opcode emitter (com.pathland.view.emit), the wire codec (com.pathland.view.transport),
+        lazy FFM ring interop (com.pathland.view.native), and cross-platform state
+        (com.pathland.view.state). Zero runtime dependencies — JDK only.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Point the test JVM at the Rust cdylib for the FFM ring test.
+                         Absent the dylib, that test is skipped via an assumption. -->
+                    <argLine>--enable-native-access=ALL-UNNAMED -Djava.library.path=${project.basedir}/../../rust/target/debug</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>
