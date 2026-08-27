@@ -165,6 +165,17 @@ cd lib/java && mvn test
 cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-render-gtk-demo
 ```
 
+## Angular Renderer (@apaq/ngui)
+
+The browser also has a declarative renderer: an **Angular application** (under
+[`lib/angular/`](./lib/angular/)) that maps the opcode stream onto the
+**[@apaq/ngui](https://github.com/Apaq/ngui)** design system — `ui-vstack`/
+`ui-hstack`/`ui-text`/`ui-button`/… views and `[padding]`/`[color]`/`[font]`/…
+modifiers — instead of hand-written `app.js` DOM patches. It connects to the
+Pathland `/ws` socket (the server replays the full mount frame on connect, so no
+SSR pre-step is needed), decodes `PLPL` frames, and renders ngui views. See
+[`lib/angular/README.md`](./lib/angular/README.md).
+
 ## Components & Properties
 
 Component and property IDs are defined in `pathland-core`'s
