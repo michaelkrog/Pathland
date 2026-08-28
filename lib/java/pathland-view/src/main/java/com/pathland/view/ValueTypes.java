@@ -19,6 +19,7 @@ public final class ValueTypes {
             case Properties.EVENT_LISTENERS, Properties.BORDER_EDGES -> U32;
             case Properties.SELECTED -> U8;
             case Properties.LABEL, Properties.PROMPT, Properties.FONT_FAMILY -> STRING;
+            case Properties.LINE_LIMIT -> U32;
             default -> F32;
         };
     }

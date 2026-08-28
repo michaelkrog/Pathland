@@ -59,7 +59,7 @@ public class FrameOpcodeSink implements OpcodeSink {
 
     @Override
     public void insertChild(int parent, int child, int index) {
-        push(Categories.TREE, Commands.Tree.INSERT_CHILD, Commands.Flags.INSERT_APPEND, parent, child, index);
+        push(Categories.TREE, Commands.Tree.INSERT_CHILD, 0, parent, child, index);
     }
 
     @Override

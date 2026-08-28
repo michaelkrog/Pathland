@@ -23,11 +23,11 @@ pub mod tree {
     pub const CREATE_NODE: u8 = 0x01;
     /// `A=nodeId`
     pub const DELETE_NODE: u8 = 0x02;
-    /// `A=parentId, B=childId, C=index` (Flags `INSERT_APPEND` = append)
+    /// `A=parentId, B=childId, C=index` (append is `C = u32::MAX`, see [`crate::APPEND`])
     pub const INSERT_CHILD: u8 = 0x03;
     /// `A=parentId, B=childId`
     pub const REMOVE_CHILD: u8 = 0x04;
-    /// `A=parentId, B=childId, C=newIndex` (Flags `INSERT_APPEND` = append)
+    /// `A=parentId, B=childId, C=newIndex` (append is `C = u32::MAX`, see [`crate::APPEND`])
     pub const MOVE_CHILD: u8 = 0x05;
 }
 
@@ -77,8 +77,6 @@ pub mod meta {
 
 /// Flag bits used across categories.
 pub mod flag {
-    /// `INSERT_CHILD` / `MOVE_CHILD`: append (index = append).
-    pub const INSERT_APPEND: u16 = 0x0001;
     /// `POINTER_DOWN` / `POINTER_UP`: secondary button (bit 0).
     pub const POINTER_SECONDARY: u16 = 0x0001;
     /// `POINTER_MOVE`: pointer is entering/hovering (bit 0).
@@ -233,7 +231,10 @@ pub mod property_id {
 ///
 /// Color-valued properties (COLOR, BACKGROUND_COLOR, BORDER_COLOR) are emitted
 /// with the `COLOR` value type; `EVENT_LISTENERS` and `BORDER_EDGES` are raw
-/// `U32` bitmasks; all other constraint/style properties are `F32`.
+/// `U32` bitmasks; `LABEL`/`PROMPT`/`FONT_FAMILY` are `STRING`; `LINE_LIMIT` is
+/// `U32`; all other constraint/style properties are `F32` (enum-valued
+/// properties like `ALIGNMENT` carry their numeric code as an `F32`).
+/// See `spec/MODIFIERS.md` for the canonical mapping.
 pub fn value_type_for(prop: u16) -> u8 {
     match prop {
         property_id::COLOR
@@ -241,7 +242,8 @@ pub fn value_type_for(prop: u16) -> u8 {
         | property_id::BORDER_COLOR => value_type::COLOR,
         property_id::EVENT_LISTENERS | property_id::BORDER_EDGES => value_type::U32,
         property_id::SELECTED => value_type::U8,
-        property_id::LABEL | property_id::PROMPT => value_type::STRING,
+        property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY => value_type::STRING,
+        property_id::LINE_LIMIT => value_type::U32,
         _ => value_type::F32,
     }
 }

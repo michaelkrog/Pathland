@@ -44,7 +44,6 @@ public final class Commands {
 
     /** Flag bits shared across categories. */
     public static final class Flags {
-        public static final int INSERT_APPEND = 0x0001;
         public static final int POINTER_SECONDARY = 0x0001;
         public static final int HOVER_ENTER = 0x0001;
         public static final int HOVER_LEAVE = 0x0002;
