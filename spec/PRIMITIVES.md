@@ -6,24 +6,41 @@
 
 ---
 
-## Purpose
+## Introduction
 
-This document is the **semantic catalog of primitive views** the Pathland protocol
-must support. It maps every primitive view onto its protocol component type
-(`TREE::CREATE_NODE`), the modifiers that shape it (see
-[MODIFIERS.md](./MODIFIERS.md)), and the core events it can produce (see
-[EVENTS.md](./EVENTS.md)).
+This document is the **semantic catalog of primitive nodes** the Pathland
+protocol supports, organized by the three structural categories that drive
+rendering. The **server** (the application/engine) dictates *what* the UI is —
+structure, content, and intent. The **client platform renderer** measures
+layout geometry, handles font/image assets, and maps each node onto that
+platform's native elements, delegating interaction to native OS controls
+wherever possible.
 
-This file is **implementation-ready**: an emitter and a renderer (GTK, HTML/SSR,
-DOM/ngui, or a new backend) can be written from these tables alone. The wire
-encoding rules live in [OPCODE.md](./OPCODE.md); this file does not repeat them.
+Every primitive maps to a protocol component type (`TREE::CREATE_NODE`), the
+modifiers that shape it ([MODIFIERS.md](./MODIFIERS.md)), and the core events it
+can produce ([EVENTS.md](./EVENTS.md)). This file is **implementation-ready**: a
+renderer (GTK, HTML/SSR, Angular/ngui, or a new backend) can be written from
+these tables alone. The wire encoding rules live in
+[OPCODE.md](./OPCODE.md); this file does not repeat them.
+
+### Structural categories
+
+The protocol splits all supported nodes into three structural categories (the
+component ID ranges are definitive — see [Definitive Opcode
+Mapping Range](#definitive-opcode-mapping-range)):
+
+| Range | Category | Behavior |
+|-------|----------|----------|
+| `0x01`–`0x0F` | **Primitive Drawing Nodes** | Low-level, non-decomposable building blocks (`Text`, `Image`, `Color`, `Shape`, `Divider`, `Spacer`, `ProgressView`, `Gauge`). The server dictates exact visual content and structural properties. The client measures layout geometry, handles font/image assets, and paints native elements. They hold **no independent interaction state machines**. |
+| `0x10`–`0x1F` | **Layout & Container Primitives** | Structural arrangement (`VStack`, `HStack`, `ZStack`, `Grid`, `ScrollView`, lazy grids/stacks). They arrange children and own scroll/virtualization; they carry no interaction semantics beyond scrolling. |
+| `0x20`–`0x2F` | **Semantic Control Nodes** | High-order interaction and input controls (`Button`, `TextField`, `Toggle`, `Slider`, `Stepper`, `Picker`, `DatePicker`, `ColorPicker`, `Menu`). They encapsulate intent, two-way bindings (`BINDING_ID`), accessibility traits, and local interaction physics (e.g. 120 FPS client-side thumb dragging). |
 
 ### Relationship to other specs
 
 | File | Role |
 |------|------|
 | [OPCODE.md](./OPCODE.md) | Wire format: categories, commands, 16-byte opcode layout, ring/arena, value types |
-| **PRIMITIVES.md** (this file) | Which **views** exist and their protocol IDs |
+| **PRIMITIVES.md** (this file) | Which **views/nodes** exist and their protocol IDs |
 | [MODIFIERS.md](./MODIFIERS.md) | Which **modifiers** (protocol properties) exist and how they encode |
 | [EVENTS.md](./EVENTS.md) | Which **core events** (raw inputs) exist and how they encode |
 | [CONFORMANCE.md](./CONFORMANCE.md) | Golden byte vectors |
@@ -38,469 +55,560 @@ encoding rules live in [OPCODE.md](./OPCODE.md); this file does not repeat them.
   anywhere yet. IDs are reserved and MUST NOT be reused; implementers may start
   on them.
 
+> **Enum-valued properties** (marked `ENUM` in the tables below) are carried on
+> the wire with the `F32` value type, holding the numeric enum code as an f32
+> bit pattern (see [OPCODE.md](./OPCODE.md#value-types)). The codes are listed
+> in [MODIFIERS.md](./MODIFIERS.md#appendix-enumerated-values).
+
 ### Non-negotiables (recap)
 
 - Views are **declarative structure + constraint properties**, never positions.
   The engine emits `WHAT` (VStack, HStack, Text, …), never `WHERE`.
 - Renderers are **stateless**: they map the opcode stream onto native elements
-  and lay those elements out with their native layout engine.
+  and lay those elements out with their native layout engine. A renderer MAY
+  retain its rendered-output tree for drawing, hit-testing, and event routing —
+  this is a cache of its own output, not application state.
 - **Native elements everywhere**: VStack → GTK box / CSS flex column / ngui
-  `ui-vstack`; Text → GTK label / `<span>` / ngui `ui-text`. Never a generic
-  canvas unless the platform has no native equivalent.
+  `ui-vstack`; Text → GTK label / `<span>` / ngui `ui-text`; semantic controls →
+  native OS controls in Native Token Mode (below). Never a generic canvas unless
+  a platform has no native equivalent.
 
 ---
 
-## 1. Layout
+## Architectural Rules
 
-Layout primitives arrange their children. They carry the constraint properties
-`SPACING` (0x0001), `ALIGNMENT` (0x0002), and `CONTENT_MARGINS` (0x0005), plus
-any layout modifiers from [MODIFIERS.md](./MODIFIERS.md#1-layout).
+### 1. Core Structural Classification
 
-| View | Component | Status | Properties | Emits |
-|------|-----------|--------|------------|-------|
-| `VStack` | `VSTACK` 0x0002 | ✅ | SPACING, ALIGNMENT, CONTENT_MARGINS | pointer/key via listeners |
-| `HStack` | `HSTACK` 0x0001 | ✅ | SPACING, ALIGNMENT, CONTENT_MARGINS | pointer/key via listeners |
-| `ZStack` | `ZSTACK` 0x000F | 🚧 | ALIGNMENT | pointer/key via listeners |
-| `Spacer` | `SPACER` 0x0008 | ✅ | — | — |
-| `Divider` | `DIVIDER` 0x0010 | 🚧 | COLOR, BORDER_WIDTH | — |
-| `Group` | `GROUP` 0x0011 | 🚧 | (transparent) | — |
-| `LazyVStack` | `LAZY_VSTACK` 0x0012 | 🚧 | SPACING, ALIGNMENT | — |
-| `LazyHStack` | `LAZY_HSTACK` 0x0013 | 🚧 | SPACING, ALIGNMENT | — |
-| `LazyVGrid` | `LAZY_VGRID` 0x0014 | 🚧 | ALIGNMENT, SPACING | — |
-| `LazyHGrid` | `LAZY_HGRID` 0x0015 | 🚧 | ALIGNMENT, SPACING | — |
-| `Grid` | `GRID` 0x000B | ✅ | ALIGNMENT, SPACING | — |
-| `List` | `LIST` 0x000A | ✅ | SPACING | pointer/key via listeners; item `SELECTED` |
-| `ScrollView` | `SCROLLVIEW` 0x0009 | ✅ | — | `SCROLL` 🚧, `WHEEL` 🚧 (EVENTS.md) |
+Each node belongs to exactly one of the three categories above. The category
+determines renderer responsibilities:
 
-### VStack / HStack — ✅ `VSTACK` 0x0002 / `HSTACK` 0x0001
+- **Primitive Drawing Nodes** hold no interaction state. The server sends the
+  full visual description; the renderer measures and paints. If a primitive has
+  no native equivalent (e.g. `Path`), the renderer may paint it directly — this
+  is the one case where canvas-style painting is permitted.
+- **Semantic Control Nodes** carry intent + two-way bindings (`BINDING_ID`),
+  accessibility traits, and local interaction physics. Their *visual chrome* is
+  delegated per the Dual-Mode rules below; their *interaction semantics* are
+  always renderer-owned and reported as raw events.
 
-Vertical / horizontal stack of children, laid out by the native renderer.
+### 2. Dual-Mode Rendering Pipeline & Platform Delegation
 
-- **Protocol**: a container node with children (`TREE::INSERT_CHILD`).
-- **Properties**: `SPACING` (F32 gap between children), `ALIGNMENT` (ENUM
-  cross-axis alignment: `Leading`=0, `Center`=1, `Trailing`=2, `Fill`=3),
-  `CONTENT_MARGINS` (F32, uniform inset between the stack edge and its content).
-- **Renderer mapping**: GTK `GtkBox` (orientation vertical/horizontal); HTML
-  flex column/row (`display:flex; flex-direction:column|row`, `gap` for spacing,
-  `align-items`/`justify-content` for alignment); ngui `ui-vstack`/`ui-hstack`.
-- **Events**: none by default; any child (or the stack itself) may declare
-  `EVENT_LISTENERS` (see [EVENTS.md](./EVENTS.md)).
+Every semantic control node renders in **one of two modes**, decided by whether
+the node has a child layout tree:
 
-### ZStack — 🚧 `ZSTACK` 0x000F
+#### Native Token Mode (Leaf Control)
 
-Children rendered on top of each other (overlap), back-to-front in child order.
+When a semantic control node has **no child layout tree** (`childrenIds` is
+empty), the client platform **MUST delegate rendering entirely to its native OS
+control**:
 
-- **Protocol**: a container node; child index = draw order (later = on top).
-- **Properties**: `ALIGNMENT` (ENUM, cross-axis alignment of all children
-  within the stack bounds).
-- **Renderer mapping**: GTK `GtkOverlay`; HTML absolutely-positioned children
-  inside a positioned container; ngui `ui-zstack`.
-- **Note**: the Java DSL currently materializes `ZStack` as `COMMENT` (0x000C);
-  once `ZSTACK` is implemented the DSL and renderers should switch to the real
-  component id.
+| Component | Native tokens |
+|-----------|---------------|
+| `Button` 0x20 | `UIButton`/`NSButton`, `GtkButton`, `<button>` |
+| `TextField`/`SecureField` 0x21 | `UITextField`/`NSTextField`, `GtkEntry`, `<input>` |
+| `Toggle` 0x24 | `UISwitch`/`NSSwitch`, `GtkSwitch`/`GtkCheckButton`, `<input type="checkbox">` |
+| `Slider` 0x25 | `UISlider`/`NSSlider`, `GtkScale`, `<input type="range">` |
+| `Stepper` 0x26 | `UIStepper`/`NSStepper`, `GtkSpinButton`, `-/+` buttons |
+| `DatePicker` 0x27 | `UIDatePicker`/`NSDatePicker`, `GtkCalendar`, `<input type="date">` |
+| `ColorPicker` 0x2A | native color panel, `GtkColorButton`, `<input type="color">` |
+| `Picker` 0x28 | `UISegmentedControl`/popup, `GtkDropDown`, `<select>` |
+| `Menu` 0x29 | `UIMenu`, `GtkPopoverMenu`, floating popover |
 
-### Spacer — ✅ `SPACER` 0x0008
+**System style modifiers act as visual style tokens** — they force the platform
+to switch native control variants **without emitting child nodes over the
+wire**. Example: `TOGGLE_STYLE = CHECKBOX` renders `Toggle` (0x24) as a native
+checkbox; `TOGGLE_STYLE = SWITCH` (default) as a native switch; `TOGGLE_STYLE =
+BUTTON` as a toggle button.
 
-A flexible filler: expands to take all remaining space on its stack's main axis.
+#### Composite Override Mode (Container Control)
 
-- **Protocol**: a leaf node with no properties. Its expand behavior is implied
-  by its component type; renderers implement it as an expanding element
-  (`flex-grow:1` in HTML, an expanding box in GTK).
-- **Renderer mapping**: GTK widget with `hexpand`/`vexpand` set from the parent
-  orientation; HTML element with `flex:1`.
+When a semantic control **contains child nodes** (or a custom style body is
+defined on the server), the client platform **MUST**:
 
-### Divider — 🚧 `DIVIDER` 0x0010
+1. **Suppress** its default native control visuals (the OS control chrome).
+2. **Render the custom view tree** sent by the server (the composite body).
+3. **Wrap that layout tree** with the native touch/click gestures, focus
+   states, and event handlers that give the control its semantics.
 
-A thin horizontal or vertical line (SwiftUI `Divider`).
+The control keeps its interaction semantics (events, two-way bindings,
+accessibility) even though its chrome is custom. Example: a `Button` with an
+`HStack` child (icon + text) renders the `HStack` and wraps it with a native
+click/press gesture that emits the button's events.
 
-- **Protocol**: a leaf node; orientation is implied by the parent stack axis.
-- **Properties**: `COLOR` (0x100A), `BORDER_WIDTH` (0x1003) — the line thickness.
-- **Renderer mapping**: GTK `GtkSeparator`; HTML `<hr>` / `<div>` with a border.
+#### Leaf Property Fallbacks
 
-### Group — 🚧 `GROUP` 0x0011
+If a control (e.g. `Button` 0x20) arrives with an **empty `childrenIds` list**,
+renderers **MUST** check for direct string properties (the node's text content
+set via `SET_TEXT`, or the `LABEL` 0x200A property for controls that define one)
+before falling back to rendering an empty platform control shell. An empty shell
+is a last resort, never the primary path.
 
-A **transparent** container: applies modifiers to all children without creating
-a native element (SwiftUI `Group`).
+### 3. Transport-Aware Event Guards
 
-- **Protocol**: a container node the renderer MUST NOT materialize as a widget.
-  Children are hoisted into the nearest rendered ancestor.
-- **Renderer mapping**: all renderers — render children directly, ignore the
-  group node itself (like `COMMENT` but structural).
+Renderers **MUST** implement event guards to prevent network noise. User
+interactions — taps, text changes, drags, value edits — **MUST NEVER** emit
+outbound event opcodes unless the target node explicitly declared intent:
 
-### LazyVStack / LazyHStack — 🚧 `LAZY_VSTACK` 0x0012 / `LAZY_HSTACK` 0x0013
+- it set the relevant `EVENT_LISTENERS` (0x2005) bits, **or**
+- it is a value-bearing control reporting by component type (see
+  [EVENTS.md](./EVENTS.md)), **or**
+- it carries a bound callback property: `ACTION_ID` (0x2016) or `BINDING_ID`
+  (0x2017).
 
-Stacks that only realize children near the visible region (virtualized).
-
-- **Protocol**: same container semantics and properties as `VStack`/`HStack`.
-  The component type is the **virtualization hint**: a renderer MAY defer
-  realizing off-screen children until scrolled into view.
-- **Renderer mapping**: GTK `GtkListBox`/`GtkScrolledWindow` with recycling;
-  HTML/CSS content-visibility; ngui virtualization.
-
-### LazyVGrid / LazyHGrid — 🚧 `LAZY_VGRID` 0x0014 / `LAZY_HGRID` 0x0015
-
-Virtualized grids: a fixed number of columns (VGrid) / rows (HGrid) with
-virtualized scrolling along the other axis.
-
-- **Protocol**: a container node whose children are the **cells** (row-major /
-  column-major in insertion order). The axis count is carried by `WIDTH`/
-  `HEIGHT` where `FILL` (-1.0) means "auto-fit available space" and any other
-  value is the fixed count of cells per axis.
-- **Properties**: `ALIGNMENT`, `SPACING`, `WIDTH`/`HEIGHT` (cell-axis count).
-- **Renderer mapping**: CSS grid / `GtkGrid` with recycling.
-
-### Grid — ✅ `GRID` 0x000B
-
-A fixed grid of children.
-
-- **Protocol**: a container node whose children are cells, row-major in
-  insertion order.
-- **Properties**: `ALIGNMENT`, `SPACING`, `WIDTH`/`HEIGHT` (cell-axis count;
-  `FILL` = auto-fit).
-- **Renderer mapping**: GTK `GtkGrid`; HTML CSS grid; ngui `ui-grid`.
-
-### List — ✅ `LIST` 0x000A
-
-A scrolling, optionally selectable list of rows.
-
-- **Protocol**: a container node whose children are the rows.
-- **Properties**: `SPACING` (row gap). Row selection is carried per-row via the
-  semantic `SELECTED` (0x2004); a renderer reports row selection changes by
-  emitting `EVENT::VALUE_CHANGED` — see [EVENTS.md](./EVENTS.md).
-- **Renderer mapping**: GTK `GtkListBox`/`GtkTreeView`; HTML `<ul>`/`<div>` in a
-  scroll container; ngui list.
-
-### ScrollView — ✅ `SCROLLVIEW` 0x0009
-
-A container whose content may be larger than its bounds and scrolls.
-
-- **Protocol**: a container node; its single child (or children) is the content.
-- **Properties**: layout modifiers only; the axes to scroll are implied by the
-  content overflow.
-- **Events**: with the `SCROLL` (bit 8) listener the renderer reports the
-  scroll offset via `EVENT::SCROLL`; with `WHEEL` (bit 9) it reports
-  wheel/trackpad deltas via `EVENT::WHEEL` (both draft, see
-  [EVENTS.md](./EVENTS.md)).
-- **Renderer mapping**: GTK `GtkScrolledWindow`; HTML overflow container; ngui
-  scroll view.
+An interaction that matches none of these is dropped at the renderer — it is
+never serialized to the event ring or a network batch.
 
 ---
 
-## 2. Text & Input
+## Definitive Opcode Mapping Range
 
-| View | Component | Status | Properties | Emits |
-|------|-----------|--------|------------|-------|
-| `Text` | `TEXT` 0x0003 | ✅ | text, LINE_LIMIT, TEXT_ALIGNMENT, TRUNCATION_MODE, text modifiers | pointer/key via listeners |
-| `Label` | `LABEL` 0x001F | 🚧 | text + icon child | — |
-| `TextField` | `TEXT_FIELD` 0x0007 | ✅ | LABEL, PROMPT, IS_SECURE 🚧 | `TEXT_CHANGED` ✅, `EDITING_CHANGED` 🚧, `SUBMIT` 🚧, `FOCUS_CHANGED` 🚧 |
-| `SecureField` | `SECURE_FIELD` 0x0017 | 🚧 | same as TextField | same as TextField |
+Component types are `u16` in `TREE::CREATE_NODE`. The ranges below are aligned
+with SwiftUI's view categories and are the **single authoritative allocation**.
 
-### Text — ✅ `TEXT` 0x0003
+### A. Primitive Drawing & Visual Nodes (`0x01`–`0x0F`)
 
-A run of text.
+| ID | Component | Status | Notes |
+|----|-----------|--------|-------|
+| `0x01` | `TEXT` | ✅ | Standard styled text display |
+| `0x02` | `IMAGE` | ✅ | Raster, vector, or system icon asset (SF Symbols, material icons) |
+| `0x03` | `COLOR` | 🚧 | Solid color / layout-filling background view (new node; formerly a property value only) |
+| `0x04` | `SHAPE` | 🚧 | Vector geometries via `SHAPE_KIND` (`Rectangle`, `Circle`, `Capsule`, `Path`, …) |
+| `0x05` | `DIVIDER` | 🚧 | Axis-aligned separator line |
+| `0x06` | `SPACER` | ✅ | Flexible expanding layout filler |
+| `0x07` | `PROGRESS_VIEW` | 🚧 | Activity indicator / determinate progress |
+| `0x08` | `GAUGE` | 🚧 | Range meter against a scale |
+| `0x09`–`0x0F` | — | free | Future drawing/visual nodes |
 
-- **Protocol**: a leaf node; its content is set via `STYLE::SET_TEXT`
-  (`A=nodeId, B=arenaRef`) or bound to a signal.
-- **Properties**: `LINE_LIMIT` (0x000B, U32 max lines), `TEXT_ALIGNMENT`
-  (0x000C, ENUM), `TRUNCATION_MODE` (0x000D, ENUM), plus all text-formatting
-  and appearance modifiers from [MODIFIERS.md](./MODIFIERS.md).
+### B. Layout & Container Primitives (`0x10`–`0x1F`)
+
+| ID | Component | Status | Notes |
+|----|-----------|--------|-------|
+| `0x10` | `VSTACK` | ✅ | Vertical flex stack layout |
+| `0x11` | `HSTACK` | ✅ | Horizontal flex stack layout |
+| `0x12` | `ZSTACK` | 🚧 | Depth-overlapping layer stack layout |
+| `0x13` | `GRID` | ✅ | Static 2D matrix grid (eagerly rendered, aligned rows & columns) |
+| `0x14` | `SCROLLVIEW` | ✅ | Scrollable content container |
+| `0x15` | `LAZY_VGRID` | 🚧 | Virtualized vertical grid container (windowed rendering for large datasets) |
+| `0x16` | `LAZY_HGRID` | 🚧 | Virtualized horizontal grid container |
+| `0x17`–`0x1A` | — | reserved | Formerly `List`/`NavigationStack`/`NavigationSplitView` (composites, removed) — never reused |
+| `0x1B` | `LAZY_VSTACK` | 🚧 | Virtualized vertical stack |
+| `0x1C` | `LAZY_HSTACK` | 🚧 | Virtualized horizontal stack |
+| `0x1D`–`0x1F` | — | free | Future layout/container nodes |
+
+### C. Semantic Control Nodes (`0x20`–`0x2F`)
+
+| ID | Component | Status | Notes |
+|----|-----------|--------|-------|
+| `0x20` | `BUTTON` | ✅ | Action trigger control |
+| `0x21` | `TEXT_FIELD` / `SECURE_FIELD` | ✅ | Single-line text input (`IS_SECURE` token for secure variant) |
+| `0x22` | `TEXT_EDITOR` | 🚧 | Multi-line text editing area (new) |
+| `0x23` | — | free | Future semantic control |
+| `0x24` | `TOGGLE` | ✅ | Boolean switch, checkbox, or button control (`TOGGLE_STYLE`) |
+| `0x25` | `SLIDER` | ✅ | Continuous or stepped numeric range control |
+| `0x26` | `STEPPER` | 🚧 | Discrete increment/decrement control |
+| `0x27` | `DATE_PICKER` | 🚧 | Date & time selection modal/popover control |
+| `0x28` | `PICKER` | 🚧 | Selection control (segment, dropdown menu, or wheel) |
+| `0x29` | `MENU` | 🚧 | Contextual action trigger + popover container |
+| `0x2A` | `COLOR_PICKER` | 🚧 | Native system color picker control |
+| `0x2B`–`0x2F` | — | free | Future semantic controls |
+
+### Utility & custom
+
+| ID | Component | Status | Notes |
+|----|-----------|--------|-------|
+| `0x7F` | `COMMENT` | ✅ | Opaque/debug node; renderers ignore it (no native element) |
+| `0x0100`–`0xFFFF` | — | — | Application/custom component types |
+
+### Composite views (not primitives)
+
+These SwiftUI views are **not** protocol primitives. Applications compose them
+from the primitives in this file, so no component IDs are allocated:
+
+| SwiftUI view | Composition |
+|--------------|-------------|
+| `List` | `ScrollView` + `VStack` of rows; row selection via `SELECTED` per row |
+| `NavigationStack` | app-held navigation state emitting the current destination stack (`ZStack`/overlay) |
+| `NavigationSplitView` | `HStack` (sidebar + detail) |
+| `Label` | `HStack` + `IMAGE` + `TEXT` |
+
+---
+
+## A. Primitive Drawing & Visual Nodes
+
+### Text — ✅ `TEXT` 0x01
+
+A run of styled text. The server dictates content and style; the client measures
+and renders.
+
+- **Protocol**: a leaf node; content via `STYLE::SET_TEXT` or a bound signal.
+- **Properties**: `LINE_LIMIT` (0x000B, U32), `TEXT_ALIGNMENT` (0x000C, enum
+  code), `TRUNCATION_MODE` (0x000D, enum code), plus all text-formatting and
+  appearance modifiers from [MODIFIERS.md](./MODIFIERS.md).
+- **Events**: none by default; any listener via `EVENT_LISTENERS`.
 - **Renderer mapping**: GTK `GtkLabel`; HTML `<span>`/`<p>`; ngui `ui-text`.
+  Font handling is client-owned (the renderer resolves `FONT_FAMILY` /
+  `FONT_*` to its native text system).
 
-### Label — 🚧 `LABEL` 0x001F
+### Image — ✅ `IMAGE` 0x02
 
-A composite of an icon (a child `IMAGE` or `SHAPE`) and text (SwiftUI `Label`).
+A static image or icon asset. Asset loading is client-owned.
 
-- **Protocol**: a container node with **exactly two children**: the icon and
-  the text. The renderer lays them out horizontally with the text's font.
-- **Properties**: text modifiers apply to the text child; size modifiers apply
-  to the icon child.
-
-### TextField — ✅ `TEXT_FIELD` 0x0007
-
-A single-line text input.
-
-- **Protocol**: a leaf node. The caption and placeholder are `STRING`
-  properties (`LABEL` 0x200A, `PROMPT` 0x200B); the current value is bound to a
-  signal or held by the app and reported back host→guest on change.
-- **Properties**: `LABEL`, `PROMPT`, `IS_SECURE` (🚧 0x200D, U8 0/1),
-  `ENABLED`, `STATE`, text/appearance modifiers.
-- **Events** (see [EVENTS.md](./EVENTS.md)):
-  - `TEXT_CHANGED` (0x07) — ✅ the value changed; new text in the string
-    section.
-  - `EDITING_CHANGED` (🚧 0x09) — editing session began/ended (SwiftUI
-    `onEditingChanged`).
-  - `SUBMIT` (🚧 0x0A) — return/commit pressed (SwiftUI `onSubmit`/`onCommit`).
-  - `FOCUS_CHANGED` (🚧 0x08) — the field gained/lost focus.
-- **Renderer mapping**: GTK `GtkEntry`; HTML `<input type="text">`; ngui input.
-
-### SecureField — 🚧 `SECURE_FIELD` 0x0017
-
-A `TextField` whose input is masked.
-
-- **Protocol**: identical to `TEXT_FIELD`; the component type implies masked
-  rendering (equivalent to `TextField` + `IS_SECURE`). The renderer MUST mask
-  the displayed characters and MUST NOT echo the value on submit.
-- **Properties / events**: same as `TextField`.
-
----
-
-## 3. Images
-
-| View | Component | Status | Properties | Emits |
-|------|-----------|--------|------------|-------|
-| `Image` | `IMAGE` 0x0005 | ✅ | IMAGE_SOURCE 🚧, CONTENT_MODE 🚧 | pointer/key via listeners |
-| `AsyncImage` | `IMAGE` 0x0005 | 🚧 | IMAGE_SOURCE (URL) | — |
-
-### Image — ✅ `IMAGE` 0x0005
-
-A static image.
-
-- **Protocol**: a leaf node. Its source is a `STRING` property
-  (`IMAGE_SOURCE` 🚧 0x1002): a resource name, a file path, or an absolute URL.
-  Until `IMAGE_SOURCE` is implemented the source is a DSL-side concern.
-- **Properties**: `IMAGE_SOURCE` (🚧 0x1002, STRING), `CONTENT_MODE`
-  (🚧 0x001C, ENUM `Fit`=0 / `Fill`=1), size modifiers (`WIDTH`/`HEIGHT`,
-  `FILL`/`HUG_CONTENT`), `OPACITY`, `CLIPS_TO_BOUNDS`.
+- **Protocol**: a leaf node; source via `IMAGE_SOURCE` (🚧 0x1002, STRING: a
+  resource name, file path, or absolute URL).
+- **Properties**: `IMAGE_SOURCE`, `CONTENT_MODE` (🚧 0x001C, enum `Fit`=0 /
+  `Fill`=1), size modifiers, `OPACITY`, `CLIPS_TO_BOUNDS`.
+- **Events**: none by default.
 - **Renderer mapping**: GTK `GtkPicture`/`GtkImage`; HTML `<img>`; ngui
   `ui-image`.
+- **Note (SwiftUI `AsyncImage`)**: remote/async loading is **not a separate
+  primitive** — it is `IMAGE` with `IMAGE_SOURCE` set to an absolute URL; the
+  renderer loads asynchronously and re-issues `SET_PROPERTY(IMAGE_SOURCE)` if
+  the source changes.
 
-### AsyncImage — 🚧 mapped to `IMAGE`
+### Color — 🚧 `COLOR` 0x03
 
-SwiftUI's `AsyncImage` (remote/async loading) is **not a separate component**.
-It is `IMAGE` with `IMAGE_SOURCE` set to an absolute URL; the renderer loads it
-asynchronously and re-issues `SET_PROPERTY(IMAGE_SOURCE)` if the source changes.
+A solid-color view: either a colored rect or a layout-filling background.
 
----
+- **Protocol**: a leaf node whose color is the `COLOR` property (0x100A, packed
+  `0xAARRGGBB`, sRGB). `WIDTH`/`HEIGHT` size it (`FILL`/`HUG_CONTENT`).
+- **Events**: none by default.
+- **Renderer mapping**: GTK `GtkDrawingArea`/colored box; HTML `<div>` with
+  `background-color`; ngui `ui-color`. The renderer paints the pixel fill.
+- **Note**: `Color` also remains a **property value** (`COLOR`,
+  `BACKGROUND_COLOR`, `BORDER_COLOR`) — the node exists for when a color is a
+  first-class view (backgrounds, fills, spacers).
 
-## 4. Controls & Indicators
+### Shape — 🚧 `SHAPE` 0x04
 
-| View | Component | Status | Properties | Emits |
-|------|-----------|--------|------------|-------|
-| `Button` | `BUTTON` 0x0004 | ✅ | label text | tap (pointer down/up) |
-| `Toggle` | `SWITCH` 0x0006 / `CHECKBOX` 0x000D | ✅ | SELECTED | `VALUE_CHANGED` (0/1) |
-| `Slider` | `SLIDER` 0x000E | ✅ | VALUE, MIN_VALUE, MAX_VALUE | `VALUE_CHANGED` |
-| `Stepper` | `STEPPER` 0x0018 | 🚧 | VALUE, STEP_VALUE | `VALUE_CHANGED` |
-| `Picker` | `PICKER` 0x0019 | 🚧 | SELECTION, PICKER_STYLE | `VALUE_CHANGED` |
-| `DatePicker` | `DATE_PICKER` 0x001A | 🚧 | DATE_VALUE, DATE_PICKER_MODE | `VALUE_CHANGED` |
-| `ColorPicker` | `COLOR_PICKER` 0x001B | 🚧 | COLOR_VALUE | `VALUE_CHANGED` |
-| `ProgressView` | `PROGRESS_VIEW` 0x001C | 🚧 | PROGRESS, IS_INDETERMINATE | — |
-| `Gauge` | `GAUGE` 0x001D | 🚧 | VALUE, MIN_VALUE, MAX_VALUE | `VALUE_CHANGED` |
-| `Menu` | `MENU` 0x001E | 🚧 | items, SELECTION | `VALUE_CHANGED` |
-| `Link` | (→ `BUTTON`) | 🚧 | url | tap |
+A vector geometry. The shape kind is data (`SHAPE_KIND`), never a visual rule —
+the renderer owns the actual drawing.
 
-### Button — ✅ `BUTTON` 0x0004
+- **Protocol**: a leaf node with `SHAPE_KIND` (🚧 0x0006, enum): `Circle`=0,
+  `Rectangle`=1, `RoundedRectangle`=2, `Capsule`=3, `Ellipse`=4, `Path`=5.
+- **Properties**: fill = `COLOR`/`BACKGROUND_COLOR`; stroke = `BORDER_WIDTH`,
+  `BORDER_COLOR`, `BORDER_RADIUS` (RoundedRectangle corner), `BORDER_EDGES`;
+  size = `WIDTH`/`HEIGHT`.
+- **Events**: none by default.
+- **Renderer mapping**: GTK/HTML/CSS drawing (CSS `border-radius`, `clip-path`,
+  or inline SVG for `Path`); ngui shape primitives. `Path` is the documented
+  case where a renderer paints directly (no native element equivalent).
 
-A tappable control with a label.
+### Divider — 🚧 `DIVIDER` 0x05
 
-- **Protocol**: a leaf node whose label text is set via `STYLE::SET_TEXT`.
-  Custom labels (icon + text) are expressed by making `BUTTON` a container when
-  the app needs it; a leaf `BUTTON` carries only text.
-- **Properties**: text/appearance modifiers, `ENABLED`, `STATE`,
-  `EVENT_LISTENERS`. The tap gesture is the app-side composition of the
-  `POINTER_DOWN`/`POINTER_UP` listeners (see [EVENTS.md](./EVENTS.md)).
-- **Events**: with the `POINTER_DOWN`+`POINTER_UP` listeners set (always for a
-  button), the renderer reports the raw pointer events; the app composes a tap.
-- **Renderer mapping**: GTK `GtkButton`; HTML `<button>`; ngui `ui-button`.
-  Button styles are renderer/token-owned (see OPCODE.md design tokens).
+An axis-aligned 1px separator line.
 
-### Toggle — ✅ `SWITCH` 0x0006 / `CHECKBOX` 0x000D
-
-A boolean control. SwiftUI `Toggle` maps to two native forms:
-
-- `SWITCH` — the sliding-pill form (iOS/Android native switch).
-- `CHECKBOX` — the square-with-checkmark form.
-- **Protocol**: a leaf node; the checked state is the semantic `SELECTED`
-  (0x2004, U8 0/1) property, emitted guest→host and reported back host→guest.
-- **Events**: a user toggle emits `VALUE_CHANGED` (0x06) with `B` = 0/1; the app
-  writes it into its bound state. The renderer resolves hit-testing on its own
-  native control.
-- **Renderer mapping**: GTK `GtkSwitch`/`GtkCheckButton`; HTML `<input
-  type="checkbox">`/`<input type="checkbox">` styled as a switch; ngui toggle.
-
-### Slider — ✅ `SLIDER` 0x000E
-
-A continuous numeric control within a range.
-
-- **Protocol**: a leaf node with `VALUE` (0x2006, F32), `MIN_VALUE` (0x2007),
-  `MAX_VALUE` (0x2008). The renderer resolves the semantic value from its own
-  track geometry when the thumb is dragged.
-- **Events**: `VALUE_CHANGED` (0x06, `A=targetId, B=value (f32)`).
-- **Renderer mapping**: GTK `GtkScale`; HTML `<input type="range">`; ngui slider.
-
-### Stepper — 🚧 `STEPPER` 0x0018
-
-A control with − / + buttons that step a numeric value.
-
-- **Protocol**: a leaf node with `VALUE` and `STEP_VALUE` (🚧 0x2009, F32 — the
-  increment per press; default 1.0 if absent). `MIN_VALUE`/`MAX_VALUE` bound the
-  stepping range.
-- **Events**: `VALUE_CHANGED` (0x06) with the new value after each press.
-
-### Picker — 🚧 `PICKER` 0x0019
-
-A selection control among a fixed set of options.
-
-- **Protocol**: a leaf node whose options are `STRING` entries. The selected
-  index is `SELECTION` (🚧 0x2010, U32); the presentation is `PICKER_STYLE`
-  (🚧 0x2014, ENUM: `Menu`=0, `Segmented`=1, `Wheel`=2, `RadioGroup`=3).
-- **Events**: `VALUE_CHANGED` with `B` = the new selected index.
-- **Renderer mapping**: GTK `GtkComboBoxText`/`GtkDropDown`; HTML `<select>` /
-  segmented buttons; ngui picker.
-
-### DatePicker — 🚧 `DATE_PICKER` 0x001A
-
-A date/time selection control.
-
-- **Protocol**: a leaf node with `DATE_VALUE` (🚧 0x2011, F32 — **unix seconds**
-  since epoch) and `DATE_PICKER_MODE` (🚧 0x2013, ENUM: `Date`=0, `Time`=1,
-  `DateAndTime`=2).
-- **Events**: `VALUE_CHANGED` with `B` = the new unix seconds.
-- **Renderer mapping**: GTK `GtkCalendar`/`GtkSpinButton`; HTML `<input
-  type="date">`/`<input type="time">`; ngui date picker.
-
-### ColorPicker — 🚧 `COLOR_PICKER` 0x001B
-
-A color selection control.
-
-- **Protocol**: a leaf node with `COLOR_VALUE` (🚧 0x2012, COLOR — packed
-  `0xAARRGGBB`, sRGB).
-- **Events**: `VALUE_CHANGED` — the value field carries the packed color
-  **as an f32 bit pattern** of `0xAARRGGBB` (the app reinterprets it).
-- **Renderer mapping**: GTK `GtkColorButton`; HTML `<input type="color">`; ngui
-  color picker.
-
-### ProgressView — 🚧 `PROGRESS_VIEW` 0x001C
-
-Determinate or indeterminate progress.
-
-- **Protocol**: a leaf node. Determinate: `PROGRESS` (🚧 0x200E, F32 0.0–1.0
-  fraction, or 0.0–`MAX_VALUE` if `MAX_VALUE` is set). Indeterminate:
-  `IS_INDETERMINATE` (🚧 0x200F, U8 1) — the renderer animates an activity
-  indicator.
+- **Protocol**: a leaf node; orientation implied by the parent stack axis.
+- **Properties**: `COLOR` (0x100A), `BORDER_WIDTH` (0x1003) — line thickness.
 - **Events**: none.
-- **Renderer mapping**: GTK `GtkProgressBar`/`GtkSpinner`; HTML `<progress>`/
-  `<div class="spinner">`; ngui progress.
+- **Renderer mapping**: GTK `GtkSeparator`; HTML `<hr>` / `<div>` with a border.
 
-### Gauge — 🚧 `GAUGE` 0x001D
+### Spacer — ✅ `SPACER` 0x06
+
+A flexible expanding layout filler.
+
+- **Protocol**: a leaf node with no properties; expands to the remaining main
+  axis space (`flex-grow:1` in HTML, expanding box in GTK).
+- **Events**: none.
+
+### ProgressView — 🚧 `PROGRESS_VIEW` 0x07
+
+Determinate progress or an activity indicator.
+
+- **Protocol**: a leaf node. Determinate: `PROGRESS` (0x200E, F32 0.0–1.0, or
+  0.0–`MAX_VALUE` if set). Indeterminate: `IS_INDETERMINATE` (0x200F, U8 1) —
+  the renderer animates a native activity indicator.
+- **Events**: none.
+- **Renderer mapping**: GTK `GtkProgressBar`/`GtkSpinner`; HTML
+  `<progress>`/`<div class="spinner">`; ngui progress.
+
+### Gauge — 🚧 `GAUGE` 0x08
 
 A value shown against a scale (SwiftUI `Gauge`).
 
-- **Protocol**: a leaf node with `VALUE`, `MIN_VALUE`, `MAX_VALUE` (same IDs as
-  Slider). The gauge style (linear/circular) is renderer/token-owned.
-- **Events**: none (read-only; a gauged control that accepts input is a
-  Slider).
-
-### Menu — 🚧 `MENU` 0x001E
-
-A pop-up menu of commands.
-
-- **Protocol**: a leaf node with a label (SET_TEXT) and its items as `STRING`
-  options (same option encoding as Picker). Selected item index is `SELECTION`
-  (0x2010).
-- **Events**: `VALUE_CHANGED` with `B` = the chosen item index.
-- **Renderer mapping**: GTK `GtkMenuButton`; HTML `<div role="menu">`; ngui menu.
-
-### Link — 🚧 mapped to `BUTTON`
-
-SwiftUI `Link` is `BUTTON` with an associated URL; the app handles the tap and
-opens the URL. No separate component.
+- **Protocol**: a leaf node with `VALUE` (0x2006), `MIN_VALUE` (0x2007),
+  `MAX_VALUE` (0x2008). The gauge style (linear/circular) is renderer/token-owned.
+- **Events**: none (read-only; an interactive gauge is a `Slider` 0x25).
 
 ---
 
-## 5. Shapes & Paints
+## B. Layout & Container Primitives
 
-| View | Component | Status | Properties | Emits |
-|------|-----------|--------|------------|-------|
-| `Circle`, `Rectangle`, `RoundedRectangle`, `Capsule`, `Ellipse`, `Path` | `SHAPE` 0x0016 | 🚧 | SHAPE_KIND, COLOR, BACKGROUND_COLOR, BORDER_* | — |
-| `Color` | (property value) | ✅ | — | — |
-| `Gradient` | (property value) | 🚧 | — | — |
+Layout primitives arrange children. They carry `SPACING` (0x0001),
+`ALIGNMENT` (0x0002), and `CONTENT_MARGINS` (0x0005), plus layout modifiers from
+[MODIFIERS.md](./MODIFIERS.md#1-layout). Renderers map them to their native flex
+box / grid primitives (GTK `GtkBox`/`GtkGrid`, CSS flex/grid, ngui
+`ui-vstack`/`ui-hstack`/`ui-grid`/…).
 
-### Shapes — 🚧 `SHAPE` 0x0016 + `SHAPE_KIND` 0x0006
+### VStack — ✅ `VSTACK` 0x10
 
-All SwiftUI shape views map to a **single** `SHAPE` component; the shape is an
-`ENUM` property `SHAPE_KIND` (🚧 0x0006):
+Vertical flex stack. **Properties**: `SPACING`, `ALIGNMENT` (enum: `Leading`=0,
+`Center`=1, `Trailing`=2, `Fill`=3), `CONTENT_MARGINS`.
 
-| SHAPE_KIND | Value |
-|------------|-------|
-| `Circle` | 0 |
-| `Rectangle` | 1 |
-| `RoundedRectangle` | 2 |
-| `Capsule` | 3 |
-| `Ellipse` | 4 |
-| `Path` | 5 |
+### HStack — ✅ `HSTACK` 0x11
 
-- **Properties**: fill = `COLOR`/`BACKGROUND_COLOR`; stroke = `BORDER_WIDTH`,
-  `BORDER_COLOR`, `BORDER_RADIUS` (RoundedRectangle corner radius),
-  `BORDER_EDGES`. `WIDTH`/`HEIGHT` size the shape's bounds.
-- **Renderer mapping**: GTK/HTML/CSS drawing (CSS `border-radius`,
-  `clip-path`, or inline SVG for `Path`). The renderer owns rendering; the
-  shape kind is data, never a visual rule.
+Horizontal flex stack. Same properties as `VStack`.
 
-### Color — ✅ (property value)
+### ZStack — 🚧 `ZSTACK` 0x12
 
-SwiftUI `Color` is **not a component**: it is the `COLOR` value type
-(`0xAARRGGBB`, sRGB) carried by `COLOR`, `BACKGROUND_COLOR`, `BORDER_COLOR`,
-and other color-valued properties.
+Depth-overlapping layer stack; child index = draw order (later = on top).
+**Properties**: `ALIGNMENT`. Renderer: GTK `GtkOverlay`; HTML absolutely
+positioned children; ngui `ui-zstack`.
 
-### Gradient — 🚧 (property value)
+### Grid — ✅ `GRID` 0x13
 
-A gradient is a **draft** `DESIGN_TOKEN`-referenced or serialized value
-(linear/radial stops). For now gradients are expressed as a `DESIGN_TOKEN`
-property value; a dedicated gradient encoding is future work.
+Static 2D matrix grid, eagerly rendered with aligned rows & columns. Children
+are cells, row-major in insertion order. **Properties**: `ALIGNMENT`, `SPACING`,
+`WIDTH`/`HEIGHT` (cell-axis count; `FILL` = auto-fit). Renderer: GTK `GtkGrid`;
+HTML CSS grid; ngui `ui-grid`.
+
+### ScrollView — ✅ `SCROLLVIEW` 0x14
+
+Scrollable content container. **Events**: with the `SCROLL` (bit 8) listener the
+renderer reports the scroll offset via `EVENT::SCROLL`; with `WHEEL` (bit 9) it
+reports deltas via `EVENT::WHEEL` (both draft — see [EVENTS.md](./EVENTS.md)).
+Renderer: GTK `GtkScrolledWindow`; HTML overflow container; ngui scroll view.
+
+### LazyVGrid — 🚧 `LAZY_VGRID` 0x15
+
+Virtualized vertical grid: windowed rendering for large datasets; children are
+cells, row-major. **Properties**: `ALIGNMENT`, `SPACING`, `WIDTH` (column count;
+`FILL` = auto-fit). A renderer MAY defer realizing off-screen cells until
+scrolled into view.
+
+### LazyHGrid — 🚧 `LAZY_HGRID` 0x16
+
+Virtualized horizontal grid; children are cells, column-major. **Properties**:
+`ALIGNMENT`, `SPACING`, `HEIGHT` (row count; `FILL` = auto-fit).
+
+### LazyVStack — 🚧 `LAZY_VSTACK` 0x1B
+
+Virtualized vertical stack; same properties as `VStack`, with windowed
+realization of children near the visible region.
+
+### LazyHStack — 🚧 `LAZY_HSTACK` 0x1C
+
+Virtualized horizontal stack; same properties as `HStack`, with windowed
+realization.
 
 ---
 
-## 6. Navigation & Containers
+## C. Semantic Control Nodes
 
-| View | Component | Status | Properties | Emits |
-|------|-----------|--------|------------|-------|
-| `NavigationStack` | `NAVIGATION_STACK` 0x0020 | 🚧 | SELECTION (path index) | — |
-| `NavigationSplitView` | `NAVIGATION_SPLIT_VIEW` 0x0021 | 🚧 | SELECTION | — |
-| `TabView` | `TAB_VIEW` 0x0022 | 🚧 | SELECTION | `VALUE_CHANGED` |
+Semantic controls encapsulate intent, two-way bindings, accessibility traits,
+and local interaction physics. Rendering follows the [Dual-Mode Rendering
+Pipeline](#2-dual-mode-rendering-pipeline--platform-delegation): **Native Token
+Mode** when the node has no children; **Composite Override Mode** when it does.
 
-> Navigation is **declarative**: the app holds the navigation state and emits
-> the current structure; the renderer shows it. There is no imperative
-> `push`/`pop` in the protocol.
+### Button — ✅ `BUTTON` 0x20
 
-### NavigationStack — 🚧 `NAVIGATION_STACK` 0x0020
+An action trigger control.
 
-A stack of destination views with back navigation.
+| Property | ID | Type | Meaning |
+|----------|----|------|---------|
+| label text | `SET_TEXT` / `TEXT` | STRING | The button's text label (leaf mode fallback) |
+| `ACTION_ID` | 0x2016 | U32 | Callback id that gates event delivery (Event Guards) |
+| `BINDING_ID` | 0x2017 | U32 | Two-way binding id (bound to the action's value, if any) |
+| `ENABLED` | 0x2003 | U8 | 1 = interactive, 0 = disabled |
+| `STATE` | 0x2002 | F32 (enum) | Accessibility state (see OPCODE.md) |
+| `EVENT_LISTENERS` | 0x2005 | U32 | Raw pointer listeners (down/move/up) for app-side tap composition |
+| `COLOR`/`FONT_*`/`PADDING`/`BACKGROUND_COLOR`/… | — | — | Text & appearance modifiers (MODIFIERS.md) |
 
-- **Protocol**: a container whose children are the destination views, back to
-  front. The visible destination is the last child; the renderer owns the
-  transition animation.
-- **Properties**: `SELECTION` (depth index) for programmatic control.
-- **Renderer mapping**: GTK `GtkStack`; HTML stacked sections; ngui navigation.
+- **Native Token Mode (leaf):** no children → native button
+  (`UIButton`/`NSButton`, `GtkButton`, `<button>`); the label is the node's text
+  (`SET_TEXT`). If the text is also absent, render an empty platform button
+  shell (leaf fallback).
+- **Composite Override Mode (container):** children present → suppress default
+  button chrome, render the custom label tree, wrap it with a native
+  click/press gesture that reports `POINTER_DOWN`/`POINTER_UP` for the button's
+  `ACTION_ID` callback.
+- **Events:** the tap is the app-side composition of the raw pointer events
+  (`POINTER_DOWN` then `POINTER_UP` on the same target). Without `ACTION_ID` /
+  `BINDING_ID` / `EVENT_LISTENERS`, a renderer MUST drop the interaction (Event
+  Guards).
+- **Renderer mapping**: GTK `GtkButton`; HTML `<button>`; ngui `ui-button`.
+  Button styles are renderer/token-owned.
+- **Note (SwiftUI `Link`)**: SwiftUI's `Link` is `BUTTON` with an associated
+  URL; the app handles the tap and opens the URL. No separate primitive.
 
-### NavigationSplitView — 🚧 `NAVIGATION_SPLIT_VIEW` 0x0021
+### TextField / SecureField — ✅ `TEXT_FIELD` 0x21
 
-A master–detail split (sidebar + content).
+Single-line text input; `SecureField` is the same component with `IS_SECURE`.
 
-- **Protocol**: a container with **two** children: the sidebar and the detail.
-  `SELECTION` carries the selected sidebar row.
-- **Renderer mapping**: GTK `GtkPaned`; HTML two-column responsive layout.
+| Property | ID | Type | Meaning |
+|----------|----|------|---------|
+| `LABEL` | 0x200A | STRING | Caption label |
+| `PROMPT` | 0x200B | STRING | Placeholder text |
+| `IS_SECURE` | 0x200D | U8 | 1 = masked input (`SecureField`) |
+| `BINDING_ID` | 0x2017 | U32 | Two-way binding id (text value) |
+| `ENABLED`/`STATE` | 0x2003/0x2002 | — | Enabled / accessibility state |
 
-### TabView — 🚧 `TAB_VIEW` 0x0022
+- **Events** (see [EVENTS.md](./EVENTS.md)): `TEXT_CHANGED` (0x07) ✅ on every
+  edit; `FOCUS_CHANGED` (0x08), `EDITING_CHANGED` (0x09), `SUBMIT` (0x0A) —
+  draft. All gated by `BINDING_ID` or the matching `EVENT_LISTENERS` bits.
+- **Renderer mapping**: GTK `GtkEntry`; HTML `<input type="text">`; ngui input.
+  A secure field MUST mask characters and MUST NOT echo the value.
 
-A tab bar switching among content children.
+### TextEditor — 🚧 `TEXT_EDITOR` 0x22
 
-- **Protocol**: a container whose children are the tab pages. `SELECTION`
-  (U32 index) is the active tab.
-- **Events**: `VALUE_CHANGED` with `B` = the newly selected tab index.
-- **Renderer mapping**: GTK `GtkNotebook`; HTML tab bar + panels; ngui tabs.
+Multi-line text editing area.
+
+- **Protocol**: a leaf node; content via `SET_TEXT`, value binding via
+  `BINDING_ID` (0x2017).
+- **Properties**: `LINE_LIMIT`, `TEXT_ALIGNMENT`, `TRUNCATION_MODE`,
+  `IS_SECURE` (unused), text modifiers.
+- **Events**: same as `TextField` — `TEXT_CHANGED` (0x07), `FOCUS_CHANGED`
+  (0x08), `EDITING_CHANGED` (0x09), `SUBMIT` (0x0A) — gated by `BINDING_ID` /
+  `EVENT_LISTENERS`.
+- **Renderer mapping**: GTK `GtkTextView`; HTML `<textarea>`; ngui textarea.
+
+### Toggle — ✅ `TOGGLE` 0x24
+
+A boolean switch, checkbox, or button control. The **visual style is a token**,
+not a separate component:
+
+| Property | ID | Type | Meaning |
+|----------|----|------|---------|
+| `TOGGLE_STYLE` | 0x2018 | F32 (enum) | `Switch`=0 (default), `Checkbox`=1, `Button`=2 |
+| `SELECTED` | 0x2004 | U8 | Checked state (0 off, 1 on) |
+| `BINDING_ID` | 0x2017 | U32 | Two-way binding id (bool value) |
+| `LABEL` | 0x200A | STRING | Optional caption |
+| `ENABLED`/`STATE` | 0x2003/0x2002 | — | Enabled / accessibility state |
+
+- **Native Token Mode (leaf):** renders the native control for the
+  `TOGGLE_STYLE` token — `UISwitch`/`NSSwitch`, `GtkSwitch`, checkbox input
+  (`TOGGLE_STYLE=Checkbox`), or a toggle button. The style token switches native
+  variants **without emitting child nodes**.
+- **Composite Override Mode (container):** a custom body (e.g. label + icon)
+  wrapped with a native toggle gesture; `SELECTED` still drives the state.
+- **Events:** a user change emits `VALUE_CHANGED` (0x06) with `B` = 0/1 — gated
+  by `BINDING_ID`. The app writes it into `SELECTED`; the engine re-emits the
+  `SELECTED` property.
+- **Renderer mapping**: GTK `GtkSwitch`/`GtkCheckButton`; HTML checkbox / styled
+  switch / toggle button; ngui `ui-toggle`/`ui-checkbox`.
+
+### Slider — ✅ `SLIDER` 0x25
+
+A continuous or stepped numeric range control.
+
+| Property | ID | Type | Meaning |
+|----------|----|------|---------|
+| `VALUE` | 0x2006 | F32 | Current value |
+| `MIN_VALUE` | 0x2007 | F32 | Inclusive minimum |
+| `MAX_VALUE` | 0x2008 | F32 | Inclusive maximum |
+| `STEP_VALUE` | 0x2009 | F32 | Stepped mode increment (default 1.0 if absent; absent = continuous) |
+| `BINDING_ID` | 0x2017 | U32 | Two-way binding id (numeric value) |
+| `ENABLED`/`STATE` | 0x2003/0x2002 | — | Enabled / accessibility state |
+
+- **Native Token Mode (leaf):** native slider (`UISlider`/`NSSlider`,
+  `GtkScale`, `<input type="range">`); the renderer owns 120 FPS client-side
+  thumb dragging and resolves the semantic value from its own track geometry.
+- **Composite Override Mode (container):** a custom track/thumb body wrapped
+  with a native drag gesture that reports `VALUE_CHANGED`.
+- **Events:** `VALUE_CHANGED` (0x06, `A=targetId, B=value (f32)`) — gated by
+  `BINDING_ID`.
+- **Renderer mapping**: GTK `GtkScale`; HTML `<input type="range">`; ngui slider.
+
+### Stepper — 🚧 `STEPPER` 0x26
+
+A discrete increment/decrement control. `VALUE` (0x2006), `STEP_VALUE`
+(0x2009), `MIN_VALUE` (0x2007), `MAX_VALUE` (0x2008), `BINDING_ID` (0x2017).
+Events: `VALUE_CHANGED` after each press.
+
+### DatePicker — 🚧 `DATE_PICKER` 0x27
+
+A date & time selection modal/popover control.
+
+- **Protocol**: a leaf node whose value is set with the **`STYLE::SET_DATE`**
+  command (draft 0x04, see OPCODE.md): `A=nodeId, B=days since epoch (I32,
+  pre-1970 negative), C=millis of day (U32, 0..86,400,000)`.
+- **Properties**: `DATE_PICKER_MODE` (0x2013, enum: `Date`=0, `Time`=1,
+  `DateAndTime`=2), `BINDING_ID` (0x2017), size modifiers.
+- **Events**: `DATE_CHANGED` (draft 0x0D, `A=targetId, B=days (I32),
+  C=millis of day (U32)`) — inline, gated by `BINDING_ID`.
+- **Renderer mapping**: GTK `GtkCalendar`/`GtkSpinButton`; HTML `<input
+  type="date">`/`<input type="time">`; ngui date picker.
+
+### Picker — 🚧 `PICKER` 0x28
+
+A selection control rendered as a segment, dropdown menu, or wheel.
+
+- **Protocol**: a container node whose **children are the options**, in display
+  order (each a leaf whose text is the option label) — the same "options are
+  children" rule as `Menu` action items.
+- **Properties**: `SELECTION` (0x2010, U32 child index), `PICKER_STYLE`
+  (0x2014, enum: `Menu`=0, `Segmented`=1, `Wheel`=2, `RadioGroup`=3),
+  `BINDING_ID` (0x2017).
+- **Events**: `VALUE_CHANGED` with `B` = the new selected child index — gated
+  by `BINDING_ID`.
+- **Renderer mapping**: GTK `GtkComboBoxText`/`GtkDropDown`; HTML `<select>` /
+  segmented buttons; ngui picker.
+
+### Menu — 🚧 `MENU` 0x29
+
+A **semantic control**: contextual action trigger and popover container. The
+client platform owns dynamic popover presentation, overlay placement, tap/focus
+management, and accessibility focus trapping (`UIMenu` on iOS, `GtkPopoverMenu`
+on GTK, floating popover on Web).
+
+#### Dual-Mode Rendering Rules
+
+- **Native Token Mode (Leaf Trigger):** with no custom trigger child node, the
+  client MUST render its native system drop-down button shell using the
+  designated trigger label property (the node's text via `SET_TEXT`, or
+  `LABEL` 0x200A).
+- **Composite Override Mode (Custom Trigger Container):** when a custom view
+  tree (e.g. an `HStack` with an avatar image and text label) is designated as
+  the menu trigger, the client MUST:
+  1. suppress default OS drop-down button styling,
+  2. render the custom trigger layout tree sent by the server,
+  3. wrap that custom layout tree with native menu tap/click handlers, hover
+     states, and popover anchor bindings.
+
+#### Child Composition Rules
+
+A `Menu` manages **two types of child view trees**:
+
+1. **Trigger View** — the custom layout tree representing the clickable visual
+   trigger element.
+2. **Action Items** — child semantic nodes representing menu options (`Button`,
+   `Toggle`, or nested sub-`Menu` nodes).
+
+Renderers **MUST** map child `Button` and `Toggle` nodes inside a `Menu` directly
+to **native OS menu item slots** rather than standard canvas/layout nodes.
+
+- **Events**: `VALUE_CHANGED` with `B` = the chosen action item index — gated
+  by `BINDING_ID` (0x2017).
+- **Renderer mapping**: GTK `GtkMenuButton`/`GtkPopoverMenu`; HTML `<div
+  role="menu">`; ngui menu.
+
+### ColorPicker — 🚧 `COLOR_PICKER` 0x2A
+
+A native system color picker control.
+
+- **Protocol**: a leaf node with `COLOR_VALUE` (0x2012, COLOR — packed
+  `0xAARRGGBB`, sRGB) and `BINDING_ID` (0x2017).
+- **Events**: `VALUE_CHANGED` — the value field carries the packed color **as an
+  f32 bit pattern** of `0xAARRGGBB` (the app reinterprets it) — gated by
+  `BINDING_ID`.
+- **Renderer mapping**: native color panel / `GtkColorButton`; HTML `<input
+  type="color">`; ngui color picker.
 
 ---
 
 ## Reserved component type IDs
 
-For a renderer to be future-proof, the following component type ranges are
-reserved:
-
 | Range | Use |
 |-------|-----|
-| `0x0001`–`0x000E` | Implemented primitives (this file) |
-| `0x000F`–`0x0022` | Draft-allocated primitives (this file) |
-| `0x0023`–`0x00FF` | Future primitives (unallocated) |
+| `0x01`–`0x08` | Implemented/draft primitive drawing nodes (this file) |
+| `0x09`–`0x0F` | Future drawing nodes (unallocated) |
+| `0x10`–`0x16`, `0x1B`–`0x1C` | Layout & container primitives (this file) |
+| `0x17`–`0x1A` | Reserved (formerly composites) — never reused |
+| `0x1D`–`0x1F` | Future layout nodes (unallocated) |
+| `0x20`–`0x22`, `0x24`–`0x2A` | Semantic control nodes (this file) |
+| `0x23`, `0x2B`–`0x2F` | Future semantic controls (unallocated) |
+| `0x30`–`0x7E` | Future categories (unallocated) |
+| `0x7F` | `COMMENT` (utility) |
+| `0x80`–`0xFF` | Reserved |
 | `0x0100`–`0xFFFF` | Application/custom component types |
 
 A renderer MUST handle an unknown component type by rendering a blank node and

@@ -46,6 +46,24 @@ the consumer. Both directions of the protocol are binary and share the same
   bitmask, `SET_PROPERTY` with the `U32` value type). This makes **any element**
   (a `Text`, a `VStack`, …) able to emit events, not just controls.
 
+### Transport-aware event guards (MUST)
+
+Renderers **MUST** implement event guards to prevent network noise. A user
+interaction — tap, text change, drag, value edit — **MUST NEVER** produce an
+outbound event opcode unless the target node explicitly declared intent in **at
+least one** of these ways:
+
+1. it set the matching `EVENT_LISTENERS` (0x2005) bits, **or**
+2. it is a **value-bearing control** reporting by component type (`SLIDER`,
+   `TOGGLE`, `PICKER`, `MENU`, `DATE_PICKER`, `COLOR_PICKER`, …), **or**
+3. it carries a bound callback property — `ACTION_ID` (0x2016) or `BINDING_ID`
+   (0x2017) — that identifies where the interaction must be routed.
+
+Interactions that match none of these are **dropped at the renderer**; they are
+never serialized to the event ring or a network batch. This is the wire-level
+guard: a `Button` tap with no `ACTION_ID`, no `BINDING_ID`, and no
+`EVENT_LISTENERS` produces no events.
+
 ### Target resolution
 
 The renderer resolves `targetId` from its own rendered-output tree (its
@@ -126,23 +144,39 @@ its own native control geometry.
 
 | Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
 |---------|-------|---|---|---|-------|--------|---------------------|
-| `VALUE_CHANGED` | 0x06 | targetId | value (f32) | 0 | — | ✅ | `Slider`/`Stepper`/`Gauge`/`Picker`/`TabView` binding changes |
+| `VALUE_CHANGED` | 0x06 | targetId | value (f32) | 0 | — | ✅ | `Slider`/`Stepper`/`Gauge`/`Toggle`/`Picker`/`Menu` binding changes |
 
 - **Semantics per control** (see [PRIMITIVES.md](./PRIMITIVES.md) controls):
   - `SLIDER`/`STEPPER`/`GAUGE` — the numeric value in the control's range.
-  - `SWITCH`/`CHECKBOX` — 0/1 (checked state; the same value the app writes to
+  - `TOGGLE` — 0/1 (checked state; the same value the app writes to
     `SELECTED`).
-  - `PICKER`/`MENU` — the selected option index.
-  - `TAB_VIEW` — the active tab index.
-  - `DATE_PICKER` — unix seconds (f32).
+  - `PICKER`/`MENU` — the selected option/action-item index.
   - `COLOR_PICKER` — the packed `0xAARRGGBB` color reinterpreted as an f32 bit
     pattern.
+  - `DATE_PICKER` uses the dedicated `DATE_CHANGED` event below (its value is
+    two fields and does not fit `VALUE_CHANGED`).
 - The app writes the received value into its bound `State`; the engine's
   signal flush re-emits the `SET_PROPERTY` delta back to the renderer (the
   renderer reflects its own native control).
 - **No listener bit**: value-bearing controls are reported by the renderer by
-  virtue of their component type, regardless of `EVENT_LISTENERS`. The
-  renderer owns the gesture (e.g. slider drag) that produces them.
+  virtue of their component type, but still gated by the transport-aware event
+  guards (a control without `BINDING_ID` reports nothing). The renderer owns
+  the gesture (e.g. slider drag) that produces them.
+
+### Date
+
+| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
+|---------|-------|---|---|---|-------|--------|---------------------|
+| `DATE_CHANGED` | 0x0D | targetId | days since epoch (I32) | millis of day (U32) | — | 🚧 | `DatePicker` value binding |
+
+- The date is encoded as two 32-bit fields — `B` = **days since epoch**
+  (signed I32; pre-1970 is negative) and `C` = **millis of day** (U32,
+  0..86,400,000) — matching the `STYLE::SET_DATE` command (OPCODE.md). No
+  string/arena indirection: the event is fully inline. It works over the
+  shared-memory ring today and will use the same inline encoding for host →
+  guest network batches once that direction lands (see OPCODE.md Transport).
+- **No listener bit**: like `VALUE_CHANGED`, reported by virtue of the
+  component type.
 
 ### Text
 
@@ -240,8 +274,8 @@ wire protocol will never carry interpreted gestures — only raw inputs.
 | Range | Use |
 |-------|-----|
 | `0x01`–`0x07` | Implemented core events (this file) |
-| `0x08`–`0x0C` | Draft core events (this file) |
-| `0x0D`–`0x3F` | Future core events (unallocated) |
+| `0x08`–`0x0D` | Draft core events (this file) |
+| `0x0E`–`0x3F` | Future core events (unallocated) |
 | `0x40`–`0xFF` | Custom/application events |
 
 A renderer/decoder MUST skip unknown event commands and continue.

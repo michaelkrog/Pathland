@@ -182,12 +182,14 @@ SSR pre-step is needed), decodes `PLPL` frames, and renders ngui views. See
 ## Components & Properties
 
 Component and property IDs are defined in `pathland-core`'s
-[`constants.rs`](./lib/rust/crates/pathland-core/src/constants.rs) and
-documented in [OPCODE.md](./spec/OPCODE.md). Component types include `HSTACK`,
-`VSTACK`, `TEXT`, `BUTTON`, `SPACER`, and more; stack constraint properties
-(`SPACING`, `ALIGNMENT`, …) drive native layout, styling modifiers (`PADDING`,
-`COLOR`, `BACKGROUND_COLOR`, …) decorate any view, and `WIDTH`/`HEIGHT`
-use `-1` = FILL, `-2` = HUG_CONTENT.
+[`constants.rs`](./lib/rust/crates/pathland-core/src/constants.rs),
+documented in [OPCODE.md](./spec/OPCODE.md), and catalogued by category in
+[PRIMITIVES.md](./spec/PRIMITIVES.md) (component types), [MODIFIERS.md](./spec/MODIFIERS.md)
+(properties), and [EVENTS.md](./spec/EVENTS.md) (events). Component types
+include `TEXT`, `BUTTON`, `VSTACK`, `HSTACK`, `SPACER`, and more; stack
+constraint properties (`SPACING`, `ALIGNMENT`, …) drive native layout, styling
+modifiers (`PADDING`, `COLOR`, `BACKGROUND_COLOR`, …) decorate any view, and
+`WIDTH`/`HEIGHT` use `-1` = FILL, `-2` = HUG_CONTENT.
 
 ## Design Tokens
 

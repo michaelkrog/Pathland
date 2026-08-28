@@ -139,10 +139,9 @@ map them to their native text attributes.
 | `.strikethrough()` | `STRIKETHROUGH` 0x1020 | U8 (0/1) | 🚧 | one |
 | `.foregroundColor(_:)` | `COLOR` 0x100A | COLOR | ✅ | one |
 
-\* `FONT_FAMILY` is a `STRING` property (arenaRef). **Note:** the Rust
-`value_type_for` currently defaults it to `F32`; the Java `forProperty` already
-treats it as `STRING`. The canonical value type is `STRING` — the Rust helper
-should be corrected when the font-family modifier is implemented.
+\* `FONT_FAMILY` is a `STRING` property (arenaRef), matching SwiftUI, which
+passes font families as string names (`.font(.custom("Georgia", size:))`). The
+reference `value_type_for` / `forProperty` helpers return `STRING` for it.
 
 ### Semantics
 
@@ -245,8 +244,10 @@ plus accessibility. These are the "semantic" (`0x2000`) properties.
   `FOCUS` listener bit (`EVENT_LISTENERS`, bit 5) and observes
   `EVENT::FOCUS_CHANGED` — see [EVENTS.md](./EVENTS.md).
 - **`ROLE`/`STATE`** are accessibility enums; their enumerated values are
-  renderer-shared but documented in OPCODE.md. `LABEL` is a `STRING` property
-  (the accessibility label), distinct from a `TEXT_FIELD`'s caption label.
+  defined in [OPCODE.md](./OPCODE.md#semantic-properties), not here. `STATE` is
+  a semantic accessibility property — it never describes visual styling.
+- **`LABEL`** is a `STRING` property (the accessibility label), distinct from a
+  `TEXT_FIELD`'s caption label.
 
 ---
 
@@ -266,8 +267,9 @@ plus accessibility. These are the "semantic" (`0x2000`) properties.
 | `0x1017`–`0x102F` | Text-format drafts (FONT_STYLE/DESIGN/WIDTH, KERNING, TRACKING, BASELINE_OFFSET, LINE_SPACING, TEXT_CASE, UNDERLINE, STRIKETHROUGH), effect drafts (SHADOW_*, BLUR, SATURATION, CONTRAST, BRIGHTNESS, GRAYSCALE, HUE_ROTATION, COLOR_MULTIPLY, COLOR_INVERT), ROTATION_DEGREES, SCALE, ALLOWS_HIT_TESTING | 🚧 |
 | `0x1030`–`0x10FF` | Future styling properties (unallocated) | — |
 | `0x2001`–`0x200B` | Semantic (ROLE, STATE, ENABLED, SELECTED, EVENT_LISTENERS, VALUE, MIN_VALUE, MAX_VALUE, LABEL, PROMPT) | ✅ |
-| `0x2009`, `0x200C`–`0x2014` | Control drafts (STEP_VALUE, CONTROL_SIZE, IS_SECURE, PROGRESS, IS_INDETERMINATE, SELECTION, DATE_VALUE, COLOR_VALUE, DATE_PICKER_MODE, PICKER_STYLE) — defined in PRIMITIVES.md controls | 🚧 |
-| `0x2015`–`0x20FF` | Future semantic properties (unallocated) | — |
+| `0x2009`, `0x200C`–`0x2014` | Control drafts (STEP_VALUE, CONTROL_SIZE, IS_SECURE, PROGRESS, IS_INDETERMINATE, SELECTION, COLOR_VALUE, DATE_PICKER_MODE, PICKER_STYLE) — defined in PRIMITIVES.md controls. Note: a `DATE_PICKER`'s date is set via the `STYLE::SET_DATE` command (0x04), not a property; **`0x2011` is unallocated/reserved** (its former `DATE_VALUE` draft was dropped) | 🚧 |
+| `0x2016`–`0x2018` | Binding/action drafts (`ACTION_ID`, `BINDING_ID`, `TOGGLE_STYLE`) — defined in PRIMITIVES.md semantic controls | 🚧 |
+| `0x2015`, `0x2019`–`0x20FF` | Future semantic properties (unallocated) | — |
 
 ### Reserved ranges
 
@@ -281,7 +283,8 @@ A renderer MUST ignore unknown property ids and continue decoding.
 
 ### Default value type resolution
 
-The canonical value type per property (mirrors `value_type_for`):
+The canonical value type per property (the protocol's authoritative mapping;
+the reference `value_type_for` / `forProperty` helpers are aligned with it):
 
 - `COLOR`, `BACKGROUND_COLOR`, `BORDER_COLOR`, `COLOR_MULTIPLY`,
   `SHADOW_COLOR`, `COLOR_VALUE` → `COLOR`
@@ -290,11 +293,46 @@ The canonical value type per property (mirrors `value_type_for`):
   `COLOR_INVERT`, `CLIPS_TO_BOUNDS`, `ALLOWS_HIT_TESTING`, `IS_SECURE`,
   `IS_INDETERMINATE`, `FIXED_SIZE_*` → `U8`
 - `LABEL`, `PROMPT`, `FONT_FAMILY`, `IMAGE_SOURCE` → `STRING`
-- `LINE_LIMIT`, `SELECTION` → `U32`
+- `LINE_LIMIT`, `SELECTION`, `ACTION_ID`, `BINDING_ID` → `U32`
 - `ALIGNMENT`, `TEXT_ALIGNMENT`, `TRUNCATION_MODE`, `TEXT_CASE`, `FONT_STYLE`,
   `FONT_DESIGN`, `CONTENT_MODE`, `CONTROL_SIZE`, `SHAPE_KIND`,
-  `DATE_PICKER_MODE`, `PICKER_STYLE` → `ENUM`
+  `DATE_PICKER_MODE`, `PICKER_STYLE`, `TOGGLE_STYLE` → `F32` (numeric enum code;
+  see the appendix and [OPCODE.md](./OPCODE.md#value-types))
 - everything else → `F32`
+
+---
+
+## Appendix: Enumerated values
+
+Single authoritative source for every enum-valued property in the protocol.
+A renderer or emitter MUST use these exact numeric codes. The code is carried
+in the property value as an **f32 bit pattern** (`value_type::F32`), matching
+the reference implementations — see the [value-type
+conventions](./OPCODE.md#value-types) and the [default value type
+resolution](#default-value-type-resolution).
+
+| Property | ID | Values |
+|----------|----|--------|
+| `ALIGNMENT` | 0x0002 | `Leading`=0, `Center`=1, `Trailing`=2, `Fill`=3 |
+| `SHAPE_KIND` | 0x0006 | `Circle`=0, `Rectangle`=1, `RoundedRectangle`=2, `Capsule`=3, `Ellipse`=4, `Path`=5 |
+| `TEXT_ALIGNMENT` | 0x000C | `Leading`=0, `Center`=1, `Trailing`=2 |
+| `TRUNCATION_MODE` | 0x000D | `Head`=0, `Middle`=1, `Tail`=2 |
+| `CONTENT_MODE` | 0x001C | `Fit`=0, `Fill`=1 |
+| `FONT_STYLE` | 0x1017 | `Normal`=0, `Italic`=1 |
+| `FONT_DESIGN` | 0x1018 | `Default`=0, `Serif`=1, `Rounded`=2, `Monospaced`=3 |
+| `TEXT_CASE` | 0x101E | `None`=0, `Uppercase`=1, `Lowercase`=2 |
+| `CONTROL_SIZE` | 0x200C | `Small`=0, `Regular`=1, `Large`=2 |
+| `DATE_PICKER_MODE` | 0x2013 | `Date`=0, `Time`=1, `DateAndTime`=2 |
+| `PICKER_STYLE` | 0x2014 | `Menu`=0, `Segmented`=1, `Wheel`=2, `RadioGroup`=3 |
+| `TOGGLE_STYLE` | 0x2018 | `Switch`=0 (default), `Checkbox`=1, `Button`=2 |
+
+Non-`ENUM` scales:
+
+- `FONT_WEIGHT` (0x1008) is a numeric F32 on the 100–900 scale
+  (`regular`≈400, `bold`≈700), not an enum.
+- `ROLE` (0x2001) and `STATE` (0x2002) are accessibility enums; their value
+  sets are defined in [OPCODE.md](./OPCODE.md#semantic-properties) and are not
+  reproduced here.
 
 ---
 

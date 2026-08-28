@@ -69,6 +69,7 @@ pub struct Opcode {
 ### Payload encoding conventions
 
 - **Float payloads** (`spacing`, `padding`, sizes) are stored as raw `f32` (IEEE 754) bit patterns in a `u32` field.
+- **Signed payloads** (the `I32` value type, and dedicated commands like `SET_DATE`'s days-since-epoch) are stored as the raw two's-complement bit pattern of a signed value in a `u32` field; a consumer reinterprets the field as `i32`.
 - **Node IDs** are `u32`.
 - **Component types / property IDs** are `u16`; when packed into a 4-byte payload they occupy the low two bytes (the high bytes are reserved / zero unless documented).
 - **Arena references** are a `u32` byte offset into the arena region (see [Arena](#arena)).
@@ -106,9 +107,9 @@ the wire-format authority.
 |---------|-------|---|---|---|-------|-------------|
 | `CREATE_NODE` | `0x01` | nodeId | componentType (u16, low) | 0 | — | Create a node of `componentType` |
 | `DELETE_NODE` | `0x02` | nodeId | 0 | 0 | — | Delete a node and its subtree |
-| `INSERT_CHILD` | `0x03` | parentId | childId | index | `0x0001` = append | Insert `childId` into `parentId` at `index` |
+| `INSERT_CHILD` | `0x03` | parentId | childId | index | — | Insert `childId` into `parentId` at `index`; append is `index = u32::MAX` (`APPEND`) |
 | `REMOVE_CHILD` | `0x04` | parentId | childId | 0 | — | Remove `childId` from `parentId` |
-| `MOVE_CHILD` | `0x05` | parentId | childId | newIndex | `0x0001` = append | Move child to `newIndex` (after removal) |
+| `MOVE_CHILD` | `0x05` | parentId | childId | newIndex | — | Move child to `newIndex` (after removal); append is `newIndex = u32::MAX` (`APPEND`) |
 
 ### STYLE (0x02)
 
@@ -121,6 +122,7 @@ size hints — plus **styling modifiers** (padding, colors, fonts, borders).
 | `SET_PROPERTY` | `0x01` | nodeId | propertyId (u16, low) + valueType (u8, high byte) | value | — | Set a constraint/style property; `value` depends on `valueType` |
 | `SET_DESIGN_TOKEN` | `0x02` | arenaRef (path) | valueType (u8) | value | — | Override a design token; path is an arena string |
 | `SET_TEXT` | `0x03` | nodeId | arenaRef (utf8) | 0 | — | Set a node's text content |
+| `SET_DATE` | `0x04` | nodeId | days since epoch (I32) | millis of day (U32) | — | **Draft.** Set a node's date value (e.g. a `DATE_PICKER`); see [EVENTS.md](./EVENTS.md#date) for the matching `DATE_CHANGED` event |
 
 `SET_PROPERTY` encodes the value type in the **high byte of `B`** (bits 24–31) and the property id in the low two bytes:
 
@@ -141,6 +143,16 @@ B = (valueType << 16) | propertyId
 | `COLOR` | `0x07` | packed `0xAARRGGBB` |
 | `DESIGN_TOKEN` | `0x08` | arenaRef (token path) |
 
+> **Enum-valued properties** (`ALIGNMENT`, `TEXT_ALIGNMENT`, `TRUNCATION_MODE`,
+> `ROLE`, `STATE`, and the draft `FONT_*`/`CONTENT_MODE`/`CONTROL_SIZE`/`SHAPE_KIND`
+> properties) are carried with the **`F32` value type**, holding the numeric enum
+> code as an f32 bit pattern (e.g. `ALIGNMENT=Center(1)` → `C = 1.0f32.to_bits()`).
+> This matches the reference implementations (Rust DSL, Java DSL, GTK/HTML/ngui
+> renderers all read these as `f32`). The enumerated code tables live in
+> [MODIFIERS.md](./MODIFIERS.md#appendix-enumerated-values). The `ENUM` value type
+> (low byte of `C`) remains available for explicitly `ENUM`-coded properties;
+> none of the standard properties use it today.
+
 #### Constraint properties for native layout
 
 The following properties drive native layout; the renderer maps them to its
@@ -151,9 +163,25 @@ available), `-2` = HUG_CONTENT (native intrinsic size).
 | Property | Value | Type | Native meaning |
 |----------|-------|------|----------------|
 | `SPACING` | `0x0001` | F32 | Gap between children |
-| `ALIGNMENT` | `0x0002` | ENUM | Cross-axis alignment |
+| `ALIGNMENT` | `0x0002` | F32 (enum code) | Cross-axis alignment |
+| `CONTENT_MARGINS` | `0x0005` | F32 | Uniform inset between a stack's edge and its content |
 | `WIDTH` | `0x100B` | F32 | Width hint (-1 FILL, -2 HUG) |
 | `HEIGHT` | `0x100C` | F32 | Height hint (-1 FILL, -2 HUG) |
+
+#### Text properties
+
+Text-bearing nodes (`TEXT`, `BUTTON` labels, `TEXT_FIELD`) carry their content
+via `SET_TEXT` (0x03) and their layout via these properties:
+
+| Property | Value | Type | Native meaning |
+|----------|-------|------|----------------|
+| `TEXT` | `0x000A` | STRING | The text content (a `SET_TEXT`-style arena string) |
+| `LINE_LIMIT` | `0x000B` | U32 | Maximum number of lines (0 = unlimited) |
+| `TEXT_ALIGNMENT` | `0x000C` | F32 (enum code) | Alignment of the text block within its bounds |
+| `TRUNCATION_MODE` | `0x000D` | F32 (enum code) | Truncation style when text overflows (`Head`/`Middle`/`Tail`) |
+
+Enumerated values for these and every other enum-valued property are
+consolidated in [MODIFIERS.md](./MODIFIERS.md#appendix-enumerated-values).
 
 #### Styling properties (modifiers)
 
@@ -190,33 +218,79 @@ protocol).
 
 Semantic properties describe a node's meaning and interaction state rather than
 its layout or decoration. Currently exercised: `SELECTED` carries the boolean
-checked state of a `SWITCH`/`CHECKBOX` (`SET_PROPERTY` with the `U8` value type,
-`0` = off, `1` = on). `EVENT_LISTENERS` (below) declares which raw inputs a node
-wants reported.
+checked state of a `TOGGLE` (`SET_PROPERTY` with the `U8` value type, `0` = off,
+`1` = on). `EVENT_LISTENERS` (below) declares which raw inputs a node wants
+reported; `ACTION_ID`/`BINDING_ID` identify bound callbacks that gate event
+delivery (see [EVENTS.md](./EVENTS.md#transport-aware-event-guards-must)).
 
 | Property | Value | Type | Meaning |
 |----------|-------|------|---------|
-| `ROLE` | `0x2001` | ENUM | Accessibility role |
-| `STATE` | `0x2002` | ENUM | Control state |
+| `ROLE` | `0x2001` | ENUM | Accessibility role (see below) |
+| `STATE` | `0x2002` | ENUM | Control/interaction state (see below) |
 | `ENABLED` | `0x2003` | U8 | Whether the control is enabled |
-| `SELECTED` | `0x2004` | U8 | Checked/selected state of a `SWITCH`/`CHECKBOX` |
+| `SELECTED` | `0x2004` | U8 | Checked/selected state of a `TOGGLE` |
 | `EVENT_LISTENERS` | `0x2005` | U32 | Bitmask of raw-input events to report |
 | `VALUE` | `0x2006` | F32 | Current value of a value-bearing control (e.g. `SLIDER`) |
 | `MIN_VALUE` | `0x2007` | F32 | Inclusive minimum of a `SLIDER`'s range |
 | `MAX_VALUE` | `0x2008` | F32 | Inclusive maximum of a `SLIDER`'s range |
 | `LABEL` | `0x200A` | STRING | Caption label of a `TEXT_FIELD` |
 | `PROMPT` | `0x200B` | STRING | Placeholder text of a `TEXT_FIELD` |
+| `ACTION_ID` | `0x2016` | U32 | **Draft.** Bound callback id; gates event delivery for this node |
+| `BINDING_ID` | `0x2017` | U32 | **Draft.** Two-way binding id (control value ↔ app state) |
+| `TOGGLE_STYLE` | `0x2018` | ENUM | **Draft.** Visual style token for a `TOGGLE`: `Switch`=0, `Checkbox`=1, `Button`=2 |
+
+**`ROLE` enumerated values** (accessibility role; carried as an `F32` numeric code, `value_type::F32`):
+
+| Value | Role |
+|-------|------|
+| 0 | `None` (no semantic role) |
+| 1 | `Button` |
+| 2 | `Link` |
+| 3 | `Header` |
+| 4 | `Text` |
+| 5 | `Image` |
+| 6 | `TextField` |
+| 7 | `Slider` |
+| 8 | `Toggle` (Switch/Checkbox/Button styles) |
+| 9 | `Checkbox` |
+| 10 | `RadioButton` |
+| 11 | `Stepper` |
+| 12 | `Tab` |
+| 13 | `TabBar` |
+| 14 | `List` |
+| 15 | `Grid` |
+| 16 | `ScrollView` |
+| 17 | `Adjustable` (value the user can adjust) |
+| 18 | `Summary` |
+| 19 | `Menu` / `PopUpButton` |
+
+**`STATE` enumerated values** (control/interaction state; carried as an `F32` numeric code, `value_type::F32`):
+
+| Value | State |
+|-------|-------|
+| 0 | `Normal` (no special state) |
+| 1 | `Disabled` |
+| 2 | `Focused` |
+| 3 | `Pressed` |
+| 4 | `Selected` |
+| 5 | `Expanded` |
+| 6 | `Busy` |
+
+`STATE` is a **semantic/accessibility** property the application sets; it never
+describes visual styling (hover/press styles stay renderer/token-owned).
 
 `STRING` properties carry their text in the frame's string section: the
 property value is the *relative* offset of a length-prefixed entry, exactly as
 `SET_TEXT`'s `B` field does.
 
-`CHECKBOX` (`0x000D`) is a component type alongside `SWITCH` (`0x0006`): both
-render natively as a boolean control; `SWITCH` is the sliding-pill form and
-`CHECKBOX` the square-with-checkmark form. The renderer owns their visual
+`TOGGLE` (`0x24`) is a boolean control whose visual style is a **token**, not a
+separate component: `TOGGLE_STYLE` (`0x2018`, ENUM) selects the native variant —
+`Switch` (sliding pill), `Checkbox` (square with checkmark), or `Button`
+(toggle button). The checked state is `SELECTED` (`0x2004`, U8 0/1), emitted
+guest → host and reported back host → guest. The renderer owns the visual
 presentation (see [Design Token System](#design-token-system)).
 
-`SLIDER` (`0x000E`) is a continuous numeric control: the guest emits its
+`SLIDER` (`0x25`) is a continuous numeric control: the guest emits its
 `VALUE` plus the `MIN_VALUE`/`MAX_VALUE` range, and the renderer reports value
 changes back as `VALUE_CHANGED` events (host → guest), resolving the semantic
 value from its own track geometry (see [EVENT](#event-0x03--host--guest)).
@@ -247,6 +321,11 @@ Each bit requests a raw-input event kind (see [`listener`] flags):
 | 2 | `0x00000004` | `POINTER_UP` | Report pointer-up for this node |
 | 3 | `0x00000008` | `KEY_DOWN` | Report key-down |
 | 4 | `0x00000010` | `KEY_UP` | Report key-up |
+
+> Bits 5–9 (draft) are allocated in [EVENTS.md](./EVENTS.md#event-listeners-event_listeners)
+> for `FOCUS_CHANGED`, `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, and `WHEEL`.
+> Value-bearing controls (`SLIDER`, `TOGGLE`, `DATE_PICKER`, …) report their
+> value changes by component type and do not need a listener bit.
 
 This is what makes **any element** (a `Text`, a `VStack`, …) able to emit
 events — the renderer attaches native input recognition to the matching native
