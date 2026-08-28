@@ -261,6 +261,9 @@ pub mod property_id {
     pub const LINE_LIMIT: u16 = 0x000B;
     pub const TEXT_ALIGNMENT: u16 = 0x000C;
     pub const TRUNCATION_MODE: u16 = 0x000D;
+    /// **Draft.** `SHAPE` geometry kind (F32 enum): `Circle`=0, `Rectangle`=1,
+    /// `RoundedRectangle`=2, `Capsule`=3, `Ellipse`=4, `Path`=5.
+    pub const SHAPE_KIND: u16 = 0x0006;
     // Style (0x1000 range)
     pub const BACKGROUND_COLOR: u16 = 0x1001;
     /// **Draft.** Image source (STRING: a resource name, file path, or URL).
@@ -307,6 +310,26 @@ pub mod property_id {
     pub const LABEL: u16 = 0x200A;
     /// The placeholder text of a `TEXT_FIELD` (a `STRING` property).
     pub const PROMPT: u16 = 0x200B;
+    /// **Draft.** Stepper increment per press (F32).
+    pub const STEP_VALUE: u16 = 0x2009;
+    /// **Draft.** Control size (F32 enum): `Small`=0, `Regular`=1, `Large`=2.
+    pub const CONTROL_SIZE: u16 = 0x200C;
+    /// **Draft.** Masked-input token for a `TEXT_FIELD` (U8 0/1).
+    pub const IS_SECURE: u16 = 0x200D;
+    /// **Draft.** Determinate progress fraction of a `PROGRESS_VIEW` (F32).
+    pub const PROGRESS: u16 = 0x200E;
+    /// **Draft.** Indeterminate (activity) token of a `PROGRESS_VIEW` (U8 0/1).
+    pub const IS_INDETERMINATE: u16 = 0x200F;
+    /// **Draft.** Selected child index of a `PICKER`/`MENU` (U32).
+    pub const SELECTION: u16 = 0x2010;
+    /// **Draft.** Current color of a `COLOR_PICKER` (COLOR).
+    pub const COLOR_VALUE: u16 = 0x2012;
+    /// **Draft.** `DATE_PICKER` presentation (F32 enum): `Date`=0, `Time`=1,
+    /// `DateAndTime`=2.
+    pub const DATE_PICKER_MODE: u16 = 0x2013;
+    /// **Draft.** `PICKER` presentation (F32 enum): `Menu`=0, `Segmented`=1,
+    /// `Wheel`=2, `RadioGroup`=3.
+    pub const PICKER_STYLE: u16 = 0x2014;
     /// **Draft.** Bound callback id; gates event delivery for this node.
     pub const ACTION_ID: u16 = 0x2016;
     /// **Draft.** Two-way binding id (control value ↔ app state).
@@ -329,11 +352,19 @@ pub fn value_type_for(prop: u16) -> u8 {
     match prop {
         property_id::COLOR
         | property_id::BACKGROUND_COLOR
-        | property_id::BORDER_COLOR => value_type::COLOR,
+        | property_id::BORDER_COLOR
+        | property_id::COLOR_VALUE => value_type::COLOR,
         property_id::EVENT_LISTENERS | property_id::BORDER_EDGES => value_type::U32,
-        property_id::SELECTED => value_type::U8,
-        property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY | property_id::IMAGE_SOURCE => value_type::STRING,
-        property_id::LINE_LIMIT | property_id::ACTION_ID | property_id::BINDING_ID => value_type::U32,
+        property_id::SELECTED | property_id::IS_SECURE | property_id::IS_INDETERMINATE => {
+            value_type::U8
+        }
+        property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY | property_id::IMAGE_SOURCE => {
+            value_type::STRING
+        }
+        property_id::LINE_LIMIT
+        | property_id::SELECTION
+        | property_id::ACTION_ID
+        | property_id::BINDING_ID => value_type::U32,
         _ => value_type::F32,
     }
 }
