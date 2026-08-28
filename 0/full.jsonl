@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 3.570840768000001,
+    "cost": 3.578646216000001,
     "tokens": {
-      "input": 11664219,
-      "output": 330188,
+      "input": 11664750,
+      "output": 330613,
       "reasoning": 155,
       "cache": {
-        "read": 112383744,
+        "read": 113442048,
         "write": 0
       }
     },
     "time": {
       "created": 1787909577222,
-      "updated": 1787937572616
+      "updated": 1787937582005
     }
   },
   "messages": [
@@ -47723,21 +47723,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.004021932,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 529575,
+          "input": 292,
+          "output": 387,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 528896
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787937572615
+          "created": 1787937572615,
+          "completed": 1787937581984
         },
+        "finish": "tool-calls",
         "id": "msg_049624707002mCPQpOs2Iqt8Sj",
         "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR"
       },
@@ -47754,20 +47757,115 @@
           "tool": "bash",
           "callID": "call_53a9669907494441aed77996",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git add lib/rust/crates/pathland-core spec/OPCODE.md spec/EVENTS.md spec/CONFORMANCE.md AGENTS.md && git commit -m \"feat(core): two-way string section via host-owned event arena\n\nGive the shared-memory ring a host -> guest string pool so string-bearing\nevents (TEXT_CHANGED) flow over the desktop path, symmetric with the\nalready-working network batches.\n\n- header grows 64 -> 80 bytes: eventArenaOffset (0x40), eventArenaBytes\n  (0x44), eventArenaCursor (0x48, host-owned); MemoryLayout gains\n  event_arena_bytes (1 MiB default); new region header|ring|event ring|\n  arena|event arena\n- Host::send_event bump-allocates TextChanged text into the event arena\n  and references it by absolute B offset (the SET_TEXT convention); a\n  full event arena is RingError::Full backpressure\n- Guest::drain_events resolves TEXT_CHANGED against the event arena via\n  events::decode_event (no longer silently dropped); META::RESET recycles\n  the host arena cursor\n- docs: OPCODE header table + linear-memory diagram + event-arena section\n  + TEXT_CHANGED dual convention; EVENTS/CONFORMANCE/AGENTS updated (and\n  the stale 'network host->guest not yet implemented' claim removed -\n  network duplex already exists across Rust/Java/TS and both demos)\" && git log --oneline -1"
             },
+            "output": "[docs/primitive-specs 2ef2680] feat(core): two-way string section via host-owned event arena\n 12 files changed, 329 insertions(+), 39 deletions(-)\n2ef2680 feat(core): two-way string section via host-owned event arena\n",
+            "metadata": {
+              "output": "[docs/primitive-specs 2ef2680] feat(core): two-way string section via host-owned event arena\n 12 files changed, 329 insertions(+), 39 deletions(-)\n2ef2680 feat(core): two-way string section via host-owned event arena\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git add lib/rust/crates/pathland-core spec/OPCODE.md spec/EVENTS.md spec/CONFORMANCE.md AGENTS.md && git commit -m \"feat(core): two-way string section via host-owned event arena\n\nGive the shared-memory ring a host -> guest string pool so string-bearing\nevents (TEXT_CHANGED) flow over the desktop path, symmetric with the\nalready-working network batches.\n\n- header grows 64 -> 80 bytes: eventArenaOffset (0x40), eventArenaBytes\n  (0x44), eventArenaCursor (0x48, host-owned); MemoryLayout gains\n  event_arena_bytes (1 MiB default); new region header|ring|event ring|\n  arena|event arena\n- Host::send_event bump-allocates TextChanged text into the event arena\n  and references it by absolute B offset (the SET_TEXT convention); a\n  full event arena is RingError::Full backpressure\n- Guest::drain_events resolves TEXT_CHANGED against the event arena via\n  events::decode_event (no longer silently dropped); META::RESET recycles\n  the host arena cursor\n- docs: OPCODE header table + linear-memory diagram + event-arena section\n  + TEXT_CHANGED dual convention; EVENTS/CONFORMANCE/AGENTS updated (and\n  the stale 'network host->guest not yet implemented' claim removed -\n  network duplex already exists across Rust/Java/TS and both demos)\" && git log --oneline -1",
             "time": {
-              "start": 1787937578585
+              "start": 1787937581896,
+              "end": 1787937581898
             }
           },
           "id": "prt_049625193001nvKzOpvmkPkEao",
           "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
           "messageID": "msg_049624707002mCPQpOs2Iqt8Sj"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "b6785e43e34b083c1db78d0c543d69c00235112e",
+          "type": "step-finish",
+          "tokens": {
+            "total": 529575,
+            "input": 292,
+            "output": 387,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 528896
+            }
+          },
+          "cost": 0.004021932,
+          "id": "prt_049626b75001SDmLrGJVaGXdv3",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_049624707002mCPQpOs2Iqt8Sj"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04961d885001rIxjN2J6ZaUH0g",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.003783516,
+        "tokens": {
+          "total": 529685,
+          "input": 239,
+          "output": 38,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 529408
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787937582004,
+          "completed": 1787937584953
+        },
+        "finish": "stop",
+        "id": "msg_049626bb4001SeQZTCvwRa80Lz",
+        "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR"
+      },
+      "parts": [
+        {
+          "snapshot": "b6785e43e34b083c1db78d0c543d69c00235112e",
+          "type": "step-start",
+          "id": "prt_049627643001O3w7kuV20EWCRH",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_049626bb4001SeQZTCvwRa80Lz"
+        },
+        {
+          "type": "text",
+          "text": "Committed `2ef2680` — the two-way string section (event arena + 80-byte header + spec docs), 12 files, 329 insertions.",
+          "time": {
+            "start": 1787937584709,
+            "end": 1787937584868
+          },
+          "id": "prt_0496276450019R8jRGGzDEDwTz",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_049626bb4001SeQZTCvwRa80Lz"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "b6785e43e34b083c1db78d0c543d69c00235112e",
+          "type": "step-finish",
+          "tokens": {
+            "total": 529685,
+            "input": 239,
+            "output": 38,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 529408
+            }
+          },
+          "cost": 0.003783516,
+          "id": "prt_04962770c0013XTwixxozBwmJn",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_049626bb4001SeQZTCvwRa80Lz"
         }
       ]
     }
