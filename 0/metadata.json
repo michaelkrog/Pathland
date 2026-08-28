@@ -1,0 +1,46 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M14AED2CXK1X7GTAZMQAW712",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-28T13:55:16.190304Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 26,
+  "files_touched": [
+    "AGENTS.md",
+    "README.md",
+    "spec/CONFORMANCE.md",
+    "spec/EVENTS.md",
+    "spec/MODIFIERS.md",
+    "spec/OPCODE.md",
+    "spec/PRIMITIVES.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "0022a2a75f41",
+  "checkpoint_transcript_start": 236,
+  "transcript_lines_at_start": 236,
+  "compact_transcript_start": 236,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 1
+  },
+  "session_metrics": {
+    "turn_count": 30
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-28T13:55:16.041479Z",
+    "agent_lines": 692,
+    "agent_removed": 402,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 692,
+    "total_lines_changed": 1094,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
