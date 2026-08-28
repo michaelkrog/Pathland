@@ -1,0 +1,1 @@
+I want to create a new file for defining the primitive views and events that the protocol needs to support. I want it to follow what swiftui has (fx. hstack, zstack, text, image etc.). Use the same groupings as well.

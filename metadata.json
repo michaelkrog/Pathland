@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M13X9X2W4VGDGWPDWQMRHSDV",
+  "strategy": "manual-commit",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "README.md",
+    "spec/EVENTS.md",
+    "spec/MODIFIERS.md",
+    "spec/OPCODE.md",
+    "spec/PRIMITIVES.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 364873,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1712640,
+    "output_tokens": 49182,
+    "api_call_count": 30
+  }
+}
