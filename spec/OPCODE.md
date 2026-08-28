@@ -225,8 +225,8 @@ delivery (see [EVENTS.md](./EVENTS.md#transport-aware-event-guards-must)).
 
 | Property | Value | Type | Meaning |
 |----------|-------|------|---------|
-| `ROLE` | `0x2001` | ENUM | Accessibility role (see below) |
-| `STATE` | `0x2002` | ENUM | Control/interaction state (see below) |
+| `ROLE` | `0x2001` | ENUM (F32 code) | Accessibility role (see below) |
+| `STATE` | `0x2002` | ENUM (F32 code) | Control/interaction state (see below) |
 | `ENABLED` | `0x2003` | U8 | Whether the control is enabled |
 | `SELECTED` | `0x2004` | U8 | Checked/selected state of a `TOGGLE` |
 | `EVENT_LISTENERS` | `0x2005` | U32 | Bitmask of raw-input events to report |
@@ -237,7 +237,7 @@ delivery (see [EVENTS.md](./EVENTS.md#transport-aware-event-guards-must)).
 | `PROMPT` | `0x200B` | STRING | Placeholder text of a `TEXT_FIELD` |
 | `ACTION_ID` | `0x2016` | U32 | **Draft.** Bound callback id; gates event delivery for this node |
 | `BINDING_ID` | `0x2017` | U32 | **Draft.** Two-way binding id (control value ↔ app state) |
-| `TOGGLE_STYLE` | `0x2018` | ENUM | **Draft.** Visual style token for a `TOGGLE`: `Switch`=0, `Checkbox`=1, `Button`=2 |
+| `TOGGLE_STYLE` | `0x2018` | ENUM (F32 code) | **Draft.** Visual style token for a `TOGGLE`: `Switch`=0, `Checkbox`=1, `Button`=2 |
 
 **`ROLE` enumerated values** (accessibility role; carried as an `F32` numeric code, `value_type::F32`):
 
