@@ -8,11 +8,11 @@
 #[cfg(test)]
 pub(crate) const VECTORS: &[(&str, [u8; 16])] = &[
     (
-        "TREE:CREATE_NODE (id=1, VSTACK=0x0002)",
+        "TREE:CREATE_NODE (id=1, VSTACK=0x0010)",
         [
             0x01, 0x01, 0x00, 0x00, // category TREE, command CREATE_NODE
             0x01, 0x00, 0x00, 0x00, // A = nodeId = 1
-            0x02, 0x00, 0x00, 0x00, // B = componentType = 0x0002
+            0x10, 0x00, 0x00, 0x00, // B = componentType = 0x0010
             0x00, 0x00, 0x00, 0x00, // C = 0
         ],
     ),
@@ -134,7 +134,7 @@ mod tests {
     fn vectors_decode_exactly() {
         // Rebuild each vector from its fields and confirm the documented bytes.
         let cases: &[(u8, u8, u16, u32, u32, u32, [u8; 16])] = &[
-            (0x01, 0x01, 0x0000, 1, 0x0002, 0, VECTORS[0].1),
+            (0x01, 0x01, 0x0000, 1, 0x0010, 0, VECTORS[0].1),
             (0x01, 0x03, 0x0000, 0, 1, u32::MAX, VECTORS[1].1),
             (0x01, 0x05, 0x0000, 1, 2, 0, VECTORS[2].1),
             (

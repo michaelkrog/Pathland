@@ -108,8 +108,8 @@ mod tests {
         {
             let mut guest = ring.producer();
             guest.begin_frame();
-            guest.create_node(1, 0x0002).unwrap();
-            guest.create_node(2, 0x0003).unwrap();
+            guest.create_node(1, 0x0010).unwrap();
+            guest.create_node(2, 0x0001).unwrap();
             guest.insert_child(1, 2, 0).unwrap();
             guest
                 .set_property(2, property_id::SPACING, 0x04, 4.0f32.to_bits())
@@ -136,7 +136,7 @@ mod tests {
         {
             let mut guest = ring.producer();
             guest.begin_frame();
-            guest.create_node(1, 0x0002).unwrap();
+            guest.create_node(1, 0x0010).unwrap();
             guest.end_frame();
         }
         // First drain yields the frame.
@@ -217,7 +217,7 @@ mod tests {
             let mut guest = ring.producer();
             guest.begin_frame();
             for i in 0..OPCODES {
-                guest.create_node(i as u32 + 1, 0x0003).unwrap();
+                guest.create_node(i as u32 + 1, 0x0001).unwrap();
             }
             let r = guest.set_text(1, "zero-copy proof").unwrap();
             guest.end_frame();

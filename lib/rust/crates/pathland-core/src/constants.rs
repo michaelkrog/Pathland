@@ -1,7 +1,8 @@
 //! Protocol constants: categories, commands, component types, value types, flags.
 //!
 //! These constants are part of the wire protocol (see `spec/OPCODE.md`) and MUST
-//! NOT be renumbered once released.
+//! NOT be renumbered once released. Component types were renumbered pre-release
+//! to the grouped ranges in `spec/PRIMITIVES.md` (wire version stays 1).
 
 /// Opcode categories (`Category` field, u8).
 pub mod category {
@@ -39,6 +40,10 @@ pub mod style {
     pub const SET_DESIGN_TOKEN: u8 = 0x02;
     /// `A=nodeId, B=arenaRef (utf8)`
     pub const SET_TEXT: u8 = 0x03;
+    /// **Draft.** `A=nodeId, B=days since epoch (I32), C=millis of day (U32)` —
+    /// set a node's date value (e.g. a `DATE_PICKER`); see
+    /// `spec/PRIMITIVES.md` / `spec/OPCODE.md`.
+    pub const SET_DATE: u8 = 0x04;
 }
 
 /// Commands within the `EVENT` category.
@@ -65,6 +70,19 @@ pub mod event {
     /// guest). The new text lives in the batch's string section, referenced by
     /// the *relative* offset in `B` (the same convention as `STYLE::SET_TEXT`).
     pub const TEXT_CHANGED: u8 = 0x07;
+    /// **Draft.** `A=targetId, B=focused (0/1)` — a node gained/lost focus.
+    pub const FOCUS_CHANGED: u8 = 0x08;
+    /// **Draft.** `A=targetId, B=editing (0/1)` — an editing session began/ended.
+    pub const EDITING_CHANGED: u8 = 0x09;
+    /// **Draft.** `A=targetId, B=0` — the user committed a field (onSubmit).
+    pub const SUBMIT: u8 = 0x0A;
+    /// **Draft.** `A=targetId, B=offsetX (f32), C=offsetY (f32)` — scroll offset.
+    pub const SCROLL: u8 = 0x0B;
+    /// **Draft.** `A=targetId, B=deltaX (f32), C=deltaY (f32)` — wheel/trackpad.
+    pub const WHEEL: u8 = 0x0C;
+    /// **Draft.** `A=targetId, B=days since epoch (I32), C=millis of day (U32)`
+    /// — a `DATE_PICKER`'s value changed (matches `STYLE::SET_DATE`).
+    pub const DATE_CHANGED: u8 = 0x0D;
 }
 
 /// Commands within the `META` category.
@@ -104,6 +122,16 @@ pub mod listener {
     pub const KEY_DOWN: u32 = 1 << 3;
     /// `KEY_UP` events (bit 4).
     pub const KEY_UP: u32 = 1 << 4;
+    /// **Draft.** `FOCUS_CHANGED` events (bit 5).
+    pub const FOCUS: u32 = 1 << 5;
+    /// **Draft.** `EDITING_CHANGED` events (bit 6).
+    pub const EDITING: u32 = 1 << 6;
+    /// **Draft.** `SUBMIT` events (bit 7).
+    pub const SUBMIT: u32 = 1 << 7;
+    /// **Draft.** `SCROLL` events (bit 8).
+    pub const SCROLL: u32 = 1 << 8;
+    /// **Draft.** `WHEEL` events (bit 9).
+    pub const WHEEL: u32 = 1 << 9;
 
     /// All pointer events (down + move + up).
     pub const POINTER: u32 = POINTER_DOWN | POINTER_MOVE | POINTER_UP;
@@ -140,29 +168,81 @@ pub mod value_type {
     pub const DESIGN_TOKEN: u8 = 0x08;
 }
 
-/// Component types (u16, encoded in the low half of `A` of `TREE::CREATE_NODE`).
+/// Component types (u16, encoded in the low half of `B` of `TREE::CREATE_NODE`).
 ///
-/// IDs are specified in `spec/OPCODE.md` (carried forward from the historical protocol).
+/// IDs are grouped into three definitive ranges (see `spec/PRIMITIVES.md`):
+/// Primitive Drawing `0x01`–`0x0F`, Layout & Container `0x10`–`0x1F`, Semantic
+/// Control `0x20`–`0x2F`, plus the utility `COMMENT` at `0x7F`. Renumbered
+/// pre-release (wire version stays 1).
 pub mod component_type {
-    pub const HSTACK: u16 = 0x0001;
-    pub const VSTACK: u16 = 0x0002;
-    pub const TEXT: u16 = 0x0003;
-    pub const BUTTON: u16 = 0x0004;
-    pub const IMAGE: u16 = 0x0005;
-    pub const SWITCH: u16 = 0x0006;
-    pub const TEXT_FIELD: u16 = 0x0007;
-    pub const SPACER: u16 = 0x0008;
-    pub const SCROLLVIEW: u16 = 0x0009;
-    pub const LIST: u16 = 0x000A;
-    pub const GRID: u16 = 0x000B;
-    pub const COMMENT: u16 = 0x000C;
-    /// A checkbox-style boolean control (a toggle drawn as a square with a
-    /// checkmark). Checked state is carried by [`property_id::SELECTED`].
-    pub const CHECKBOX: u16 = 0x000D;
-    /// A slider: a continuous numeric value within a range, driven by a bound
-    /// value (`VALUE`) and a `MIN_VALUE`/`MAX_VALUE` range. Value changes flow
-    /// host → guest as `event::VALUE_CHANGED`.
-    pub const SLIDER: u16 = 0x000E;
+    // ── Primitive Drawing & Visual Nodes (0x01–0x0F) ────────────────────────
+    /// Standard styled text display.
+    pub const TEXT: u16 = 0x01;
+    /// Raster, vector, or system icon asset.
+    pub const IMAGE: u16 = 0x02;
+    /// **Draft.** Solid color / layout-filling background view.
+    pub const COLOR: u16 = 0x03;
+    /// **Draft.** Vector geometry (`SHAPE_KIND` selects the shape).
+    pub const SHAPE: u16 = 0x04;
+    /// **Draft.** Axis-aligned separator line.
+    pub const DIVIDER: u16 = 0x05;
+    /// Flexible expanding layout filler.
+    pub const SPACER: u16 = 0x06;
+    /// **Draft.** Determinate progress or activity indicator.
+    pub const PROGRESS_VIEW: u16 = 0x07;
+    /// **Draft.** Range meter against a scale (read-only).
+    pub const GAUGE: u16 = 0x08;
+    // 0x09–0x0F reserved (future drawing nodes).
+
+    // ── Layout & Container Primitives (0x10–0x1F) ───────────────────────────
+    /// Vertical flex stack.
+    pub const VSTACK: u16 = 0x10;
+    /// Horizontal flex stack.
+    pub const HSTACK: u16 = 0x11;
+    /// **Draft.** Depth-overlapping layer stack.
+    pub const ZSTACK: u16 = 0x12;
+    /// Static 2D matrix grid (eagerly rendered).
+    pub const GRID: u16 = 0x13;
+    /// Scrollable content container.
+    pub const SCROLLVIEW: u16 = 0x14;
+    /// **Draft.** Virtualized vertical grid.
+    pub const LAZY_VGRID: u16 = 0x15;
+    /// **Draft.** Virtualized horizontal grid.
+    pub const LAZY_HGRID: u16 = 0x16;
+    // 0x17–0x1A reserved (formerly composite views, removed).
+    /// **Draft.** Virtualized vertical stack.
+    pub const LAZY_VSTACK: u16 = 0x1B;
+    /// **Draft.** Virtualized horizontal stack.
+    pub const LAZY_HSTACK: u16 = 0x1C;
+    // 0x1D–0x1F reserved (future layout nodes).
+
+    // ── Semantic Control Nodes (0x20–0x2F) ──────────────────────────────────
+    /// Action trigger control.
+    pub const BUTTON: u16 = 0x20;
+    /// Single-line text input (secure variant via `IS_SECURE`).
+    pub const TEXT_FIELD: u16 = 0x21;
+    /// **Draft.** Multi-line text editing area.
+    pub const TEXT_EDITOR: u16 = 0x22;
+    // 0x23 reserved.
+    /// Boolean control; the visual variant is `TOGGLE_STYLE`
+    /// (`Switch`/`Checkbox`/`Button`).
+    pub const TOGGLE: u16 = 0x24;
+    /// Continuous or stepped numeric range control.
+    pub const SLIDER: u16 = 0x25;
+    /// **Draft.** Discrete increment/decrement control.
+    pub const STEPPER: u16 = 0x26;
+    /// **Draft.** Date & time selection control (`STYLE::SET_DATE` value).
+    pub const DATE_PICKER: u16 = 0x27;
+    /// **Draft.** Selection control (options are child nodes).
+    pub const PICKER: u16 = 0x28;
+    /// **Draft.** Contextual action trigger + popover container.
+    pub const MENU: u16 = 0x29;
+    /// **Draft.** Native system color picker control.
+    pub const COLOR_PICKER: u16 = 0x2A;
+    // 0x2B–0x2F reserved (future semantic controls).
+
+    /// Opaque/debug node; renderers ignore it (no native element).
+    pub const COMMENT: u16 = 0x7F;
 }
 
 /// Property IDs (u16, encoded in the low half of `B` of `STYLE::SET_PROPERTY`).
@@ -183,6 +263,8 @@ pub mod property_id {
     pub const TRUNCATION_MODE: u16 = 0x000D;
     // Style (0x1000 range)
     pub const BACKGROUND_COLOR: u16 = 0x1001;
+    /// **Draft.** Image source (STRING: a resource name, file path, or URL).
+    pub const IMAGE_SOURCE: u16 = 0x1002;
     pub const BORDER_WIDTH: u16 = 0x1003;
     pub const BORDER_COLOR: u16 = 0x1004;
     pub const BORDER_RADIUS: u16 = 0x1005;
@@ -225,16 +307,24 @@ pub mod property_id {
     pub const LABEL: u16 = 0x200A;
     /// The placeholder text of a `TEXT_FIELD` (a `STRING` property).
     pub const PROMPT: u16 = 0x200B;
+    /// **Draft.** Bound callback id; gates event delivery for this node.
+    pub const ACTION_ID: u16 = 0x2016;
+    /// **Draft.** Two-way binding id (control value ↔ app state).
+    pub const BINDING_ID: u16 = 0x2017;
+    /// **Draft.** Visual style token for a `TOGGLE` (F32 enum code):
+    /// `Switch`=0, `Checkbox`=1, `Button`=2.
+    pub const TOGGLE_STYLE: u16 = 0x2018;
 }
 
 /// The protocol value type for a property id.
 ///
 /// Color-valued properties (COLOR, BACKGROUND_COLOR, BORDER_COLOR) are emitted
 /// with the `COLOR` value type; `EVENT_LISTENERS` and `BORDER_EDGES` are raw
-/// `U32` bitmasks; `LABEL`/`PROMPT`/`FONT_FAMILY` are `STRING`; `LINE_LIMIT` is
-/// `U32`; all other constraint/style properties are `F32` (enum-valued
-/// properties like `ALIGNMENT` carry their numeric code as an `F32`).
-/// See `spec/MODIFIERS.md` for the canonical mapping.
+/// `U32` bitmasks; `LABEL`/`PROMPT`/`FONT_FAMILY` are `STRING`; `LINE_LIMIT`,
+/// `ACTION_ID`, and `BINDING_ID` are `U32`; all other constraint/style
+/// properties are `F32` (enum-valued properties like `ALIGNMENT`/`TOGGLE_STYLE`
+/// carry their numeric code as an `F32`). See `spec/MODIFIERS.md` for the
+/// canonical mapping.
 pub fn value_type_for(prop: u16) -> u8 {
     match prop {
         property_id::COLOR
@@ -242,8 +332,8 @@ pub fn value_type_for(prop: u16) -> u8 {
         | property_id::BORDER_COLOR => value_type::COLOR,
         property_id::EVENT_LISTENERS | property_id::BORDER_EDGES => value_type::U32,
         property_id::SELECTED => value_type::U8,
-        property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY => value_type::STRING,
-        property_id::LINE_LIMIT => value_type::U32,
+        property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY | property_id::IMAGE_SOURCE => value_type::STRING,
+        property_id::LINE_LIMIT | property_id::ACTION_ID | property_id::BINDING_ID => value_type::U32,
         _ => value_type::F32,
     }
 }

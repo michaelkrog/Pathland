@@ -272,18 +272,27 @@ impl HtmlRenderer {
                 let style = style_attr(&border);
                 format!("<button{data_id}{style}>{text}</button>")
             }
-            component_type::SWITCH | component_type::CHECKBOX => {
-                let role = if node.component == component_type::SWITCH {
-                    " role=\"switch\""
-                } else {
-                    ""
-                };
+            component_type::TOGGLE => {
+                let toggle_style = node
+                    .f32_property(property_id::TOGGLE_STYLE, 0.0)
+                    .round() as u8;
                 let checked = if node.checked() { " checked" } else { "" };
                 let text = escape(node.text.as_deref().unwrap_or_default());
                 let style = style_attr(&border);
-                format!(
-                    "<label{data_id} class=\"pathland-toggle\"{style}><input type=\"checkbox\"{role}{checked}><span class=\"pathland-text\">{text}</span></label>"
-                )
+                match toggle_style {
+                    1 => format!(
+                        "<label{data_id} class=\"pathland-toggle\"{style}><input type=\"checkbox\"{checked}><span class=\"pathland-text\">{text}</span></label>"
+                    ),
+                    2 => {
+                        let pressed = if node.checked() { "true" } else { "false" };
+                        format!(
+                            "<button{data_id} type=\"button\" aria-pressed=\"{pressed}\"{style}>{text}</button>"
+                        )
+                    }
+                    _ => format!(
+                        "<label{data_id} class=\"pathland-toggle\"{style}><input type=\"checkbox\" role=\"switch\"{checked}><span class=\"pathland-text\">{text}</span></label>"
+                    ),
+                }
             }
             component_type::SPACER => {
                 let style = if border.is_empty() {
@@ -443,7 +452,7 @@ mod tests {
     }
 
     #[test]
-    fn renders_switch_checked() {
+    fn renders_toggle_switch_checked() {
         use pathland_core::value_type;
 
         let mut opcodes = Vec::new();
@@ -453,12 +462,20 @@ mod tests {
             tree::CREATE_NODE,
             0,
             1,
-            component_type::SWITCH as u32,
+            component_type::TOGGLE as u32,
             0,
         ));
         strings.extend_from_slice(&(7u32).to_le_bytes());
         strings.extend_from_slice(b"Enabled");
         opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 1, 0, 0));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::F32 as u32) << 16) | property_id::TOGGLE_STYLE as u32,
+            0.0f32.to_bits(),
+        ));
         opcodes.push(Opcode::new(
             category::STYLE,
             style::SET_PROPERTY,
@@ -477,7 +494,7 @@ mod tests {
     }
 
     #[test]
-    fn renders_checkbox_unchecked() {
+    fn renders_toggle_checkbox_unchecked() {
         use pathland_core::value_type;
 
         let mut opcodes = Vec::new();
@@ -487,12 +504,20 @@ mod tests {
             tree::CREATE_NODE,
             0,
             1,
-            component_type::CHECKBOX as u32,
+            component_type::TOGGLE as u32,
             0,
         ));
         strings.extend_from_slice(&(5u32).to_le_bytes());
         strings.extend_from_slice(b"Email");
         opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 1, 0, 0));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::F32 as u32) << 16) | property_id::TOGGLE_STYLE as u32,
+            1.0f32.to_bits(),
+        ));
         opcodes.push(Opcode::new(
             category::STYLE,
             style::SET_PROPERTY,
@@ -509,6 +534,49 @@ mod tests {
         assert!(html.contains("<input type=\"checkbox\">"));
         assert!(!html.contains("<input type=\"checkbox\" role=\"switch\""));
         assert!(html.contains("<span class=\"pathland-text\">Email</span>"));
+    }
+
+    #[test]
+    fn renders_toggle_button_pressed() {
+        use pathland_core::value_type;
+
+        let mut opcodes = Vec::new();
+        let mut strings = Vec::new();
+        opcodes.push(Opcode::new(
+            category::TREE,
+            tree::CREATE_NODE,
+            0,
+            1,
+            component_type::TOGGLE as u32,
+            0,
+        ));
+        strings.extend_from_slice(&(4u32).to_le_bytes());
+        strings.extend_from_slice(b"Mute");
+        opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 1, 0, 0));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::F32 as u32) << 16) | property_id::TOGGLE_STYLE as u32,
+            2.0f32.to_bits(),
+        ));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::U8 as u32) << 16) | property_id::SELECTED as u32,
+            1,
+        ));
+
+        let mut renderer = HtmlRenderer::new();
+        renderer.apply(&opcodes, &strings);
+        let html = renderer.render(1);
+
+        assert!(html.contains("<button") && html.contains("type=\"button\""));
+        assert!(html.contains("aria-pressed=\"true\""));
+        assert!(html.contains(">Mute</button>"));
     }
 
     #[test]

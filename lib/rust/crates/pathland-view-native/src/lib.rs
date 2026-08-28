@@ -270,8 +270,8 @@ impl NativeHost {
 
 /// Map a raw u32 component id (C ABI) to a `pathland_view::Component`.
 ///
-/// Mirrors the `component` variant values: hstack=1, vstack=2, text=3,
-/// button=4, spacer=8.
+/// Mirrors the `component` variant values: hstack=0x11, vstack=0x10, text=0x01,
+/// button=0x20, spacer=0x06.
 pub fn component_from_id(id: u32) -> Option<pathland_view::Component> {
     match id {
         x if x == component_type::HSTACK as u32 => Some(pathland_view::Component::HStack),
@@ -301,7 +301,13 @@ pub fn property_value_type(prop: u32) -> (u16, u8) {
         property_id::COLOR | property_id::BACKGROUND_COLOR | property_id::BORDER_COLOR
     ) {
         pathland_core::value_type::COLOR
-    } else if pid == property_id::EVENT_LISTENERS {
+    } else if matches!(
+        pid,
+        property_id::EVENT_LISTENERS
+            | property_id::BORDER_EDGES
+            | property_id::ACTION_ID
+            | property_id::BINDING_ID
+    ) {
         pathland_core::value_type::U32
     } else {
         pathland_core::value_type::F32
