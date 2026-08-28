@@ -342,7 +342,7 @@ element.
 | `KEY_DOWN` | `0x04` | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` | Key pressed (bit 1 = auto-repeat) |
 | `KEY_UP` | `0x05` | targetId | keyCode (u16, low) | modifiers (u8, low) | — | Key released |
 | `VALUE_CHANGED` | `0x06` | targetId | value (f32) | 0 | — | A value-bearing control changed (e.g. slider); the renderer resolves the semantic value from its track geometry |
-| `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the batch's string section, referenced by the *relative* `B` offset (same convention as `STYLE::SET_TEXT`) |
+| `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the **event arena** (shared memory, absolute `B` offset) or the batch's string section (network, *relative* `B` offset) — the same dual convention as `STYLE::SET_TEXT` |
 
 ### META (0x04)
 
@@ -381,12 +381,14 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 
 ```
 +───────────────────────────────────────────────────────────────+
-| 0x0000  Header block (64 B)  — cursors, frame counter, layout  |
-| 0x0040  Ring buffer (16 B × slotCount)   [guest → host]        |
+| 0x0000  Header block (80 B)  — cursors, frame counter, layout  |
+| 0x0050  Ring buffer (16 B × slotCount)   [guest → host]        |
 | ...      (slots densely packed, 64-byte aligned base)          |
-| 0x10040 Event ring buffer (16 B × slotCount) [host → guest]    |
+| 0x10050 Event ring buffer (16 B × slotCount) [host → guest]    |
 | ...                                                           |
-| 0x20040 Arena (bump region for strings / token paths / lists)  |
+| 0x20050 Arena (bump region, guest-owned: strings / tokens)     |
+| ...                                                           |
+| 0x30050 Event arena (bump region, host-owned: event strings)   |
 | ...                                                            |
 +───────────────────────────────────────────────────────────────+
 ```
@@ -395,8 +397,16 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 > transport: the renderer writes `EVENT`-category opcodes here and the
 > guest/app drains them. It uses the same 16-byte slot layout as the main
 > (guest → host) ring; both share `slotCount` (same capacity).
+>
+> The **event arena** is the host-owned bump region that makes strings flow
+> **host → guest** over the shared ring: a renderer bump-allocates `TEXT_CHANGED`
+> text (and any future string-bearing event payload) here and references it by
+> its absolute byte offset — exactly mirroring how the guest uses the guest
+> arena for `SET_TEXT` / STRING properties. The host resets its cursor on
+> `META::RESET`; if the event arena is full the host applies backpressure
+> (drops/stalls the event), mirroring ring backpressure.
 
-### Header block (64 bytes)
+### Header block (80 bytes)
 
 | Offset | Size | Field | Producer | Description |
 |--------|------|-------|----------|-------------|
@@ -416,7 +426,9 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 | 0x32 | 4 | `eventSlotCount` | — | Event ring slot count (power of two; = `slotCount`) |
 | 0x36 | 4 | `eventReadCursor` | guest | Event ring slot the guest has consumed up to |
 | 0x3A | 4 | `eventWriteCursor` | host | Event ring slot the host has written up to |
-| 0x3E | 2 | reserved | — | Zero |
+| 0x40 | 4 | `eventArenaOffset` | — | Byte offset of the host→guest event arena region |
+| 0x44 | 4 | `eventArenaBytes` | — | Byte length of the event arena region |
+| 0x48 | 4 | `eventArenaCursor` | host | Next free byte in the event arena |
 
 ### Ring buffer
 
@@ -439,6 +451,27 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 - Every arena entry is **self-describing**: `[u32 byteLength][bytes...]`.
 - Opcodes reference entries by their **byte offset** (`arenaRef`), so an entry's length is read directly from the arena — all opcodes stay 16 bytes.
 - The guest advances `arenaCursor` monotonically (no free-list, no fragmentation). The arena MAY be reset via `META::RESET`.
+
+### Event arena (host → guest)
+
+The event arena is the **host-owned mirror** of the arena, giving the shared-memory
+transport a host → guest string section so strings flow **both ways on all
+transports**:
+
+- The **host** (renderer) bump-allocates event string payloads here (e.g. the
+  new text of a `TEXT_CHANGED`) and references them by their **absolute byte
+  offset** in the event opcode — the same `SET_TEXT` shared-memory convention
+  used in the guest arena.
+- The **guest** resolves the text from the event arena region when draining
+  events (`EVENT::TEXT_CHANGED`).
+- Entries share the same self-describing `[u32 byteLength][bytes...]` layout as
+  the guest arena.
+- The host advances `eventArenaCursor` monotonically and resets it on
+  `META::RESET`; a full event arena is backpressure (the host drops/stalls the
+  event until the guest drains or a reset lands).
+- Over the **network**, host → guest string payloads use the batch's string
+  section with *relative* offsets instead (see [Transport](#transport)) — the
+  same dual absolute/relative convention as `SET_TEXT`.
 
 ---
 

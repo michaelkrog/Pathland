@@ -86,9 +86,10 @@ Every event is a 16-byte opcode:
 [Category=0x03][Command: u8][Flags: u16][A: u32][B: u32][C: u32]
 ```
 
-`TEXT_CHANGED` is the exception: its payload is an offset into the batch's
-string section, so it is only fully decodable at the batch level (the same
-convention as `STYLE::SET_TEXT`).
+`TEXT_CHANGED` is the exception: its payload is an offset into the host → guest
+event arena (shared memory) or the batch's string section (network), so it is
+only fully decodable with that string source (the same convention as
+`STYLE::SET_TEXT`).
 
 ---
 
@@ -188,12 +189,14 @@ its own native control geometry.
 | `SUBMIT` | 0x0A | targetId | 0 | 0 | — | 🚧 | `TextField` `onSubmit` / `onCommit` |
 
 - **`TEXT_CHANGED`**: the new text is a length-prefixed entry
-  (`[u32 byteLength][bytes…]`) in the **batch's string section**, referenced by
-  the *relative* offset in `B` — exactly the convention of `STYLE::SET_TEXT`.
-  A bare opcode cannot resolve the text; batch-aware decoders
-  (`pathland-core-transport`, Java `FrameCodec`, TS `decoder.ts`) must resolve
-  it. The event is reported on **every** edit, including intermediate edits,
-  not only on commit.
+  (`[u32 byteLength][bytes…]`). Over the **shared-memory ring** the renderer
+  bump-allocates it into the host-owned **event arena** and `B` is its absolute
+  offset (see OPCODE.md); over the **network** it lives in the batch's string
+  section referenced by a *relative* `B` offset — exactly the `STYLE::SET_TEXT`
+  dual convention. A bare opcode cannot resolve the text; batch-aware decoders
+  (`pathland-core-transport`, Java `FrameCodec`, TS `decoder.ts`) resolve it.
+  The event is reported on **every** edit, including intermediate edits, not
+  only on commit.
 - **`FOCUS_CHANGED`**: `B` = 1 gained focus, 0 lost focus. The renderer reports
   it for nodes that declared the `FOCUS` listener bit (bit 5). Focus is what
   routes subsequent `KEY_*` events.

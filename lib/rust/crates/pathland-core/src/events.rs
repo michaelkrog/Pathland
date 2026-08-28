@@ -9,6 +9,7 @@
 //! `Event::try_from`.
 
 use alloc::string::String;
+use alloc::string::ToString;
 use crate::category;
 use crate::flag;
 use crate::Opcode;
@@ -241,6 +242,26 @@ impl TryFrom<Opcode> for Event {
             _ => Err(EventError::UnknownCommand),
         }
     }
+}
+
+/// Decode an event opcode for the **shared-memory path**, resolving
+/// `TEXT_CHANGED` text from the host → guest event arena (`B` is an absolute
+/// offset into that region). Non-text events decode as usual.
+///
+/// Returns `None` for non-event opcodes, unknown commands, or text events whose
+/// offset cannot be resolved (invalid or out of range).
+pub fn decode_event(op: &Opcode, event_arena: &[u8]) -> Option<Event> {
+    if op.category() != category::EVENT {
+        return None;
+    }
+    if op.command() == crate::event::TEXT_CHANGED {
+        let text = crate::arena::get_str(event_arena, op.b()).ok()?;
+        return Some(Event::TextChanged {
+            target: op.a(),
+            value: text.to_string(),
+        });
+    }
+    Event::try_from(*op).ok()
 }
 
 #[cfg(test)]

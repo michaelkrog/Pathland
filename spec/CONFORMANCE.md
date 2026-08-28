@@ -211,6 +211,12 @@ into the event ring must reproduce the exact vector-11 bytes in the slot at
 `eventWriteCursor`, then advance `eventWriteCursor`; the guest advances
 `eventReadCursor` after draining.
 
+String-bearing events (`TEXT_CHANGED`) resolve their text from the host → guest
+**event arena** (header `eventArenaOffset` 0x40 / `eventArenaCursor` 0x48,
+host-owned, shared memory) or the batch's string section (network) — the same
+dual absolute/relative convention as `STYLE::SET_TEXT`. See OPCODE.md's
+[event arena](./OPCODE.md#event-arena-host--guest) section.
+
 ## Network Batch Conformance
 
 A network batch serializes opcodes + an arena delta (see
