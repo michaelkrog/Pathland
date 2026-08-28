@@ -12,3 +12,4 @@ lib/java/**/target/
 # IDE
 .idea/
 *.iml
+**/.vscode
