@@ -14,6 +14,8 @@ import com.pathland.view.transport.FrameCodec;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketSession;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -35,6 +37,9 @@ final class SessionApp {
     private final Map<Integer, Consumer<Float>> valueInputs;
     private final int rootId;
 
+    /** Frames emitted before the connection attaches, replayed to it on connect. */
+    private final List<Frame> pending = new ArrayList<>();
+
     private volatile WebSocketSession session;
 
     SessionApp(String sessionId, StateStore store) {
@@ -48,7 +53,12 @@ final class SessionApp {
                 Frame frame = frame();
                 if (!frame.opcodes().isEmpty()) {
                     html.applyFrame(frame);
-                    send(frame);
+                    WebSocketSession s = session;
+                    if (s == null || !s.isOpen()) {
+                        pending.add(frame);
+                    } else {
+                        send(frame);
+                    }
                 }
             }
         };
@@ -64,6 +74,10 @@ final class SessionApp {
 
     void connect(WebSocketSession session) {
         this.session = session;
+        for (Frame frame : pending) {
+            send(frame);
+        }
+        pending.clear();
     }
 
     private void send(Frame frame) {

@@ -13,6 +13,8 @@ import com.pathland.view.transport.Event;
 import com.pathland.view.transport.FrameCodec;
 import io.quarkus.websockets.next.WebSocketConnection;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -39,6 +41,9 @@ final class SessionApp {
     private final Map<Integer, Consumer<Float>> valueInputs;
     private final int rootId;
 
+    /** Frames emitted before the connection attaches, replayed to it on connect. */
+    private final List<Frame> pending = new ArrayList<>();
+
     private volatile WebSocketConnection connection;
 
     SessionApp(String sessionId, StateStore store) {
@@ -54,7 +59,12 @@ final class SessionApp {
                 Frame frame = frame();
                 if (!frame.opcodes().isEmpty()) {
                     html.applyFrame(frame);
-                    send(frame);
+                    WebSocketConnection conn = connection;
+                    if (conn == null || !conn.isOpen()) {
+                        pending.add(frame);
+                    } else {
+                        send(frame);
+                    }
                 }
             }
         };
@@ -71,6 +81,10 @@ final class SessionApp {
     /** Wire the live connection AFTER mount (the initial frame was already SSR'd). */
     void connect(WebSocketConnection connection) {
         this.connection = connection;
+        for (Frame frame : pending) {
+            send(frame);
+        }
+        pending.clear();
     }
 
     /** Send a delta frame to this session's single client (no broadcast). */

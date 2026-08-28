@@ -1,0 +1,237 @@
+@let node = nodeOf(nodeId());
+@if (node; as n) {
+  @if (!hidden(n)) {
+    @let m = mods(n);
+    @switch (kindOf(n)) {
+      @case ('hstack') {
+        <ui-hstack
+          [gap]="stackGap(n)!"
+          [alignment]="stackAlignment(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [lineLimit]="m.lineLimit!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-hstack>
+      }
+      @case ('vstack') {
+        <ui-vstack
+          [gap]="stackGap(n)!"
+          [alignment]="stackAlignment(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [lineLimit]="m.lineLimit!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-vstack>
+      }
+      @case ('zstack') {
+        <ui-zstack
+          [alignment]="zstackAlignment(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [lineLimit]="m.lineLimit!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-zstack>
+      }
+      @case ('text') {
+        <ui-text
+          [text]="n.text() ?? ''"
+          [multilineTextAlignment]="textAlignment(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [lineLimit]="m.lineLimit!">
+        </ui-text>
+      }
+      @case ('button') {
+        <ui-button
+          [label]="n.text() ?? ''"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          (click)="session.sendPointerUp(n.id)">
+        </ui-button>
+      }
+      @case ('checkbox') {
+        <ui-checkbox
+          [label]="n.text() ?? ''"
+          [checked]="checked(n)"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          (checkedChange)="session.sendPointerUp(n.id)">
+        </ui-checkbox>
+      }
+      @case ('switch') {
+        <ui-toggle
+          [label]="n.text() ?? ''"
+          [value]="checked(n)"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          (valueChange)="session.sendPointerUp(n.id)">
+        </ui-toggle>
+      }
+      @case ('textField') {
+        <ui-text-field
+          [value]="n.text() ?? ''"
+          [placeholder]="n.strings().get(PROMPT)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          (valueChange)="session.sendTextChanged(n.id, $event)">
+          @if (n.strings().get(LABEL); as label) {
+            <span prefix>{{ label }}</span>
+          }
+        </ui-text-field>
+      }
+      @case ('spacer') {
+        <ui-spacer
+          [minLength]="0"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [frame]="m.frame!"
+          [flex]="m.flex!">
+        </ui-spacer>
+      }
+      @case ('scrollView') {
+        <ui-scroll-view
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-scroll-view>
+      }
+      @case ('list') {
+        <ui-list
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-list>
+      }
+      @case ('grid') {
+        <ui-grid
+          [gap]="stackGap(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-grid>
+      }
+      @case ('slider') {
+        <input
+          type="range"
+          [min]="slider(n).min"
+          [max]="slider(n).max"
+          [value]="slider(n).value"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [opacity]="m.opacity!"
+          (input)="onSliderInput(n.id, $event)">
+      }
+      @case ('image') {
+        <ui-image
+          [src]="n.text() ?? ''"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [frame]="m.frame!"
+          [flex]="m.flex!">
+        </ui-image>
+      }
+      @default {
+        @for (child of n.children(); track child) {
+          <pathland-node [nodeId]="child" />
+        }
+      }
+    }
+  }
+}
