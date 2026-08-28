@@ -97,6 +97,11 @@ pub struct Opcode {
 
 ### TREE (0x01)
 
+The `componentType` values (the primitive views the protocol supports) are
+catalogued in [PRIMITIVES.md](./PRIMITIVES.md), grouped by their SwiftUI
+counterpart. Component IDs are allocated there spec-first; this file remains
+the wire-format authority.
+
 | Command | Value | A | B | C | Flags | Description |
 |---------|-------|---|---|---|-------|-------------|
 | `CREATE_NODE` | `0x01` | nodeId | componentType (u16, low) | 0 | — | Create a node of `componentType` |
@@ -176,8 +181,10 @@ selecting which edges of a node's border are drawn. Bits are direction-aware:
 | 2 | `0x00000004` | `BOTTOM` | bottom |
 | 3 | `0x00000008` | `TRAILING` | right |
 
-Full property catalog: see the Rust `constants.rs` (carried forward from the
-historical protocol).
+Full property catalog: see [MODIFIERS.md](./MODIFIERS.md) — the core modifiers
+(the protocol's `STYLE` properties) grouped by SwiftUI modifier, with the same
+IDs — and the Rust `constants.rs` (carried forward from the historical
+protocol).
 
 #### Semantic properties
 
@@ -215,6 +222,10 @@ changes back as `VALUE_CHANGED` events (host → guest), resolving the semantic
 value from its own track geometry (see [EVENT](#event-0x03--host--guest)).
 
 ### EVENT (0x03) — host → guest
+
+The event commands and their `EVENT_LISTENERS` bits are catalogued in
+[EVENTS.md](./EVENTS.md) (core events, SwiftUI-style); this file defines the
+wire encoding.
 
 Events are the **raw inputs**: the renderer reports what happened (a pointer
 went down/moved/up, a key went down/up) and resolves which node it hit via its
@@ -482,3 +493,11 @@ first frame after connection).
 ## Conformance
 
 Golden byte vectors for this protocol are in [CONFORMANCE.md](./CONFORMANCE.md).
+
+### Companion specifications
+
+The protocol's semantic surface is catalogued in three companion documents:
+[PRIMITIVES.md](./PRIMITIVES.md) (the primitive views), [MODIFIERS.md](./MODIFIERS.md)
+(the core modifiers, i.e. the `STYLE` properties), and [EVENTS.md](./EVENTS.md)
+(the core events, i.e. the raw inputs). Draft IDs are allocated there spec-first;
+this file remains the wire-format authority and must be updated when drafts land.

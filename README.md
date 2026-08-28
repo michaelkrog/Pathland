@@ -87,6 +87,9 @@ remote/browser); transport is an implementation detail, not a fourth element.
 ### Specification
 
 - [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens
+- [Primitive Views](./spec/PRIMITIVES.md) — the primitive views the protocol supports (SwiftUI groupings), with protocol component IDs and status
+- [Core Modifiers](./spec/MODIFIERS.md) — the core modifiers (protocol `STYLE` properties), SwiftUI-style, with property IDs and status
+- [Core Events](./spec/EVENTS.md) — the core events (raw inputs), SwiftUI-style, with event command IDs and listener bits
 - [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations
 
 ## Rust Workspace

@@ -1,0 +1,255 @@
+# Pathland Core Events
+
+**Wire protocol version:** 1
+**Status:** Draft
+**Last Updated:** August 28, 2026
+
+---
+
+## Purpose
+
+This document is the **catalog of core events** the Pathland protocol supports.
+Events are the **raw inputs** a renderer reports about the user's interaction —
+pointer motion, keys, value changes, text edits, scroll. Only the **core
+events** are specified here; **gestures** (tap, long-press, drag, magnify,
+rotate) are explicitly **out of scope** and are composed application-side from
+the raw pointer events (see [Deferred: gestures](#deferred-gestures)).
+
+- View catalog: [PRIMITIVES.md](./PRIMITIVES.md)
+- Modifiers (properties): [MODIFIERS.md](./MODIFIERS.md)
+- Wire format: [OPCODE.md](./OPCODE.md)
+
+### Status legend
+
+- **✅ Implemented** — the event command / listener bit exists in
+  `pathland_core::constants` and is exercised today.
+- **🚧 Draft** — the command / bit is **allocated in this document** (spec-first)
+  but not implemented anywhere yet. IDs are reserved and MUST NOT be reused.
+
+---
+
+## Event model
+
+Events flow **host → guest**. The renderer is the producer; the app/engine is
+the consumer. Both directions of the protocol are binary and share the same
+16-byte opcode format; events are `EVENT`-category (0x03) opcodes.
+
+### Who emits what
+
+- The **renderer** observes native input (a GTK controller, a DOM listener) and
+  writes raw `EVENT` opcodes. It never interprets them into high-level actions.
+- The **app** drains the events, composes gestures/handlers, and updates its
+  bound `State` signals (which in turn re-emit `SET_PROPERTY`/`SET_TEXT`
+  deltas).
+- The renderer reports an event for a node **only if that node declared it**
+  wants it, via the `EVENT_LISTENERS` semantic property (`0x2005`, a u32
+  bitmask, `SET_PROPERTY` with the `U32` value type). This makes **any element**
+  (a `Text`, a `VStack`, …) able to emit events, not just controls.
+
+### Target resolution
+
+The renderer resolves `targetId` from its own rendered-output tree (its
+`id → native element` map): the event's position is hit-tested against that
+tree to find the deepest node with the matching listener bit. If no listener is
+declared, the event is not reported.
+
+### Transport paths
+
+| Path | Mechanism |
+|------|-----------|
+| Shared memory (desktop/native) | The host writes `EVENT` opcodes into the event ring (host → guest) at `eventWriteCursor`; the guest drains at `eventReadCursor`. Events are consumed as written (no frame batching). |
+| Network batch (SSR → browser) | Host → guest batches are the planned `0x0001` direction flag of the `PLPL` batch format; not yet implemented (see OPCODE.md Transport). |
+
+### Encoding
+
+Every event is a 16-byte opcode:
+
+```
+[Category=0x03][Command: u8][Flags: u16][A: u32][B: u32][C: u32]
+```
+
+`TEXT_CHANGED` is the exception: its payload is an offset into the batch's
+string section, so it is only fully decodable at the batch level (the same
+convention as `STYLE::SET_TEXT`).
+
+---
+
+## Core event catalog
+
+### Pointer
+
+Pointer events carry a viewport-relative point in **logical points** (`B`=x,
+`C`=y, f32).
+
+| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
+|---------|-------|---|---|---|-------|--------|---------------------|
+| `POINTER_DOWN` | 0x01 | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` (0x0001) | ✅ | press (basis of `onTapGesture`, `Button` action) |
+| `POINTER_MOVE` | 0x02 | targetId | x (f32) | y (f32) | `HOVER_ENTER` (0x0001) / `HOVER_LEAVE` (0x0002) | ✅ | hover/enter/leave, drag basis |
+| `POINTER_UP` | 0x03 | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` (0x0001) | ✅ | release (basis of `onTapGesture`) |
+
+- **Flags**:
+  - `POINTER_SECONDARY`: the secondary button (right mouse, long-press) rather
+    than the primary.
+  - `HOVER_ENTER` (bit 0 of `POINTER_MOVE`): the pointer just entered the
+    node's bounds (is now hovering). `HOVER_LEAVE` (bit 1): the pointer just
+    left. A plain move has neither bit set.
+- **Listener bits**: `POINTER_DOWN` (bit 0), `POINTER_MOVE` (bit 1),
+  `POINTER_UP` (bit 2).
+- **Renderer**: attaches native press/hover recognition to the matching native
+  element when the listener bit is set. Multiple pointer events may be reported
+  for one physical gesture (down → several moves → up), all for the same
+  `targetId` while the pointer stays over the node.
+
+### Keyboard
+
+| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
+|---------|-------|---|---|---|-------|--------|---------------------|
+| `KEY_DOWN` | 0x04 | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` (0x0002) | ✅ | `onKeyPress(.down)` |
+| `KEY_UP` | 0x05 | targetId | keyCode (u16, low) | modifiers (u8, low) | — | ✅ | `onKeyPress(.up)` |
+
+- **`keyCode`**: a **canonical, platform-independent logical key code** (a
+  renderer maps native scancodes/key-codes onto this canonical set). The
+  canonical set (letters/digits/arrows/Enter/Tab/…) is renderer-shared and
+  documented in the conformance vectors.
+- **`modifiers`**: u8 bitmask — `Shift`=0x01, `Control`=0x02, `Alt`=0x04,
+  `Meta/Super`=0x08.
+- **`KEY_REPEAT`**: bit 1 of flags; set when the key is an OS auto-repeat.
+- **Listener bits**: `KEY_DOWN` (bit 3), `KEY_UP` (bit 4).
+- **Focus**: keyboard events are reported to the focused node (the node that
+  most recently gained focus), or to the node that declared the listener and
+  has keyboard focus. See `FOCUS_CHANGED` below.
+
+### Value
+
+Value events carry a control's semantic value, resolved by the renderer from
+its own native control geometry.
+
+| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
+|---------|-------|---|---|---|-------|--------|---------------------|
+| `VALUE_CHANGED` | 0x06 | targetId | value (f32) | 0 | — | ✅ | `Slider`/`Stepper`/`Gauge`/`Picker`/`TabView` binding changes |
+
+- **Semantics per control** (see [PRIMITIVES.md](./PRIMITIVES.md) controls):
+  - `SLIDER`/`STEPPER`/`GAUGE` — the numeric value in the control's range.
+  - `SWITCH`/`CHECKBOX` — 0/1 (checked state; the same value the app writes to
+    `SELECTED`).
+  - `PICKER`/`MENU` — the selected option index.
+  - `TAB_VIEW` — the active tab index.
+  - `DATE_PICKER` — unix seconds (f32).
+  - `COLOR_PICKER` — the packed `0xAARRGGBB` color reinterpreted as an f32 bit
+    pattern.
+- The app writes the received value into its bound `State`; the engine's
+  signal flush re-emits the `SET_PROPERTY` delta back to the renderer (the
+  renderer reflects its own native control).
+- **No listener bit**: value-bearing controls are reported by the renderer by
+  virtue of their component type, regardless of `EVENT_LISTENERS`. The
+  renderer owns the gesture (e.g. slider drag) that produces them.
+
+### Text
+
+| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
+|---------|-------|---|---|---|-------|--------|---------------------|
+| `TEXT_CHANGED` | 0x07 | targetId | string offset | 0 | — | ✅ | `TextField` value binding |
+| `FOCUS_CHANGED` | 0x08 | targetId | focused (0/1) | 0 | — | 🚧 | `@FocusState` |
+| `EDITING_CHANGED` | 0x09 | targetId | editing (0/1) | 0 | — | 🚧 | `TextField`/`Slider` `onEditingChanged` |
+| `SUBMIT` | 0x0A | targetId | 0 | 0 | — | 🚧 | `TextField` `onSubmit` / `onCommit` |
+
+- **`TEXT_CHANGED`**: the new text is a length-prefixed entry
+  (`[u32 byteLength][bytes…]`) in the **batch's string section**, referenced by
+  the *relative* offset in `B` — exactly the convention of `STYLE::SET_TEXT`.
+  A bare opcode cannot resolve the text; batch-aware decoders
+  (`pathland-core-transport`, Java `FrameCodec`, TS `decoder.ts`) must resolve
+  it. The event is reported on **every** edit, including intermediate edits,
+  not only on commit.
+- **`FOCUS_CHANGED`**: `B` = 1 gained focus, 0 lost focus. The renderer reports
+  it for nodes that declared the `FOCUS` listener bit (bit 5). Focus is what
+  routes subsequent `KEY_*` events.
+- **`EDITING_CHANGED`**: `B` = 1 editing session began, 0 ended. Reported for
+  nodes that declared the `EDITING` listener bit (bit 6).
+- **`SUBMIT`**: the user committed the field (Enter). Reported for nodes that
+  declared the `SUBMIT` listener bit (bit 7). `B` MAY carry the current text as
+  a string-section offset (reserved for future use; 0 today).
+
+### Scroll
+
+| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
+|---------|-------|---|---|---|-------|--------|---------------------|
+| `SCROLL` | 0x0B | targetId | offsetX (f32) | offsetY (f32) | — | 🚧 | `ScrollView` offset, `onScrollPhaseChange` |
+| `WHEEL` | 0x0C | targetId | deltaX (f32) | deltaY (f32) | — | 🚧 | `onScrollWheelEvent` / trackpad |
+
+- **`SCROLL`**: the content offset of a `SCROLLVIEW` (logical points), reported
+  for nodes that declared the `SCROLL` listener bit (bit 8). The renderer
+  reports the absolute offset after each scroll delta.
+- **`WHEEL`**: raw wheel/trackpad deltas (logical points), reported for nodes
+  that declared the `WHEEL` listener bit (bit 9). Renderers map native scroll
+  deltas (GTK `GtkEventControllerScroll`, DOM `wheel`) onto x/y deltas.
+
+---
+
+## Event listeners (`EVENT_LISTENERS`)
+
+`EVENT_LISTENERS` (0x2005) is a u32 bitmask set via `SET_PROPERTY` (U32). Each
+bit requests one raw-input event kind for the node:
+
+| Bit | Mask | Event | Status |
+|-----|------|-------|--------|
+| 0 | `0x00000001` | `POINTER_DOWN` | ✅ |
+| 1 | `0x00000002` | `POINTER_MOVE` (incl. hover enter/leave) | ✅ |
+| 2 | `0x00000004` | `POINTER_UP` | ✅ |
+| 3 | `0x00000008` | `KEY_DOWN` | ✅ |
+| 4 | `0x00000010` | `KEY_UP` | ✅ |
+| 5 | `0x00000020` | `FOCUS_CHANGED` | 🚧 |
+| 6 | `0x00000040` | `EDITING_CHANGED` | 🚧 |
+| 7 | `0x00000080` | `SUBMIT` | 🚧 |
+| 8 | `0x00000100` | `SCROLL` | 🚧 |
+| 9 | `0x00000200` | `WHEEL` | 🚧 |
+| 10–31 | — | reserved | — |
+
+Convenience aliases (DSL-side): `POINTER = bits 0|1|2`.
+
+DSL surfaces:
+
+- Rust: `pathland_view::pointer_events(mask)` modifier + `listener::*` bits;
+  `on_tap_gesture` sets `POINTER_DOWN | POINTER_UP`.
+- Java: `TapGestureView` / `EVENT_LISTENERS` via the emitter; host forwards raw
+  `EVENT` batches into bound `State` signals.
+
+---
+
+## Deferred: gestures
+
+SwiftUI gestures — `onTapGesture`, `onLongPressGesture`, `DragGesture`,
+`MagnifyGesture`, `RotateGesture` — are **not protocol events**. Per the
+protocol's raw-inputs-only rule, they are **composed application-side** from
+the raw `POINTER_*` / `KEY_*` events above:
+
+- **Tap** = `POINTER_DOWN` then `POINTER_UP` on the same `targetId` within the
+  platform's tap window (implemented today as `TapRecognizer` /
+  `on_tap_gesture`).
+- **Long-press** = `POINTER_DOWN` held past a threshold.
+- **Drag** = `POINTER_DOWN` + `POINTER_MOVE` sequence.
+- **Magnify / rotate** = multi-pointer deltas; the underlying raw events are
+  `POINTER_*` (multi-touch reported per pointer).
+
+A future "gesture recognition" layer MAY define app-side recognizers, but the
+wire protocol will never carry interpreted gestures — only raw inputs.
+
+---
+
+## Reserved event command IDs
+
+| Range | Use |
+|-------|-----|
+| `0x01`–`0x07` | Implemented core events (this file) |
+| `0x08`–`0x0C` | Draft core events (this file) |
+| `0x0D`–`0x3F` | Future core events (unallocated) |
+| `0x40`–`0xFF` | Custom/application events |
+
+A renderer/decoder MUST skip unknown event commands and continue.
+
+---
+
+## Conformance
+
+Event encode/decode round-trips and golden byte vectors (incl. raw-input
+`EVENT` and network-batch bytes) live in [CONFORMANCE.md](./CONFORMANCE.md).
+New events added here MUST add vectors before implementation.
