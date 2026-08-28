@@ -146,13 +146,10 @@ impl GtkRenderer {
             self.sync_node(*child);
         }
 
-        // Stacks: reconcile the box children (order/content) against the tree
-        // and apply cross-axis alignment to each child.
-        if matches!(
-            node.component_type,
-            component_type::VSTACK | component_type::HSTACK
-        ) {
-            self.sync_children(id, &children, &node);
+        // Containers: reconcile the native children (order/content/positions)
+        // against the tree.
+        if is_container(node.component_type) {
+            self.sync_container(id, &children, &node);
         }
     }
 
@@ -197,6 +194,13 @@ impl GtkRenderer {
                     btn.set_label(node.text.as_deref().unwrap_or(""));
                 }
             }
+            component_type::IMAGE => {
+                if let Ok(pic) = widget.downcast::<gtk::Picture>() {
+                    if let Some(src) = node.string_property(property_id::IMAGE_SOURCE) {
+                        pic.set_filename(Some(src));
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -223,16 +227,26 @@ impl GtkRenderer {
         self.attached_listeners.insert(id, mask);
     }
 
+    /// Reconcile a container's native children against the tree-ordered child
+    /// widgets. Leaf widgets are preserved (never recreated); only the
+    /// parent→child links are re-established, so unchanged subtrees stay put.
+    fn sync_container(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
+        match widget_kind(node.component_type) {
+            WidgetKind::Stack => self.sync_stack_children(parent_id, children, node),
+            WidgetKind::Grid => self.sync_grid_children(parent_id, children, node),
+            WidgetKind::ScrollView => self.sync_scroll_children(parent_id, children),
+            WidgetKind::Overlay => self.sync_overlay_children(parent_id, children),
+            _ => {}
+        }
+    }
+
     /// Reconcile a stack's children: apply cross-axis alignment to each child
     /// and re-append the tree-ordered child widgets.
-    ///
-    /// Leaf widgets are preserved (never recreated); only the parent→child
-    /// links are re-established, so unchanged subtrees stay put.
-    fn sync_children(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
+    fn sync_stack_children(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
         let Some(parent) = self.widgets.get(&parent_id).cloned() else {
             return;
         };
-        let Some(bx) = parent.downcast_ref::<GtkBox>() else {
+        let Some(_bx) = parent.downcast_ref::<GtkBox>() else {
             return;
         };
         let Some(l) = layout::stack_layout(node) else {
@@ -251,21 +265,91 @@ impl GtkRenderer {
             }
         }
 
-        // Current children in order.
-        let mut current: Vec<gtk::Widget> = Vec::new();
-        let mut c = bx.first_child();
-        while let Some(w) = c {
-            current.push(w.clone());
-            c = w.next_sibling();
-        }
+        self.reconcile_box_children(&parent, children);
+    }
 
-        // Target widgets in tree order.
+    /// Reconcile a `GtkGrid`'s children at their row-major cell positions.
+    fn sync_grid_children(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
+        let Some(parent) = self.widgets.get(&parent_id).cloned() else {
+            return;
+        };
+        let Some(grid) = parent.downcast_ref::<gtk::Grid>() else {
+            return;
+        };
+        let columns = layout::grid_columns(node);
+        if grid_matches(grid, children, columns, &self.widgets) {
+            return;
+        }
+        // Rebuild: remove all current children, then attach at target cells.
+        for w in child_widgets(&parent) {
+            grid.remove(&w);
+        }
+        for (idx, child_id) in children.iter().enumerate() {
+            if let Some(w) = self.widgets.get(child_id) {
+                let (row, col) = layout::grid_cell_position(idx as u32, columns);
+                grid.attach(w, col as i32, row as i32, 1, 1);
+            }
+        }
+    }
+
+    /// Reconcile a `GtkScrolledWindow`: exactly one child (the first).
+    fn sync_scroll_children(&mut self, parent_id: u32, children: &[u32]) {
+        let Some(parent) = self.widgets.get(&parent_id).cloned() else {
+            return;
+        };
+        let Some(sw) = parent.downcast_ref::<gtk::ScrolledWindow>() else {
+            return;
+        };
+        let want: Option<gtk::Widget> = children
+            .first()
+            .and_then(|id| self.widgets.get(id).cloned());
+        if sw.child().as_ref() != want.as_ref() {
+            if let Some(w) = want {
+                sw.set_child(Some(&w));
+            } else {
+                sw.set_child(None::<&gtk::Widget>);
+            }
+        }
+    }
+
+    /// Reconcile a `GtkOverlay`: the first child is the main child, the rest
+    /// are overlays (later = drawn on top).
+    fn sync_overlay_children(&mut self, parent_id: u32, children: &[u32]) {
+        let Some(parent) = self.widgets.get(&parent_id).cloned() else {
+            return;
+        };
+        let Some(ov) = parent.downcast_ref::<gtk::Overlay>() else {
+            return;
+        };
         let target: Vec<gtk::Widget> = children
             .iter()
             .filter_map(|id| self.widgets.get(id).cloned())
             .collect();
+        if child_widgets(&parent) == target {
+            return;
+        }
+        for w in child_widgets(&parent) {
+            ov.remove_overlay(&w);
+        }
+        if let Some(main) = target.first() {
+            ov.set_child(Some(main));
+            for overlay in target.iter().skip(1) {
+                ov.add_overlay(overlay);
+            }
+        }
+    }
 
-        if current != target {
+    /// Re-append the tree-ordered child widgets to a box (order/content diff).
+    fn reconcile_box_children(&mut self, parent: &gtk::Widget, children: &[u32]) {
+        let current = child_widgets(parent);
+        let target: Vec<gtk::Widget> = children
+            .iter()
+            .filter_map(|id| self.widgets.get(id).cloned())
+            .collect();
+        if current == target {
+            return;
+        }
+        if let Ok(bx) = parent.clone().downcast::<GtkBox>() {
             for w in current {
                 bx.remove(&w);
             }
@@ -276,14 +360,118 @@ impl GtkRenderer {
     }
 }
 
+/// The native widget kind a component type maps to (pure, headless-testable).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WidgetKind {
+    /// `VSTACK` / `HSTACK` → `GtkBox`.
+    Stack,
+    /// `TEXT` → `GtkLabel`.
+    Text,
+    /// `BUTTON` → `GtkButton`.
+    Button,
+    /// `GRID` → `GtkGrid`.
+    Grid,
+    /// `SCROLLVIEW` → `GtkScrolledWindow`.
+    ScrollView,
+    /// `ZSTACK` → `GtkOverlay`.
+    Overlay,
+    /// `SPACER` → an expanding empty box.
+    Spacer,
+    /// `IMAGE` → `GtkPicture`.
+    Image,
+    /// Any component the renderer does not map yet → a blank `GtkLabel`.
+    Blank,
+}
+
+/// Map a component type to its native widget kind.
+pub fn widget_kind(component_type: u16) -> WidgetKind {
+    match component_type {
+        component_type::VSTACK | component_type::HSTACK => WidgetKind::Stack,
+        component_type::TEXT => WidgetKind::Text,
+        component_type::BUTTON => WidgetKind::Button,
+        component_type::GRID => WidgetKind::Grid,
+        component_type::SCROLLVIEW => WidgetKind::ScrollView,
+        component_type::ZSTACK => WidgetKind::Overlay,
+        component_type::SPACER => WidgetKind::Spacer,
+        component_type::IMAGE => WidgetKind::Image,
+        _ => WidgetKind::Blank,
+    }
+}
+
+/// Whether a component type reconciles native children (a container).
+fn is_container(component_type: u16) -> bool {
+    matches!(
+        component_type,
+        component_type::VSTACK
+            | component_type::HSTACK
+            | component_type::GRID
+            | component_type::SCROLLVIEW
+            | component_type::ZSTACK
+    )
+}
+
+/// The current child widgets of a native widget, in child/draw order.
+fn child_widgets(widget: &gtk::Widget) -> Vec<gtk::Widget> {
+    let mut out = Vec::new();
+    let mut c = widget.first_child();
+    while let Some(w) = c {
+        out.push(w.clone());
+        c = w.next_sibling();
+    }
+    out
+}
+
+/// Whether a grid's children already sit at their target cell positions.
+fn grid_matches(
+    grid: &gtk::Grid,
+    children: &[u32],
+    columns: Option<u32>,
+    widgets: &HashMap<u32, gtk::Widget>,
+) -> bool {
+    if child_widgets(&grid.clone().upcast()).len() != children.len() {
+        return false;
+    }
+    for (idx, child_id) in children.iter().enumerate() {
+        let Some(w) = widgets.get(child_id) else {
+            return false;
+        };
+        let (row, col) = layout::grid_cell_position(idx as u32, columns);
+        if grid.child_at(col as i32, row as i32).as_ref() != Some(w) {
+            return false;
+        }
+    }
+    true
+}
+
 /// Build the base native widget for a node (no children attached, no input
 /// controllers — those are attached later in [`GtkRenderer::update`]).
 fn build_widget(node: &HostNode) -> gtk::Widget {
-    match node.component_type {
-        component_type::VSTACK | component_type::HSTACK => stack_widget(node),
-        component_type::TEXT => Label::new(Some(node.text.as_deref().unwrap_or(""))).upcast(),
-        component_type::BUTTON => Button::with_label(node.text.as_deref().unwrap_or("")).upcast(),
-        _ => Label::new(Some("")).upcast(),
+    match widget_kind(node.component_type) {
+        WidgetKind::Stack => stack_widget(node),
+        WidgetKind::Text => Label::new(Some(node.text.as_deref().unwrap_or(""))).upcast(),
+        WidgetKind::Button => Button::with_label(node.text.as_deref().unwrap_or("")).upcast(),
+        WidgetKind::Grid => {
+            let grid = gtk::Grid::new();
+            grid.set_halign(Align::Fill);
+            grid.set_valign(Align::Fill);
+            grid.upcast()
+        }
+        WidgetKind::ScrollView => {
+            let sw = gtk::ScrolledWindow::new();
+            sw.set_halign(Align::Fill);
+            sw.set_valign(Align::Fill);
+            sw.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+            sw.upcast()
+        }
+        WidgetKind::Overlay => gtk::Overlay::new().upcast(),
+        WidgetKind::Spacer => {
+            let bx = GtkBox::new(gtk::Orientation::Vertical, 0);
+            bx.set_hexpand(true);
+            bx.set_vexpand(true);
+            bx.upcast()
+        }
+        WidgetKind::Image => gtk::Picture::new().upcast(),
+        WidgetKind::Blank => Label::new(Some("")).upcast(),
     }
 }
 
@@ -564,6 +752,35 @@ mod tests {
     fn renderer_placeholder_compiles() {
         // Ensures the renderer type is constructible without a display.
         let _r = GtkRenderer::new();
+    }
+
+    #[test]
+    fn widget_kind_maps_grouped_components() {
+        use component_type::*;
+        assert_eq!(widget_kind(VSTACK), WidgetKind::Stack);
+        assert_eq!(widget_kind(HSTACK), WidgetKind::Stack);
+        assert_eq!(widget_kind(TEXT), WidgetKind::Text);
+        assert_eq!(widget_kind(BUTTON), WidgetKind::Button);
+        assert_eq!(widget_kind(GRID), WidgetKind::Grid);
+        assert_eq!(widget_kind(SCROLLVIEW), WidgetKind::ScrollView);
+        assert_eq!(widget_kind(ZSTACK), WidgetKind::Overlay);
+        assert_eq!(widget_kind(SPACER), WidgetKind::Spacer);
+        assert_eq!(widget_kind(IMAGE), WidgetKind::Image);
+        // Components without a mapping fall back to a blank widget.
+        assert_eq!(widget_kind(TOGGLE), WidgetKind::Blank);
+        assert_eq!(widget_kind(SLIDER), WidgetKind::Blank);
+        assert_eq!(widget_kind(COMMENT), WidgetKind::Blank);
+    }
+
+    #[test]
+    fn container_kinds_are_recognized() {
+        use component_type::*;
+        for ct in [VSTACK, HSTACK, GRID, SCROLLVIEW, ZSTACK] {
+            assert!(is_container(ct), "{ct:#x} should be a container");
+        }
+        for ct in [TEXT, BUTTON, SPACER, IMAGE, TOGGLE, SLIDER] {
+            assert!(!is_container(ct), "{ct:#x} should not be a container");
+        }
     }
 
     #[test]

@@ -126,9 +126,29 @@ fn round_nonneg(f: f32) -> i32 {
     f.max(0.0).round() as i32
 }
 
+/// The column count of a `GRID` from its `WIDTH` property (the cell-axis
+/// count). `FILL` (-1.0), a non-positive value, or absence means auto-fit.
+pub fn grid_columns(node: &HostNode) -> Option<u32> {
+    let w = f32_prop(node, property_id::WIDTH)?;
+    if w <= 0.0 {
+        return None;
+    }
+    Some(w.round() as u32)
+}
+
+/// Row-major cell position for a `GRID` child index.
+///
+/// `columns` is the `grid_columns` count; `None` (auto-fit) collapses to a
+/// single column. The position is `(row, column)`.
+pub fn grid_cell_position(index: u32, columns: Option<u32>) -> (u32, u32) {
+    let cols = columns.filter(|c| *c > 0).unwrap_or(1);
+    (index / cols, index % cols)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::HashMap;
 
     fn node(component_type: u16, props: &[(u16, u32)]) -> HostNode {
         HostNode {
@@ -138,6 +158,7 @@ mod tests {
             parent: None,
             children: Vec::new(),
             properties: props.iter().copied().collect(),
+            strings: HashMap::new(),
         }
     }
 
@@ -253,5 +274,30 @@ mod tests {
 
         let n = node(component_type::VSTACK, &[(property_id::PADDING, f32_bits(4.4))]);
         assert_eq!(padding_from(&n).top, 4);
+    }
+
+    #[test]
+    fn grid_columns_from_width_property() {
+        let n = node(component_type::GRID, &[(property_id::WIDTH, f32_bits(2.0))]);
+        assert_eq!(grid_columns(&n), Some(2));
+
+        let n = node(component_type::GRID, &[]);
+        assert_eq!(grid_columns(&n), None);
+
+        // FILL (-1.0) means auto-fit.
+        let n = node(component_type::GRID, &[(property_id::WIDTH, f32_bits(-1.0))]);
+        assert_eq!(grid_columns(&n), None);
+    }
+
+    #[test]
+    fn grid_cell_position_is_row_major() {
+        assert_eq!(grid_cell_position(0, Some(2)), (0, 0));
+        assert_eq!(grid_cell_position(1, Some(2)), (0, 1));
+        assert_eq!(grid_cell_position(2, Some(2)), (1, 0));
+        assert_eq!(grid_cell_position(3, Some(2)), (1, 1));
+        // Auto-fit collapses to a single column.
+        assert_eq!(grid_cell_position(3, None), (3, 0));
+        // Zero columns is treated as auto.
+        assert_eq!(grid_cell_position(2, Some(0)), (2, 0));
     }
 }

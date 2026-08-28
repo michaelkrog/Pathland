@@ -9,7 +9,7 @@
 
 use std::collections::HashMap;
 
-use pathland_core::{category, component_type, style, tree, Frame, Opcode};
+use pathland_core::{category, component_type, style, tree, value_type, Frame, Opcode};
 
 /// A decoded node in the host's native-element description.
 #[derive(Debug, Clone, PartialEq)]
@@ -21,6 +21,19 @@ pub struct HostNode {
     pub children: Vec<u32>,
     /// Constraint properties (propertyId -> value) for native layout/styling.
     pub properties: HashMap<u16, u32>,
+    /// `STRING`-valued properties resolved at apply time (propertyId -> text).
+    ///
+    /// The wire carries strings in the arena / batch string section referenced
+    /// by an offset; this map holds the resolved text for `LABEL`, `PROMPT`,
+    /// `IMAGE_SOURCE`, `FONT_FAMILY`, … (see `spec/OPCODE.md`).
+    pub strings: HashMap<u16, String>,
+}
+
+impl HostNode {
+    /// A `STRING`-valued property resolved from the frame's string section.
+    pub fn string_property(&self, prop: u16) -> Option<&str> {
+        self.strings.get(&prop).map(String::as_str)
+    }
 }
 
 impl Default for HostNode {
@@ -32,6 +45,7 @@ impl Default for HostNode {
             parent: None,
             children: Vec::new(),
             properties: HashMap::new(),
+            strings: HashMap::new(),
         }
     }
 }
@@ -94,8 +108,16 @@ impl RenderTree {
                 }
                 (category::STYLE, style::SET_PROPERTY) => {
                     let prop_id = op.b() as u16;
+                    let vt = (op.b() >> 16) as u8;
                     if let Some(n) = self.nodes.get_mut(&op.a()) {
-                        n.properties.insert(prop_id, op.c());
+                        if vt == value_type::STRING {
+                            // Resolve the arena offset into the actual text.
+                            if let Ok(text) = frame.arena_str(op.c()) {
+                                n.strings.insert(prop_id, text.to_string());
+                            }
+                        } else {
+                            n.properties.insert(prop_id, op.c());
+                        }
                     }
                 }
                 (category::STYLE, style::SET_TEXT) => {
@@ -258,5 +280,40 @@ mod tests {
             root.properties.get(&pathland_core::property_id::SPACING),
             Some(&12.0f32.to_bits())
         );
+    }
+
+    #[test]
+    fn string_properties_resolve_from_frame() {
+        use pathland_core::{Guest, Host, MemoryLayout, init_memory, property_id, value_type};
+
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            guest.create_node(1, component_type::IMAGE).unwrap();
+            let ref_src = guest.alloc_str("assets/logo.png").unwrap();
+            guest
+                .set_property(1, property_id::IMAGE_SOURCE, value_type::STRING, ref_src)
+                .unwrap();
+            guest.end_frame();
+        }
+        {
+            let mut host = Host::new(&mut mem, &layout);
+            let mut tree = RenderTree::default();
+            tree.apply_frame(&host.frames()[0]);
+
+            let n = tree.node(1).unwrap();
+            assert_eq!(n.component_type, component_type::IMAGE);
+            // The STRING property is resolved to its text...
+            assert_eq!(
+                n.string_property(property_id::IMAGE_SOURCE),
+                Some("assets/logo.png")
+            );
+            // ...and is NOT stored as a raw arena offset in `properties`.
+            assert!(!n.properties.contains_key(&property_id::IMAGE_SOURCE));
+        }
     }
 }
