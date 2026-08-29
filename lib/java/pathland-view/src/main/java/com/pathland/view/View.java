@@ -144,6 +144,295 @@ public interface View {
                 Modified.prop(Properties.ALIGNMENT, (float) alignment.wire()));
     }
 
+    /** Compound min/ideal/max frame modifier. Pass {@link Float#NaN} for any unset bound. */
+    default View frame(float minWidth, float idealWidth, float maxWidth,
+                       float minHeight, float idealHeight, float maxHeight) {
+        java.util.List<Modified.Prop> props = new java.util.ArrayList<>();
+        addFrameBound(props, Properties.MIN_WIDTH, minWidth);
+        addFrameBound(props, Properties.IDEAL_WIDTH, idealWidth);
+        addFrameBound(props, Properties.MAX_WIDTH, maxWidth);
+        addFrameBound(props, Properties.MIN_HEIGHT, minHeight);
+        addFrameBound(props, Properties.IDEAL_HEIGHT, idealHeight);
+        addFrameBound(props, Properties.MAX_HEIGHT, maxHeight);
+        return Modified.props(this, props.toArray(new Modified.Prop[0]));
+    }
+
+    private static void addFrameBound(java.util.List<Modified.Prop> props, int property, float value) {
+        if (!Float.isNaN(value)) {
+            props.add(Modified.prop(property, value));
+        }
+    }
+
+    /** Translate the view after layout ({@code OFFSET_X} / {@code OFFSET_Y}). */
+    default View offset(float x, float y) {
+        return Modified.props(
+                this,
+                Modified.prop(Properties.OFFSET_X, x),
+                Modified.prop(Properties.OFFSET_Y, y));
+    }
+
+    /** Absolutely position the view within its parent ({@code POSITION_X} / {@code POSITION_Y}). */
+    default View position(float x, float y) {
+        return Modified.props(
+                this,
+                Modified.prop(Properties.POSITION_X, x),
+                Modified.prop(Properties.POSITION_Y, y));
+    }
+
+    /** Fix the view to its intrinsic content size on both axes. */
+    default View fixedSize() {
+        return fixedSize(true, true);
+    }
+
+    /** Fix the view to its intrinsic content size per axis. */
+    default View fixedSize(boolean horizontal, boolean vertical) {
+        return Modified.props(
+                this,
+                Modified.prop(Properties.FIXED_SIZE_HORIZONTAL, horizontal ? 1 : 0),
+                Modified.prop(Properties.FIXED_SIZE_VERTICAL, vertical ? 1 : 0));
+    }
+
+    /** Layout priority for stretching/shrinking within a parent. */
+    default View layoutPriority(float value) {
+        return Modified.props(this, Modified.prop(Properties.LAYOUT_PRIORITY, value));
+    }
+
+    /** Draw-order elevation within a stack. */
+    default View zIndex(float value) {
+        return Modified.props(this, Modified.prop(Properties.Z_INDEX, value));
+    }
+
+    /** Constrain the aspect ratio ({@code ASPECT_RATIO} + {@code CONTENT_MODE}). */
+    default View aspectRatio(float ratio, ContentMode mode) {
+        return Modified.props(
+                this,
+                Modified.prop(Properties.ASPECT_RATIO, ratio),
+                Modified.prop(Properties.CONTENT_MODE, (float) mode.wire()));
+    }
+
+    /** Fit the content within its bounds ({@code CONTENT_MODE=Fit}). */
+    default View scaledToFit() {
+        return Modified.props(this, Modified.prop(Properties.CONTENT_MODE, (float) ContentMode.FIT.wire()));
+    }
+
+    /** Fill its bounds, cropping overflow ({@code CONTENT_MODE=Fill}). */
+    default View scaledToFill() {
+        return Modified.props(this, Modified.prop(Properties.CONTENT_MODE, (float) ContentMode.FILL.wire()));
+    }
+
+    /** Minimum scale factor for text shrinking. */
+    default View minimumScaleFactor(float value) {
+        return Modified.props(this, Modified.prop(Properties.MINIMUM_SCALE_FACTOR, value));
+    }
+
+    /** Font style (normal / italic). */
+    default View fontStyle(FontStyle style) {
+        return Modified.props(this, Modified.prop(Properties.FONT_STYLE, (float) style.wire()));
+    }
+
+    /** Italicize the text ({@code FONT_STYLE=Italic}). */
+    default View italic() {
+        return Modified.props(this, Modified.prop(Properties.FONT_STYLE, (float) FontStyle.ITALIC.wire()));
+    }
+
+    /** Font design (default / serif / rounded / monospaced). */
+    default View fontDesign(FontDesign design) {
+        return Modified.props(this, Modified.prop(Properties.FONT_DESIGN, (float) design.wire()));
+    }
+
+    /** Font width (0.5–1.5, 1.0 default). */
+    default View fontWidth(float value) {
+        return Modified.props(this, Modified.prop(Properties.FONT_WIDTH, value));
+    }
+
+    /** Per-glyph kerning in points. */
+    default View kerning(float points) {
+        return Modified.props(this, Modified.prop(Properties.KERNING, points));
+    }
+
+    /** Uniform letter spacing in points. */
+    default View tracking(float points) {
+        return Modified.props(this, Modified.prop(Properties.TRACKING, points));
+    }
+
+    /** Baseline offset in points. */
+    default View baselineOffset(float points) {
+        return Modified.props(this, Modified.prop(Properties.BASELINE_OFFSET, points));
+    }
+
+    /** Line spacing in points. */
+    default View lineSpacing(float points) {
+        return Modified.props(this, Modified.prop(Properties.LINE_SPACING, points));
+    }
+
+    /** Limit the number of rendered lines ({@code 0} = unlimited). */
+    default View lineLimit(int lines) {
+        return Modified.props(this, Modified.prop(Properties.LINE_LIMIT, lines));
+    }
+
+    /** Align the text block inside its own bounds. */
+    default View multilineTextAlignment(TextAlignment alignment) {
+        return Modified.props(this, Modified.prop(Properties.TEXT_ALIGNMENT, (float) alignment.wire()));
+    }
+
+    /** Truncation mode for overflowed text. */
+    default View truncationMode(Truncation mode) {
+        return Modified.props(this, Modified.prop(Properties.TRUNCATION_MODE, (float) mode.wire()));
+    }
+
+    /** Text case transformation (none / uppercase / lowercase). */
+    default View textCase(TextCase textCase) {
+        return Modified.props(this, Modified.prop(Properties.TEXT_CASE, (float) textCase.wire()));
+    }
+
+    /** Underline the text. */
+    default View underline() {
+        return underline(true);
+    }
+
+    /** Underline the text. */
+    default View underline(boolean on) {
+        return Modified.props(this, Modified.prop(Properties.UNDERLINE, on ? 1 : 0));
+    }
+
+    /** Strikethrough the text. */
+    default View strikethrough() {
+        return strikethrough(true);
+    }
+
+    /** Strikethrough the text. */
+    default View strikethrough(boolean on) {
+        return Modified.props(this, Modified.prop(Properties.STRIKETHROUGH, on ? 1 : 0));
+    }
+
+    /** Set the font family (a {@code STRING} property). */
+    default View fontFamily(String family) {
+        return Modified.props(this, Modified.prop(Properties.FONT_FAMILY, family));
+    }
+
+    /** Round the corners of the view. */
+    default View cornerRadius(float radius) {
+        return Modified.props(this, Modified.prop(Properties.BORDER_RADIUS, radius));
+    }
+
+    /** Compound shadow (color, radius, offset). Missing fields use renderer defaults. */
+    default View shadow(Color color, float radius, float x, float y) {
+        return Modified.props(
+                this,
+                Modified.prop(Properties.SHADOW_COLOR, color),
+                Modified.prop(Properties.SHADOW_RADIUS, radius),
+                Modified.prop(Properties.SHADOW_X, x),
+                Modified.prop(Properties.SHADOW_Y, y));
+    }
+
+    /** A shadow with just a radius (renderer-token color). */
+    default View shadow(float radius) {
+        return Modified.props(this, Modified.prop(Properties.SHADOW_RADIUS, radius));
+    }
+
+    /** Gaussian blur radius. */
+    default View blur(float radius) {
+        return Modified.props(this, Modified.prop(Properties.BLUR_RADIUS, radius));
+    }
+
+    /** Saturation filter ({@code 0..1}). */
+    default View saturation(float value) {
+        return Modified.props(this, Modified.prop(Properties.SATURATION, value));
+    }
+
+    /** Contrast filter ({@code 0..1}). */
+    default View contrast(float value) {
+        return Modified.props(this, Modified.prop(Properties.CONTRAST, value));
+    }
+
+    /** Brightness filter ({@code -1..1}). */
+    default View brightness(float value) {
+        return Modified.props(this, Modified.prop(Properties.BRIGHTNESS, value));
+    }
+
+    /** Grayscale filter ({@code 0..1}). */
+    default View grayscale(float value) {
+        return Modified.props(this, Modified.prop(Properties.GRAYSCALE, value));
+    }
+
+    /** Hue rotation in degrees. */
+    default View hueRotation(float degrees) {
+        return Modified.props(this, Modified.prop(Properties.HUE_ROTATION, degrees));
+    }
+
+    /** Multiply the view's color (a {@code COLOR} property). */
+    default View colorMultiply(Color color) {
+        return Modified.props(this, Modified.prop(Properties.COLOR_MULTIPLY, color));
+    }
+
+    /** Invert the view's colors. */
+    default View colorInvert() {
+        return Modified.props(this, Modified.prop(Properties.COLOR_INVERT, 1));
+    }
+
+    /** Clip the view to its bounds. */
+    default View clipped() {
+        return Modified.props(this, Modified.prop(Properties.CLIPS_TO_BOUNDS, 1));
+    }
+
+    /** Clip the view to a shape ({@code CLIPS_TO_BOUNDS} + {@code SHAPE_KIND}). */
+    default View clipShape(ShapeKind kind) {
+        return Modified.props(
+                this,
+                Modified.prop(Properties.CLIPS_TO_BOUNDS, 1),
+                Modified.prop(Properties.SHAPE_KIND, (float) kind.wire()));
+    }
+
+    /** Rotate the view after layout, in degrees (counter-clockwise). */
+    default View rotation(float degrees) {
+        return Modified.props(this, Modified.prop(Properties.ROTATION_DEGREES, degrees));
+    }
+
+    /** Uniformly scale the view after layout. */
+    default View scaleEffect(float value) {
+        return Modified.props(this, Modified.prop(Properties.SCALE, value));
+    }
+
+    /** Hide the view ({@code VISIBLE}=0). */
+    default View hidden() {
+        return Modified.props(this, Modified.prop(Properties.VISIBLE, 0));
+    }
+
+    /** Disable/enable the view ({@code ENABLED}: 1 = interactive). */
+    default View disabled(boolean disabled) {
+        return Modified.props(this, Modified.prop(Properties.ENABLED, disabled ? 0 : 1));
+    }
+
+    /** Whether the view participates in hit testing. */
+    default View allowsHitTesting(boolean on) {
+        return Modified.props(this, Modified.prop(Properties.ALLOWS_HIT_TESTING, on ? 1 : 0));
+    }
+
+    /** Control size (small / regular / large). */
+    default View controlSize(ControlSize size) {
+        return Modified.props(this, Modified.prop(Properties.CONTROL_SIZE, (float) size.wire()));
+    }
+
+    /** The accessibility label (a {@code STRING} property). */
+    default View accessibilityLabel(String label) {
+        return Modified.props(this, Modified.prop(Properties.LABEL, label));
+    }
+
+    /** The accessibility role (semantic enum code). */
+    default View accessibilityRole(int role) {
+        return Modified.props(this, Modified.prop(Properties.ROLE, (float) role));
+    }
+
+    /** The accessibility state (semantic enum code). */
+    default View accessibilityState(int state) {
+        return Modified.props(this, Modified.prop(Properties.STATE, (float) state));
+    }
+
+    /** Set the image source (a {@code STRING} property). */
+    default View imageSource(String source) {
+        return Modified.props(this, Modified.prop(Properties.IMAGE_SOURCE, source));
+    }
+
     /** Wrap this view in a custom modifier (SwiftUI {@code .modifier}). */
     default View modifier(ViewModifier modifier) {
         return Modified.modifier(this, modifier);
@@ -184,6 +473,11 @@ public interface View {
     /** An {@code Image} leaf. */
     static Image image() {
         return new Image();
+    }
+
+    /** An {@code Image} leaf with a source (resource name, file path, or absolute URL). */
+    static Image image(String source) {
+        return new Image(source);
     }
 
     /** A {@code Rectangle} shape. */

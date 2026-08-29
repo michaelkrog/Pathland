@@ -103,6 +103,47 @@ class EmitterTest {
     }
 
     @Test
+    void newModifiersEmitSpecValueTypes() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        View root = View.text("x")
+                .visible(false)      // U8, low byte 0
+                .disabled(true)      // U8, low byte 0 (disabled -> ENABLED=0)
+                .fontFamily("Georgia") // STRING
+                .lineLimit(2)        // U32
+                .scaledToFit();      // CONTENT_MODE enum code as F32
+        emitter.mount(root, Environment.DEFAULT);
+        Frame frame = sink.frame();
+
+        boolean sawVisible = false, sawString = false;
+        for (Opcode op : frame.opcodes()) {
+            if (op.category() == Categories.STYLE && op.command() == Commands.Style.SET_PROPERTY) {
+                int property = op.b() & 0xFFFF;
+                int valueType = (op.b() >>> 16) & 0xFF;
+                switch (property) {
+                    case Properties.VISIBLE, Properties.ENABLED -> {
+                        assertEquals(ValueTypes.U8, valueType);
+                        if (property == Properties.VISIBLE) {
+                            sawVisible = true;
+                            assertEquals(0, op.c(), "visible(false) packs U8 low byte 0, not f32 bits");
+                        }
+                    }
+                    case Properties.LINE_LIMIT -> assertEquals(ValueTypes.U32, valueType);
+                    case Properties.CONTENT_MODE -> assertEquals(ValueTypes.F32, valueType);
+                    case Properties.FONT_FAMILY -> {
+                        assertEquals(ValueTypes.STRING, valueType);
+                        sawString = true;
+                        assertEquals("Georgia", frame.stringAt(op.c()));
+                    }
+                    default -> { }
+                }
+            }
+        }
+        assertTrue(sawVisible, "VISIBLE property emitted");
+        assertTrue(sawString, "FONT_FAMILY string property emitted");
+    }
+
+    @Test
     void buttonStyleScopesDownTheTree() {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
