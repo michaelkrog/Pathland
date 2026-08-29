@@ -13,8 +13,8 @@ The vectors are enforced by the reference Rust encoder (`pathland-core`,
 `crates/pathland-core/src/conformance.rs`).
 
 Companion catalogs: [PRIMITIVES.md](./PRIMITIVES.md) (views), [MODIFIERS.md](./MODIFIERS.md)
-(modifiers/properties), [EVENTS.md](./EVENTS.md) (events). Draft IDs allocated
-there are not yet covered by vectors; vectors MUST be added before a draft lands.
+(modifiers/properties), [EVENTS.md](./EVENTS.md) (events). New IDs allocated
+there must gain vectors before implementations depend on them.
 
 ## Opcode Layout
 

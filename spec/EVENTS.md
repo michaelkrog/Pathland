@@ -19,12 +19,9 @@ the raw pointer events (see [Deferred: gestures](#deferred-gestures)).
 - Modifiers (properties): [MODIFIERS.md](./MODIFIERS.md)
 - Wire format: [OPCODE.md](./OPCODE.md)
 
-### Status legend
-
-- **✅ Implemented** — the event command / listener bit exists in
-  `pathland_core::constants` and is exercised today.
-- **🚧 Draft** — the command / bit is **allocated in this document** (spec-first)
-  but not implemented anywhere yet. IDs are reserved and MUST NOT be reused.
+> **Implementation status** is tracked per implementing project (a `status.md`
+> in each protocol crate/library), **not** in this specification. This document
+> defines the protocol contract only.
 
 ---
 
@@ -76,7 +73,7 @@ declared, the event is not reported.
 | Path | Mechanism |
 |------|-----------|
 | Shared memory (desktop/native) | The host writes `EVENT` opcodes into the event ring (host → guest) at `eventWriteCursor`; the guest drains at `eventReadCursor`. Events are consumed as written (no frame batching). |
-| Network batch (SSR → browser) | Host → guest batches are the planned `0x0001` direction flag of the `PLPL` batch format; not yet implemented (see OPCODE.md Transport). |
+| Network batch (SSR → browser) | Host → guest batches use the `0x0001` direction flag of the `PLPL` batch format (see OPCODE.md Transport) |
 
 ### Encoding
 
@@ -100,11 +97,11 @@ only fully decodable with that string source (the same convention as
 Pointer events carry a viewport-relative point in **logical points** (`B`=x,
 `C`=y, f32).
 
-| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
-|---------|-------|---|---|---|-------|--------|---------------------|
-| `POINTER_DOWN` | 0x01 | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` (0x0001) | ✅ | press (basis of `onTapGesture`, `Button` action) |
-| `POINTER_MOVE` | 0x02 | targetId | x (f32) | y (f32) | `HOVER_ENTER` (0x0001) / `HOVER_LEAVE` (0x0002) | ✅ | hover/enter/leave, drag basis |
-| `POINTER_UP` | 0x03 | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` (0x0001) | ✅ | release (basis of `onTapGesture`) |
+| Command | Value | A | B | C | Flags | SwiftUI counterpart |
+| --------- | ------- | --- | --- | --- | ------- | --------------------- |
+| `POINTER_DOWN` | 0x01 | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` (0x0001) | press (basis of `onTapGesture`, `Button` action) |
+| `POINTER_MOVE` | 0x02 | targetId | x (f32) | y (f32) | `HOVER_ENTER` (0x0001) / `HOVER_LEAVE` (0x0002) | hover/enter/leave, drag basis |
+| `POINTER_UP` | 0x03 | targetId | x (f32) | y (f32) | `POINTER_SECONDARY` (0x0001) | release (basis of `onTapGesture`) |
 
 - **Flags**:
   - `POINTER_SECONDARY`: the secondary button (right mouse, long-press) rather
@@ -121,10 +118,10 @@ Pointer events carry a viewport-relative point in **logical points** (`B`=x,
 
 ### Keyboard
 
-| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
-|---------|-------|---|---|---|-------|--------|---------------------|
-| `KEY_DOWN` | 0x04 | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` (0x0002) | ✅ | `onKeyPress(.down)` |
-| `KEY_UP` | 0x05 | targetId | keyCode (u16, low) | modifiers (u8, low) | — | ✅ | `onKeyPress(.up)` |
+| Command | Value | A | B | C | Flags | SwiftUI counterpart |
+| --------- | ------- | --- | --- | --- | ------- | --------------------- |
+| `KEY_DOWN` | 0x04 | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` (0x0002) | `onKeyPress(.down)` |
+| `KEY_UP` | 0x05 | targetId | keyCode (u16, low) | modifiers (u8, low) | — | `onKeyPress(.up)` |
 
 - **`keyCode`**: a **canonical, platform-independent logical key code** (a
   renderer maps native scancodes/key-codes onto this canonical set). The
@@ -143,9 +140,9 @@ Pointer events carry a viewport-relative point in **logical points** (`B`=x,
 Value events carry a control's semantic value, resolved by the renderer from
 its own native control geometry.
 
-| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
-|---------|-------|---|---|---|-------|--------|---------------------|
-| `VALUE_CHANGED` | 0x06 | targetId | value (f32) | 0 | — | ✅ | `Slider`/`Stepper`/`Gauge`/`Toggle`/`Picker`/`Menu` binding changes |
+| Command | Value | A | B | C | Flags | SwiftUI counterpart |
+| --------- | ------- | --- | --- | --- | ------- | --------------------- |
+| `VALUE_CHANGED` | 0x06 | targetId | value (f32) | 0 | — | `Slider`/`Stepper`/`Gauge`/`Toggle`/`Picker`/`Menu` binding changes |
 
 - **Semantics per control** (see [PRIMITIVES.md](./PRIMITIVES.md) controls):
   - `SLIDER`/`STEPPER`/`GAUGE` — the numeric value in the control's range.
@@ -166,9 +163,9 @@ its own native control geometry.
 
 ### Date
 
-| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
-|---------|-------|---|---|---|-------|--------|---------------------|
-| `DATE_CHANGED` | 0x0D | targetId | days since epoch (I32) | millis of day (U32) | — | 🚧 | `DatePicker` value binding |
+| Command | Value | A | B | C | Flags | SwiftUI counterpart |
+| --------- | ------- | --- | --- | --- | ------- | --------------------- |
+| `DATE_CHANGED` | 0x0D | targetId | days since epoch (I32) | millis of day (U32) | — | `DatePicker` value binding |
 
 - The date is encoded as two 32-bit fields — `B` = **days since epoch**
   (signed I32; pre-1970 is negative) and `C` = **millis of day** (U32,
@@ -181,12 +178,12 @@ its own native control geometry.
 
 ### Text
 
-| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
-|---------|-------|---|---|---|-------|--------|---------------------|
-| `TEXT_CHANGED` | 0x07 | targetId | string offset | 0 | — | ✅ | `TextField` value binding |
-| `FOCUS_CHANGED` | 0x08 | targetId | focused (0/1) | 0 | — | 🚧 | `@FocusState` |
-| `EDITING_CHANGED` | 0x09 | targetId | editing (0/1) | 0 | — | 🚧 | `TextField`/`Slider` `onEditingChanged` |
-| `SUBMIT` | 0x0A | targetId | 0 | 0 | — | 🚧 | `TextField` `onSubmit` / `onCommit` |
+| Command | Value | A | B | C | Flags | SwiftUI counterpart |
+| --------- | ------- | --- | --- | --- | ------- | --------------------- |
+| `TEXT_CHANGED` | 0x07 | targetId | string offset | 0 | — | `TextField` value binding |
+| `FOCUS_CHANGED` | 0x08 | targetId | focused (0/1) | 0 | — | `@FocusState` |
+| `EDITING_CHANGED` | 0x09 | targetId | editing (0/1) | 0 | — | `TextField`/`Slider` `onEditingChanged` |
+| `SUBMIT` | 0x0A | targetId | 0 | 0 | — | `TextField` `onSubmit` / `onCommit` |
 
 - **`TEXT_CHANGED`**: the new text is a length-prefixed entry
   (`[u32 byteLength][bytes…]`). Over the **shared-memory ring** the renderer
@@ -208,10 +205,10 @@ its own native control geometry.
 
 ### Scroll
 
-| Command | Value | A | B | C | Flags | Status | SwiftUI counterpart |
-|---------|-------|---|---|---|-------|--------|---------------------|
-| `SCROLL` | 0x0B | targetId | offsetX (f32) | offsetY (f32) | — | 🚧 | `ScrollView` offset, `onScrollPhaseChange` |
-| `WHEEL` | 0x0C | targetId | deltaX (f32) | deltaY (f32) | — | 🚧 | `onScrollWheelEvent` / trackpad |
+| Command | Value | A | B | C | Flags | SwiftUI counterpart |
+| --------- | ------- | --- | --- | --- | ------- | --------------------- |
+| `SCROLL` | 0x0B | targetId | offsetX (f32) | offsetY (f32) | — | `ScrollView` offset, `onScrollPhaseChange` |
+| `WHEEL` | 0x0C | targetId | deltaX (f32) | deltaY (f32) | — | `onScrollWheelEvent` / trackpad |
 
 - **`SCROLL`**: the content offset of a `SCROLLVIEW` (logical points), reported
   for nodes that declared the `SCROLL` listener bit (bit 8). The renderer
@@ -227,19 +224,19 @@ its own native control geometry.
 `EVENT_LISTENERS` (0x2005) is a u32 bitmask set via `SET_PROPERTY` (U32). Each
 bit requests one raw-input event kind for the node:
 
-| Bit | Mask | Event | Status |
-|-----|------|-------|--------|
-| 0 | `0x00000001` | `POINTER_DOWN` | ✅ |
-| 1 | `0x00000002` | `POINTER_MOVE` (incl. hover enter/leave) | ✅ |
-| 2 | `0x00000004` | `POINTER_UP` | ✅ |
-| 3 | `0x00000008` | `KEY_DOWN` | ✅ |
-| 4 | `0x00000010` | `KEY_UP` | ✅ |
-| 5 | `0x00000020` | `FOCUS_CHANGED` | 🚧 |
-| 6 | `0x00000040` | `EDITING_CHANGED` | 🚧 |
-| 7 | `0x00000080` | `SUBMIT` | 🚧 |
-| 8 | `0x00000100` | `SCROLL` | 🚧 |
-| 9 | `0x00000200` | `WHEEL` | 🚧 |
-| 10–31 | — | reserved | — |
+| Bit | Mask | Event |
+| ----- | ------ | ------- |
+| 0 | `0x00000001` | `POINTER_DOWN` |
+| 1 | `0x00000002` | `POINTER_MOVE` (incl. hover enter/leave) |
+| 2 | `0x00000004` | `POINTER_UP` |
+| 3 | `0x00000008` | `KEY_DOWN` |
+| 4 | `0x00000010` | `KEY_UP` |
+| 5 | `0x00000020` | `FOCUS_CHANGED` |
+| 6 | `0x00000040` | `EDITING_CHANGED` |
+| 7 | `0x00000080` | `SUBMIT` |
+| 8 | `0x00000100` | `SCROLL` |
+| 9 | `0x00000200` | `WHEEL` |
+| 10–31 | — | reserved |
 
 Convenience aliases (DSL-side): `POINTER = bits 0|1|2`.
 
@@ -260,8 +257,7 @@ protocol's raw-inputs-only rule, they are **composed application-side** from
 the raw `POINTER_*` / `KEY_*` events above:
 
 - **Tap** = `POINTER_DOWN` then `POINTER_UP` on the same `targetId` within the
-  platform's tap window (implemented today as `TapRecognizer` /
-  `on_tap_gesture`).
+  platform's tap window.
 - **Long-press** = `POINTER_DOWN` held past a threshold.
 - **Drag** = `POINTER_DOWN` + `POINTER_MOVE` sequence.
 - **Magnify / rotate** = multi-pointer deltas; the underlying raw events are
@@ -276,8 +272,7 @@ wire protocol will never carry interpreted gestures — only raw inputs.
 
 | Range | Use |
 |-------|-----|
-| `0x01`–`0x07` | Implemented core events (this file) |
-| `0x08`–`0x0D` | Draft core events (this file) |
+| `0x01`–`0x0D` | Core events (allocated, this file) |
 | `0x0E`–`0x3F` | Future core events (unallocated) |
 | `0x40`–`0xFF` | Custom/application events |
 

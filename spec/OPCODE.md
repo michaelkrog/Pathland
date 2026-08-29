@@ -122,7 +122,7 @@ size hints — plus **styling modifiers** (padding, colors, fonts, borders).
 | `SET_PROPERTY` | `0x01` | nodeId | propertyId (u16, low) + valueType (u8, high byte) | value | — | Set a constraint/style property; `value` depends on `valueType` |
 | `SET_DESIGN_TOKEN` | `0x02` | arenaRef (path) | valueType (u8) | value | — | Override a design token; path is an arena string |
 | `SET_TEXT` | `0x03` | nodeId | arenaRef (utf8) | 0 | — | Set a node's text content |
-| `SET_DATE` | `0x04` | nodeId | days since epoch (I32) | millis of day (U32) | — | **Draft.** Set a node's date value (e.g. a `DATE_PICKER`); see [EVENTS.md](./EVENTS.md#date) for the matching `DATE_CHANGED` event |
+| `SET_DATE` | `0x04` | nodeId | days since epoch (I32) | millis of day (U32) | — | Set a node's date value (e.g. a `DATE_PICKER`); see [EVENTS.md](./EVENTS.md#date) for the matching `DATE_CHANGED` event |
 
 `SET_PROPERTY` encodes the value type in the **high byte of `B`** (bits 24–31) and the property id in the low two bytes:
 
@@ -147,11 +147,9 @@ B = (valueType << 16) | propertyId
 > `ROLE`, `STATE`, and the draft `FONT_*`/`CONTENT_MODE`/`CONTROL_SIZE`/`SHAPE_KIND`
 > properties) are carried with the **`F32` value type**, holding the numeric enum
 > code as an f32 bit pattern (e.g. `ALIGNMENT=Center(1)` → `C = 1.0f32.to_bits()`).
-> This matches the reference implementations (Rust DSL, Java DSL, GTK/HTML/ngui
-> renderers all read these as `f32`). The enumerated code tables live in
+> The enumerated code tables live in
 > [MODIFIERS.md](./MODIFIERS.md#appendix-enumerated-values). The `ENUM` value type
-> (low byte of `C`) remains available for explicitly `ENUM`-coded properties;
-> none of the standard properties use it today.
+> (low byte of `C`) is available for explicitly `ENUM`-coded properties.
 
 #### Constraint properties for native layout
 
@@ -235,9 +233,9 @@ delivery (see [EVENTS.md](./EVENTS.md#transport-aware-event-guards-must)).
 | `MAX_VALUE` | `0x2008` | F32 | Inclusive maximum of a `SLIDER`'s range |
 | `LABEL` | `0x200A` | STRING | Caption label of a `TEXT_FIELD` |
 | `PROMPT` | `0x200B` | STRING | Placeholder text of a `TEXT_FIELD` |
-| `ACTION_ID` | `0x2016` | U32 | **Draft.** Bound callback id; gates event delivery for this node |
-| `BINDING_ID` | `0x2017` | U32 | **Draft.** Two-way binding id (control value ↔ app state) |
-| `TOGGLE_STYLE` | `0x2018` | ENUM (F32 code) | **Draft.** Visual style token for a `TOGGLE`: `Switch`=0, `Checkbox`=1, `Button`=2 |
+| `ACTION_ID` | `0x2016` | U32 | Bound callback id; gates event delivery for this node |
+| `BINDING_ID` | `0x2017` | U32 | Two-way binding id (control value ↔ app state) |
+| `TOGGLE_STYLE` | `0x2018` | ENUM (F32 code) | Visual style token for a `TOGGLE`: `Switch`=0, `Checkbox`=1, `Button`=2 |
 
 **`ROLE` enumerated values** (accessibility role; carried as an `F32` numeric code, `value_type::F32`):
 
@@ -579,8 +577,9 @@ network batch.
 
 - **magic / version**: `0x504C504C` (`PLPL`, little-endian on the wire) / `1`.
   A decoder MUST reject batches with a mismatched magic or version.
-- **flags**: direction. `0x0000` = guest → host (tree/style). Bit `0x0001` is
-  reserved for host → guest (raw-input events), not yet implemented.
+- **flags**: direction. `0x0000` = guest → host (tree/style). Bit `0x0001` =
+  host → guest (raw-input events); host → guest batches carry their string
+  payloads in the batch's string section.
 - **frameCount**: the guest frame counter of the batch's first frame (opcodes
   from multiple frames may coalesce into one batch; they remain in order).
 - **arena delta**: the bytes appended to the bump arena since the previous
@@ -611,5 +610,10 @@ Golden byte vectors for this protocol are in [CONFORMANCE.md](./CONFORMANCE.md).
 The protocol's semantic surface is catalogued in three companion documents:
 [PRIMITIVES.md](./PRIMITIVES.md) (the primitive views), [MODIFIERS.md](./MODIFIERS.md)
 (the core modifiers, i.e. the `STYLE` properties), and [EVENTS.md](./EVENTS.md)
-(the core events, i.e. the raw inputs). Draft IDs are allocated there spec-first;
-this file remains the wire-format authority and must be updated when drafts land.
+(the core events, i.e. the raw inputs). IDs are allocated there spec-first;
+this file remains the wire-format authority and must be updated when new IDs
+land.
+
+> **Implementation status** is tracked per implementing project (a `status.md`
+> in each protocol crate/library), **not** in this specification. This document
+> defines the protocol contract only.

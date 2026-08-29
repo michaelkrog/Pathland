@@ -23,13 +23,9 @@ custom modifiers from these core ones.
 - Wire format and value types: [OPCODE.md](./OPCODE.md)
 - Events: [EVENTS.md](./EVENTS.md)
 
-### Status legend
-
-- **✅ Implemented** — the property id exists in `pathland_core::constants` and
-  is exercised by at least one DSL (Rust `pathland-view` or Java
-  `com.pathland.view`) or renderer today.
-- **🚧 Draft** — the property id is **allocated in this document** (spec-first)
-  but not implemented anywhere yet. IDs are reserved and MUST NOT be reused.
+> **Implementation status** is tracked per implementing project (a `status.md`
+> in each protocol crate/library), **not** in this specification. This document
+> defines the protocol contract only.
 
 ### Emission rules
 
@@ -74,22 +70,22 @@ Special `WIDTH`/`HEIGHT` values: `-1.0` = `FILL` (expand to available), `-2.0` =
 
 Arrangement and sizing. These map to the native renderer's layout knobs.
 
-| SwiftUI modifier | Protocol property(ies) | Type | Status | Emission |
-|------------------|------------------------|------|--------|----------|
-| `.frame(width:height:alignment:)` | `WIDTH` 0x100B, `HEIGHT` 0x100C, `ALIGNMENT` 0x0002 | F32, F32, ENUM | ✅ | one `SET_PROPERTY` per provided axis/alignment |
-| `.frame(minWidth:idealWidth:maxWidth:minHeight:idealHeight:maxHeight:)` | `MIN_WIDTH` 0x0012, `IDEAL_WIDTH` 0x0013, `MAX_WIDTH` 0x0014, `MIN_HEIGHT` 0x0015, `IDEAL_HEIGHT` 0x0016, `MAX_HEIGHT` 0x0017 | F32 | 🚧 | one `SET_PROPERTY` per provided bound |
-| `.padding(_:)`, `.padding(edges:)`, `.padding(_:edges:)` | `PADDING` 0x1011, `PADDING_TOP` 0x1012, `PADDING_RIGHT` 0x1013, `PADDING_BOTTOM` 0x1014, `PADDING_LEFT` 0x1015 | F32 | ✅ | uniform → one; per-edge → per-edge |
-| `.offset(x:y:)` | `OFFSET_X` 0x000E, `OFFSET_Y` 0x000F | F32 | 🚧 | two |
-| `.position(x:y:)` | `POSITION_X` 0x0010, `POSITION_Y` 0x0011 | F32 | 🚧 | two |
-| `.fixedSize()` / `.fixedSize(horizontal:vertical:)` | `FIXED_SIZE_HORIZONTAL` 0x0018, `FIXED_SIZE_VERTICAL` 0x0019 | U8 (0/1) | 🚧 | two (or one when axis-limited) |
-| `.layoutPriority(_:)` | `LAYOUT_PRIORITY` 0x001A | F32 | 🚧 | one |
-| `.zIndex(_:)` | `Z_INDEX` 0x100F | F32 | ✅ | one |
-| `.aspectRatio(_:contentMode:)` | `ASPECT_RATIO` 0x001B, `CONTENT_MODE` 0x001C | F32, ENUM | 🚧 | two |
-| `.scaledToFit()` | `CONTENT_MODE` 0x001C | ENUM (`Fit`=0) | 🚧 | one |
-| `.scaledToFill()` | `CONTENT_MODE` 0x001C | ENUM (`Fill`=1) | 🚧 | one |
-| `.minimumScaleFactor(_:)` | `MINIMUM_SCALE_FACTOR` 0x001D | F32 | 🚧 | one |
-| `.spacing(_:)` (stacks) | `SPACING` 0x0001 | F32 | ✅ | one |
-| `Spacer` | — (implied by component) | — | ✅ | none |
+| SwiftUI modifier | Protocol property(ies) | Type | Emission |
+| ------------------ | ------------------------ | ------ | ---------- |
+| `.frame(width:height:alignment:)` | `WIDTH` 0x100B, `HEIGHT` 0x100C, `ALIGNMENT` 0x0002 | F32, F32, ENUM | one `SET_PROPERTY` per provided axis/alignment |
+| `.frame(minWidth:idealWidth:maxWidth:minHeight:idealHeight:maxHeight:)` | `MIN_WIDTH` 0x0012, `IDEAL_WIDTH` 0x0013, `MAX_WIDTH` 0x0014, `MIN_HEIGHT` 0x0015, `IDEAL_HEIGHT` 0x0016, `MAX_HEIGHT` 0x0017 | F32 | one `SET_PROPERTY` per provided bound |
+| `.padding(_:)`, `.padding(edges:)`, `.padding(_:edges:)` | `PADDING` 0x1011, `PADDING_TOP` 0x1012, `PADDING_RIGHT` 0x1013, `PADDING_BOTTOM` 0x1014, `PADDING_LEFT` 0x1015 | F32 | uniform → one; per-edge → per-edge |
+| `.offset(x:y:)` | `OFFSET_X` 0x000E, `OFFSET_Y` 0x000F | F32 | two |
+| `.position(x:y:)` | `POSITION_X` 0x0010, `POSITION_Y` 0x0011 | F32 | two |
+| `.fixedSize()` / `.fixedSize(horizontal:vertical:)` | `FIXED_SIZE_HORIZONTAL` 0x0018, `FIXED_SIZE_VERTICAL` 0x0019 | U8 (0/1) | two (or one when axis-limited) |
+| `.layoutPriority(_:)` | `LAYOUT_PRIORITY` 0x001A | F32 | one |
+| `.zIndex(_:)` | `Z_INDEX` 0x100F | F32 | one |
+| `.aspectRatio(_:contentMode:)` | `ASPECT_RATIO` 0x001B, `CONTENT_MODE` 0x001C | F32, ENUM | two |
+| `.scaledToFit()` | `CONTENT_MODE` 0x001C | ENUM (`Fit`=0) | one |
+| `.scaledToFill()` | `CONTENT_MODE` 0x001C | ENUM (`Fill`=1) | one |
+| `.minimumScaleFactor(_:)` | `MINIMUM_SCALE_FACTOR` 0x001D | F32 | one |
+| `.spacing(_:)` (stacks) | `SPACING` 0x0001 | F32 | one |
+| `Spacer` | — (implied by component) | — | none |
 
 ### Semantics
 
@@ -119,29 +115,28 @@ Arrangement and sizing. These map to the native renderer's layout knobs.
 Apply to `Text`, `Label`, `Button` labels, and text-bearing controls. Renderers
 map them to their native text attributes.
 
-| SwiftUI modifier | Protocol property(ies) | Type | Status | Emission |
-|------------------|------------------------|------|--------|----------|
-| `.font(.system(size:))` | `FONT_SIZE` 0x1007 | F32 | ✅ | one |
-| `.fontWeight(_:)` | `FONT_WEIGHT` 0x1008 | F32 (100–900) | ✅ | one |
-| `.font(.custom(name:size:))` | `FONT_FAMILY` 0x1009 | STRING | ✅* | one (arenaRef) |
-| `.italic()` / `.fontStyle(_:)` | `FONT_STYLE` 0x1017 | ENUM (`Normal`=0, `Italic`=1) | 🚧 | one |
-| `.fontDesign(_:)` | `FONT_DESIGN` 0x1018 | ENUM (`Default`=0, `Serif`=1, `Rounded`=2, `Monospaced`=3) | 🚧 | one |
-| `.fontWidth(_:)` | `FONT_WIDTH` 0x1019 | F32 (0.5–1.5, 1.0 default) | 🚧 | one |
-| `.kerning(_:)` | `KERNING` 0x101A | F32 | 🚧 | one |
-| `.tracking(_:)` | `TRACKING` 0x101B | F32 | 🚧 | one |
-| `.baselineOffset(_:)` | `BASELINE_OFFSET` 0x101C | F32 | 🚧 | one |
-| `.lineSpacing(_:)` | `LINE_SPACING` 0x101D | F32 | 🚧 | one |
-| `.lineLimit(_:)` | `LINE_LIMIT` 0x000B | U32 | ✅ | one |
-| `.multilineTextAlignment(_:)` | `TEXT_ALIGNMENT` 0x000C | ENUM (`Leading`=0, `Center`=1, `Trailing`=2) | ✅ | one |
-| `.truncationMode(_:)` | `TRUNCATION_MODE` 0x000D | ENUM (`Head`=0, `Middle`=1, `Tail`=2) | ✅ | one |
-| `.textCase(_:)` | `TEXT_CASE` 0x101E | ENUM (`None`=0, `Uppercase`=1, `Lowercase`=2) | 🚧 | one |
-| `.underline()` | `UNDERLINE` 0x101F | U8 (0/1) | 🚧 | one |
-| `.strikethrough()` | `STRIKETHROUGH` 0x1020 | U8 (0/1) | 🚧 | one |
-| `.foregroundColor(_:)` | `COLOR` 0x100A | COLOR | ✅ | one |
+| SwiftUI modifier | Protocol property(ies) | Type | Emission |
+| ------------------ | ------------------------ | ------ | ---------- |
+| `.font(.system(size:))` | `FONT_SIZE` 0x1007 | F32 | one |
+| `.fontWeight(_:)` | `FONT_WEIGHT` 0x1008 | F32 (100–900) | one |
+| `.font(.custom(name:size:))` | `FONT_FAMILY` 0x1009 | STRING | one (arenaRef) |
+| `.italic()` / `.fontStyle(_:)` | `FONT_STYLE` 0x1017 | ENUM (`Normal`=0, `Italic`=1) | one |
+| `.fontDesign(_:)` | `FONT_DESIGN` 0x1018 | ENUM (`Default`=0, `Serif`=1, `Rounded`=2, `Monospaced`=3) | one |
+| `.fontWidth(_:)` | `FONT_WIDTH` 0x1019 | F32 (0.5–1.5, 1.0 default) | one |
+| `.kerning(_:)` | `KERNING` 0x101A | F32 | one |
+| `.tracking(_:)` | `TRACKING` 0x101B | F32 | one |
+| `.baselineOffset(_:)` | `BASELINE_OFFSET` 0x101C | F32 | one |
+| `.lineSpacing(_:)` | `LINE_SPACING` 0x101D | F32 | one |
+| `.lineLimit(_:)` | `LINE_LIMIT` 0x000B | U32 | one |
+| `.multilineTextAlignment(_:)` | `TEXT_ALIGNMENT` 0x000C | ENUM (`Leading`=0, `Center`=1, `Trailing`=2) | one |
+| `.truncationMode(_:)` | `TRUNCATION_MODE` 0x000D | ENUM (`Head`=0, `Middle`=1, `Tail`=2) | one |
+| `.textCase(_:)` | `TEXT_CASE` 0x101E | ENUM (`None`=0, `Uppercase`=1, `Lowercase`=2) | one |
+| `.underline()` | `UNDERLINE` 0x101F | U8 (0/1) | one |
+| `.strikethrough()` | `STRIKETHROUGH` 0x1020 | U8 (0/1) | one |
+| `.foregroundColor(_:)` | `COLOR` 0x100A | COLOR | one |
 
 \* `FONT_FAMILY` is a `STRING` property (arenaRef), matching SwiftUI, which
-passes font families as string names (`.font(.custom("Georgia", size:))`). The
-reference `value_type_for` / `forProperty` helpers return `STRING` for it.
+passes font families as string names (`.font(.custom("Georgia", size:))`).
 
 ### Semantics
 
@@ -159,24 +154,24 @@ reference `value_type_for` / `forProperty` helpers return `STRING` for it.
 
 Visual decoration. These never change layout; they decorate the element.
 
-| SwiftUI modifier | Protocol property(ies) | Type | Status | Emission |
-|------------------|------------------------|------|--------|----------|
-| `.background(_:)` | `BACKGROUND_COLOR` 0x1001 | COLOR | ✅ | one |
-| `.border(_:width:)` | `BORDER_COLOR` 0x1004, `BORDER_WIDTH` 0x1003 | COLOR, F32 | ✅ | two |
-| `.border(_:width:edges:)` | `BORDER_COLOR`, `BORDER_WIDTH`, `BORDER_EDGES` 0x1016 | COLOR, F32, U32 (bitmask) | ✅ | three |
-| `.cornerRadius(_:)` | `BORDER_RADIUS` 0x1005 | F32 | ✅ | one |
-| `.shadow(color:radius:x:y:)` | `SHADOW_COLOR` 0x1021, `SHADOW_RADIUS` 0x1022, `SHADOW_X` 0x1023, `SHADOW_Y` 0x1024 | COLOR, F32, F32, F32 | 🚧 | four |
-| `.opacity(_:)` | `OPACITY` 0x100D | F32 (0–1) | ✅ | one |
-| `.blur(radius:)` | `BLUR_RADIUS` 0x1025 | F32 | 🚧 | one |
-| `.saturation(_:)` | `SATURATION` 0x1026 | F32 (0–1) | 🚧 | one |
-| `.contrast(_:)` | `CONTRAST` 0x1027 | F32 (0–1) | 🚧 | one |
-| `.brightness(_:)` | `BRIGHTNESS` 0x1028 | F32 (−1–1) | 🚧 | one |
-| `.grayscale(_:)` | `GRAYSCALE` 0x1029 | F32 (0–1) | 🚧 | one |
-| `.hueRotation(_:)` | `HUE_ROTATION` 0x102A | F32 (degrees) | 🚧 | one |
-| `.colorMultiply(_:)` | `COLOR_MULTIPLY` 0x102B | COLOR | 🚧 | one |
-| `.colorInvert()` | `COLOR_INVERT` 0x102C | U8 (0/1) | 🚧 | one |
-| `.clipped()` / `.clipsToBounds` | `CLIPS_TO_BOUNDS` 0x1010 | U8 (0/1) | ✅ | one |
-| `.clipShape(_:)` | `CLIPS_TO_BOUNDS` 0x1010 + `SHAPE_KIND` 0x0006 | U8 + ENUM | 🚧 | two (see note) |
+| SwiftUI modifier | Protocol property(ies) | Type | Emission |
+| ------------------ | ------------------------ | ------ | ---------- |
+| `.background(_:)` | `BACKGROUND_COLOR` 0x1001 | COLOR | one |
+| `.border(_:width:)` | `BORDER_COLOR` 0x1004, `BORDER_WIDTH` 0x1003 | COLOR, F32 | two |
+| `.border(_:width:edges:)` | `BORDER_COLOR`, `BORDER_WIDTH`, `BORDER_EDGES` 0x1016 | COLOR, F32, U32 (bitmask) | three |
+| `.cornerRadius(_:)` | `BORDER_RADIUS` 0x1005 | F32 | one |
+| `.shadow(color:radius:x:y:)` | `SHADOW_COLOR` 0x1021, `SHADOW_RADIUS` 0x1022, `SHADOW_X` 0x1023, `SHADOW_Y` 0x1024 | COLOR, F32, F32, F32 | four |
+| `.opacity(_:)` | `OPACITY` 0x100D | F32 (0–1) | one |
+| `.blur(radius:)` | `BLUR_RADIUS` 0x1025 | F32 | one |
+| `.saturation(_:)` | `SATURATION` 0x1026 | F32 (0–1) | one |
+| `.contrast(_:)` | `CONTRAST` 0x1027 | F32 (0–1) | one |
+| `.brightness(_:)` | `BRIGHTNESS` 0x1028 | F32 (−1–1) | one |
+| `.grayscale(_:)` | `GRAYSCALE` 0x1029 | F32 (0–1) | one |
+| `.hueRotation(_:)` | `HUE_ROTATION` 0x102A | F32 (degrees) | one |
+| `.colorMultiply(_:)` | `COLOR_MULTIPLY` 0x102B | COLOR | one |
+| `.colorInvert()` | `COLOR_INVERT` 0x102C | U8 (0/1) | one |
+| `.clipped()` / `.clipsToBounds` | `CLIPS_TO_BOUNDS` 0x1010 | U8 (0/1) | one |
+| `.clipShape(_:)` | `CLIPS_TO_BOUNDS` 0x1010 + `SHAPE_KIND` 0x0006 | U8 + ENUM | two (see note) |
 
 ### Semantics
 
@@ -201,10 +196,10 @@ Visual decoration. These never change layout; they decorate the element.
 
 Geometric transforms applied after layout.
 
-| SwiftUI modifier | Protocol property(ies) | Type | Status | Emission |
-|------------------|------------------------|------|--------|----------|
-| `.rotationEffect(_:anchor:)` | `ROTATION_DEGREES` 0x102D | F32 (degrees, counter-clockwise) | 🚧 | one (anchor is renderer-token-owned) |
-| `.scaleEffect(_:anchor:)` | `SCALE` 0x102E | F32 (uniform scale) | 🚧 | one (anchor is renderer-token-owned) |
+| SwiftUI modifier | Protocol property(ies) | Type | Emission |
+| ------------------ | ------------------------ | ------ | ---------- |
+| `.rotationEffect(_:anchor:)` | `ROTATION_DEGREES` 0x102D | F32 (degrees, counter-clockwise) | one (anchor is renderer-token-owned) |
+| `.scaleEffect(_:anchor:)` | `SCALE` 0x102E | F32 (uniform scale) | one (anchor is renderer-token-owned) |
 
 ### Semantics
 
@@ -222,16 +217,16 @@ Geometric transforms applied after layout.
 Semantic properties controlling whether and how an element responds to input,
 plus accessibility. These are the "semantic" (`0x2000`) properties.
 
-| SwiftUI modifier | Protocol property | Type | Status | Emission |
-|------------------|-------------------|------|--------|----------|
-| `.hidden()` | `VISIBLE` 0x100E | U8 (0 = hidden) | ✅ | one |
-| `.disabled(_:)` | `ENABLED` 0x2003 | U8 (1 = enabled) | ✅ | one |
-| `.allowsHitTesting(_:)` | `ALLOWS_HIT_TESTING` 0x102F | U8 (0/1) | 🚧 | one |
-| `.controlSize(_:)` | `CONTROL_SIZE` 0x200C | ENUM (`Small`=0, `Regular`=1, `Large`=2) | 🚧 | one |
-| `.focusable(_:)` | — (via `FOCUS` listener) | — | 🚧 | none (declares `EVENT_LISTENERS` bit 5) |
-| `.accessibilityLabel(_:)` | `LABEL` 0x200A | STRING | ✅ | one (arenaRef) |
-| `.accessibilityRole(_:)` | `ROLE` 0x2001 | ENUM | ✅ | one |
-| `.accessibilityState(_:)` | `STATE` 0x2002 | ENUM | ✅ | one |
+| SwiftUI modifier | Protocol property | Type | Emission |
+| ------------------ | ------------------- | ------ | ---------- |
+| `.hidden()` | `VISIBLE` 0x100E | U8 (0 = hidden) | one |
+| `.disabled(_:)` | `ENABLED` 0x2003 | U8 (1 = enabled) | one |
+| `.allowsHitTesting(_:)` | `ALLOWS_HIT_TESTING` 0x102F | U8 (0/1) | one |
+| `.controlSize(_:)` | `CONTROL_SIZE` 0x200C | ENUM (`Small`=0, `Regular`=1, `Large`=2) | one |
+| `.focusable(_:)` | — (via `FOCUS` listener) | — | none (declares `EVENT_LISTENERS` bit 5) |
+| `.accessibilityLabel(_:)` | `LABEL` 0x200A | STRING | one (arenaRef) |
+| `.accessibilityRole(_:)` | `ROLE` 0x2001 | ENUM | one |
+| `.accessibilityState(_:)` | `STATE` 0x2002 | ENUM | one |
 
 ### Semantics
 
@@ -255,21 +250,21 @@ plus accessibility. These are the "semantic" (`0x2000`) properties.
 
 ### Allocated property IDs
 
-| Range | Group | Status |
-|-------|-------|--------|
-| `0x0001`–`0x0005` | Stack constraint (SPACING, ALIGNMENT, …, CONTENT_MARGINS) | ✅ |
-| `0x0006` | `SHAPE_KIND` (ENUM; view-specific, see PRIMITIVES.md) | 🚧 |
-| `0x000A`–`0x000D` | Text (TEXT, LINE_LIMIT, TEXT_ALIGNMENT, TRUNCATION_MODE) | ✅ |
-| `0x000E`–`0x001D` | Layout drafts (OFFSET, POSITION, frame bounds, FIXED_SIZE, LAYOUT_PRIORITY, ASPECT_RATIO/CONTENT_MODE, MINIMUM_SCALE_FACTOR) | 🚧 |
-| `0x001E`–`0x00FF` | Future layout/format properties (unallocated) | — |
-| `0x1001`–`0x1016` | Styling (BACKGROUND_COLOR, BORDER_*, FONT_SIZE/WEIGHT/FAMILY, COLOR, WIDTH, HEIGHT, OPACITY, VISIBLE, Z_INDEX, CLIPS_TO_BOUNDS, PADDING_*, BORDER_EDGES) | ✅ |
-| `0x1002` | `IMAGE_SOURCE` (STRING; view-specific, see PRIMITIVES.md) | 🚧 |
-| `0x1017`–`0x102F` | Text-format drafts (FONT_STYLE/DESIGN/WIDTH, KERNING, TRACKING, BASELINE_OFFSET, LINE_SPACING, TEXT_CASE, UNDERLINE, STRIKETHROUGH), effect drafts (SHADOW_*, BLUR, SATURATION, CONTRAST, BRIGHTNESS, GRAYSCALE, HUE_ROTATION, COLOR_MULTIPLY, COLOR_INVERT), ROTATION_DEGREES, SCALE, ALLOWS_HIT_TESTING | 🚧 |
-| `0x1030`–`0x10FF` | Future styling properties (unallocated) | — |
-| `0x2001`–`0x200B` | Semantic (ROLE, STATE, ENABLED, SELECTED, EVENT_LISTENERS, VALUE, MIN_VALUE, MAX_VALUE, LABEL, PROMPT) | ✅ |
-| `0x2009`, `0x200C`–`0x2014` | Control drafts (STEP_VALUE, CONTROL_SIZE, IS_SECURE, PROGRESS, IS_INDETERMINATE, SELECTION, COLOR_VALUE, DATE_PICKER_MODE, PICKER_STYLE) — defined in PRIMITIVES.md controls. Note: a `DATE_PICKER`'s date is set via the `STYLE::SET_DATE` command (0x04), not a property; **`0x2011` is unallocated/reserved** (its former `DATE_VALUE` draft was dropped) | 🚧 |
-| `0x2016`–`0x2018` | Binding/action drafts (`ACTION_ID`, `BINDING_ID`, `TOGGLE_STYLE`) — defined in PRIMITIVES.md semantic controls | 🚧 |
-| `0x2015`, `0x2019`–`0x20FF` | Future semantic properties (unallocated) | — |
+| Range | Group |
+| ------- | ------- |
+| `0x0001`–`0x0005` | Stack constraint (SPACING, ALIGNMENT, …, CONTENT_MARGINS) |
+| `0x0006` | `SHAPE_KIND` (ENUM; view-specific, see PRIMITIVES.md) |
+| `0x000A`–`0x000D` | Text (TEXT, LINE_LIMIT, TEXT_ALIGNMENT, TRUNCATION_MODE) |
+| `0x000E`–`0x001D` | Layout properties (allocated: OFFSET, POSITION, frame bounds, FIXED_SIZE, LAYOUT_PRIORITY, ASPECT_RATIO/CONTENT_MODE, MINIMUM_SCALE_FACTOR) |
+| `0x001E`–`0x00FF` | Future layout/format properties (unallocated) |
+| `0x1001`–`0x1016` | Styling (BACKGROUND_COLOR, BORDER_*, FONT_SIZE/WEIGHT/FAMILY, COLOR, WIDTH, HEIGHT, OPACITY, VISIBLE, Z_INDEX, CLIPS_TO_BOUNDS, PADDING_*, BORDER_EDGES) |
+| `0x1002` | `IMAGE_SOURCE` (STRING; view-specific, see PRIMITIVES.md) |
+| `0x1017`–`0x102F` | Text-format properties (allocated: FONT_STYLE/DESIGN/WIDTH, KERNING, TRACKING, BASELINE_OFFSET, LINE_SPACING, TEXT_CASE, UNDERLINE, STRIKETHROUGH), effect properties (SHADOW_*, BLUR, SATURATION, CONTRAST, BRIGHTNESS, GRAYSCALE, HUE_ROTATION, COLOR_MULTIPLY, COLOR_INVERT), ROTATION_DEGREES, SCALE, ALLOWS_HIT_TESTING |
+| `0x1030`–`0x10FF` | Future styling properties (unallocated) |
+| `0x2001`–`0x200B` | Semantic (ROLE, STATE, ENABLED, SELECTED, EVENT_LISTENERS, VALUE, MIN_VALUE, MAX_VALUE, LABEL, PROMPT) |
+| `0x2009`, `0x200C`–`0x2014` | Control properties (allocated: STEP_VALUE, CONTROL_SIZE, IS_SECURE, PROGRESS, IS_INDETERMINATE, SELECTION, COLOR_VALUE, DATE_PICKER_MODE, PICKER_STYLE) — defined in PRIMITIVES.md controls. Note: a `DATE_PICKER`'s date is set via the `STYLE::SET_DATE` command (0x04), not a property; **`0x2011` is unallocated/reserved** (its former `DATE_VALUE` draft was dropped) |
+| `0x2016`–`0x2018` | Binding/action properties (allocated: `ACTION_ID`, `BINDING_ID`, `TOGGLE_STYLE`) — defined in PRIMITIVES.md semantic controls |
+| `0x2015`, `0x2019`–`0x20FF` | Future semantic properties (unallocated) |
 
 ### Reserved ranges
 
@@ -283,8 +278,7 @@ A renderer MUST ignore unknown property ids and continue decoding.
 
 ### Default value type resolution
 
-The canonical value type per property (the protocol's authoritative mapping;
-the reference `value_type_for` / `forProperty` helpers are aligned with it):
+The canonical value type per property (the protocol's authoritative mapping):
 
 - `COLOR`, `BACKGROUND_COLOR`, `BORDER_COLOR`, `COLOR_MULTIPLY`,
   `SHADOW_COLOR`, `COLOR_VALUE` → `COLOR`
@@ -306,8 +300,8 @@ the reference `value_type_for` / `forProperty` helpers are aligned with it):
 
 Single authoritative source for every enum-valued property in the protocol.
 A renderer or emitter MUST use these exact numeric codes. The code is carried
-in the property value as an **f32 bit pattern** (`value_type::F32`), matching
-the reference implementations — see the [value-type
+in the property value as an **f32 bit pattern** (`value_type::F32`) — see the
+[value-type
 conventions](./OPCODE.md#value-types) and the [default value type
 resolution](#default-value-type-resolution).
 

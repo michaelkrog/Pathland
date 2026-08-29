@@ -290,8 +290,15 @@ tests (golden byte layout + round-trips), replacing the old codegen assert pass.
 The semantic surface is catalogued in the companion specs: **`spec/PRIMITIVES.md`**
 (primitive views + component IDs), **`spec/MODIFIERS.md`** (core modifiers = the
 `STYLE` properties), **`spec/EVENTS.md`** (core events + listener bits). The
-tables below are a quick recap of what's implemented; the companion files carry
-the draft IDs.
+tables below are a quick recap of the protocol surface; the companion files
+carry the authoritative ID allocations.
+
+> **Implementation status lives in each project's `status.md`**, not in the
+> specs: `lib/rust/crates/pathland-core/status.md`,
+> `lib/rust/crates/pathland-render-gtk/status.md`,
+> `lib/rust/crates/pathland-render-html/status.md`,
+> `lib/java/pathland-view/status.md`, `lib/java/pathland-render-html/status.md`,
+> `lib/angular/status.md`, and the other Rust crates' `status.md` files.
 
 ### Opcode Format
 
@@ -320,31 +327,31 @@ Grouped ranges (see `spec/PRIMITIVES.md`):
 |-------|-----------|----|
 | **Primitive Drawing (0x01–0x0F)** | TEXT | 0x01 |
 | | IMAGE | 0x02 |
-| | COLOR (draft node) | 0x03 |
-| | SHAPE (draft; `SHAPE_KIND`) | 0x04 |
-| | DIVIDER (draft) | 0x05 |
+| | COLOR | 0x03 |
+| | SHAPE | 0x04 |
+| | DIVIDER | 0x05 |
 | | SPACER | 0x06 |
-| | PROGRESS_VIEW (draft) | 0x07 |
-| | GAUGE (draft) | 0x08 |
+| | PROGRESS_VIEW | 0x07 |
+| | GAUGE | 0x08 |
 | **Layout & Container (0x10–0x1F)** | VSTACK | 0x10 |
 | | HSTACK | 0x11 |
-| | ZSTACK (draft) | 0x12 |
+| | ZSTACK | 0x12 |
 | | GRID | 0x13 |
 | | SCROLLVIEW | 0x14 |
-| | LAZY_VGRID (draft) | 0x15 |
-| | LAZY_HGRID (draft) | 0x16 |
-| | LAZY_VSTACK (draft) | 0x1B |
-| | LAZY_HSTACK (draft) | 0x1C |
+| | LAZY_VGRID | 0x15 |
+| | LAZY_HGRID | 0x16 |
+| | LAZY_VSTACK | 0x1B |
+| | LAZY_HSTACK | 0x1C |
 | **Semantic Control (0x20–0x2F)** | BUTTON | 0x20 |
 | | TEXT_FIELD (secure via `IS_SECURE`) | 0x21 |
-| | TEXT_EDITOR (draft) | 0x22 |
+| | TEXT_EDITOR | 0x22 |
 | | TOGGLE (`TOGGLE_STYLE`: Switch/Checkbox/Button) | 0x24 |
 | | SLIDER | 0x25 |
-| | STEPPER (draft) | 0x26 |
-| | DATE_PICKER (draft) | 0x27 |
-| | PICKER (draft) | 0x28 |
-| | MENU (draft) | 0x29 |
-| | COLOR_PICKER (draft) | 0x2A |
+| | STEPPER | 0x26 |
+| | DATE_PICKER | 0x27 |
+| | PICKER | 0x28 |
+| | MENU | 0x29 |
+| | COLOR_PICKER | 0x2A |
 | **Utility** | COMMENT | 0x7F |
 
 ### Key Property IDs
@@ -354,7 +361,7 @@ Grouped ranges (see `spec/PRIMITIVES.md`):
 **Style**: COLOR=0x100A, FONT_SIZE=0x1007, FONT_WEIGHT=0x1008, FONT_FAMILY=0x1009, BACKGROUND_COLOR=0x1001, BORDER_WIDTH=0x1003, BORDER_COLOR=0x1004, BORDER_RADIUS=0x1005, OPACITY=0x100D, VISIBLE=0x100E, Z_INDEX=0x100F, CLIPS_TO_BOUNDS=0x1010, PADDING=0x1011, PADDING_TOP/RIGHT/BOTTOM/LEFT=0x1012-0x1015  
 **Special**: WIDTH=0x100B (use -1=FILL, -2=HUG_CONTENT), HEIGHT=0x100C  
 **Semantic**: ROLE=0x2001, STATE=0x2002, ENABLED=0x2003, SELECTED=0x2004, EVENT_LISTENERS=0x2005 (u32 bitmask — which raw events a node wants reported), VALUE=0x2006, MIN_VALUE=0x2007, MAX_VALUE=0x2008, LABEL=0x200A, PROMPT=0x200B  
-**Draft binding/action**: ACTION_ID=0x2016, BINDING_ID=0x2017, TOGGLE_STYLE=0x2018 (Switch=0, Checkbox=1, Button=2)
+**Binding/action**: ACTION_ID=0x2016, BINDING_ID=0x2017, TOGGLE_STYLE=0x2018 (Switch=0, Checkbox=1, Button=2)
 
 ### Colors
 
@@ -380,20 +387,34 @@ Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
 2. Document in `spec/OPCODE.md`
 3. Implement the component type in `pathland-core` (if it affects the retained tree)
 4. Implement native-element mapping in the target renderer (Goal 3–5)
+5. Update the affected project(s)' `status.md`
 
 ### Adding New Property
 1. Add to the appropriate property module in `constants.rs`
 2. Document in `spec/OPCODE.md`
 3. Handle the value type in `pathland-core`'s diff emission (if a stack/text/size property)
 4. Implement in each renderer's property application
+5. Update the affected project(s)' `status.md`
 
 ### Modifying Protocol
 1. Update `spec/OPCODE.md` first (and `spec/CONFORMANCE.md` vectors)
 2. Update `constants.rs` and `pathland-core` encoding/emitters
 3. Verify backward compatibility; update `pathland-core`/`pathland-render-gtk` + tests
+4. Update the affected project(s)' `status.md`
 
 ### Changing the Wire Format
 - Bump the wire `version` field in `spec/OPCODE.md` and `pathland-core`'s header (currently 1). Pre-release format changes are acceptable while version stays 1.
+
+### Keeping implementation status updated (MANDATORY)
+
+**The agent MUST keep the per-project `status.md` files in sync with the code.**
+Whenever you land a protocol or renderer change — a new component/property/
+command/event, a new encoder/decoder, a new widget mapping, a new modifier or
+renderer feature, a test that proves new surface — **update the affected
+project's `status.md`** (Implemented / Not implemented / gaps) in the same
+change. The specs (`spec/`) describe the protocol contract only and MUST NOT
+carry implementation status; status lives in `status.md` next to each
+implementing project.
 
 ---
 

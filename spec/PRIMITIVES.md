@@ -45,15 +45,10 @@ Mapping Range](#definitive-opcode-mapping-range)):
 | [EVENTS.md](./EVENTS.md) | Which **core events** (raw inputs) exist and how they encode |
 | [CONFORMANCE.md](./CONFORMANCE.md) | Golden byte vectors |
 
-### Status legend
-
-- **✅ Implemented** — the component type and/or property exists in
-  `pathland_core::constants` and is exercised by the Rust engine, the Java DSL,
-  or a renderer today.
-- **🚧 Draft** — the protocol ID is **allocated** in this document (spec-first,
-  per the "modify the spec first" rule) but the primitive is not implemented
-  anywhere yet. IDs are reserved and MUST NOT be reused; implementers may start
-  on them.
+> **Implementation status** is tracked per implementing project (a `status.md`
+> in each protocol crate/library — `pathland-core`, `pathland-render-gtk`,
+> `pathland-render-html`, the Java libraries, the Angular renderer), **not** in
+> this specification. This document defines the protocol contract only.
 
 > **Enum-valued properties** (marked `ENUM` in the tables below) are carried on
 > the wire with the `F32` value type, holding the numeric enum code as an f32
@@ -167,57 +162,57 @@ with SwiftUI's view categories and are the **single authoritative allocation**.
 
 ### A. Primitive Drawing & Visual Nodes (`0x01`–`0x0F`)
 
-| ID | Component | Status | Notes |
-|----|-----------|--------|-------|
-| `0x01` | `TEXT` | ✅ | Standard styled text display |
-| `0x02` | `IMAGE` | ✅ | Raster, vector, or system icon asset (SF Symbols, material icons) |
-| `0x03` | `COLOR` | 🚧 | Solid color / layout-filling background view (new node; formerly a property value only) |
-| `0x04` | `SHAPE` | 🚧 | Vector geometries via `SHAPE_KIND` (`Rectangle`, `Circle`, `Capsule`, `Path`, …) |
-| `0x05` | `DIVIDER` | 🚧 | Axis-aligned separator line |
-| `0x06` | `SPACER` | ✅ | Flexible expanding layout filler |
-| `0x07` | `PROGRESS_VIEW` | 🚧 | Activity indicator / determinate progress |
-| `0x08` | `GAUGE` | 🚧 | Range meter against a scale |
-| `0x09`–`0x0F` | — | free | Future drawing/visual nodes |
+| ID | Component | Notes |
+| ---- | ----------- | ------- |
+| `0x01` | `TEXT` | Standard styled text display |
+| `0x02` | `IMAGE` | Raster, vector, or system icon asset (SF Symbols, material icons) |
+| `0x03` | `COLOR` | Solid color / layout-filling background view (new node; formerly a property value only) |
+| `0x04` | `SHAPE` | Vector geometries via `SHAPE_KIND` (`Rectangle`, `Circle`, `Capsule`, `Path`, …) |
+| `0x05` | `DIVIDER` | Axis-aligned separator line |
+| `0x06` | `SPACER` | Flexible expanding layout filler |
+| `0x07` | `PROGRESS_VIEW` | Activity indicator / determinate progress |
+| `0x08` | `GAUGE` | Range meter against a scale |
+| `0x09`–`0x0F` | — | Future drawing/visual nodes |
 
 ### B. Layout & Container Primitives (`0x10`–`0x1F`)
 
-| ID | Component | Status | Notes |
-|----|-----------|--------|-------|
-| `0x10` | `VSTACK` | ✅ | Vertical flex stack layout |
-| `0x11` | `HSTACK` | ✅ | Horizontal flex stack layout |
-| `0x12` | `ZSTACK` | 🚧 | Depth-overlapping layer stack layout |
-| `0x13` | `GRID` | ✅ | Static 2D matrix grid (eagerly rendered, aligned rows & columns) |
-| `0x14` | `SCROLLVIEW` | ✅ | Scrollable content container |
-| `0x15` | `LAZY_VGRID` | 🚧 | Virtualized vertical grid container (windowed rendering for large datasets) |
-| `0x16` | `LAZY_HGRID` | 🚧 | Virtualized horizontal grid container |
-| `0x17`–`0x1A` | — | reserved | Formerly `List`/`NavigationStack`/`NavigationSplitView` (composites, removed) — never reused |
-| `0x1B` | `LAZY_VSTACK` | 🚧 | Virtualized vertical stack |
-| `0x1C` | `LAZY_HSTACK` | 🚧 | Virtualized horizontal stack |
-| `0x1D`–`0x1F` | — | free | Future layout/container nodes |
+| ID | Component | Notes |
+| ---- | ----------- | ------- |
+| `0x10` | `VSTACK` | Vertical flex stack layout |
+| `0x11` | `HSTACK` | Horizontal flex stack layout |
+| `0x12` | `ZSTACK` | Depth-overlapping layer stack layout |
+| `0x13` | `GRID` | Static 2D matrix grid (eagerly rendered, aligned rows & columns) |
+| `0x14` | `SCROLLVIEW` | Scrollable content container |
+| `0x15` | `LAZY_VGRID` | Virtualized vertical grid container (windowed rendering for large datasets) |
+| `0x16` | `LAZY_HGRID` | Virtualized horizontal grid container |
+| `0x17`–`0x1A` | — | Formerly `List`/`NavigationStack`/`NavigationSplitView` (composites, removed) — never reused |
+| `0x1B` | `LAZY_VSTACK` | Virtualized vertical stack |
+| `0x1C` | `LAZY_HSTACK` | Virtualized horizontal stack |
+| `0x1D`–`0x1F` | — | Future layout/container nodes |
 
 ### C. Semantic Control Nodes (`0x20`–`0x2F`)
 
-| ID | Component | Status | Notes |
-|----|-----------|--------|-------|
-| `0x20` | `BUTTON` | ✅ | Action trigger control |
-| `0x21` | `TEXT_FIELD` / `SECURE_FIELD` | ✅ | Single-line text input (`IS_SECURE` token for secure variant) |
-| `0x22` | `TEXT_EDITOR` | 🚧 | Multi-line text editing area (new) |
-| `0x23` | — | free | Future semantic control |
-| `0x24` | `TOGGLE` | ✅ | Boolean switch, checkbox, or button control (`TOGGLE_STYLE`) |
-| `0x25` | `SLIDER` | ✅ | Continuous or stepped numeric range control |
-| `0x26` | `STEPPER` | 🚧 | Discrete increment/decrement control |
-| `0x27` | `DATE_PICKER` | 🚧 | Date & time selection modal/popover control |
-| `0x28` | `PICKER` | 🚧 | Selection control (segment, dropdown menu, or wheel) |
-| `0x29` | `MENU` | 🚧 | Contextual action trigger + popover container |
-| `0x2A` | `COLOR_PICKER` | 🚧 | Native system color picker control |
-| `0x2B`–`0x2F` | — | free | Future semantic controls |
+| ID | Component | Notes |
+| ---- | ----------- | ------- |
+| `0x20` | `BUTTON` | Action trigger control |
+| `0x21` | `TEXT_FIELD` / `SECURE_FIELD` | Single-line text input (`IS_SECURE` token for secure variant) |
+| `0x22` | `TEXT_EDITOR` | Multi-line text editing area (new) |
+| `0x23` | — | Future semantic control |
+| `0x24` | `TOGGLE` | Boolean switch, checkbox, or button control (`TOGGLE_STYLE`) |
+| `0x25` | `SLIDER` | Continuous or stepped numeric range control |
+| `0x26` | `STEPPER` | Discrete increment/decrement control |
+| `0x27` | `DATE_PICKER` | Date & time selection modal/popover control |
+| `0x28` | `PICKER` | Selection control (segment, dropdown menu, or wheel) |
+| `0x29` | `MENU` | Contextual action trigger + popover container |
+| `0x2A` | `COLOR_PICKER` | Native system color picker control |
+| `0x2B`–`0x2F` | — | Future semantic controls |
 
 ### Utility & custom
 
-| ID | Component | Status | Notes |
-|----|-----------|--------|-------|
-| `0x7F` | `COMMENT` | ✅ | Opaque/debug node; renderers ignore it (no native element) |
-| `0x0100`–`0xFFFF` | — | — | Application/custom component types |
+| ID | Component | Notes |
+| ---- | ----------- | ------- |
+| `0x7F` | `COMMENT` | Opaque/debug node; renderers ignore it (no native element) |
+| `0x0100`–`0xFFFF` | — | Application/custom component types |
 
 ### Composite views (not primitives)
 
@@ -235,7 +230,7 @@ from the primitives in this file, so no component IDs are allocated:
 
 ## A. Primitive Drawing & Visual Nodes
 
-### Text — ✅ `TEXT` 0x01
+### Text — `TEXT` 0x01
 
 A run of styled text. The server dictates content and style; the client measures
 and renders.
@@ -249,13 +244,13 @@ and renders.
   Font handling is client-owned (the renderer resolves `FONT_FAMILY` /
   `FONT_*` to its native text system).
 
-### Image — ✅ `IMAGE` 0x02
+### Image — `IMAGE` 0x02
 
 A static image or icon asset. Asset loading is client-owned.
 
-- **Protocol**: a leaf node; source via `IMAGE_SOURCE` (🚧 0x1002, STRING: a
+- **Protocol**: a leaf node; source via `IMAGE_SOURCE` (0x1002, STRING: a
   resource name, file path, or absolute URL).
-- **Properties**: `IMAGE_SOURCE`, `CONTENT_MODE` (🚧 0x001C, enum `Fit`=0 /
+- **Properties**: `IMAGE_SOURCE`, `CONTENT_MODE` (0x001C, enum `Fit`=0 /
   `Fill`=1), size modifiers, `OPACITY`, `CLIPS_TO_BOUNDS`.
 - **Events**: none by default.
 - **Renderer mapping**: GTK `GtkPicture`/`GtkImage`; HTML `<img>`; ngui
@@ -265,7 +260,7 @@ A static image or icon asset. Asset loading is client-owned.
   renderer loads asynchronously and re-issues `SET_PROPERTY(IMAGE_SOURCE)` if
   the source changes.
 
-### Color — 🚧 `COLOR` 0x03
+### Color — `COLOR` 0x03
 
 A solid-color view: either a colored rect or a layout-filling background.
 
@@ -278,12 +273,12 @@ A solid-color view: either a colored rect or a layout-filling background.
   `BACKGROUND_COLOR`, `BORDER_COLOR`) — the node exists for when a color is a
   first-class view (backgrounds, fills, spacers).
 
-### Shape — 🚧 `SHAPE` 0x04
+### Shape — `SHAPE` 0x04
 
 A vector geometry. The shape kind is data (`SHAPE_KIND`), never a visual rule —
 the renderer owns the actual drawing.
 
-- **Protocol**: a leaf node with `SHAPE_KIND` (🚧 0x0006, enum): `Circle`=0,
+- **Protocol**: a leaf node with `SHAPE_KIND` (0x0006, enum): `Circle`=0,
   `Rectangle`=1, `RoundedRectangle`=2, `Capsule`=3, `Ellipse`=4, `Path`=5.
 - **Properties**: fill = `COLOR`/`BACKGROUND_COLOR`; stroke = `BORDER_WIDTH`,
   `BORDER_COLOR`, `BORDER_RADIUS` (RoundedRectangle corner), `BORDER_EDGES`;
@@ -293,7 +288,7 @@ the renderer owns the actual drawing.
   or inline SVG for `Path`); ngui shape primitives. `Path` is the documented
   case where a renderer paints directly (no native element equivalent).
 
-### Divider — 🚧 `DIVIDER` 0x05
+### Divider — `DIVIDER` 0x05
 
 An axis-aligned 1px separator line.
 
@@ -302,7 +297,7 @@ An axis-aligned 1px separator line.
 - **Events**: none.
 - **Renderer mapping**: GTK `GtkSeparator`; HTML `<hr>` / `<div>` with a border.
 
-### Spacer — ✅ `SPACER` 0x06
+### Spacer — `SPACER` 0x06
 
 A flexible expanding layout filler.
 
@@ -310,7 +305,7 @@ A flexible expanding layout filler.
   axis space (`flex-grow:1` in HTML, expanding box in GTK).
 - **Events**: none.
 
-### ProgressView — 🚧 `PROGRESS_VIEW` 0x07
+### ProgressView — `PROGRESS_VIEW` 0x07
 
 Determinate progress or an activity indicator.
 
@@ -321,7 +316,7 @@ Determinate progress or an activity indicator.
 - **Renderer mapping**: GTK `GtkProgressBar`/`GtkSpinner`; HTML
   `<progress>`/`<div class="spinner">`; ngui progress.
 
-### Gauge — 🚧 `GAUGE` 0x08
+### Gauge — `GAUGE` 0x08
 
 A value shown against a scale (SwiftUI `Gauge`).
 
@@ -339,53 +334,53 @@ Layout primitives arrange children. They carry `SPACING` (0x0001),
 box / grid primitives (GTK `GtkBox`/`GtkGrid`, CSS flex/grid, ngui
 `ui-vstack`/`ui-hstack`/`ui-grid`/…).
 
-### VStack — ✅ `VSTACK` 0x10
+### VStack — `VSTACK` 0x10
 
 Vertical flex stack. **Properties**: `SPACING`, `ALIGNMENT` (enum: `Leading`=0,
 `Center`=1, `Trailing`=2, `Fill`=3), `CONTENT_MARGINS`.
 
-### HStack — ✅ `HSTACK` 0x11
+### HStack — `HSTACK` 0x11
 
 Horizontal flex stack. Same properties as `VStack`.
 
-### ZStack — 🚧 `ZSTACK` 0x12
+### ZStack — `ZSTACK` 0x12
 
 Depth-overlapping layer stack; child index = draw order (later = on top).
 **Properties**: `ALIGNMENT`. Renderer: GTK `GtkOverlay`; HTML absolutely
 positioned children; ngui `ui-zstack`.
 
-### Grid — ✅ `GRID` 0x13
+### Grid — `GRID` 0x13
 
 Static 2D matrix grid, eagerly rendered with aligned rows & columns. Children
 are cells, row-major in insertion order. **Properties**: `ALIGNMENT`, `SPACING`,
 `WIDTH`/`HEIGHT` (cell-axis count; `FILL` = auto-fit). Renderer: GTK `GtkGrid`;
 HTML CSS grid; ngui `ui-grid`.
 
-### ScrollView — ✅ `SCROLLVIEW` 0x14
+### ScrollView — `SCROLLVIEW` 0x14
 
 Scrollable content container. **Events**: with the `SCROLL` (bit 8) listener the
 renderer reports the scroll offset via `EVENT::SCROLL`; with `WHEEL` (bit 9) it
 reports deltas via `EVENT::WHEEL` (both draft — see [EVENTS.md](./EVENTS.md)).
 Renderer: GTK `GtkScrolledWindow`; HTML overflow container; ngui scroll view.
 
-### LazyVGrid — 🚧 `LAZY_VGRID` 0x15
+### LazyVGrid — `LAZY_VGRID` 0x15
 
 Virtualized vertical grid: windowed rendering for large datasets; children are
 cells, row-major. **Properties**: `ALIGNMENT`, `SPACING`, `WIDTH` (column count;
 `FILL` = auto-fit). A renderer MAY defer realizing off-screen cells until
 scrolled into view.
 
-### LazyHGrid — 🚧 `LAZY_HGRID` 0x16
+### LazyHGrid — `LAZY_HGRID` 0x16
 
 Virtualized horizontal grid; children are cells, column-major. **Properties**:
 `ALIGNMENT`, `SPACING`, `HEIGHT` (row count; `FILL` = auto-fit).
 
-### LazyVStack — 🚧 `LAZY_VSTACK` 0x1B
+### LazyVStack — `LAZY_VSTACK` 0x1B
 
 Virtualized vertical stack; same properties as `VStack`, with windowed
 realization of children near the visible region.
 
-### LazyHStack — 🚧 `LAZY_HSTACK` 0x1C
+### LazyHStack — `LAZY_HSTACK` 0x1C
 
 Virtualized horizontal stack; same properties as `HStack`, with windowed
 realization.
@@ -399,7 +394,7 @@ and local interaction physics. Rendering follows the [Dual-Mode Rendering
 Pipeline](#2-dual-mode-rendering-pipeline--platform-delegation): **Native Token
 Mode** when the node has no children; **Composite Override Mode** when it does.
 
-### Button — ✅ `BUTTON` 0x20
+### Button — `BUTTON` 0x20
 
 An action trigger control.
 
@@ -430,7 +425,7 @@ An action trigger control.
 - **Note (SwiftUI `Link`)**: SwiftUI's `Link` is `BUTTON` with an associated
   URL; the app handles the tap and opens the URL. No separate primitive.
 
-### TextField / SecureField — ✅ `TEXT_FIELD` 0x21
+### TextField / SecureField — `TEXT_FIELD` 0x21
 
 Single-line text input; `SecureField` is the same component with `IS_SECURE`.
 
@@ -442,13 +437,13 @@ Single-line text input; `SecureField` is the same component with `IS_SECURE`.
 | `BINDING_ID` | 0x2017 | U32 | Two-way binding id (text value) |
 | `ENABLED`/`STATE` | 0x2003/0x2002 | — | Enabled / accessibility state |
 
-- **Events** (see [EVENTS.md](./EVENTS.md)): `TEXT_CHANGED` (0x07) ✅ on every
+- **Events** (see [EVENTS.md](./EVENTS.md)): `TEXT_CHANGED` (0x07) on every
   edit; `FOCUS_CHANGED` (0x08), `EDITING_CHANGED` (0x09), `SUBMIT` (0x0A) —
   draft. All gated by `BINDING_ID` or the matching `EVENT_LISTENERS` bits.
 - **Renderer mapping**: GTK `GtkEntry`; HTML `<input type="text">`; ngui input.
   A secure field MUST mask characters and MUST NOT echo the value.
 
-### TextEditor — 🚧 `TEXT_EDITOR` 0x22
+### TextEditor — `TEXT_EDITOR` 0x22
 
 Multi-line text editing area.
 
@@ -461,7 +456,7 @@ Multi-line text editing area.
   `EVENT_LISTENERS`.
 - **Renderer mapping**: GTK `GtkTextView`; HTML `<textarea>`; ngui textarea.
 
-### Toggle — ✅ `TOGGLE` 0x24
+### Toggle — `TOGGLE` 0x24
 
 A boolean switch, checkbox, or button control. The **visual style is a token**,
 not a separate component:
@@ -486,7 +481,7 @@ not a separate component:
 - **Renderer mapping**: GTK `GtkSwitch`/`GtkCheckButton`; HTML checkbox / styled
   switch / toggle button; ngui `ui-toggle`/`ui-checkbox`.
 
-### Slider — ✅ `SLIDER` 0x25
+### Slider — `SLIDER` 0x25
 
 A continuous or stepped numeric range control.
 
@@ -508,13 +503,13 @@ A continuous or stepped numeric range control.
   `BINDING_ID`.
 - **Renderer mapping**: GTK `GtkScale`; HTML `<input type="range">`; ngui slider.
 
-### Stepper — 🚧 `STEPPER` 0x26
+### Stepper — `STEPPER` 0x26
 
 A discrete increment/decrement control. `VALUE` (0x2006), `STEP_VALUE`
 (0x2009), `MIN_VALUE` (0x2007), `MAX_VALUE` (0x2008), `BINDING_ID` (0x2017).
 Events: `VALUE_CHANGED` after each press.
 
-### DatePicker — 🚧 `DATE_PICKER` 0x27
+### DatePicker — `DATE_PICKER` 0x27
 
 A date & time selection modal/popover control.
 
@@ -528,7 +523,7 @@ A date & time selection modal/popover control.
 - **Renderer mapping**: GTK `GtkCalendar`/`GtkSpinButton`; HTML `<input
   type="date">`/`<input type="time">`; ngui date picker.
 
-### Picker — 🚧 `PICKER` 0x28
+### Picker — `PICKER` 0x28
 
 A selection control rendered as a segment, dropdown menu, or wheel.
 
@@ -543,7 +538,7 @@ A selection control rendered as a segment, dropdown menu, or wheel.
 - **Renderer mapping**: GTK `GtkComboBoxText`/`GtkDropDown`; HTML `<select>` /
   segmented buttons; ngui picker.
 
-### Menu — 🚧 `MENU` 0x29
+### Menu — `MENU` 0x29
 
 A **semantic control**: contextual action trigger and popover container. The
 client platform owns dynamic popover presentation, overlay placement, tap/focus
@@ -581,7 +576,7 @@ to **native OS menu item slots** rather than standard canvas/layout nodes.
 - **Renderer mapping**: GTK `GtkMenuButton`/`GtkPopoverMenu`; HTML `<div
   role="menu">`; ngui menu.
 
-### ColorPicker — 🚧 `COLOR_PICKER` 0x2A
+### ColorPicker — `COLOR_PICKER` 0x2A
 
 A native system color picker control.
 
@@ -599,7 +594,7 @@ A native system color picker control.
 
 | Range | Use |
 |-------|-----|
-| `0x01`–`0x08` | Implemented/draft primitive drawing nodes (this file) |
+| `0x01`–`0x08` | Primitive drawing nodes (allocated, this file) |
 | `0x09`–`0x0F` | Future drawing nodes (unallocated) |
 | `0x10`–`0x16`, `0x1B`–`0x1C` | Layout & container primitives (this file) |
 | `0x17`–`0x1A` | Reserved (formerly composites) — never reused |

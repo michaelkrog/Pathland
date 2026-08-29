@@ -1,0 +1,24 @@
+# pathland-core-capi — implementation status
+
+**Last updated:** August 28, 2026
+
+The **minimal ring C ABI** (`libpathland_core`) used by the Java DSL via FFM.
+Protocol contract: `spec/OPCODE.md`.
+
+## Implemented
+
+- `pathland_core_create` / `pathland_core_destroy`.
+- `pathland_ring_buffer_push` (one raw 16-byte opcode) + frame boundaries
+  (`begin_frame`/`end_frame`, `frame_count`).
+- `pathland_core_arena_alloc` (guest arena).
+- Zero-copy `ring_ptr` / `ring_len`.
+- Event drain / send.
+
+## Not implemented / gaps
+
+- No typed helpers beyond the raw ring surface (component/property constructors
+  live in the Java DSL or `pathland-view-native`).
+
+## Verified by
+
+`cargo test -p pathland-core-capi` — ring push/read, frame count, arena.
