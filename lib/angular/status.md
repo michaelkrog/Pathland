@@ -66,9 +66,12 @@ contract: `spec/`.
   `TEXT_CHANGED`, date-picker → `DATE_CHANGED`). The other encoders/senders
   (pointer down/move, `KEY_*`, focus/editing/submit/scroll/wheel) are ready on
   the wire but not yet produced by ngui components.
-- `app.spec.ts` is an `ng test` (Karma/Jasmine) spec; the unit specs
-  (`core.spec.ts`, `mapping.spec.ts`) run under vitest.
 
 ## Verified by
 
-`npx vitest run` (18 unit tests) + `ng build` (template/TS compilation).
+- `ng test` — the package's canonical runner (Angular unit-test builder over
+  vitest): all 3 spec files, 25 tests, including the TestBed `app.spec.ts`.
+- `npx vitest run` — the pure protocol/renderer unit specs (`core.spec.ts`,
+  `mapping.spec.ts`), 24 tests, via `vitest.config.ts` (which excludes the
+  TestBed component spec; see the config comment).
+- `ng build` — template/TS compilation.
