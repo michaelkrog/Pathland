@@ -1,1 +1,1 @@
-go
+1: snake. 2: Add tint. 3: Ok
