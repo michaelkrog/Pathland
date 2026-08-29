@@ -1,0 +1,60 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M167VDTAFE06CE6HXRSJDNYF",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T07:48:31.143245Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "lib/angular/src/app/pathland/core/protocol.ts",
+    "lib/angular/src/app/pathland/ngui/mapping.ts",
+    "lib/angular/src/app/pathland/core/retained-tree.ts",
+    "lib/angular/src/app/pathland/core/event-encoder.ts",
+    "lib/angular/src/app/pathland/ngui/session.service.ts",
+    "lib/angular/src/app/pathland/ngui/node.component.ts",
+    "lib/angular/src/app/pathland/ngui/node.component.html",
+    "lib/angular/src/app/pathland/core/core.spec.ts",
+    "lib/angular/src/app/pathland/ngui/mapping.spec.ts",
+    "lib/angular/src/app/app.css",
+    "lib/java/pathland-quarkus-demo/src/main/resources/META-INF/resources/app.js",
+    "lib/angular/status.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "9f973aace13a",
+  "checkpoint_transcript_start": 921,
+  "transcript_lines_at_start": 921,
+  "compact_transcript_start": 921,
+  "token_usage": {
+    "input_tokens": 291394,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 8156928,
+    "output_tokens": 30399,
+    "api_call_count": 29
+  },
+  "session_metrics": {
+    "turn_count": 74
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T07:48:30.619455Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 0,
+    "total_lines_changed": 0,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
