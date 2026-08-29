@@ -73,14 +73,19 @@ public interface View {
                 Modified.prop(Properties.PADDING_LEFT, (float) left));
     }
 
-    /** Set the foreground color (a {@code COLOR} property). */
-    default View color(Color color) {
+    /** Set the foreground style/color (a {@code COLOR} property). SwiftUI {@code .foregroundStyle}; there is no {@code .color()} modifier. */
+    default View foregroundStyle(Color color) {
         return Modified.props(this, Modified.prop(Properties.COLOR, color));
     }
 
-    /** Reactive foreground color: re-emits only this node's {@code COLOR} on change. */
-    default View color(Signal<Color> color) {
+    /** Reactive foreground style: re-emits only this node's {@code COLOR} on change. */
+    default View foregroundStyle(Signal<Color> color) {
         return Modified.props(this, Modified.prop(Properties.COLOR, color));
+    }
+
+    /** Set the accent/tint color (a {@code TINT} property). */
+    default View tint(Color color) {
+        return Modified.props(this, Modified.prop(Properties.TINT, color));
     }
 
     /** Set the background color (a {@code COLOR} property). */

@@ -133,7 +133,15 @@ map them to their native text attributes.
 | `.textCase(_:)` | `TEXT_CASE` 0x101E | ENUM (`None`=0, `Uppercase`=1, `Lowercase`=2) | one |
 | `.underline()` | `UNDERLINE` 0x101F | U8 (0/1) | one |
 | `.strikethrough()` | `STRIKETHROUGH` 0x1020 | U8 (0/1) | one |
-| `.foregroundColor(_:)` | `COLOR` 0x100A | COLOR | one |
+| `.foregroundStyle(_:)` | `COLOR` 0x100A | COLOR | one |
+| `.tint(_:)` | `TINT` 0x1030 | COLOR | one |
+
+> **`Color` is never a modifier.** `Color` exists only as a **View** (a
+> layout-greedy solid-color fill) and as a **Data Type** passed into
+> style-taking modifiers (`.foregroundStyle(_:)`, `.background(_:)`,
+> `.border(_:)`, `.tint(_:)`). There is **no** `.color()` modifier and
+> `.foregroundColor(_:)` is deprecated — all foreground styling uses
+> `.foregroundStyle(_:)`.
 
 \* `FONT_FAMILY` is a `STRING` property (arenaRef), matching SwiftUI, which
 passes font families as string names (`.font(.custom("Georgia", size:))`).
@@ -260,6 +268,7 @@ plus accessibility. These are the "semantic" (`0x2000`) properties.
 | `0x1001`–`0x1016` | Styling (BACKGROUND_COLOR, BORDER_*, FONT_SIZE/WEIGHT/FAMILY, COLOR, WIDTH, HEIGHT, OPACITY, VISIBLE, Z_INDEX, CLIPS_TO_BOUNDS, PADDING_*, BORDER_EDGES) |
 | `0x1002` | `IMAGE_SOURCE` (STRING; view-specific, see PRIMITIVES.md) |
 | `0x1017`–`0x102F` | Text-format properties (allocated: FONT_STYLE/DESIGN/WIDTH, KERNING, TRACKING, BASELINE_OFFSET, LINE_SPACING, TEXT_CASE, UNDERLINE, STRIKETHROUGH), effect properties (SHADOW_*, BLUR, SATURATION, CONTRAST, BRIGHTNESS, GRAYSCALE, HUE_ROTATION, COLOR_MULTIPLY, COLOR_INVERT), ROTATION_DEGREES, SCALE, ALLOWS_HIT_TESTING |
+| `0x1030` | `TINT` (COLOR) | — |
 | `0x1030`–`0x10FF` | Future styling properties (unallocated) |
 | `0x2001`–`0x200B` | Semantic (ROLE, STATE, ENABLED, SELECTED, EVENT_LISTENERS, VALUE, MIN_VALUE, MAX_VALUE, LABEL, PROMPT) |
 | `0x2009`, `0x200C`–`0x2014` | Control properties (allocated: STEP_VALUE, CONTROL_SIZE, IS_SECURE, PROGRESS, IS_INDETERMINATE, SELECTION, COLOR_VALUE, DATE_PICKER_MODE, PICKER_STYLE) — defined in PRIMITIVES.md controls. Note: a `DATE_PICKER`'s date is set via the `STYLE::SET_DATE` command (0x04), not a property; **`0x2011` is unallocated/reserved** (its former `DATE_VALUE` draft was dropped) |
@@ -281,7 +290,7 @@ A renderer MUST ignore unknown property ids and continue decoding.
 The canonical value type per property (the protocol's authoritative mapping):
 
 - `COLOR`, `BACKGROUND_COLOR`, `BORDER_COLOR`, `COLOR_MULTIPLY`,
-  `SHADOW_COLOR`, `COLOR_VALUE` → `COLOR`
+  `SHADOW_COLOR`, `COLOR_VALUE`, `TINT` → `COLOR`
 - `EVENT_LISTENERS`, `BORDER_EDGES` → `U32`
 - `SELECTED`, `VISIBLE`, `ENABLED`, `UNDERLINE`, `STRIKETHROUGH`,
   `COLOR_INVERT`, `CLIPS_TO_BOUNDS`, `ALLOWS_HIT_TESTING`, `IS_SECURE`,

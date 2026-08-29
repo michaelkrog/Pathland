@@ -9,18 +9,21 @@ trees. Protocol contract: `spec/`.
 
 - **Views**: `VStack`, `HStack`, `ZStack`, `Grid`, `ScrollView`, `LazyVGrid`,
   `LazyHGrid`, `LazyVStack`, `LazyHStack`, `Text`, `Button`, `Spacer`,
-  `Image`, `ColorView` (protocol `COLOR`), `Shape`, `Divider`,
-  `ProgressView`, `Gauge`, `Toggle`, `Slider`, `TextField`, `TextEditor`,
-  `Stepper`, `DatePicker`, `Picker`, `Menu`, `ColorPicker` (+ the
-  `vstack!`/`hstack!` macros and `text`/`spacer`/`button` free functions).
+  `Image`, `Color` (dual identity: a layout-greedy View *and* a value passed
+  into style modifiers), `Shape`, `Divider`, `ProgressView`, `Gauge`,
+  `Toggle`, `Slider`, `TextField`, `TextEditor`, `Stepper`, `DatePicker`,
+  `Picker`, `Menu`, `ColorPicker` (+ the `vstack!`/`hstack!` macros and
+  `text`/`spacer`/`button` free functions).
 - **Modifiers** (chainable, decoupled): `spacing`, `padding`, `font_size`,
-  `font_weight`, `color`, `background`, `frame(width/height/alignment)`,
-  `opacity`, `hidden`, `border`, `corner_radius`, `line_limit`,
-  `text_alignment`, `truncation_mode`, `offset`, `position`, `z_index`,
-  `pointer_events`, `on_tap_gesture`.
+  `font_weight`, `foreground_style(Color)` (no `.color()`), `background(Color)`,
+  `border(Color, width)`, `tint(Color)`, `frame(width/height/alignment)`,
+  `opacity`, `hidden`, `corner_radius`, `line_limit`, `text_alignment`,
+  `truncation_mode`, `offset`, `position`, `z_index`, `pointer_events`,
+  `on_tap_gesture`.
 - **Composition**: blanket `ViewExt::modifier` + `ViewModifier` for custom
   modifiers; `Modified<V, M>` wrapper.
 - **Alignment enum** (`Align`): Leading/Center/Trailing/Fill.
+- **`Color` rules**: no `.color()` modifier; foreground is `.foreground_style(_:)`.
 
 ## Not implemented / gaps
 

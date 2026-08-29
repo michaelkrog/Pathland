@@ -262,16 +262,28 @@ A static image or icon asset. Asset loading is client-owned.
 
 ### Color — `COLOR` 0x03
 
-A solid-color view: either a colored rect or a layout-filling background.
+`Color` mirrors SwiftUI's **dual identity**: it is both a **View** and a
+**Data Type** — and it is **never a modifier**.
 
-- **Protocol**: a leaf node whose color is the `COLOR` property (0x100A, packed
-  `0xAARRGGBB`, sRGB). `WIDTH`/`HEIGHT` size it (`FILL`/`HUG_CONTENT`).
+- **As a View**: a solid-color visual element. It is **layout-greedy** —
+  it expands to fill all available space offered by its parent container
+  unless explicitly constrained (e.g. by a `.frame`/size modifier). Its color
+  is the `COLOR` property (0x100A, packed `0xAARRGGBB`, sRGB).
+- **As a Data Type**: a `Color` value is passed *into* style-taking modifiers
+  (`.foregroundStyle(_:)`, `.background(_:)`, `.border(_:)`, `.tint(_:)`), and
+  can be used anywhere a visual fill/style is expected.
+- **Constraint**: there is **no** `.color()` modifier, and `.foregroundColor(_:)`
+  is deprecated — all foreground styling uses `.foregroundStyle(_:)`.
+- **Parser/generator rule**: treat `Color` as a **View** when it is a structural
+  node in the UI tree; treat it as a **Value** when it appears in a modifier's
+  parameter list.
 - **Events**: none by default.
-- **Renderer mapping**: GTK `GtkDrawingArea`/colored box; HTML `<div>` with
-  `background-color`; ngui `ui-color`. The renderer paints the pixel fill.
-- **Note**: `Color` also remains a **property value** (`COLOR`,
-  `BACKGROUND_COLOR`, `BORDER_COLOR`) — the node exists for when a color is a
-  first-class view (backgrounds, fills, spacers).
+- **Renderer mapping**: GTK `GtkDrawingArea`/colored box (expands); HTML `<div>`
+  with `background-color` (`flex:1;align-self:stretch` — greedy); ngui
+  `ui-color`. The renderer paints the pixel fill.
+- **Note**: `Color` is also a **property value** (`COLOR`,
+  `BACKGROUND_COLOR`, `BORDER_COLOR`, `TINT`) — the node exists for when a
+  color is a first-class view (backgrounds, fills, spacers).
 
 ### Shape — `SHAPE` 0x04
 

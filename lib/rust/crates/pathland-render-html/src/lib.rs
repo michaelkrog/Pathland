@@ -608,8 +608,10 @@ impl HtmlRenderer {
             }
             component_type::COLOR => {
                 let color = node.u32_property(property_id::COLOR, 0xFF00_0000);
+                // Layout-greedy (SwiftUI Color): expands to the available space
+                // unless a size modifier constrains it.
                 format!(
-                    "<div{data_id}{event}{aria} style=\"background-color:{};{css}\">{children}</div>",
+                    "<div{data_id}{event}{aria} style=\"flex:1 1 auto;align-self:stretch;background-color:{};{css}\">{children}</div>",
                     rgba(color)
                 )
             }

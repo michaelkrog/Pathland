@@ -10,8 +10,11 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 ## Implemented
 
 - **Views**: `View` (open interface), `VStack`, `HStack`, `ZStack`, `Text`,
-  `Image`, `Color`, `Rectangle`, `Button`, `TextField`, `Spacer`; `body()`
+  `Image`, `Color` (dual identity: a `View` *and* a value passed into style
+  modifiers), `Rectangle`, `Button`, `TextField`, `Spacer`; `body()`
   composition; `ButtonStyle`/`ViewModifier`/`Environment` (ScopedValue).
+- **Modifiers**: `foregroundStyle(Color)` (no `.color()`), `background(Color)`,
+  `tint(Color)`, padding/opacity/font/etc. — `Color` is never a modifier.
 - **Signals** (`com.pathland.view.signal`): `signal`/`computed`/`effect`/
   `untracked` — glitch-free synchronous flush, equality suppression,
   circular-dependency detection.

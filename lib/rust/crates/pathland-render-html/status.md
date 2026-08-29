@@ -7,8 +7,8 @@ opcode stream producing declarative HTML. Protocol contract: `spec/`.
 
 ## Implemented
 
-- **All spec components render**: `TEXT`, `IMAGE`, `COLOR`, `SHAPE` (CSS/SVG by
-  `SHAPE_KIND`), `DIVIDER`, `SPACER`, `PROGRESS_VIEW`/`GAUGE`, `VSTACK`/
+- **All spec components render**: `TEXT`, `IMAGE`, `COLOR` (layout-greedy:
+  `flex:1;align-self:stretch`), `SHAPE` (CSS/SVG by `SHAPE_KIND`), `DIVIDER`, `SPACER`, `PROGRESS_VIEW`/`GAUGE`, `VSTACK`/
   `HSTACK`/`LAZY_VSTACK`/`LAZY_HSTACK` (flex), `ZSTACK` (overlay), `GRID`/
   `LAZY_VGRID`/`LAZY_HGRID` (CSS grid), `SCROLLVIEW`, `BUTTON`, `TEXT_FIELD`
   (incl. `IS_SECURE` → `type="password"`), `TEXT_EDITOR`, `TOGGLE`

@@ -29,13 +29,13 @@
 //! **custom modifiers** from the core ones by implementing `ViewModifier`:
 //!
 //! ```
-//! use pathland_view::{View, ViewExt, ViewModifier, Node, Padding, Background};
+//! use pathland_view::{View, ViewExt, ViewModifier, Node, Padding, Background, Color};
 //!
 //! struct Card;
 //! impl ViewModifier for Card {
 //!     fn apply(&self, node: &mut Node) {
 //!         Padding(16.0).apply(node);
-//!         Background(0xFF_EEEEEE).apply(node);
+//!         Background(Color(0xFF_EEEEEE)).apply(node);
 //!     }
 //! }
 //!
@@ -216,14 +216,27 @@ pub trait ViewExt: View + Sized {
         self.modifier(FontSize(value))
     }
 
-    /// Chain `.color(rgba)` (sRGB `0xAARRGGBB`).
-    fn color(self, rgba: u32) -> Modified<Self, Color> {
-        self.modifier(Color(rgba))
+    /// Chain `.foreground_style(color)` — the foreground color
+    /// (a `COLOR` property). There is deliberately **no** `.color()` /
+    /// `.foregroundColor()` modifier; foreground styling is
+    /// `.foreground_style(_:)` (SwiftUI `.foregroundStyle`).
+    fn foreground_style(self, color: Color) -> Modified<Self, ForegroundStyle> {
+        self.modifier(ForegroundStyle(color))
     }
 
-    /// Chain `.background(rgba)` (sRGB `0xAARRGGBB`).
-    fn background(self, rgba: u32) -> Modified<Self, Background> {
-        self.modifier(Background(rgba))
+    /// Chain `.background(color)` — the background color.
+    fn background(self, color: Color) -> Modified<Self, Background> {
+        self.modifier(Background(color))
+    }
+
+    /// Chain `.border(color, width)`.
+    fn border(self, color: Color, width: f32) -> Modified<Self, Border> {
+        self.modifier(Border { color, width })
+    }
+
+    /// Chain `.tint(color)` — the accent/tint color (a `TINT` property).
+    fn tint(self, color: Color) -> Modified<Self, Tint> {
+        self.modifier(Tint(color))
     }
 
     /// Chain `.frame(width, height, alignment)` — a compound sizing modifier.
@@ -269,11 +282,6 @@ pub trait ViewExt: View + Sized {
     /// Chain `.hidden()` — hide the view (`VISIBLE` = 0).
     fn hidden(self) -> Modified<Self, Hidden> {
         self.modifier(Hidden)
-    }
-
-    /// Chain `.border(color, width)` (sRGB `0xAARRGGBB`).
-    fn border(self, color: u32, width: f32) -> Modified<Self, Border> {
-        self.modifier(Border { color, width })
     }
 
     /// Chain `.corner_radius(value)`.
@@ -335,13 +343,38 @@ pub struct Padding(pub f32);
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FontSize(pub f32);
 
-/// Text/foreground color (sRGB `0xAARRGGBB`).
+/// An sRGB color (`0xAARRGGBB`), with **dual identity** mirroring SwiftUI:
+///
+/// - **View** — placing a `Color` in a layout tree draws a solid-color fill
+///   that is **layout-greedy** (expands to the available space unless a
+///   `.frame`/size modifier constrains it).
+/// - **Data type** — a `Color` value is passed into style-taking modifiers
+///   (`.foreground_style`, `.background`, `.border`, `.tint`).
+///
+/// There is deliberately **no** `.color()` / `.foregroundColor()` modifier.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Color(pub u32);
 
-/// Background color (sRGB `0xAARRGGBB`).
+impl View for Color {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::COLOR, self.0);
+        plain_node(Component::Color, Vec::new(), p)
+    }
+}
+
+/// Foreground color modifier (SwiftUI `.foregroundStyle`). There is no
+/// `.color()` / `.foregroundColor()` modifier.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Background(pub u32);
+pub struct ForegroundStyle(pub Color);
+
+/// Background color (a `Color` value).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Background(pub Color);
+
+/// Accent/tint color (a `TINT` property).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Tint(pub Color);
 
 /// The compound `frame` sizing modifier (SwiftUI `frame`).
 ///
@@ -400,15 +433,21 @@ impl ViewModifier for FontSize {
     }
 }
 
-impl ViewModifier for Color {
+impl ViewModifier for ForegroundStyle {
     fn apply(&self, node: &mut Node) {
-        node.properties.insert(property_id::COLOR, self.0);
+        node.properties.insert(property_id::COLOR, self.0 .0);
     }
 }
 
 impl ViewModifier for Background {
     fn apply(&self, node: &mut Node) {
-        node.properties.insert(property_id::BACKGROUND_COLOR, self.0);
+        node.properties.insert(property_id::BACKGROUND_COLOR, self.0 .0);
+    }
+}
+
+impl ViewModifier for Tint {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::TINT, self.0 .0);
     }
 }
 
@@ -476,7 +515,7 @@ pub struct Hidden;
 /// Border (SwiftUI `.border(color:width:)`).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Border {
-    pub color: u32,
+    pub color: Color,
     pub width: f32,
 }
 
@@ -532,7 +571,7 @@ impl ViewModifier for Hidden {
 
 impl ViewModifier for Border {
     fn apply(&self, node: &mut Node) {
-        node.properties.insert(property_id::BORDER_COLOR, self.color);
+        node.properties.insert(property_id::BORDER_COLOR, self.color.0);
         node.properties.insert(property_id::BORDER_WIDTH, self.width.to_bits());
     }
 }
@@ -796,17 +835,6 @@ pub struct Image;
 impl View for Image {
     fn build(&self) -> Node {
         plain_node(Component::Image, Vec::new(), BTreeMap::new())
-    }
-}
-
-/// A solid-color view (protocol `COLOR`).
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ColorView(pub u32);
-impl View for ColorView {
-    fn build(&self) -> Node {
-        let mut p = BTreeMap::new();
-        p.insert(property_id::COLOR, self.0);
-        plain_node(Component::Color, Vec::new(), p)
     }
 }
 
@@ -1177,8 +1205,8 @@ mod tests {
     fn modifiers_chain_and_apply_to_node() {
         let node = Text::new("hi")
             .padding(16.0)
-            .color(0xFF_0000FF)
-            .background(0xFF_EEEEEE)
+            .foreground_style(Color(0xFF_0000FF))
+            .background(Color(0xFF_EEEEEE))
             .build();
         assert_eq!(
             node.properties.get(&property_id::PADDING),
@@ -1246,8 +1274,8 @@ mod tests {
         impl ViewModifier for Card {
             fn apply(&self, node: &mut Node) {
                 Padding(16.0).apply(node);
-                Background(0xFF_EEEEEE).apply(node);
-                Color(0xFF_000000).apply(node);
+                Background(Color(0xFF_EEEEEE)).apply(node);
+                ForegroundStyle(Color(0xFF_000000)).apply(node);
             }
         }
 

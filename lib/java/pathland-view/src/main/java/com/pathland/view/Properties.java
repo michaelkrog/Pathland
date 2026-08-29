@@ -34,6 +34,7 @@ public final class Properties {
     public static final int PADDING_BOTTOM = 0x1014;
     public static final int PADDING_LEFT = 0x1015;
     public static final int BORDER_EDGES = 0x1016;
+    public static final int TINT = 0x1030;
     // Semantic (0x2000 range)
     public static final int ROLE = 0x2001;
     public static final int STATE = 0x2002;

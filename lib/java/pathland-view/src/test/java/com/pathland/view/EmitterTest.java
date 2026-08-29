@@ -90,7 +90,7 @@ class EmitterTest {
         Emitter emitter = new Emitter(sink);
         WritableSignal<Integer> count = Signals.signal(0);
         Signal<Color> color = Signals.computed(() -> count.get() % 2 == 0 ? Color.RED : Color.BLUE);
-        emitter.mount(View.vstack(View.text("x").color(color)), Environment.DEFAULT);
+        emitter.mount(View.vstack(View.text("x").foregroundStyle(color)), Environment.DEFAULT);
 
         count.set(1);
         Frame delta = sink.frame();

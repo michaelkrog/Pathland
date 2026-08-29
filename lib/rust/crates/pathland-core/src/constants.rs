@@ -378,6 +378,8 @@ pub mod property_id {
     /// **Draft.** Whether the element participates in hit testing (U8 0/1).
     /// `.allowsHitTesting(_:)`.
     pub const ALLOWS_HIT_TESTING: u16 = 0x102F;
+    /// **Draft.** Accent/tint color (COLOR). `.tint(_:)`.
+    pub const TINT: u16 = 0x1030;
     // Semantic (0x2000 range)
     pub const ROLE: u16 = 0x2001;
     pub const STATE: u16 = 0x2002;
@@ -443,7 +445,8 @@ pub fn value_type_for(prop: u16) -> u8 {
         | property_id::BORDER_COLOR
         | property_id::COLOR_VALUE
         | property_id::COLOR_MULTIPLY
-        | property_id::SHADOW_COLOR => value_type::COLOR,
+        | property_id::SHADOW_COLOR
+        | property_id::TINT => value_type::COLOR,
         property_id::EVENT_LISTENERS | property_id::BORDER_EDGES => value_type::U32,
         property_id::SELECTED
         | property_id::IS_SECURE

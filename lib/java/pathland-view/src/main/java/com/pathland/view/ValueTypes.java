@@ -15,7 +15,7 @@ public final class ValueTypes {
     /** The protocol value type for a property id (mirrors {@code value_type_for}). */
     public static int forProperty(int prop) {
         return switch (prop) {
-            case Properties.COLOR, Properties.BACKGROUND_COLOR, Properties.BORDER_COLOR -> COLOR;
+            case Properties.COLOR, Properties.BACKGROUND_COLOR, Properties.BORDER_COLOR, Properties.TINT -> COLOR;
             case Properties.EVENT_LISTENERS, Properties.BORDER_EDGES -> U32;
             case Properties.SELECTED -> U8;
             case Properties.LABEL, Properties.PROMPT, Properties.FONT_FAMILY -> STRING;

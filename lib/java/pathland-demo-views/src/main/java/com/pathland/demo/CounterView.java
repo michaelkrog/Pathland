@@ -16,7 +16,7 @@ public final class CounterView implements View {
                 new CounterControls(),
                 new NameField(),
                 View.text("Pathland · per-session · 16-byte deltas")
-                        .color(Color.rgb(0x88, 0x88, 0x88))
+                        .foregroundStyle(Color.rgb(0x88, 0x88, 0x88))
         ).padding(24);
     }
 }
