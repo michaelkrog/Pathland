@@ -16,23 +16,29 @@ tracks what this crate implements.
   LAZY_HSTACK 0x1C, BUTTON 0x20, TEXT_FIELD 0x21, TEXT_EDITOR 0x22, TOGGLE
   0x24, SLIDER 0x25, STEPPER 0x26, DATE_PICKER 0x27, PICKER 0x28, MENU 0x29,
   COLOR_PICKER 0x2A, COMMENT 0x7F`.
-- **Properties** (`property_id`): the stack/text/styling/semantic catalog
-  (`SPACING`…`PADDING_LEFT`, `BORDER_*`, `FONT_*`, `COLOR`, `WIDTH`/`HEIGHT`,
-  `OPACITY`, `VISIBLE`, `Z_INDEX`, `CLIPS_TO_BOUNDS`, `ROLE`/`STATE`,
-  `ENABLED`, `SELECTED`, `EVENT_LISTENERS`, `VALUE`/`MIN_VALUE`/`MAX_VALUE`,
-  `LABEL`/`PROMPT`, and the draft `SHAPE_KIND`, `STEP_VALUE`, `CONTROL_SIZE`,
-  `IS_SECURE`, `PROGRESS`, `IS_INDETERMINATE`, `SELECTION`, `COLOR_VALUE`,
-  `DATE_PICKER_MODE`, `PICKER_STYLE`, `ACTION_ID`, `BINDING_ID`, `TOGGLE_STYLE`,
-  `IMAGE_SOURCE`).
+- **Properties** (`property_id`): the full `spec/MODIFIERS.md` catalog —
+  stack/text/styling/semantic IDs plus every draft modifier (`SHAPE_KIND`,
+  layout `OFFSET`/`POSITION`/frame bounds/`FIXED_SIZE`/`LAYOUT_PRIORITY`/
+  `ASPECT_RATIO`/`CONTENT_MODE`/`MINIMUM_SCALE_FACTOR`, text-format
+  `FONT_STYLE`/`FONT_DESIGN`/`FONT_WIDTH`/`KERNING`/`TRACKING`/
+  `BASELINE_OFFSET`/`LINE_SPACING`/`TEXT_CASE`/`UNDERLINE`/`STRIKETHROUGH`,
+  effects `SHADOW_*`/`BLUR_RADIUS`/`SATURATION`/`CONTRAST`/`BRIGHTNESS`/
+  `GRAYSCALE`/`HUE_ROTATION`/`COLOR_MULTIPLY`/`COLOR_INVERT`,
+  `ROTATION_DEGREES`/`SCALE`/`ALLOWS_HIT_TESTING`, control drafts
+  `STEP_VALUE`/`CONTROL_SIZE`/`IS_SECURE`/`PROGRESS`/`IS_INDETERMINATE`/
+  `SELECTION`/`COLOR_VALUE`/`DATE_PICKER_MODE`/`PICKER_STYLE`,
+  `ACTION_ID`/`BINDING_ID`/`TOGGLE_STYLE`, `IMAGE_SOURCE`).
 - **Commands**: `TREE` create/delete/insert/remove/move (append = `u32::MAX`);
   `STYLE` `SET_PROPERTY`/`SET_DESIGN_TOKEN`/`SET_TEXT`/`SET_DATE`; `META`
   `RESET`/`ENVIRONMENT`.
-- **EVENT commands (constants)**: `POINTER_DOWN/MOVE/UP`, `KEY_DOWN/UP`,
-  `VALUE_CHANGED`, `TEXT_CHANGED`, plus the draft `FOCUS_CHANGED`,
-  `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL`, `DATE_CHANGED`.
+- **Typed `Event` enum**: pointer/key/value/text events (0x01–0x07) plus the
+  draft `FocusChanged`, `EditingChanged`, `Submit`, `Scroll`, `Wheel`,
+  `DateChanged` (0x08–0x0D) — all encode/decode round-trip.
+- **`Guest::set_date`** helper (`STYLE::SET_DATE`).
+- **`value_type_for`** matches `spec/MODIFIERS.md`'s canonical mapping
+  (COLOR / U32 / U8 / STRING / F32-enum-code).
 - **Listener bits**: 0–9 (`POINTER_*`, `KEY_*`, `FOCUS`, `EDITING`, `SUBMIT`,
   `SCROLL`, `WHEEL`).
-- **Typed `Event` enum**: pointer/key/value/text events (commands 0x01–0x07).
 - **Shared linear memory**: 80-byte header, guest→host ring, host→guest event
   ring, guest arena, host→guest **event arena** (two-way string section — a
   host `send_event(TextChanged)` round-trips text over the shared ring).
@@ -41,10 +47,9 @@ tracks what this crate implements.
 
 ## Not implemented / gaps
 
-- Draft commands 0x08–0x0D and `STYLE::SET_DATE` are **constants only** — no
-  typed `Event` variants, no `Guest::set_date` helper (renderers decode the raw
-  opcode fields themselves).
 - `ENVIRONMENT` (`META`) is a constant only (no viewport plumbing).
+- Enum *value* codes (e.g. `TOGGLE_STYLE=Switch=0`) are used inline; there are
+  no named value constants.
 
 ## Verified by
 

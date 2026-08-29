@@ -279,6 +279,20 @@ impl<'a> Guest<'a> {
         Ok(arena_ref)
     }
 
+    /// Set a node's date value via `STYLE::SET_DATE` (draft): `days` since the
+    /// epoch (I32, pre-1970 negative) and `millis` of day (U32, 0..86,400,000).
+    pub fn set_date(&mut self, node_id: u32, days: i32, millis: u32) -> Result<(), RingError> {
+        let op = Opcode::new(
+            category::STYLE,
+            crate::style::SET_DATE,
+            0,
+            node_id,
+            days as u32,
+            millis,
+        );
+        ring_fn::push(self.slots, self.header, self.mask(), &op)
+    }
+
     /// Allocate arbitrary bytes into the arena, returning the offset.
     pub fn alloc(&mut self, bytes: &[u8]) -> Result<u32, ArenaError> {
         arena_fn::alloc(self.arena, self.header, bytes)

@@ -560,6 +560,22 @@ mod tests {
     }
 
     #[test]
+    fn draft_events_round_trip_through_batch() {
+        let events = vec![
+            Event::FocusChanged { target: 1, focused: true },
+            Event::EditingChanged { target: 2, editing: false },
+            Event::Submit { target: 3 },
+            Event::Scroll { target: 4, offset_x: 10.0, offset_y: 20.0 },
+            Event::Wheel { target: 5, delta_x: -1.0, delta_y: 2.0 },
+            Event::DateChanged { target: 6, days: 19_723, millis: 0 },
+        ];
+        let bytes = encode_events(4, &events);
+        let (frame_count, decoded) = decode_events(&bytes).unwrap();
+        assert_eq!(frame_count, 4);
+        assert_eq!(decoded, events);
+    }
+
+    #[test]
     fn self_contained_frame_round_trips() {
         // SET_TEXT with a relative offset into the frame's string section.
         let mut strings = Vec::new();

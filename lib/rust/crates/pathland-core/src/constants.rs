@@ -264,6 +264,39 @@ pub mod property_id {
     /// **Draft.** `SHAPE` geometry kind (F32 enum): `Circle`=0, `Rectangle`=1,
     /// `RoundedRectangle`=2, `Capsule`=3, `Ellipse`=4, `Path`=5.
     pub const SHAPE_KIND: u16 = 0x0006;
+    // Layout modifiers (draft, 0x000E–0x001D)
+    /// **Draft.** Post-layout translation, x (F32). `.offset(x:y:)`.
+    pub const OFFSET_X: u16 = 0x000E;
+    /// **Draft.** Post-layout translation, y (F32).
+    pub const OFFSET_Y: u16 = 0x000F;
+    /// **Draft.** Absolute position within the parent, x (F32). `.position(x:y:)`.
+    pub const POSITION_X: u16 = 0x0010;
+    /// **Draft.** Absolute position within the parent, y (F32).
+    pub const POSITION_Y: u16 = 0x0011;
+    /// **Draft.** Minimum width (F32). `.frame(minWidth:...)`.
+    pub const MIN_WIDTH: u16 = 0x0012;
+    /// **Draft.** Ideal width (F32).
+    pub const IDEAL_WIDTH: u16 = 0x0013;
+    /// **Draft.** Maximum width (F32).
+    pub const MAX_WIDTH: u16 = 0x0014;
+    /// **Draft.** Minimum height (F32).
+    pub const MIN_HEIGHT: u16 = 0x0015;
+    /// **Draft.** Ideal height (F32).
+    pub const IDEAL_HEIGHT: u16 = 0x0016;
+    /// **Draft.** Maximum height (F32).
+    pub const MAX_HEIGHT: u16 = 0x0017;
+    /// **Draft.** Fixed-size hint, horizontal (U8 0/1). `.fixedSize()`.
+    pub const FIXED_SIZE_HORIZONTAL: u16 = 0x0018;
+    /// **Draft.** Fixed-size hint, vertical (U8 0/1).
+    pub const FIXED_SIZE_VERTICAL: u16 = 0x0019;
+    /// **Draft.** Layout priority (F32). `.layoutPriority(_:)`.
+    pub const LAYOUT_PRIORITY: u16 = 0x001A;
+    /// **Draft.** Aspect ratio (F32). `.aspectRatio(_:)`.
+    pub const ASPECT_RATIO: u16 = 0x001B;
+    /// **Draft.** Content mode (F32 enum): `Fit`=0, `Fill`=1.
+    pub const CONTENT_MODE: u16 = 0x001C;
+    /// **Draft.** Minimum scale factor (F32). `.minimumScaleFactor(_:)`.
+    pub const MINIMUM_SCALE_FACTOR: u16 = 0x001D;
     // Style (0x1000 range)
     pub const BACKGROUND_COLOR: u16 = 0x1001;
     /// **Draft.** Image source (STRING: a resource name, file path, or URL).
@@ -290,6 +323,61 @@ pub mod property_id {
     /// `BORDER_EDGES` — a u32 bitmask (see [`crate::border_edges`]) selecting
     /// which edges of a node's border are drawn.
     pub const BORDER_EDGES: u16 = 0x1016;
+    // Text-format modifiers (draft, 0x1017–0x1020)
+    /// **Draft.** Font style (F32 enum): `Normal`=0, `Italic`=1.
+    pub const FONT_STYLE: u16 = 0x1017;
+    /// **Draft.** Font design (F32 enum): `Default`=0, `Serif`=1, `Rounded`=2,
+    /// `Monospaced`=3.
+    pub const FONT_DESIGN: u16 = 0x1018;
+    /// **Draft.** Font width (F32, 0.5–1.5, 1.0 default).
+    pub const FONT_WIDTH: u16 = 0x1019;
+    /// **Draft.** Kerning (F32 points). `.kerning(_:)`.
+    pub const KERNING: u16 = 0x101A;
+    /// **Draft.** Tracking (F32 points). `.tracking(_:)`.
+    pub const TRACKING: u16 = 0x101B;
+    /// **Draft.** Baseline offset (F32 points). `.baselineOffset(_:)`.
+    pub const BASELINE_OFFSET: u16 = 0x101C;
+    /// **Draft.** Line spacing (F32 points). `.lineSpacing(_:)`.
+    pub const LINE_SPACING: u16 = 0x101D;
+    /// **Draft.** Text case (F32 enum): `None`=0, `Uppercase`=1, `Lowercase`=2.
+    pub const TEXT_CASE: u16 = 0x101E;
+    /// **Draft.** Underline (U8 0/1). `.underline()`.
+    pub const UNDERLINE: u16 = 0x101F;
+    /// **Draft.** Strikethrough (U8 0/1). `.strikethrough()`.
+    pub const STRIKETHROUGH: u16 = 0x1020;
+    // Effect modifiers (draft, 0x1021–0x102C)
+    /// **Draft.** Shadow color (COLOR). `.shadow(color:...)`.
+    pub const SHADOW_COLOR: u16 = 0x1021;
+    /// **Draft.** Shadow radius (F32).
+    pub const SHADOW_RADIUS: u16 = 0x1022;
+    /// **Draft.** Shadow x offset (F32).
+    pub const SHADOW_X: u16 = 0x1023;
+    /// **Draft.** Shadow y offset (F32).
+    pub const SHADOW_Y: u16 = 0x1024;
+    /// **Draft.** Blur radius (F32). `.blur(radius:)`.
+    pub const BLUR_RADIUS: u16 = 0x1025;
+    /// **Draft.** Saturation (F32 0–1). `.saturation(_:)`.
+    pub const SATURATION: u16 = 0x1026;
+    /// **Draft.** Contrast (F32 0–1). `.contrast(_:)`.
+    pub const CONTRAST: u16 = 0x1027;
+    /// **Draft.** Brightness (F32 −1–1). `.brightness(_:)`.
+    pub const BRIGHTNESS: u16 = 0x1028;
+    /// **Draft.** Grayscale (F32 0–1). `.grayscale(_:)`.
+    pub const GRAYSCALE: u16 = 0x1029;
+    /// **Draft.** Hue rotation (F32 degrees). `.hueRotation(_:)`.
+    pub const HUE_ROTATION: u16 = 0x102A;
+    /// **Draft.** Color multiply (COLOR). `.colorMultiply(_:)`.
+    pub const COLOR_MULTIPLY: u16 = 0x102B;
+    /// **Draft.** Color invert (U8 0/1). `.colorInvert()`.
+    pub const COLOR_INVERT: u16 = 0x102C;
+    // Transform (draft)
+    /// **Draft.** Rotation (F32 degrees, counter-clockwise). `.rotationEffect(_:)`.
+    pub const ROTATION_DEGREES: u16 = 0x102D;
+    /// **Draft.** Uniform scale (F32). `.scaleEffect(_:)`.
+    pub const SCALE: u16 = 0x102E;
+    /// **Draft.** Whether the element participates in hit testing (U8 0/1).
+    /// `.allowsHitTesting(_:)`.
+    pub const ALLOWS_HIT_TESTING: u16 = 0x102F;
     // Semantic (0x2000 range)
     pub const ROLE: u16 = 0x2001;
     pub const STATE: u16 = 0x2002;
@@ -353,11 +441,22 @@ pub fn value_type_for(prop: u16) -> u8 {
         property_id::COLOR
         | property_id::BACKGROUND_COLOR
         | property_id::BORDER_COLOR
-        | property_id::COLOR_VALUE => value_type::COLOR,
+        | property_id::COLOR_VALUE
+        | property_id::COLOR_MULTIPLY
+        | property_id::SHADOW_COLOR => value_type::COLOR,
         property_id::EVENT_LISTENERS | property_id::BORDER_EDGES => value_type::U32,
-        property_id::SELECTED | property_id::IS_SECURE | property_id::IS_INDETERMINATE => {
-            value_type::U8
-        }
+        property_id::SELECTED
+        | property_id::IS_SECURE
+        | property_id::IS_INDETERMINATE
+        | property_id::VISIBLE
+        | property_id::ENABLED
+        | property_id::CLIPS_TO_BOUNDS
+        | property_id::UNDERLINE
+        | property_id::STRIKETHROUGH
+        | property_id::COLOR_INVERT
+        | property_id::ALLOWS_HIT_TESTING
+        | property_id::FIXED_SIZE_HORIZONTAL
+        | property_id::FIXED_SIZE_VERTICAL => value_type::U8,
         property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY | property_id::IMAGE_SOURCE => {
             value_type::STRING
         }

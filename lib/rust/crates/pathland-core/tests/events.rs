@@ -127,6 +127,31 @@ fn event_ring_reports_full() {
     }
 
     #[test]
+    fn guest_set_date_emits_the_set_date_command() {
+        use pathland_core::{component_type, style};
+
+        let mut m = Memory::new(MemoryLayout::default());
+        {
+            let mut g = m.guest();
+            g.begin_frame();
+            g.create_node(1, component_type::DATE_PICKER).unwrap();
+            g.set_date(1, -1, 3_600_000).unwrap();
+            g.end_frame();
+        }
+        let ops: Vec<_> = {
+            let mut h = m.host();
+            h.frames()[0].opcodes().collect()
+        };
+        assert_eq!(ops.len(), 2);
+        let date = &ops[1];
+        assert_eq!(date.category(), pathland_core::category::STYLE);
+        assert_eq!(date.command(), style::SET_DATE);
+        assert_eq!(date.a(), 1);
+        assert_eq!(date.b() as i32, -1);
+        assert_eq!(date.c(), 3_600_000);
+    }
+
+    #[test]
     fn reset_recycles_the_event_arena() {
         let mut m = Memory::new(MemoryLayout::default());
 

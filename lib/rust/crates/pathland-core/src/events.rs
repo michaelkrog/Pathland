@@ -70,6 +70,31 @@ pub enum Event {
         target: u32,
         value: String,
     },
+    /// A node gained/lost focus (host → guest). Draft command 0x08.
+    FocusChanged { target: u32, focused: bool },
+    /// An editing session began/ended (host → guest). Draft command 0x09.
+    EditingChanged { target: u32, editing: bool },
+    /// The user committed a field (host → guest). Draft command 0x0A.
+    Submit { target: u32 },
+    /// A scroll container's offset changed (host → guest). Draft command 0x0B.
+    Scroll {
+        target: u32,
+        offset_x: f32,
+        offset_y: f32,
+    },
+    /// Raw wheel/trackpad deltas (host → guest). Draft command 0x0C.
+    Wheel {
+        target: u32,
+        delta_x: f32,
+        delta_y: f32,
+    },
+    /// A `DATE_PICKER`'s value changed (host → guest). Draft command 0x0D;
+    /// `days` is I32 (pre-1970 negative), `millis` is millis of day.
+    DateChanged {
+        target: u32,
+        days: i32,
+        millis: u32,
+    },
 }
 
 impl Event {
@@ -162,6 +187,66 @@ impl Event {
                 0,
                 0,
             ),
+            Event::FocusChanged { target, focused } => Opcode::new(
+                category::EVENT,
+                crate::event::FOCUS_CHANGED,
+                0,
+                *target,
+                u32::from(*focused),
+                0,
+            ),
+            Event::EditingChanged { target, editing } => Opcode::new(
+                category::EVENT,
+                crate::event::EDITING_CHANGED,
+                0,
+                *target,
+                u32::from(*editing),
+                0,
+            ),
+            Event::Submit { target } => Opcode::new(
+                category::EVENT,
+                crate::event::SUBMIT,
+                0,
+                *target,
+                0,
+                0,
+            ),
+            Event::Scroll {
+                target,
+                offset_x,
+                offset_y,
+            } => Opcode::new(
+                category::EVENT,
+                crate::event::SCROLL,
+                0,
+                *target,
+                offset_x.to_bits(),
+                offset_y.to_bits(),
+            ),
+            Event::Wheel {
+                target,
+                delta_x,
+                delta_y,
+            } => Opcode::new(
+                category::EVENT,
+                crate::event::WHEEL,
+                0,
+                *target,
+                delta_x.to_bits(),
+                delta_y.to_bits(),
+            ),
+            Event::DateChanged {
+                target,
+                days,
+                millis,
+            } => Opcode::new(
+                category::EVENT,
+                crate::event::DATE_CHANGED,
+                0,
+                *target,
+                *days as u32,
+                *millis,
+            ),
         }
     }
 }
@@ -237,6 +322,30 @@ impl TryFrom<Opcode> for Event {
             crate::event::VALUE_CHANGED => Ok(Event::ValueChanged {
                 target: op.a(),
                 value: op.b_f32(),
+            }),
+            crate::event::FOCUS_CHANGED => Ok(Event::FocusChanged {
+                target: op.a(),
+                focused: op.b() != 0,
+            }),
+            crate::event::EDITING_CHANGED => Ok(Event::EditingChanged {
+                target: op.a(),
+                editing: op.b() != 0,
+            }),
+            crate::event::SUBMIT => Ok(Event::Submit { target: op.a() }),
+            crate::event::SCROLL => Ok(Event::Scroll {
+                target: op.a(),
+                offset_x: op.b_f32(),
+                offset_y: op.c_f32(),
+            }),
+            crate::event::WHEEL => Ok(Event::Wheel {
+                target: op.a(),
+                delta_x: op.b_f32(),
+                delta_y: op.c_f32(),
+            }),
+            crate::event::DATE_CHANGED => Ok(Event::DateChanged {
+                target: op.a(),
+                days: op.b() as i32,
+                millis: op.c(),
             }),
             crate::event::TEXT_CHANGED => Err(EventError::NeedsStringSection),
             _ => Err(EventError::UnknownCommand),
@@ -343,6 +452,22 @@ mod tests {
             value: 0.625,
         };
         assert_eq!(round_trip(e.clone()), e);
+    }
+
+    #[test]
+    fn draft_events_round_trip() {
+        for e in [
+            Event::FocusChanged { target: 1, focused: true },
+            Event::FocusChanged { target: 1, focused: false },
+            Event::EditingChanged { target: 2, editing: true },
+            Event::Submit { target: 3 },
+            Event::Scroll { target: 4, offset_x: 10.0, offset_y: 20.5 },
+            Event::Wheel { target: 5, delta_x: -1.5, delta_y: 2.0 },
+            Event::DateChanged { target: 6, days: 19_723, millis: 3_600_000 },
+            Event::DateChanged { target: 6, days: -1, millis: 0 },
+        ] {
+            assert_eq!(round_trip(e.clone()), e);
+        }
     }
 
     #[test]

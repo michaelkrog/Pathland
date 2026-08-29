@@ -14,7 +14,8 @@ codec (both directions). Protocol contract: `spec/OPCODE.md` (Transport).
 - **Network batch codec** (`batch.rs`, `net.rs`): `encode_batch`/`decode_batch`
   for guest→host frames and `encode_events`/`decode_events` for host→guest
   event batches (`HOST_TO_GUEST` direction flag, `TEXT_CHANGED` text in the
-  batch string section). Both directions are fully wired at the codec level.
+  batch string section, plus all typed draft events — focus/edit/submit/scroll/
+  wheel/date-changed). Both directions are fully wired at the codec level.
 - **Batching policy** (`batching.rs`): time/size flush thresholds with arena
   delta tracking.
 - **Conformance vectors 13/14** (`conformance.rs`): golden network-batch bytes.
