@@ -210,13 +210,68 @@ class EmitterTest {
         List<Event> events = List.of(
                 Event.pointerUp(4, 10.0f, 20.0f),
                 Event.valueChanged(6, 0.75f),
-                Event.textChanged(7, "Bob"));
+                Event.textChanged(7, "Bob"),
+                Event.keyDown(3, 0x20, 0x01, Commands.Flags.KEY_REPEAT),
+                Event.keyUp(3, 0x20, 0x01),
+                Event.dateChanged(8, 20487, 43200000),
+                Event.scroll(9, 12f, -3f),
+                Event.wheel(9, 1.5f, -2f),
+                Event.focusChanged(2, true),
+                Event.editingChanged(2, false),
+                Event.submit(2));
         byte[] wire = FrameCodec.encodeEvents(events);
         List<Event> decoded = FrameCodec.decodeEvents(wire);
-        assertEquals(3, decoded.size());
-        assertEquals(Event.pointerUp(4, 10f, 20f), decoded.get(0));
-        assertEquals(Event.valueChanged(6, 0.75f), decoded.get(1));
-        assertEquals(Event.textChanged(7, "Bob"), decoded.get(2));
+        assertEquals(events, decoded, "full event catalog round-trips byte-exactly");
+    }
+
+    @Test
+    void datePickerEmitsSetDateAndReEmitsOnChange() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        WritableSignal<Integer> days = Signals.signal(20487);
+        emitter.mount(View.datePicker(DatePickerMode.DATE, days), Environment.DEFAULT);
+
+        Frame initial = sink.frame();
+        boolean sawSetDate = false;
+        for (Opcode op : initial.opcodes()) {
+            if (op.category() == Categories.STYLE && op.command() == Commands.Style.SET_DATE) {
+                sawSetDate = true;
+                assertEquals(20487, op.b());
+                assertEquals(0, op.c());
+            }
+        }
+        assertTrue(sawSetDate, "DatePicker emits STYLE::SET_DATE at mount");
+
+        days.set(20488);
+        Frame delta = sink.frame();
+        assertEquals(1, delta.opcodes().size());
+        Opcode only = delta.opcodes().get(0);
+        assertEquals(Categories.STYLE, only.category());
+        assertEquals(Commands.Style.SET_DATE, only.command());
+        assertEquals(20488, only.b());
+    }
+
+    @Test
+    void sliderRoutesValueIntoItsSignal() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        WritableSignal<Float> value = Signals.signal(0.5f);
+        RenderResult result = emitter.mount(View.slider(0.5f, 0f, 1f, value), Environment.DEFAULT);
+
+        assertEquals(1, result.valueInputs().size(), "the slider exposes one value input");
+        result.valueInputs().values().iterator().next().accept(0.75f);
+        assertEquals(0.75f, value.get(), "VALUE_CHANGED writes straight into the bound signal");
+    }
+
+    @Test
+    void toggleRoutesBooleanValueAndEmitsSelected() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        WritableSignal<Boolean> on = Signals.signal(false);
+        RenderResult result = emitter.mount(View.toggle(ToggleStyle.CHECKBOX, false, on, "Go"), Environment.DEFAULT);
+
+        result.valueInputs().values().iterator().next().accept(1f);
+        assertEquals(Boolean.TRUE, on.get(), "VALUE_CHANGED 0/1 writes into the boolean binding");
     }
 
     @Test

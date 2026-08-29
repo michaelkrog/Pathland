@@ -2,6 +2,7 @@ package com.pathland.view;
 
 import com.pathland.view.emit.PathlandNode;
 import com.pathland.view.signal.Signal;
+import com.pathland.view.signal.WritableSignal;
 
 import java.util.List;
 
@@ -433,6 +434,21 @@ public interface View {
         return Modified.props(this, Modified.prop(Properties.IMAGE_SOURCE, source));
     }
 
+    /** Declare which raw events this node wants reported (the {@code EVENT_LISTENERS} bitmask). */
+    default View pointerEvents(int mask) {
+        return Modified.props(this, Modified.prop(Properties.EVENT_LISTENERS, mask));
+    }
+
+    /** Set the action callback id (gates tap/action event delivery on the wire). */
+    default View actionId(int id) {
+        return Modified.props(this, Modified.prop(Properties.ACTION_ID, id));
+    }
+
+    /** Set the two-way binding id (gates value/text event delivery on the wire). */
+    default View bindingId(int id) {
+        return Modified.props(this, Modified.prop(Properties.BINDING_ID, id));
+    }
+
     /** Wrap this view in a custom modifier (SwiftUI {@code .modifier}). */
     default View modifier(ViewModifier modifier) {
         return Modified.modifier(this, modifier);
@@ -526,8 +542,108 @@ public interface View {
     }
 
     /** A text field bound to a writable signal. */
-    static TextField textField(String placeholder, com.pathland.view.signal.WritableSignal<String> binding) {
+    static TextField textField(String placeholder, WritableSignal<String> binding) {
         return new TextField(placeholder, binding);
+    }
+
+    /** A multi-line text editor bound to a writable signal. */
+    static TextEditor textEditor(WritableSignal<String> binding) {
+        return new TextEditor(binding);
+    }
+
+    /** A boolean control (switch/checkbox/toggle button) with a label. */
+    static Toggle toggle(ToggleStyle style, boolean selected, WritableSignal<Boolean> binding, String label) {
+        return new Toggle(style, selected, binding, label);
+    }
+
+    /** A {@code Switch}-style boolean control. */
+    static Toggle toggle(boolean selected, WritableSignal<Boolean> binding) {
+        return new Toggle(selected, binding);
+    }
+
+    /** A numeric range control. */
+    static Slider slider(float value, float min, float max, WritableSignal<Float> binding) {
+        return new Slider(value, min, max, binding);
+    }
+
+    /** A discrete increment/decrement control. */
+    static Stepper stepper(float value, float min, float max, float step, WritableSignal<Float> binding) {
+        return new Stepper(value, min, max, step, binding);
+    }
+
+    /** A determinate progress bar ({@code value} in {@code 0..1}). */
+    static ProgressView progressView(float value) {
+        return ProgressView.progress(value);
+    }
+
+    /** An indeterminate activity indicator. */
+    static ProgressView progressView() {
+        return ProgressView.indeterminate();
+    }
+
+    /** A read-only range meter. */
+    static Gauge gauge(float value, float min, float max) {
+        return new Gauge(value, min, max);
+    }
+
+    /** An axis-aligned separator line. */
+    static Divider divider() {
+        return new Divider();
+    }
+
+    /** A static 2D matrix grid. */
+    static Grid grid(View... children) {
+        return new Grid(children);
+    }
+
+    /** A scrollable content container. */
+    static ScrollView scrollView(View... children) {
+        return new ScrollView(children);
+    }
+
+    /** A virtualized vertical stack. */
+    static LazyVStack lazyVStack(View... children) {
+        return new LazyVStack(children);
+    }
+
+    /** A virtualized horizontal stack. */
+    static LazyHStack lazyHStack(View... children) {
+        return new LazyHStack(children);
+    }
+
+    /** A virtualized vertical grid. */
+    static LazyVGrid lazyVGrid(View... children) {
+        return new LazyVGrid(children);
+    }
+
+    /** A virtualized horizontal grid. */
+    static LazyHGrid lazyHGrid(View... children) {
+        return new LazyHGrid(children);
+    }
+
+    /** A selection control; the children are the options, {@code SELECTION} is the chosen index. */
+    static Picker picker(PickerStyle style, WritableSignal<Integer> selection, View... options) {
+        return new Picker(style, selection, options);
+    }
+
+    /** A menu with a custom trigger and action items. */
+    static Menu menu(View trigger, View... actions) {
+        return new Menu(trigger, actions);
+    }
+
+    /** A menu that reports the chosen action item index via {@code VALUE_CHANGED}. */
+    static Menu menu(View trigger, WritableSignal<Integer> selection, View... actions) {
+        return new Menu(trigger, selection, actions);
+    }
+
+    /** A native color picker bound to a color signal. */
+    static ColorPicker colorPicker(WritableSignal<Color> binding) {
+        return new ColorPicker(binding);
+    }
+
+    /** A date picker bound to days-since-epoch. */
+    static DatePicker datePicker(DatePickerMode mode, WritableSignal<Integer> days) {
+        return new DatePicker(mode, days);
     }
 
     /** Compose a list of child views into one {@link View}. */

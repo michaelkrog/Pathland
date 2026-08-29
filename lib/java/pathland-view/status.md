@@ -12,13 +12,28 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 - **Views**: `View` (open interface), `VStack`, `HStack`, `ZStack`, `Text`,
   `Image`, `Color` (dual identity: a `COLOR` view *and* a value passed into
   style modifiers), `Rectangle` (a `SHAPE` node), `Button`, `TextField`,
-  `Spacer`; `body()` composition; `ButtonStyle`/`ViewModifier`/`Environment`
+  `Spacer`, `TextEditor`, `Toggle`, `Slider`, `Stepper`, `ProgressView`,
+  `Gauge`, `Divider`, `Grid`, `ScrollView`, `LazyVStack`, `LazyHStack`,
+  `LazyVGrid`, `LazyHGrid`, `Picker`, `Menu`, `ColorPicker`, `DatePicker`;
+  `body()` composition; `ButtonStyle`/`ViewModifier`/`Environment`
   (ScopedValue).
 - **Component IDs**: synced to the spec's grouped ranges (`Components.java`:
-  `TEXT 0x01`, `IMAGE 0x02`, `COLOR 0x03`, `SHAPE 0x04`, `SPACER 0x06`,
-  `VSTACK 0x10`, `HSTACK 0x11`, `ZSTACK 0x12`, `BUTTON 0x20`, `TEXT_FIELD 0x21`,
-  `TOGGLE 0x24`, `SLIDER 0x25`, `COMMENT 0x7F`, …) — frames are spec-valid and
-  cross-language correct.
+  `TEXT 0x01`, `IMAGE 0x02`, `COLOR 0x03`, `SHAPE 0x04`, `DIVIDER 0x05`,
+  `SPACER 0x06`, `PROGRESS_VIEW 0x07`, `GAUGE 0x08`, `VSTACK 0x10`,
+  `HSTACK 0x11`, `ZSTACK 0x12`, `GRID 0x13`, `SCROLLVIEW 0x14`, `LAZY_*`,
+  `BUTTON 0x20`, `TEXT_FIELD 0x21`, `TEXT_EDITOR 0x22`, `TOGGLE 0x24`,
+  `SLIDER 0x25`, `STEPPER 0x26`, `DATE_PICKER 0x27`, `PICKER 0x28`,
+  `MENU 0x29`, `COLOR_PICKER 0x2A`, `COMMENT 0x7F`, …) — frames are spec-valid
+  and cross-language correct.
+- **Value controls**: `Toggle`/`Slider`/`Stepper`/`Picker`/`ColorPicker`/
+  `Menu` bind to writable signals and route `VALUE_CHANGED` through the
+  emitter's value-input registry; `TextEditor` mirrors `TextField`.
+  `DatePicker` emits `STYLE::SET_DATE` (and re-emits it on signal change via a
+  node-level date binding).
+- **Events**: the full catalog round-trips — pointer, `KEY_*`, `VALUE_CHANGED`,
+  `TEXT_CHANGED`, `FOCUS_CHANGED`, `EDITING_CHANGED`, `SUBMIT`, `SCROLL`,
+  `WHEEL`, `DATE_CHANGED`; listener bits `0..9` declared
+  (`Commands.Listeners`). `FrameCodec.decodeEvents` decodes all of them.
 - **Modifiers** (chainable on any view): `padding`, `foregroundStyle(Color)`
   (no `.color()`), `background(Color)`, `tint(Color)`, `opacity`, `fontSize`,
   `fontWeight`, `border`, `visible`/`hidden`, `frame` (fixed and
@@ -55,15 +70,12 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 
 ## Not implemented / gaps
 
-- Missing **control views**: `Toggle`/`Slider`/`TextEditor`/`Picker`/
-  `DatePicker`/`Menu`/`ColorPicker`/`Stepper`/`ProgressView`/`Gauge`/
-  `Divider`/`Grid`/`ScrollView`/lazy stacks, and the `ACTION_ID`/`BINDING_ID`
-  helpers that route their events.
-- Missing **events**: `FrameCodec.decodeEvents` decodes pointer +
-  `VALUE_CHANGED` + `TEXT_CHANGED` only — no `KEY_*`, `FOCUS_CHANGED`,
-  `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL`, `DATE_CHANGED`; no
-  `STYLE::SET_DATE` command; no arbitrary `EVENT_LISTENERS` modifier (only
-  `TapGestureView`).
+- `ACTION_ID`/`BINDING_ID` are usable as modifiers (`actionId`/`bindingId`) but
+  the Java model routes events by node id through the emitter's registries
+  (`RenderResult`), so controls don't set them automatically.
+- `DATE_CHANGED` decodes on the wire but has no Java host-side registry (the
+  two-field payload doesn't fit `Consumer<Float>`); apps handle it directly.
+- No `STYLE::SET_DESIGN_TOKEN` DSL helper.
 
 ## Verified by
 

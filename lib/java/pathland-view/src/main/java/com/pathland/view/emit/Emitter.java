@@ -107,6 +107,9 @@ public final class Emitter {
         if (text != null && !text.isEmpty()) {
             sink.setText(node.id, text);
         }
+        if (node.dateBinding != null) {
+            sink.setDate(node.id, node.days, node.millisOfDay);
+        }
         for (Map.Entry<Integer, Object> entry : node.properties.entrySet()) {
             emitProperty(node.id, entry.getKey(), entry.getValue());
         }
@@ -135,6 +138,17 @@ public final class Emitter {
                     node.text = value;
                     sink.beginFrame();
                     sink.setText(node.id, value);
+                    sink.endFrame();
+                }
+            }));
+        }
+        if (node.dateBinding != null) {
+            bindings.add(Signals.effect(() -> {
+                int days = node.dateBinding.get();
+                if (days != node.days) {
+                    node.days = days;
+                    sink.beginFrame();
+                    sink.setDate(node.id, days, node.millisOfDay);
                     sink.endFrame();
                 }
             }));

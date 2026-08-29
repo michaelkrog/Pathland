@@ -91,6 +91,11 @@ public class FrameOpcodeSink implements OpcodeSink {
         }
     }
 
+    @Override
+    public void setDate(int nodeId, int days, int millisOfDay) {
+        push(Categories.STYLE, Commands.Style.SET_DATE, 0, nodeId, days, millisOfDay);
+    }
+
     /** Append a length-prefixed string to the string section, returning its offset. */
     public int writeString(String text) {
         int offset = strings.size();

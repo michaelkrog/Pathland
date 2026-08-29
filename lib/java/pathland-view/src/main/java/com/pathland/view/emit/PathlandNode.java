@@ -39,6 +39,15 @@ public final class PathlandNode {
     /** Reactive text binding (re-emits only {@code SET_TEXT} on change). */
     public Signal<String> textBinding;
 
+    /** Reactive date binding for a {@code DATE_PICKER} (days since epoch; re-emits {@code SET_DATE}). */
+    public Signal<Integer> dateBinding;
+
+    /** Current date value: days since epoch. */
+    public int days;
+
+    /** Current date value: millis of day (0..86,400,000). */
+    public int millisOfDay;
+
     /** Ordered children. */
     public final List<PathlandNode> children = new ArrayList<>();
 

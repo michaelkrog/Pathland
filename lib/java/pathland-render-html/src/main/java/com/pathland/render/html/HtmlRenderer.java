@@ -32,6 +32,8 @@ public final class HtmlRenderer {
     static final class Node {
         final int component;
         String text;
+        int days;
+        int millisOfDay;
         final Map<Integer, Integer> properties = new TreeMap<>();
         final Map<Integer, String> strings = new TreeMap<>();
         final List<Integer> children = new ArrayList<>();
@@ -108,6 +110,13 @@ public final class HtmlRenderer {
                     node.text = frame.stringAt(op.b());
                 }
             }
+            case Commands.Style.SET_DATE -> {
+                Node node = nodes.get(op.a());
+                if (node != null) {
+                    node.days = op.b();
+                    node.millisOfDay = op.c();
+                }
+            }
             case Commands.Style.SET_PROPERTY -> {
                 Node node = nodes.get(op.a());
                 if (node == null) {
@@ -142,6 +151,15 @@ public final class HtmlRenderer {
                 + ".pathland-toggle input[role=\"switch\"]:checked::after { left: 22px; }\n"
                 + ".pathland-slider { display: inline-flex; align-items: center; gap: 10px; }\n"
                 + ".pathland-slider input[type=\"range\"] { flex: 1; accent-color: #2196F3; }\n"
+                + ".pathland-spinner { width: 22px; height: 22px; border: 3px solid #ccc; border-top-color: #2196F3; border-radius: 50%; animation: pathland-spin 0.8s linear infinite; }\n"
+                + "@keyframes pathland-spin { to { transform: rotate(360deg); } }\n"
+                + ".pathland-gauge { width: 120px; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; }\n"
+                + ".pathland-gauge div { height: 100%; background: #2196F3; }\n"
+                + ".pathland-stepper { display: inline-flex; align-items: center; gap: 8px; }\n"
+                + ".pathland-stepper button { width: 28px; height: 28px; }\n"
+                + ".pathland-menu { position: relative; display: inline-block; }\n"
+                + ".pathland-menu-items { display: none; position: absolute; background: white; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }\n"
+                + ".pathland-menu:hover .pathland-menu-items { display: block; }\n"
                 + ".pathland-textfield { display: inline-flex; align-items: center; gap: 8px; }\n"
                 + ".pathland-textfield input[type=\"text\"] { font: inherit; padding: 6px 10px; border: 1px solid #ccc; border-radius: 6px; }\n"
                 + "</style>\n</head>\n<body>" + body + "</body>\n</html>\n";
@@ -205,6 +223,85 @@ public final class HtmlRenderer {
                         + "><input type=\"checkbox\"" + role + checked
                         + "><span class=\"pathland-text\">" + text + "</span></label>";
             }
+            case Components.DIVIDER -> {
+                yield "<hr" + dataId + styleAttr(border) + ">";
+            }
+            case Components.PROGRESS_VIEW -> {
+                boolean indeterminate = node.properties.getOrDefault(Properties.IS_INDETERMINATE, 0) != 0;
+                if (indeterminate) {
+                    yield "<div" + dataId + " class=\"pathland-spinner\"" + styleAttr(border) + "></div>";
+                }
+                float progress = node.f32Property(Properties.PROGRESS, 0f);
+                yield "<progress" + dataId + " max=\"1\" value=\"" + fmt(progress) + "\""
+                        + styleAttr(border) + "></progress>";
+            }
+            case Components.GAUGE -> {
+                float min = node.f32Property(Properties.MIN_VALUE, 0f);
+                float max = node.f32Property(Properties.MAX_VALUE, 1f);
+                float value = node.f32Property(Properties.VALUE, min);
+                float span = max - min;
+                float pct = span <= 0f ? 0f : (value - min) / span * 100f;
+                yield "<div" + dataId + " class=\"pathland-gauge\"" + styleAttr(border)
+                        + "><div style=\"width:" + fmt(pct) + "%\"></div></div>";
+            }
+            case Components.TEXT_EDITOR -> {
+                String value = escape(node.text == null ? "" : node.text);
+                yield "<textarea" + dataId + styleAttr(border) + ">" + value + "</textarea>";
+            }
+            case Components.STEPPER -> {
+                float min = node.f32Property(Properties.MIN_VALUE, 0f);
+                float max = node.f32Property(Properties.MAX_VALUE, 10f);
+                float value = node.f32Property(Properties.VALUE, min);
+                yield "<div" + dataId + " class=\"pathland-stepper\"" + styleAttr(border)
+                        + "><button data-step=\"-1\">−</button><span>" + fmt(value)
+                        + "</span><button data-step=\"1\">+</button></div>";
+            }
+            case Components.GRID, Components.LAZY_VGRID, Components.LAZY_HGRID -> {
+                yield wrapGrid(id, node, children.toString(), border);
+            }
+            case Components.SCROLLVIEW -> {
+                yield "<div" + dataId + " style=\"overflow:auto;" + border + "\">" + children + "</div>";
+            }
+            case Components.LAZY_VSTACK -> wrapStack(id, "column", node, children.toString(), border);
+            case Components.LAZY_HSTACK -> wrapStack(id, "row", node, children.toString(), border);
+            case Components.PICKER -> {
+                Integer selection = node.properties.get(Properties.SELECTION);
+                StringBuilder options = new StringBuilder();
+                int index = 0;
+                for (Integer child : node.children) {
+                    Node option = nodes.get(child);
+                    if (option != null) {
+                        String label = escape(option.text == null ? "" : option.text);
+                        options.append("<option")
+                                .append(selection != null && selection == index ? " selected" : "")
+                                .append(">").append(label).append("</option>");
+                    }
+                    index++;
+                }
+                yield "<select" + dataId + styleAttr(border) + ">" + options + "</select>";
+            }
+            case Components.MENU -> {
+                StringBuilder actions = new StringBuilder();
+                for (int i = 1; i < node.children.size(); i++) {
+                    actions.append(renderNode(node.children.get(i)));
+                }
+                String trigger = node.children.isEmpty() ? "" : renderNode(node.children.get(0));
+                yield "<div" + dataId + " class=\"pathland-menu\"" + styleAttr(border)
+                        + "><div class=\"pathland-menu-trigger\">" + trigger + "</div>"
+                        + "<div class=\"pathland-menu-items\">" + actions + "</div></div>";
+            }
+            case Components.COLOR_PICKER -> {
+                int argb = node.properties.getOrDefault(Properties.COLOR_VALUE, 0xFF000000);
+                String hex = String.format("#%02x%02x%02x", (argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);
+                yield "<input" + dataId + " type=\"color\" value=\"" + hex + "\"" + styleAttr(border) + ">";
+            }
+            case Components.DATE_PICKER -> {
+                String value = "";
+                if (node.days != 0) {
+                    value = java.time.LocalDate.ofEpochDay(node.days).toString();
+                }
+                yield "<input" + dataId + " type=\"date\" value=\"" + value + "\"" + styleAttr(border) + ">";
+            }
             case Components.SPACER -> {
                 String style = border.isEmpty()
                         ? "flex:1"
@@ -236,6 +333,16 @@ public final class HtmlRenderer {
 
     private String wrapStack(int id, String direction, Node node, String children, String border) {
         StringBuilder style = new StringBuilder("display:flex;flex-direction:").append(direction).append(';');
+        Float spacing = node.spacing();
+        if (spacing != null) {
+            style.append("gap:").append(fmt(spacing)).append("px;");
+        }
+        style.append("align-items:center;").append(border);
+        return "<div data-pathland-id=\"" + id + "\" style=\"" + style + "\">" + children + "</div>";
+    }
+
+    private String wrapGrid(int id, Node node, String children, String border) {
+        StringBuilder style = new StringBuilder("display:grid;");
         Float spacing = node.spacing();
         if (spacing != null) {
             style.append("gap:").append(fmt(spacing)).append("px;");
