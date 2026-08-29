@@ -29,7 +29,7 @@ import { pickerStyle, selection, selectionString } from '../mapping';
           [value]="selectionString(node)"
           (valueChange)="onSelect(nodeId(), $event)">
           @for (opt of options(node); track opt.index) {
-            <div [option]="'' + opt.index">{{ opt.label }}</div>
+            <ng-template [option]="'' + opt.index">{{ opt.label }}</ng-template>
           }
         </ui-radio-group>
       } @else if (pickerStyle(node) === 'wheel') {
@@ -39,7 +39,7 @@ import { pickerStyle, selection, selectionString } from '../mapping';
           [value]="selectionString(node)"
           (valueChange)="onSelect(nodeId(), $event)">
           @for (opt of options(node); track opt.index) {
-            <div [option]="'' + opt.index">{{ opt.label }}</div>
+            <ng-template [option]="'' + opt.index">{{ opt.label }}</ng-template>
           }
         </ui-select>
       }

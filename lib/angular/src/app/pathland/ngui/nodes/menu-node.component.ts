@@ -16,7 +16,7 @@ import { PathlandNodeHost } from './node-host';
         <ui-button [triggerFor]="menu" [label]="triggerLabel(node)"></ui-button>
         <ui-menu #menu (onSelect)="onSelect(nodeId(), $event)">
           @for (opt of items(node); track opt.index) {
-            <div [option]="'' + opt.index">{{ opt.label }}</div>
+            <ng-template [option]="'' + opt.index">{{ opt.label }}</ng-template>
           }
         </ui-menu>
       </ui-hstack>

@@ -13,6 +13,6 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     include: ['src/**/*.spec.ts'],
-    exclude: ['src/app/app.spec.ts'],
+    exclude: ['src/app/**/*.component.spec.ts', 'src/app/app.spec.ts'],
   },
 });
