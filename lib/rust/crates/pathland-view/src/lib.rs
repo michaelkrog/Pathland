@@ -260,6 +260,61 @@ pub trait ViewExt: View + Sized {
     fn on_tap_gesture<F: FnMut() + 'static>(self, f: F) -> Modified<Self, TapGesture> {
         self.modifier(TapGesture(Rc::new(RefCell::new(f))))
     }
+
+    /// Chain `.opacity(value)` (0..1).
+    fn opacity(self, value: f32) -> Modified<Self, Opacity> {
+        self.modifier(Opacity(value))
+    }
+
+    /// Chain `.hidden()` — hide the view (`VISIBLE` = 0).
+    fn hidden(self) -> Modified<Self, Hidden> {
+        self.modifier(Hidden)
+    }
+
+    /// Chain `.border(color, width)` (sRGB `0xAARRGGBB`).
+    fn border(self, color: u32, width: f32) -> Modified<Self, Border> {
+        self.modifier(Border { color, width })
+    }
+
+    /// Chain `.corner_radius(value)`.
+    fn corner_radius(self, value: f32) -> Modified<Self, CornerRadius> {
+        self.modifier(CornerRadius(value))
+    }
+
+    /// Chain `.font_weight(value)` (100–900).
+    fn font_weight(self, value: f32) -> Modified<Self, FontWeight> {
+        self.modifier(FontWeight(value))
+    }
+
+    /// Chain `.line_limit(n)` (0 = unlimited).
+    fn line_limit(self, n: u32) -> Modified<Self, LineLimit> {
+        self.modifier(LineLimit(n))
+    }
+
+    /// Chain `.text_alignment(a)` (0=Leading, 1=Center, 2=Trailing).
+    fn text_alignment(self, a: u8) -> Modified<Self, TextAlignment> {
+        self.modifier(TextAlignment(a))
+    }
+
+    /// Chain `.truncation_mode(m)` (0=Head, 1=Middle, 2=Tail).
+    fn truncation_mode(self, m: u8) -> Modified<Self, TruncationMode> {
+        self.modifier(TruncationMode(m))
+    }
+
+    /// Chain `.offset(x, y)` — post-layout translation.
+    fn offset(self, x: f32, y: f32) -> Modified<Self, Offset> {
+        self.modifier(Offset { x, y })
+    }
+
+    /// Chain `.position(x, y)` — absolute placement within the parent.
+    fn position(self, x: f32, y: f32) -> Modified<Self, Position> {
+        self.modifier(Position { x, y })
+    }
+
+    /// Chain `.z_index(value)`.
+    fn z_index(self, value: f32) -> Modified<Self, ZIndex> {
+        self.modifier(ZIndex(value))
+    }
 }
 
 impl<T: View> ViewExt for T {}
@@ -403,6 +458,132 @@ impl ViewModifier for TapGesture {
                 | pathland_core::listener::POINTER_UP,
         );
         node.gestures.push(Gesture::Tap(self.0.clone()));
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Extended modifiers
+// ---------------------------------------------------------------------------
+
+/// Opacity (0..1). `.opacity(_:)`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Opacity(pub f32);
+
+/// Hidden (SwiftUI `.hidden()`); sets `VISIBLE` = 0.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Hidden;
+
+/// Border (SwiftUI `.border(color:width:)`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Border {
+    pub color: u32,
+    pub width: f32,
+}
+
+/// Corner radius (SwiftUI `.cornerRadius(_:)`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CornerRadius(pub f32);
+
+/// Font weight (100–900). `.fontWeight(_:)`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FontWeight(pub f32);
+
+/// Line limit (0 = unlimited). `.lineLimit(_:)`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct LineLimit(pub u32);
+
+/// Text alignment (0=Leading, 1=Center, 2=Trailing).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextAlignment(pub u8);
+
+/// Truncation mode (0=Head, 1=Middle, 2=Tail).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TruncationMode(pub u8);
+
+/// Post-layout translation. `.offset(x:y:)`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Offset {
+    pub x: f32,
+    pub y: f32,
+}
+
+/// Absolute position within the parent. `.position(x:y:)`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Position {
+    pub x: f32,
+    pub y: f32,
+}
+
+/// Z-index. `.zIndex(_:)`.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ZIndex(pub f32);
+
+impl ViewModifier for Opacity {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::OPACITY, self.0.to_bits());
+    }
+}
+
+impl ViewModifier for Hidden {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::VISIBLE, 0);
+    }
+}
+
+impl ViewModifier for Border {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::BORDER_COLOR, self.color);
+        node.properties.insert(property_id::BORDER_WIDTH, self.width.to_bits());
+    }
+}
+
+impl ViewModifier for CornerRadius {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::BORDER_RADIUS, self.0.to_bits());
+    }
+}
+
+impl ViewModifier for FontWeight {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::FONT_WEIGHT, self.0.to_bits());
+    }
+}
+
+impl ViewModifier for LineLimit {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::LINE_LIMIT, self.0);
+    }
+}
+
+impl ViewModifier for TextAlignment {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::TEXT_ALIGNMENT, (self.0 as f32).to_bits());
+    }
+}
+
+impl ViewModifier for TruncationMode {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::TRUNCATION_MODE, (self.0 as f32).to_bits());
+    }
+}
+
+impl ViewModifier for Offset {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::OFFSET_X, self.x.to_bits());
+        node.properties.insert(property_id::OFFSET_Y, self.y.to_bits());
+    }
+}
+
+impl ViewModifier for Position {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::POSITION_X, self.x.to_bits());
+        node.properties.insert(property_id::POSITION_Y, self.y.to_bits());
+    }
+}
+
+impl ViewModifier for ZIndex {
+    fn apply(&self, node: &mut Node) {
+        node.properties.insert(property_id::Z_INDEX, self.0.to_bits());
     }
 }
 
@@ -590,6 +771,393 @@ impl View for Button {
 /// A button view (shorthand for [`Button::new`]).
 pub fn button(label: &str) -> Button {
      Button::new(label)
+}
+
+// ---------------------------------------------------------------------------
+// Extended components
+// ---------------------------------------------------------------------------
+
+/// Build a plain node (no text/gesture/bindings) for a component.
+fn plain_node(component: Component, children: Vec<Node>, properties: BTreeMap<u16, u32>) -> Node {
+    Node {
+        id: 0,
+        component,
+        children,
+        properties,
+        text_binding: None,
+        property_bindings: BTreeMap::new(),
+        gestures: Vec::new(),
+    }
+}
+
+/// An image view (`IMAGE_SOURCE` is a future STRING property).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Image;
+impl View for Image {
+    fn build(&self) -> Node {
+        plain_node(Component::Image, Vec::new(), BTreeMap::new())
+    }
+}
+
+/// A solid-color view (protocol `COLOR`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ColorView(pub u32);
+impl View for ColorView {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::COLOR, self.0);
+        plain_node(Component::Color, Vec::new(), p)
+    }
+}
+
+/// A vector geometry (`SHAPE_KIND`).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Shape(pub u8);
+impl View for Shape {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::SHAPE_KIND, (self.0 as f32).to_bits());
+        plain_node(Component::Shape, Vec::new(), p)
+    }
+}
+
+/// A separator line.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Divider;
+impl View for Divider {
+    fn build(&self) -> Node {
+        plain_node(Component::Divider, Vec::new(), BTreeMap::new())
+    }
+}
+
+/// Determinate progress (fraction) or an activity indicator.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ProgressView(pub Option<f32>);
+impl View for ProgressView {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        match self.0 {
+            Some(v) => {
+                p.insert(property_id::PROGRESS, v.to_bits());
+            }
+            None => {
+                p.insert(property_id::IS_INDETERMINATE, 1);
+            }
+        }
+        plain_node(Component::ProgressView, Vec::new(), p)
+    }
+}
+
+/// A range meter.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Gauge {
+    pub value: f32,
+    pub min: f32,
+    pub max: f32,
+}
+impl View for Gauge {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::VALUE, self.value.to_bits());
+        p.insert(property_id::MIN_VALUE, self.min.to_bits());
+        p.insert(property_id::MAX_VALUE, self.max.to_bits());
+        plain_node(Component::Gauge, Vec::new(), p)
+    }
+}
+
+/// A boolean control with a `TOGGLE_STYLE` token (0=Switch, 1=Checkbox,
+/// 2=Button).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Toggle(pub u8);
+impl View for Toggle {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::TOGGLE_STYLE, (self.0 as f32).to_bits());
+        plain_node(Component::Toggle, Vec::new(), p)
+    }
+}
+
+/// A numeric range control.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Slider {
+    pub value: f32,
+    pub min: f32,
+    pub max: f32,
+}
+impl View for Slider {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::VALUE, self.value.to_bits());
+        p.insert(property_id::MIN_VALUE, self.min.to_bits());
+        p.insert(property_id::MAX_VALUE, self.max.to_bits());
+        plain_node(Component::Slider, Vec::new(), p)
+    }
+}
+
+/// A single-line text input.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TextField {
+    pub placeholder: String,
+}
+impl View for TextField {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::PROMPT, self.placeholder.len() as u32);
+        plain_node(Component::TextField, Vec::new(), p)
+    }
+}
+
+/// A multi-line text input.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct TextEditor;
+impl View for TextEditor {
+    fn build(&self) -> Node {
+        plain_node(Component::TextEditor, Vec::new(), BTreeMap::new())
+    }
+}
+
+/// An increment/decrement control.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Stepper {
+    pub value: f32,
+    pub min: f32,
+    pub max: f32,
+}
+impl View for Stepper {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::VALUE, self.value.to_bits());
+        p.insert(property_id::MIN_VALUE, self.min.to_bits());
+        p.insert(property_id::MAX_VALUE, self.max.to_bits());
+        plain_node(Component::Stepper, Vec::new(), p)
+    }
+}
+
+/// A date & time picker.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DatePicker;
+impl View for DatePicker {
+    fn build(&self) -> Node {
+        plain_node(Component::DatePicker, Vec::new(), BTreeMap::new())
+    }
+}
+
+/// A selection control (options are children).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Picker;
+impl View for Picker {
+    fn build(&self) -> Node {
+        plain_node(Component::Picker, Vec::new(), BTreeMap::new())
+    }
+}
+
+/// A contextual action trigger + popover (action items are children).
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Menu;
+impl View for Menu {
+    fn build(&self) -> Node {
+        plain_node(Component::Menu, Vec::new(), BTreeMap::new())
+    }
+}
+
+/// A native color picker.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ColorPicker(pub u32);
+impl View for ColorPicker {
+    fn build(&self) -> Node {
+        let mut p = BTreeMap::new();
+        p.insert(property_id::COLOR_VALUE, self.0);
+        plain_node(Component::ColorPicker, Vec::new(), p)
+    }
+}
+
+/// An overlapping stack.
+#[derive(Default)]
+pub struct ZStack {
+    children: Vec<Box<dyn View>>,
+}
+
+impl core::fmt::Debug for ZStack {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ZStack").field("children", &self.children.len()).finish()
+    }
+}
+impl ZStack {
+    pub fn new() -> Self {
+        Self { children: Vec::new() }
+    }
+    pub fn children(mut self, children: Vec<Box<dyn View>>) -> Self {
+        self.children = children;
+        self
+    }
+}
+impl View for ZStack {
+    fn build(&self) -> Node {
+        let children = self.children.iter().map(|c| c.build()).collect();
+        plain_node(Component::ZStack, children, BTreeMap::new())
+    }
+}
+
+/// A static grid (cells are children).
+#[derive(Default)]
+pub struct Grid {
+    children: Vec<Box<dyn View>>,
+}
+
+impl core::fmt::Debug for Grid {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Grid").field("children", &self.children.len()).finish()
+    }
+}
+impl Grid {
+    pub fn new() -> Self {
+        Self { children: Vec::new() }
+    }
+    pub fn children(mut self, children: Vec<Box<dyn View>>) -> Self {
+        self.children = children;
+        self
+    }
+}
+impl View for Grid {
+    fn build(&self) -> Node {
+        let children = self.children.iter().map(|c| c.build()).collect();
+        plain_node(Component::Grid, children, BTreeMap::new())
+    }
+}
+
+/// A scrollable container (children are content).
+#[derive(Default)]
+pub struct ScrollView {
+    children: Vec<Box<dyn View>>,
+}
+
+impl core::fmt::Debug for ScrollView {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("ScrollView").field("children", &self.children.len()).finish()
+    }
+}
+impl ScrollView {
+    pub fn new() -> Self {
+        Self { children: Vec::new() }
+    }
+    pub fn children(mut self, children: Vec<Box<dyn View>>) -> Self {
+        self.children = children;
+        self
+    }
+}
+impl View for ScrollView {
+    fn build(&self) -> Node {
+        let children = self.children.iter().map(|c| c.build()).collect();
+        plain_node(Component::ScrollView, children, BTreeMap::new())
+    }
+}
+
+/// A virtualized vertical grid.
+#[derive(Default)]
+pub struct LazyVGrid {
+    children: Vec<Box<dyn View>>,
+}
+
+impl core::fmt::Debug for LazyVGrid {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("LazyVGrid").field("children", &self.children.len()).finish()
+    }
+}
+impl LazyVGrid {
+    pub fn new() -> Self {
+        Self { children: Vec::new() }
+    }
+    pub fn children(mut self, children: Vec<Box<dyn View>>) -> Self {
+        self.children = children;
+        self
+    }
+}
+impl View for LazyVGrid {
+    fn build(&self) -> Node {
+        let children = self.children.iter().map(|c| c.build()).collect();
+        plain_node(Component::LazyVGrid, children, BTreeMap::new())
+    }
+}
+
+/// A virtualized horizontal grid.
+#[derive(Default)]
+pub struct LazyHGrid {
+    children: Vec<Box<dyn View>>,
+}
+
+impl core::fmt::Debug for LazyHGrid {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("LazyHGrid").field("children", &self.children.len()).finish()
+    }
+}
+impl LazyHGrid {
+    pub fn new() -> Self {
+        Self { children: Vec::new() }
+    }
+    pub fn children(mut self, children: Vec<Box<dyn View>>) -> Self {
+        self.children = children;
+        self
+    }
+}
+impl View for LazyHGrid {
+    fn build(&self) -> Node {
+        let children = self.children.iter().map(|c| c.build()).collect();
+        plain_node(Component::LazyHGrid, children, BTreeMap::new())
+    }
+}
+
+/// A virtualized vertical stack.
+#[derive(Default)]
+pub struct LazyVStack {
+    children: Vec<Box<dyn View>>,
+}
+
+impl core::fmt::Debug for LazyVStack {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("LazyVStack").field("children", &self.children.len()).finish()
+    }
+}
+impl LazyVStack {
+    pub fn new() -> Self {
+        Self { children: Vec::new() }
+    }
+    pub fn children(mut self, children: Vec<Box<dyn View>>) -> Self {
+        self.children = children;
+        self
+    }
+}
+impl View for LazyVStack {
+    fn build(&self) -> Node {
+        let children = self.children.iter().map(|c| c.build()).collect();
+        plain_node(Component::LazyVStack, children, BTreeMap::new())
+    }
+}
+
+/// A virtualized horizontal stack.
+#[derive(Default)]
+pub struct LazyHStack {
+    children: Vec<Box<dyn View>>,
+}
+
+impl core::fmt::Debug for LazyHStack {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("LazyHStack").field("children", &self.children.len()).finish()
+    }
+}
+impl LazyHStack {
+    pub fn new() -> Self {
+        Self { children: Vec::new() }
+    }
+    pub fn children(mut self, children: Vec<Box<dyn View>>) -> Self {
+        self.children = children;
+        self
+    }
+}
+impl View for LazyHStack {
+    fn build(&self) -> Node {
+        let children = self.children.iter().map(|c| c.build()).collect();
+        plain_node(Component::LazyHStack, children, BTreeMap::new())
+    }
 }
 
 #[cfg(test)]

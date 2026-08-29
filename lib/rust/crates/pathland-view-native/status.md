@@ -9,19 +9,21 @@ ring for foreign hosts (Swift/Java/C# via FFI). Protocol contract: `spec/`.
 
 - **`NativeHost`**: owns the shared ring, `create_node`/`set_property`/
   `set_text`, frame emission, `drain_events`.
-- **Component mapping** (`component_from_id`/`component_id`): `HStack`,
-  `VStack`, `Text`, `Button`, `Spacer` (using the renumbered ids: 0x11, 0x10,
-  0x01, 0x20, 0x06).
-- **Property value types** (`property_value_type`): COLOR → `COLOR`;
-  `EVENT_LISTENERS`/`BORDER_EDGES`/`ACTION_ID`/`BINDING_ID` → `U32`; else `F32`.
+- **Component mapping** (`component_from_id`/`component_id`): the full
+  component set — stacks, `Text`, `Button`, `Spacer`, and all drawing/
+  container/semantic-control components, using the renumbered ids.
+- **Property value types** (`property_value_type`): COLOR (incl.
+  `COLOR_VALUE`/`COLOR_MULTIPLY`/`SHADOW_COLOR`), U32 (`EVENT_LISTENERS`/
+  `BORDER_EDGES`/`ACTION_ID`/`BINDING_ID`/`LINE_LIMIT`/`SELECTION`), STRING
+  (`LABEL`/`PROMPT`/`FONT_FAMILY`/`IMAGE_SOURCE`), U8 (`VISIBLE`/`ENABLED`/
+  `SELECTED`/`CLIPS_TO_BOUNDS`/`UNDERLINE`/`STRIKETHROUGH`/`COLOR_INVERT`/
+  `ALLOWS_HIT_TESTING`/`IS_SECURE`/`IS_INDETERMINATE`/`FIXED_SIZE_*`), else F32.
 - **Signals** C ABI (`signal_*`, `node_bind_text`/`node_bind_property`).
 
 ## Not implemented / gaps
 
-- Only the five components above are mapped; no `TOGGLE`/`SLIDER`/`TEXT_FIELD`/
-  containers/`IMAGE` flat-world construction.
-- STRING properties are not fully plumbed through the flat world (no
-  `IMAGE_SOURCE`/`LABEL`/`PROMPT` alloc helper).
+- STRING-valued properties are typed as STRING but the flat world has no
+  arena-alloc helper to emit them (callers must `pathland_core_arena_alloc`).
 
 ## Verified by
 

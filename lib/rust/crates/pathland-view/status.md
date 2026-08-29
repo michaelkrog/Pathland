@@ -7,23 +7,29 @@ trees. Protocol contract: `spec/`.
 
 ## Implemented
 
-- **Views**: `VStack`, `HStack`, `Text`, `Spacer`, `Button` (+ `vstack!` /
-  `hstack!` macros and the `text`/`spacer`/`button` free functions).
+- **Views**: `VStack`, `HStack`, `ZStack`, `Grid`, `ScrollView`, `LazyVGrid`,
+  `LazyHGrid`, `LazyVStack`, `LazyHStack`, `Text`, `Button`, `Spacer`,
+  `Image`, `ColorView` (protocol `COLOR`), `Shape`, `Divider`,
+  `ProgressView`, `Gauge`, `Toggle`, `Slider`, `TextField`, `TextEditor`,
+  `Stepper`, `DatePicker`, `Picker`, `Menu`, `ColorPicker` (+ the
+  `vstack!`/`hstack!` macros and `text`/`spacer`/`button` free functions).
 - **Modifiers** (chainable, decoupled): `spacing`, `padding`, `font_size`,
-  `color`, `background`, `frame(width/height/alignment)`, `pointer_events`,
-  `on_tap_gesture`.
+  `font_weight`, `color`, `background`, `frame(width/height/alignment)`,
+  `opacity`, `hidden`, `border`, `corner_radius`, `line_limit`,
+  `text_alignment`, `truncation_mode`, `offset`, `position`, `z_index`,
+  `pointer_events`, `on_tap_gesture`.
 - **Composition**: blanket `ViewExt::modifier` + `ViewModifier` for custom
   modifiers; `Modified<V, M>` wrapper.
 - **Alignment enum** (`Align`): Leading/Center/Trailing/Fill.
 
 ## Not implemented / gaps
 
-- Only five components — no `Image`, `Color`, `Shape`, `Toggle`, `Slider`,
-  `TextField`, containers, or the semantic controls.
-- Only the subset of modifiers above; no per-edge padding sugar, no
-  `ACTION_ID`/`BINDING_ID` helpers, no `TOGGLE_STYLE`.
+- No `strings` plumbing for STRING-valued properties — `TextField`'s
+  `PROMPT` and `Color`/`Image` sources are stored as placeholder values only;
+  `FONT_FAMILY`/`LABEL`/`IMAGE_SOURCE` need an engine `Node` strings map.
+- No `ACTION_ID`/`BINDING_ID` helpers, no `TOGGLE_STYLE`-typed API (raw u8).
 
 ## Verified by
 
 `cargo test -p pathland-view` — builder, modifier chaining, `assign_ids`,
-tap-gesture listener wiring.
+tap-gesture listener wiring, new-component building.

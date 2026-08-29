@@ -10,8 +10,12 @@ diff-based reactive emission into `TREE`/`STYLE` opcodes. Protocol contract:
 
 - **Retained tree** (`node.rs`): `Node` (id, component, children, properties,
   text/property signal bindings, app-side gestures).
-- **Components** (`Component` enum): `VStack`, `HStack`, `Text`, `Button`,
-  `Spacer` — mapped to `component_type` ids via `component_type_id`.
+- **Components** (`Component` enum): the full spec set — `VStack`, `HStack`,
+  `ZStack`, `Text`, `Button`, `Spacer`, `Image`, `Color`, `Shape`, `Divider`,
+  `ProgressView`, `Gauge`, `Grid`, `ScrollView`, `LazyVGrid`, `LazyHGrid`,
+  `LazyVStack`, `LazyHStack`, `Toggle`, `Slider`, `TextField`, `TextEditor`,
+  `Stepper`, `DatePicker`, `Picker`, `Menu`, `ColorPicker` — all mapped to
+  `component_type` ids via `component_type_id`.
 - **Diff emitter** (`engine.rs`): create/delete/insert/move deltas,
   property/text deltas, steady-state zero emission.
 - **Reactive signals** (`signal.rs`): writable signals bound to node
@@ -22,10 +26,9 @@ diff-based reactive emission into `TREE`/`STYLE` opcodes. Protocol contract:
 
 ## Not implemented / gaps
 
-- Only the five components above exist in `Component`; the full spec surface
-  (Image, Color, Shape, Toggle, Slider, TextField, containers, …) has no
-  engine-side component yet.
 - Only `Tap` gesture; no computed-signal effects in the engine (Java has them).
+- No `strings` map on `Node` for STRING-valued properties (`LABEL`/`PROMPT`/
+  `FONT_FAMILY`/`IMAGE_SOURCE`) — the DSL cannot yet emit them.
 
 ## Verified by
 
