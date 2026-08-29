@@ -15,9 +15,10 @@
 
     <name>Pathland Demo Views</name>
     <description>
-        The framework-agnostic demo views (CounterView, CounterControls, NameField), shared
-        by the Quarkus and Spring Boot demos. Uses State fields wired by the
-        pathland-view-processor annotation processor.
+        The framework-agnostic demo views shared by the Quarkus and Spring Boot demos:
+        a kitchen-sink root (KitchenSinkView) plus per-section custom views exercising
+        every protocol primitive, control, modifier, and State binding. Uses State
+        fields wired by the pathland-view-processor annotation processor.
     </description>
 
     <dependencies>

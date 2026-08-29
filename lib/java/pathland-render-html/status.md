@@ -19,7 +19,9 @@ contract: `spec/`.
   `MENU`, `COLOR_PICKER` (`<input type="color">`), `DATE_PICKER`
   (`<input type="date">`; `STYLE::SET_DATE` applied). Unknown components render
   their children.
-- Border/padding styling from properties.
+- Border/padding/background/opacity styling from properties (`decorStyle`);
+  hidden (`VISIBLE=0`) nodes are skipped.
+- Controls carry host-wiring attributes: stepper exposes `data-min/max/step`.
 
 ## Not implemented / gaps
 

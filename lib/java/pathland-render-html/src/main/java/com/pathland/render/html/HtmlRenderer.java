@@ -175,23 +175,27 @@ public final class HtmlRenderer {
         if (node == null) {
             return "";
         }
+        if (node.properties.getOrDefault(Properties.VISIBLE, 1) == 0) {
+            return ""; // hidden (VISIBLE=0): removed from layout + hit testing
+        }
         StringBuilder children = new StringBuilder();
         for (Integer child : node.children) {
             children.append(renderNode(child));
         }
         String dataId = " data-pathland-id=\"" + id + "\"";
         String border = borderStyle(node);
+        String decor = decorStyle(node);
 
         return switch (node.component) {
-            case Components.VSTACK -> wrapStack(id, "column", node, children.toString(), border);
-            case Components.HSTACK -> wrapStack(id, "row", node, children.toString(), border);
+            case Components.VSTACK -> wrapStack(id, "column", node, children.toString(), decor);
+            case Components.HSTACK -> wrapStack(id, "row", node, children.toString(), decor);
             case Components.TEXT -> {
                 String text = escape(node.text == null ? "" : node.text);
-                yield "<span" + dataId + styleAttr(border) + ">" + text + "</span>";
+                yield "<span" + dataId + styleAttr(decor) + ">" + text + "</span>";
             }
             case Components.BUTTON -> {
                 String text = escape(node.text == null ? "" : node.text);
-                yield "<button" + dataId + styleAttr(border) + ">" + text + "</button>";
+                yield "<button" + dataId + styleAttr(decor) + ">" + text + "</button>";
             }
             case Components.COLOR -> {
                 int color = node.properties.getOrDefault(Properties.COLOR, 0xFF000000);
@@ -219,21 +223,21 @@ public final class HtmlRenderer {
                 String role = style == ToggleStyle.SWITCH.wire() ? " role=\"switch\"" : "";
                 String checked = node.checked() ? " checked" : "";
                 String text = escape(node.text == null ? "" : node.text);
-                yield "<label" + dataId + " class=\"pathland-toggle\"" + styleAttr(border)
+                yield "<label" + dataId + " class=\"pathland-toggle\"" + styleAttr(decor)
                         + "><input type=\"checkbox\"" + role + checked
                         + "><span class=\"pathland-text\">" + text + "</span></label>";
             }
             case Components.DIVIDER -> {
-                yield "<hr" + dataId + styleAttr(border) + ">";
+                yield "<hr" + dataId + styleAttr(decor) + ">";
             }
             case Components.PROGRESS_VIEW -> {
                 boolean indeterminate = node.properties.getOrDefault(Properties.IS_INDETERMINATE, 0) != 0;
                 if (indeterminate) {
-                    yield "<div" + dataId + " class=\"pathland-spinner\"" + styleAttr(border) + "></div>";
+                    yield "<div" + dataId + " class=\"pathland-spinner\"" + styleAttr(decor) + "></div>";
                 }
                 float progress = node.f32Property(Properties.PROGRESS, 0f);
                 yield "<progress" + dataId + " max=\"1\" value=\"" + fmt(progress) + "\""
-                        + styleAttr(border) + "></progress>";
+                        + styleAttr(decor) + "></progress>";
             }
             case Components.GAUGE -> {
                 float min = node.f32Property(Properties.MIN_VALUE, 0f);
@@ -241,29 +245,33 @@ public final class HtmlRenderer {
                 float value = node.f32Property(Properties.VALUE, min);
                 float span = max - min;
                 float pct = span <= 0f ? 0f : (value - min) / span * 100f;
-                yield "<div" + dataId + " class=\"pathland-gauge\"" + styleAttr(border)
+                yield "<div" + dataId + " class=\"pathland-gauge\"" + styleAttr(decor)
                         + "><div style=\"width:" + fmt(pct) + "%\"></div></div>";
             }
             case Components.TEXT_EDITOR -> {
                 String value = escape(node.text == null ? "" : node.text);
-                yield "<textarea" + dataId + styleAttr(border) + ">" + value + "</textarea>";
+                yield "<textarea" + dataId + styleAttr(decor) + ">" + value + "</textarea>";
             }
             case Components.STEPPER -> {
                 float min = node.f32Property(Properties.MIN_VALUE, 0f);
                 float max = node.f32Property(Properties.MAX_VALUE, 10f);
+                float step = node.f32Property(Properties.STEP_VALUE, 1f);
                 float value = node.f32Property(Properties.VALUE, min);
-                yield "<div" + dataId + " class=\"pathland-stepper\"" + styleAttr(border)
+                yield "<div" + dataId + " class=\"pathland-stepper\"" + styleAttr(decor)
                         + "><button data-step=\"-1\">−</button><span>" + fmt(value)
-                        + "</span><button data-step=\"1\">+</button></div>";
+                        + "</span><button data-step=\"1\">+</button>"
+                        + "<span class=\"pathland-stepper-range\" data-min=\"" + fmt(min)
+                        + "\" data-max=\"" + fmt(max) + "\" data-step=\"" + fmt(step)
+                        + "\" style=\"display:none\"></span></div>";
             }
             case Components.GRID, Components.LAZY_VGRID, Components.LAZY_HGRID -> {
-                yield wrapGrid(id, node, children.toString(), border);
+                yield wrapGrid(id, node, children.toString(), decor);
             }
             case Components.SCROLLVIEW -> {
-                yield "<div" + dataId + " style=\"overflow:auto;" + border + "\">" + children + "</div>";
+                yield "<div" + dataId + " style=\"overflow:auto;" + decor + "\">" + children + "</div>";
             }
-            case Components.LAZY_VSTACK -> wrapStack(id, "column", node, children.toString(), border);
-            case Components.LAZY_HSTACK -> wrapStack(id, "row", node, children.toString(), border);
+            case Components.LAZY_VSTACK -> wrapStack(id, "column", node, children.toString(), decor);
+            case Components.LAZY_HSTACK -> wrapStack(id, "row", node, children.toString(), decor);
             case Components.PICKER -> {
                 Integer selection = node.properties.get(Properties.SELECTION);
                 StringBuilder options = new StringBuilder();
@@ -278,7 +286,7 @@ public final class HtmlRenderer {
                     }
                     index++;
                 }
-                yield "<select" + dataId + styleAttr(border) + ">" + options + "</select>";
+                yield "<select" + dataId + styleAttr(decor) + ">" + options + "</select>";
             }
             case Components.MENU -> {
                 StringBuilder actions = new StringBuilder();
@@ -286,21 +294,21 @@ public final class HtmlRenderer {
                     actions.append(renderNode(node.children.get(i)));
                 }
                 String trigger = node.children.isEmpty() ? "" : renderNode(node.children.get(0));
-                yield "<div" + dataId + " class=\"pathland-menu\"" + styleAttr(border)
+                yield "<div" + dataId + " class=\"pathland-menu\"" + styleAttr(decor)
                         + "><div class=\"pathland-menu-trigger\">" + trigger + "</div>"
                         + "<div class=\"pathland-menu-items\">" + actions + "</div></div>";
             }
             case Components.COLOR_PICKER -> {
                 int argb = node.properties.getOrDefault(Properties.COLOR_VALUE, 0xFF000000);
                 String hex = String.format("#%02x%02x%02x", (argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF);
-                yield "<input" + dataId + " type=\"color\" value=\"" + hex + "\"" + styleAttr(border) + ">";
+                yield "<input" + dataId + " type=\"color\" value=\"" + hex + "\"" + styleAttr(decor) + ">";
             }
             case Components.DATE_PICKER -> {
                 String value = "";
                 if (node.days != 0) {
                     value = java.time.LocalDate.ofEpochDay(node.days).toString();
                 }
-                yield "<input" + dataId + " type=\"date\" value=\"" + value + "\"" + styleAttr(border) + ">";
+                yield "<input" + dataId + " type=\"date\" value=\"" + value + "\"" + styleAttr(decor) + ">";
             }
             case Components.SPACER -> {
                 String style = border.isEmpty()
@@ -313,7 +321,7 @@ public final class HtmlRenderer {
                 float max = node.f32Property(Properties.MAX_VALUE, 1f);
                 float value = node.f32Property(Properties.VALUE, min);
                 String text = escape(node.text == null ? "" : node.text);
-                yield "<label" + dataId + " class=\"pathland-slider\"" + styleAttr(border)
+                yield "<label" + dataId + " class=\"pathland-slider\"" + styleAttr(decor)
                         + "><input type=\"range\" min=\"" + fmt(min) + "\" max=\"" + fmt(max)
                         + "\" step=\"any\" value=\"" + fmt(value) + "\"><span class=\"pathland-text\">"
                         + text + "</span></label>";
@@ -322,7 +330,7 @@ public final class HtmlRenderer {
                 String value = escape(node.text == null ? "" : node.text);
                 String label = escape(node.strings.getOrDefault(Properties.LABEL, ""));
                 String prompt = escape(node.strings.getOrDefault(Properties.PROMPT, ""));
-                yield "<label" + dataId + " class=\"pathland-textfield\"" + styleAttr(border)
+                yield "<label" + dataId + " class=\"pathland-textfield\"" + styleAttr(decor)
                         + "><span class=\"pathland-label\">" + label
                         + "</span><input type=\"text\" value=\"" + value + "\" placeholder=\"" + prompt
                         + "\"></label>";
@@ -376,6 +384,27 @@ public final class HtmlRenderer {
             float radius = Float.intBitsToFloat(radiusBits);
             if (radius != 0f) {
                 css.append("border-radius:").append(fmt(radius)).append("px;");
+            }
+        }
+        return css.toString();
+    }
+
+    /** Decor CSS shared by every node: border + background + padding + opacity. */
+    private String decorStyle(Node node) {
+        StringBuilder css = new StringBuilder(borderStyle(node));
+        Integer bg = node.properties.get(Properties.BACKGROUND_COLOR);
+        if (bg != null) {
+            css.append("background-color:").append(rgba(bg)).append(';');
+        }
+        Integer padBits = node.properties.get(Properties.PADDING);
+        if (padBits != null) {
+            css.append("padding:").append(fmt(Float.intBitsToFloat(padBits))).append("px;");
+        }
+        Integer opacityBits = node.properties.get(Properties.OPACITY);
+        if (opacityBits != null) {
+            float opacity = Float.intBitsToFloat(opacityBits);
+            if (opacity < 1f) {
+                css.append("opacity:").append(fmt(opacity)).append(';');
             }
         }
         return css.toString();
