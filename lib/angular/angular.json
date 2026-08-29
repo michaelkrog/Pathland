@@ -22,20 +22,25 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*",
+                "input": "node_modules/@apaq/ngui/dist/assets"
               }
             ],
             "styles": [
+              "node_modules/@apaq/ngui/dist/css/ngui.css",
               "src/styles.css"
             ]
           },
           "configurations": {
             "production": {
-              "budgets": [
-                {
-                  "type": "initial",
-                  "maximumWarning": "500kB",
-                  "maximumError": "1MB"
-                },
+"budgets": [
+                  {
+                    "type": "initial",
+                    "maximumWarning": "600kB",
+                    "maximumError": "1MB"
+                  },
                 {
                   "type": "anyComponentStyle",
                   "maximumWarning": "4kB",
