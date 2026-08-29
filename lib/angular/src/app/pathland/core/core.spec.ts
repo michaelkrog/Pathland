@@ -86,6 +86,45 @@ describe('eventRouter', () => {
     expect(date.opcodes[0].b).toBe(20487);
   });
 
+  it('encodes the full raw-input event catalog', () => {
+    const pointer = decodeFrame(eventRouter.pointerDown(2, 10.5, 20.5));
+    expect(pointer.opcodes[0].command).toBe(EVENT.POINTER_DOWN);
+    expect(f32FromBits(pointer.opcodes[0].b)).toBeCloseTo(10.5);
+
+    const move = decodeFrame(eventRouter.pointerMove(2, 1, 2, 1)); // HOVER_ENTER flag
+    expect(move.opcodes[0].command).toBe(EVENT.POINTER_MOVE);
+    expect(move.opcodes[0].flags).toBe(1);
+
+    const key = decodeFrame(eventRouter.keyDown(3, 0x20, 0x01, 0x0002)); // Space + Shift + repeat
+    expect(key.opcodes[0].command).toBe(EVENT.KEY_DOWN);
+    expect(key.opcodes[0].b).toBe(0x20);
+    expect(key.opcodes[0].c).toBe(0x01);
+    expect(key.opcodes[0].flags).toBe(0x0002);
+
+    const keyUp = decodeFrame(eventRouter.keyUp(3, 0x20, 0));
+    expect(keyUp.opcodes[0].command).toBe(EVENT.KEY_UP);
+
+    const focus = decodeFrame(eventRouter.focusChanged(4, true));
+    expect(focus.opcodes[0].command).toBe(EVENT.FOCUS_CHANGED);
+    expect(focus.opcodes[0].b).toBe(1);
+
+    const editing = decodeFrame(eventRouter.editingChanged(4, false));
+    expect(editing.opcodes[0].command).toBe(EVENT.EDITING_CHANGED);
+    expect(editing.opcodes[0].b).toBe(0);
+
+    const submit = decodeFrame(eventRouter.submit(4));
+    expect(submit.opcodes[0].command).toBe(EVENT.SUBMIT);
+
+    const scroll = decodeFrame(eventRouter.scroll(5, 120, -30));
+    expect(scroll.opcodes[0].command).toBe(EVENT.SCROLL);
+    expect(f32FromBits(scroll.opcodes[0].b)).toBeCloseTo(120);
+    expect(f32FromBits(scroll.opcodes[0].c)).toBeCloseTo(-30);
+
+    const wheel = decodeFrame(eventRouter.wheel(5, 1.5, -2));
+    expect(wheel.opcodes[0].command).toBe(EVENT.WHEEL);
+    expect(f32FromBits(wheel.opcodes[0].b)).toBeCloseTo(1.5);
+  });
+
   it('packs/unpacks f32 bits', () => {
     expect(f32FromBits(f32Bits(1))).toBe(1);
     expect(f32FromBits(f32Bits(0.5))).toBe(0.5);

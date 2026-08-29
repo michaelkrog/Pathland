@@ -20,9 +20,11 @@ contract: `spec/`.
   `HOST_TO_GUEST` direction, `TEXT_CHANGED` string-section resolution.
 - **Retained tree** (`core/retained-tree.ts`): applies `TREE`/`STYLE` deltas
   including `STYLE::SET_DATE` (node date state).
-- **Event encoder** (`core/event-encoder.ts`): host→guest event batches —
-  pointer, `VALUE_CHANGED` (f32 or raw bits), `TEXT_CHANGED` with string
-  offsets, `DATE_CHANGED` (days/millis).
+- **Event encoder** (`core/event-encoder.ts`): host→guest event batches for the
+  full raw-input catalog — pointer down/move/up, `KEY_*`, `VALUE_CHANGED`
+  (f32 or raw bits), `TEXT_CHANGED` with string offsets, `FOCUS_CHANGED`,
+  `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL`, `DATE_CHANGED`; matching
+  senders on `session.service.ts`.
 - **ngui mapping** (`ngui/mapping.ts`): all spec components — stacks (incl.
   `LAZY_*`), `ZSTACK`, `GRID`, `SCROLLVIEW`, `TEXT`, `BUTTON`, `IMAGE`,
   `COLOR`, `SHAPE`, `DIVIDER`, `SPACER`, `TEXT_FIELD`, `TEXT_EDITOR`,
@@ -59,6 +61,11 @@ contract: `spec/`.
   `TEXT_CASE`, `KERNING`, `TRACKING`, `OFFSET`, `POSITION`, `FIXED_SIZE`,
   `LAYOUT_PRIORITY`, `ASPECT_RATIO`/`CONTENT_MODE`, `MINIMUM_SCALE_FACTOR`,
   `SCALE`, `CLIPS_TO_BOUNDS`, `Z_INDEX`, `TINT`, `CONTROL_SIZE`.
+- Only the events ngui components expose are wired today (`click` → pointer-up,
+  `valueChange`/`checkedChange`/`onSelect` → `VALUE_CHANGED`, text-area →
+  `TEXT_CHANGED`, date-picker → `DATE_CHANGED`). The other encoders/senders
+  (pointer down/move, `KEY_*`, focus/editing/submit/scroll/wheel) are ready on
+  the wire but not yet produced by ngui components.
 - `app.spec.ts` is an `ng test` (Karma/Jasmine) spec; the unit specs
   (`core.spec.ts`, `mapping.spec.ts`) run under vitest.
 
