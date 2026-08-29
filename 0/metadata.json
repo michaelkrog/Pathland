@@ -1,0 +1,63 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M16485N3R2R1FKPD6FMT96BX",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T06:45:31.360684Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 7,
+  "files_touched": [
+    "lib/rust/crates/pathland-view/src/lib.rs",
+    "lib/rust/crates/pathland-core/src/constants.rs",
+    "lib/rust/crates/pathland-render-gtk-demo/src/main.rs",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/View.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/BorderedButtonStyle.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Properties.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/ValueTypes.java",
+    "lib/rust/crates/pathland-render-html/src/lib.rs",
+    "spec/MODIFIERS.md",
+    "spec/PRIMITIVES.md",
+    "lib/rust/crates/pathland-view/status.md",
+    "lib/java/pathland-view/status.md",
+    "lib/rust/crates/pathland-render-html/status.md",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterView.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "c1676ef01a66",
+  "checkpoint_transcript_start": 671,
+  "transcript_lines_at_start": 671,
+  "compact_transcript_start": 671,
+  "token_usage": {
+    "input_tokens": 760175,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 43160064,
+    "output_tokens": 25781,
+    "api_call_count": 61
+  },
+  "session_metrics": {
+    "turn_count": 66
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T06:45:30.974798Z",
+    "agent_lines": 136,
+    "agent_removed": 70,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 136,
+    "total_lines_changed": 206,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
