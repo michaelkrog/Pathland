@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M16Z4061ZVFRAZY4NJ84MXQG",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T14:35:09.654309Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "lib/angular/vitest.config.ts",
+    "lib/angular/status.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "5ee5277cc2f1",
+  "checkpoint_transcript_start": 1096,
+  "transcript_lines_at_start": 1096,
+  "compact_transcript_start": 1096,
+  "token_usage": {
+    "input_tokens": 447761,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3993600,
+    "output_tokens": 5332,
+    "api_call_count": 11
+  },
+  "session_metrics": {
+    "turn_count": 83
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T14:35:09.061045Z",
+    "agent_lines": 24,
+    "agent_removed": 3,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 24,
+    "total_lines_changed": 27,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
