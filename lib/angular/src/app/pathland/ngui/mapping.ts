@@ -1,4 +1,4 @@
-import { COMPONENT, PROPERTY, SIZE, BORDER_EDGE, ALIGNMENT, FONT_WEIGHT } from '../core/protocol';
+import { COMPONENT, PROPERTY, SIZE, BORDER_EDGE, ALIGNMENT, FONT_WEIGHT, TOGGLE_STYLE, SHAPE_KIND } from '../core/protocol';
 import { PathlandNode } from '../core/retained-tree';
 import {
   BackgroundOptions, BorderArea, BorderOptions, FlexOptions, FontOptions, FrameOptions,
@@ -14,37 +14,64 @@ import {
 export type NodeKind =
   | 'hstack'
   | 'vstack'
+  | 'lazyVStack'
+  | 'lazyHStack'
   | 'zstack'
+  | 'grid'
+  | 'lazyVGrid'
+  | 'lazyHGrid'
+  | 'scrollView'
   | 'text'
   | 'button'
   | 'image'
-  | 'switch'
-  | 'textField'
+  | 'color'
+  | 'shape'
+  | 'divider'
   | 'spacer'
-  | 'scrollView'
-  | 'list'
-  | 'grid'
-  | 'comment'
-  | 'checkbox'
+  | 'textField'
+  | 'textEditor'
+  | 'toggle'
   | 'slider'
+  | 'stepper'
+  | 'picker'
+  | 'menu'
+  | 'colorPicker'
+  | 'datePicker'
+  | 'progressView'
+  | 'gauge'
+  | 'comment'
   | 'unknown';
 
 export function kindOf(node: PathlandNode): NodeKind {
   switch (node.component) {
-    case COMPONENT.HSTACK: return 'hstack';
     case COMPONENT.VSTACK: return 'vstack';
+    case COMPONENT.HSTACK: return 'hstack';
+    case COMPONENT.LAZY_VSTACK: return 'lazyVStack';
+    case COMPONENT.LAZY_HSTACK: return 'lazyHStack';
+    case COMPONENT.ZSTACK: return 'zstack';
+    case COMPONENT.GRID: return 'grid';
+    case COMPONENT.LAZY_VGRID: return 'lazyVGrid';
+    case COMPONENT.LAZY_HGRID: return 'lazyHGrid';
+    case COMPONENT.SCROLLVIEW: return 'scrollView';
     case COMPONENT.TEXT: return 'text';
     case COMPONENT.BUTTON: return 'button';
     case COMPONENT.IMAGE: return 'image';
-    case COMPONENT.SWITCH: return 'switch';
-    case COMPONENT.TEXT_FIELD: return 'textField';
+    case COMPONENT.COLOR: return 'color';
+    case COMPONENT.SHAPE: return 'shape';
+    case COMPONENT.DIVIDER: return 'divider';
     case COMPONENT.SPACER: return 'spacer';
-    case COMPONENT.SCROLLVIEW: return 'scrollView';
-    case COMPONENT.LIST: return 'list';
-    case COMPONENT.GRID: return 'grid';
-    case COMPONENT.COMMENT: return 'comment';
-    case COMPONENT.CHECKBOX: return 'checkbox';
+    case COMPONENT.TEXT_FIELD: return 'textField';
+    case COMPONENT.TEXT_EDITOR: return 'textEditor';
+    case COMPONENT.TOGGLE: return 'toggle';
     case COMPONENT.SLIDER: return 'slider';
+    case COMPONENT.STEPPER: return 'stepper';
+    case COMPONENT.PICKER: return 'picker';
+    case COMPONENT.MENU: return 'menu';
+    case COMPONENT.COLOR_PICKER: return 'colorPicker';
+    case COMPONENT.DATE_PICKER: return 'datePicker';
+    case COMPONENT.PROGRESS_VIEW: return 'progressView';
+    case COMPONENT.GAUGE: return 'gauge';
+    case COMPONENT.COMMENT: return 'comment';
     default: return 'unknown';
   }
 }
@@ -103,7 +130,7 @@ export function buildMods(node: PathlandNode): NguiMods {
   if (flex) {
     mods.flex = flex;
   }
-  const lineLimit = node.f32(PROPERTY.LINE_LIMIT);
+  const lineLimit = node.props().get(PROPERTY.LINE_LIMIT);
   if (lineLimit !== undefined) {
     mods.lineLimit = lineLimit;
   }
@@ -148,8 +175,18 @@ export function checked(node: PathlandNode): boolean {
 
 /** Whether the node should be hidden (`VISIBLE = 0`). */
 export function hidden(node: PathlandNode): boolean {
-  const visible = node.f32(PROPERTY.VISIBLE);
-  return visible !== undefined && visible === 0;
+  const bits = node.props().get(PROPERTY.VISIBLE);
+  return bits !== undefined && bits === 0;
+}
+
+/** A toggle's visual variant (`TOGGLE_STYLE`): switch (default) / checkbox / button. */
+export function toggleStyle(node: PathlandNode): 'switch' | 'checkbox' | 'button' {
+  const wire = node.f32(PROPERTY.TOGGLE_STYLE);
+  switch (wire === undefined ? TOGGLE_STYLE.SWITCH : Math.round(wire)) {
+    case TOGGLE_STYLE.CHECKBOX: return 'checkbox';
+    case TOGGLE_STYLE.BUTTON: return 'button';
+    default: return 'switch';
+  }
 }
 
 /** A slider's numeric range (VALUE/MIN_VALUE/MAX_VALUE, defaults 0/0/1). */
@@ -158,6 +195,68 @@ export function slider(node: PathlandNode): { value: number; min: number; max: n
   const max = node.f32(PROPERTY.MAX_VALUE) ?? 1;
   const value = node.f32(PROPERTY.VALUE) ?? min;
   return { value, min, max };
+}
+
+/** A stepper's numeric range + step (VALUE/MIN_VALUE/MAX_VALUE/STEP_VALUE). */
+export function stepper(node: PathlandNode): { value: number; min: number; max: number; step: number } {
+  const min = node.f32(PROPERTY.MIN_VALUE) ?? 0;
+  const max = node.f32(PROPERTY.MAX_VALUE) ?? 10;
+  const step = node.f32(PROPERTY.STEP_VALUE) ?? 1;
+  const value = node.f32(PROPERTY.VALUE) ?? min;
+  return { value, min, max, step };
+}
+
+/** A progress view's state (PROGRESS 0..1, or IS_INDETERMINATE). */
+export function progress(node: PathlandNode): { indeterminate: boolean; value: number } {
+  const indeterminate = (node.props().get(PROPERTY.IS_INDETERMINATE) ?? 0) !== 0;
+  return { indeterminate, value: node.f32(PROPERTY.PROGRESS) ?? 0 };
+}
+
+/** A gauge's fill percentage (0..100) from VALUE/MIN_VALUE/MAX_VALUE. */
+export function gaugePercent(node: PathlandNode): number {
+  const min = node.f32(PROPERTY.MIN_VALUE) ?? 0;
+  const max = node.f32(PROPERTY.MAX_VALUE) ?? 1;
+  const value = node.f32(PROPERTY.VALUE) ?? min;
+  const span = max - min;
+  return span <= 0 ? 0 : ((value - min) / span) * 100;
+}
+
+/** The selected option index (SELECTION) of a picker. */
+export function selection(node: PathlandNode): number | undefined {
+  return node.props().get(PROPERTY.SELECTION);
+}
+
+/** A `COLOR` node's fill (the COLOR property) as a CSS `rgba(...)` string. */
+export function colorFill(node: PathlandNode): string {
+  return argbToRgba(node.color(PROPERTY.COLOR) ?? 0xff000000);
+}
+
+/** A `SHAPE` node's CSS border-radius from `SHAPE_KIND` (+ BORDER_RADIUS for rounded rects). */
+export function shapeRadius(node: PathlandNode): string {
+  const kind = Math.round(node.f32(PROPERTY.SHAPE_KIND) ?? SHAPE_KIND.RECTANGLE);
+  if (kind === SHAPE_KIND.CIRCLE) {
+    return '50%';
+  }
+  if (kind === SHAPE_KIND.ROUNDED_RECTANGLE) {
+    const radius = node.f32(PROPERTY.BORDER_RADIUS);
+    return radius !== undefined ? `${radius}px` : '0';
+  }
+  return '0';
+}
+
+/** A color picker's `#rrggbb` value from `COLOR_VALUE` (0xAARRGGBB). */
+export function colorHex(node: PathlandNode): string {
+  const argb = node.color(PROPERTY.COLOR_VALUE) ?? 0xff000000;
+  return '#' + ((argb & 0xffffff) | 0x1000000).toString(16).slice(1);
+}
+
+/** A date picker's `YYYY-MM-DD` value from the applied `SET_DATE` (days since epoch). */
+export function dateValue(node: PathlandNode): string {
+  const date = node.date();
+  if (date === null || date.days === 0) {
+    return '';
+  }
+  return new Date(Date.UTC(1970, 0, date.days)).toISOString().slice(0, 10);
 }
 
 function buildPadding(node: PathlandNode): PaddingArea[] | undefined {
@@ -272,14 +371,12 @@ function nguiTextAlignment(wire: number): NguiTextAlignment {
   }
 }
 
-/** Protocol `FontWeight` wire value → CSS font-weight. */
+/** Protocol `FontWeight` wire value (100–900 scale) → CSS font-weight. */
 function cssFontWeight(wire: number): string {
   switch (Math.round(wire)) {
-    case FONT_WEIGHT.LIGHT: return '300';
-    case FONT_WEIGHT.MEDIUM: return '500';
-    case FONT_WEIGHT.SEMIBOLD: return '600';
+    case FONT_WEIGHT.REGULAR: return 'normal';
     case FONT_WEIGHT.BOLD: return 'bold';
-    default: return 'normal';
+    default: return String(Math.round(wire));
   }
 }
 

@@ -1,0 +1,37 @@
+/* Pathland ngui renderer host: design-token-neutral styling for the native
+   controls the renderer maps (stepper, gauge, picker, editor, color/date). */
+
+body {
+  font-family: system-ui, sans-serif;
+}
+
+@keyframes pathland-spin {
+  to { transform: rotate(360deg); }
+}
+
+pathland-node textarea {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+pathland-node input[type="color"],
+pathland-node input[type="date"] {
+  font: inherit;
+  padding: 4px 6px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+pathland-node select {
+  font: inherit;
+  padding: 6px 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+pathland-node button {
+  font: inherit;
+  padding: 6px 12px;
+}

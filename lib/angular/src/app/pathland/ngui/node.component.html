@@ -41,6 +41,44 @@
           }
         </ui-vstack>
       }
+      @case ('lazyVStack') {
+        <ui-vstack
+          [gap]="stackGap(n)!"
+          [alignment]="stackAlignment(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [lineLimit]="m.lineLimit!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-vstack>
+      }
+      @case ('lazyHStack') {
+        <ui-hstack
+          [gap]="stackGap(n)!"
+          [alignment]="stackAlignment(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [lineLimit]="m.lineLimit!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-hstack>
+      }
       @case ('zstack') {
         <ui-zstack
           [alignment]="zstackAlignment(n)!"
@@ -90,37 +128,52 @@
           (click)="session.sendPointerUp(n.id)">
         </ui-button>
       }
-      @case ('checkbox') {
-        <ui-checkbox
-          [label]="n.text() ?? ''"
-          [checked]="checked(n)"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!"
-          (checkedChange)="session.sendPointerUp(n.id)">
-        </ui-checkbox>
-      }
-      @case ('switch') {
-        <ui-toggle
-          [label]="n.text() ?? ''"
-          [value]="checked(n)"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!"
-          (valueChange)="session.sendPointerUp(n.id)">
-        </ui-toggle>
+      @case ('toggle') {
+        @if (toggleStyle(n) === 'checkbox') {
+          <ui-checkbox
+            [label]="n.text() ?? ''"
+            [checked]="checked(n)"
+            [padding]="m.padding!"
+            [color]="m.color!"
+            [background]="m.background!"
+            [border]="m.border!"
+            [rounding]="m.rounding!"
+            [opacity]="m.opacity!"
+            [font]="m.font!"
+            [frame]="m.frame!"
+            [flex]="m.flex!"
+            (checkedChange)="onToggleInput(n.id, $event)">
+          </ui-checkbox>
+        } @else if (toggleStyle(n) === 'button') {
+          <ui-button
+            [label]="n.text() ?? ''"
+            [padding]="m.padding!"
+            [color]="m.color!"
+            [background]="m.background!"
+            [border]="m.border!"
+            [rounding]="m.rounding!"
+            [opacity]="m.opacity!"
+            [font]="m.font!"
+            [frame]="m.frame!"
+            [flex]="m.flex!"
+            (click)="onToggleInput(n.id, !checked(n))">
+          </ui-button>
+        } @else {
+          <ui-toggle
+            [label]="n.text() ?? ''"
+            [value]="checked(n)"
+            [padding]="m.padding!"
+            [color]="m.color!"
+            [background]="m.background!"
+            [border]="m.border!"
+            [rounding]="m.rounding!"
+            [opacity]="m.opacity!"
+            [font]="m.font!"
+            [frame]="m.frame!"
+            [flex]="m.flex!"
+            (valueChange)="onToggleInput(n.id, $event)">
+          </ui-toggle>
+        }
       }
       @case ('textField') {
         <ui-text-field
@@ -140,6 +193,14 @@
             <span prefix>{{ label }}</span>
           }
         </ui-text-field>
+      }
+      @case ('textEditor') {
+        <textarea
+          [value]="n.text() ?? ''"
+          [style.width]="m.frame?.width"
+          [style.height]="m.frame?.height"
+          (input)="onTextEditorInput(n.id, $event)">
+        </textarea>
       }
       @case ('spacer') {
         <ui-spacer
@@ -170,22 +231,6 @@
           }
         </ui-scroll-view>
       }
-      @case ('list') {
-        <ui-list
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!">
-          @for (child of n.children(); track child) {
-            <pathland-node [nodeId]="child" />
-          }
-        </ui-list>
-      }
       @case ('grid') {
         <ui-grid
           [gap]="stackGap(n)!"
@@ -202,6 +247,110 @@
             <pathland-node [nodeId]="child" />
           }
         </ui-grid>
+      }
+      @case ('lazyVGrid') {
+        <ui-grid
+          [gap]="stackGap(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-grid>
+      }
+      @case ('lazyHGrid') {
+        <ui-grid
+          [gap]="stackGap(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-grid>
+      }
+      @case ('color') {
+        <div
+          [style.background-color]="colorFill(n)"
+          [style.height]="m.frame?.height"
+          style="flex:1 1 auto;align-self:stretch">
+        </div>
+      }
+      @case ('shape') {
+        <div
+          [style.background-color]="colorFill(n)"
+          [style.width]="m.frame?.width"
+          [style.height]="m.frame?.height"
+          [style.border-radius]="shapeRadius(n)">
+        </div>
+      }
+      @case ('divider') {
+        <hr style="border:none;border-top:1px solid #ddd;width:100%">
+      }
+      @case ('progressView') {
+        @if (progress(n).indeterminate) {
+          <div style="width:22px;height:22px;border:3px solid #ccc;border-top-color:#2196F3;border-radius:50%;animation:pathland-spin 0.8s linear infinite"></div>
+        } @else {
+          <progress [max]="1" [value]="progress(n).value"></progress>
+        }
+      }
+      @case ('gauge') {
+        <div style="width:120px;height:10px;background:#eee;border-radius:5px;overflow:hidden">
+          <div [style.width.%]="gaugePercent(n)" style="height:100%;background:#2196F3"></div>
+        </div>
+      }
+      @case ('stepper') {
+        <div style="display:inline-flex;align-items:center;gap:8px">
+          <button type="button" (click)="onStepperInput(n.id, -1)">−</button>
+          <span>{{ stepper(n).value }}</span>
+          <button type="button" (click)="onStepperInput(n.id, 1)">+</button>
+        </div>
+      }
+      @case ('picker') {
+        <select [value]="selection(n)" (change)="onPickerInput(n.id, $event)">
+          @for (opt of pickerOptions(n); track opt.index) {
+            <option [value]="opt.index">{{ opt.label }}</option>
+          }
+        </select>
+      }
+      @case ('menu') {
+        <div style="position:relative;display:inline-block">
+          <div>
+            @if (n.children().length > 0) {
+              <pathland-node [nodeId]="n.children()[0]" />
+            }
+          </div>
+          <div style="position:absolute;display:none;background:white;border:1px solid #ccc;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.15)">
+            @for (child of n.children().slice(1); track child) {
+              <pathland-node [nodeId]="child" />
+            }
+          </div>
+        </div>
+      }
+      @case ('colorPicker') {
+        <input
+          type="color"
+          [value]="colorHex(n)"
+          (change)="onColorInput(n.id, $event)">
+      }
+      @case ('datePicker') {
+        <input
+          type="date"
+          [value]="dateValue(n)"
+          (change)="onDateInput(n.id, $event)">
       }
       @case ('slider') {
         <input

@@ -26,6 +26,15 @@ export const eventRouter = {
     );
   },
 
+  /** A control's value changed, `B = raw 32-bit payload` (e.g. a packed ARGB color). */
+  valueBits(target: number, bits: number): Uint8Array {
+    return encodeBatch(
+      [new Opcode(CATEGORY.EVENT, EVENT.VALUE_CHANGED, 0, target, bits >>> 0, 0)],
+      new Uint8Array(),
+      HOST_TO_GUEST,
+    );
+  },
+
   /** A text field's value changed; the text rides in the batch's string section. */
   textChanged(target: number, text: string): Uint8Array {
     const strings = new StringSectionWriter();
@@ -33,6 +42,15 @@ export const eventRouter = {
     return encodeBatch(
       [new Opcode(CATEGORY.EVENT, EVENT.TEXT_CHANGED, 0, target, offset, 0)],
       strings.toBytes(),
+      HOST_TO_GUEST,
+    );
+  },
+
+  /** A date picker's value changed, `B`=days since epoch, `C`=millis of day. */
+  dateChanged(target: number, days: number, millis = 0): Uint8Array {
+    return encodeBatch(
+      [new Opcode(CATEGORY.EVENT, EVENT.DATE_CHANGED, 0, target, days >>> 0, millis >>> 0)],
+      new Uint8Array(),
       HOST_TO_GUEST,
     );
   },

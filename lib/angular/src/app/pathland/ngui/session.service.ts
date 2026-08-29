@@ -51,6 +51,16 @@ export class PathlandSession {
     this.ws?.send(eventRouter.valueChanged(target, value));
   }
 
+  /** Route a value control's change carrying a raw 32-bit payload (e.g. a packed color). */
+  sendValueBits(target: number, bits: number): void {
+    this.ws?.send(eventRouter.valueBits(target, bits));
+  }
+
+  /** Route a date picker's change (days since epoch + millis of day). */
+  sendDateChanged(target: number, days: number, millis: number): void {
+    this.ws?.send(eventRouter.dateChanged(target, days, millis));
+  }
+
   private onFrame(buffer: ArrayBuffer): void {
     const frame = decodeFrame(new Uint8Array(buffer));
     this.tree.applyFrame(frame);

@@ -18,12 +18,17 @@ function mountFrame(): Uint8Array {
 }
 
 describe('protocol constants', () => {
-  it('matches the canonical component/property ids', () => {
-    expect(COMPONENT.VSTACK).toBe(0x0002);
-    expect(COMPONENT.TEXT).toBe(0x0003);
-    expect(COMPONENT.BUTTON).toBe(0x0004);
+  it('matches the canonical spec component/property ids', () => {
+    expect(COMPONENT.TEXT).toBe(0x01);
+    expect(COMPONENT.COLOR).toBe(0x03);
+    expect(COMPONENT.VSTACK).toBe(0x10);
+    expect(COMPONENT.HSTACK).toBe(0x11);
+    expect(COMPONENT.TOGGLE).toBe(0x24);
+    expect(COMPONENT.SLIDER).toBe(0x25);
+    expect(COMPONENT.COMMENT).toBe(0x7f);
     expect(PROPERTY.PADDING).toBe(0x1011);
     expect(PROPERTY.COLOR).toBe(0x100a);
+    expect(PROPERTY.TINT).toBe(0x1030);
     expect(VALUE_TYPE.STRING).toBe(0x05);
   });
 });
@@ -69,6 +74,16 @@ describe('eventRouter', () => {
     const frame = decodeFrame(bytes);
     expect(frame.opcodes[0].command).toBe(EVENT.VALUE_CHANGED);
     expect(f32FromBits(frame.opcodes[0].b)).toBeCloseTo(0.75);
+  });
+
+  it('encodes raw value bits and date-changed', () => {
+    const raw = decodeFrame(eventRouter.valueBits(8, 0xff2196f3));
+    expect(raw.opcodes[0].command).toBe(EVENT.VALUE_CHANGED);
+    expect(raw.opcodes[0].b).toBe(0xff2196f3);
+
+    const date = decodeFrame(eventRouter.dateChanged(9, 20487, 0));
+    expect(date.opcodes[0].command).toBe(EVENT.DATE_CHANGED);
+    expect(date.opcodes[0].b).toBe(20487);
   });
 
   it('packs/unpacks f32 bits', () => {
@@ -118,5 +133,17 @@ describe('RetainedTree', () => {
       new Opcode(CATEGORY.TREE, TREE.REMOVE_CHILD, 0, 1, 2, 0),
     ], new Uint8Array())));
     expect(tree.node(1)?.children()).toEqual([]);
+  });
+
+  it('applies STYLE::SET_DATE to a date picker node', () => {
+    const bytes = encodeBatch([
+      new Opcode(CATEGORY.TREE, TREE.CREATE_NODE, 0, 1, COMPONENT.DATE_PICKER, 0),
+      new Opcode(CATEGORY.STYLE, STYLE.SET_DATE, 0, 1, 20487, 43200000),
+    ], new Uint8Array());
+
+    const tree = new RetainedTree();
+    tree.applyFrame(decodeFrame(bytes));
+
+    expect(tree.node(1)?.date()).toEqual({ days: 20487, millis: 43200000 });
   });
 });

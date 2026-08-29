@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { COMPONENT, PROPERTY, VALUE_TYPE, SIZE, BORDER_EDGE } from '../core/protocol';
+import { COMPONENT, PROPERTY, VALUE_TYPE, SIZE, BORDER_EDGE, TOGGLE_STYLE } from '../core/protocol';
 import { Opcode } from '../core/frame';
 import { encodeBatch } from '../core/decoder';
 import { decodeFrame } from '../core/decoder';
 import { f32Bits } from '../core/event-encoder';
 import { RetainedTree } from '../core/retained-tree';
-import { argbToRgba, buildMods, hidden, kindOf, stackGap } from './mapping';
+import { argbToRgba, buildMods, hidden, kindOf, stackGap, toggleStyle } from './mapping';
 
 /** Build a node with the given SET_PROPERTY ops applied. */
 function nodeWith(component: number, props: [number, number, number][]): RetainedTree {
@@ -19,7 +19,7 @@ function nodeWith(component: number, props: [number, number, number][]): Retaine
 }
 
 describe('mapping', () => {
-  it('maps stack/text/button kinds', () => {
+  it('maps stack/text/button/control kinds to spec component ids', () => {
     const tree = nodeWith(COMPONENT.VSTACK, []);
     expect(kindOf(tree.node(1)!)).toBe('vstack');
     const text = nodeWith(COMPONENT.TEXT, []);
@@ -28,6 +28,31 @@ describe('mapping', () => {
     expect(kindOf(button.node(1)!)).toBe('button');
     const field = nodeWith(COMPONENT.TEXT_FIELD, []);
     expect(kindOf(field.node(1)!)).toBe('textField');
+    const toggle = nodeWith(COMPONENT.TOGGLE, []);
+    expect(kindOf(toggle.node(1)!)).toBe('toggle');
+    const slider = nodeWith(COMPONENT.SLIDER, []);
+    expect(kindOf(slider.node(1)!)).toBe('slider');
+    const picker = nodeWith(COMPONENT.PICKER, []);
+    expect(kindOf(picker.node(1)!)).toBe('picker');
+    const color = nodeWith(COMPONENT.COLOR, []);
+    expect(kindOf(color.node(1)!)).toBe('color');
+    const date = nodeWith(COMPONENT.DATE_PICKER, []);
+    expect(kindOf(date.node(1)!)).toBe('datePicker');
+  });
+
+  it('decodes toggle style from the TOGGLE_STYLE token', () => {
+    const checkbox = nodeWith(COMPONENT.TOGGLE, [
+      [PROPERTY.TOGGLE_STYLE, VALUE_TYPE.F32, f32Bits(TOGGLE_STYLE.CHECKBOX)],
+    ]);
+    expect(toggleStyle(checkbox.node(1)!)).toBe('checkbox');
+
+    const button = nodeWith(COMPONENT.TOGGLE, [
+      [PROPERTY.TOGGLE_STYLE, VALUE_TYPE.F32, f32Bits(TOGGLE_STYLE.BUTTON)],
+    ]);
+    expect(toggleStyle(button.node(1)!)).toBe('button');
+
+    const switchNode = nodeWith(COMPONENT.TOGGLE, []);
+    expect(toggleStyle(switchNode.node(1)!)).toBe('switch');
   });
 
   it('decodes padding/color/background/font/frame modifiers', () => {
@@ -65,7 +90,7 @@ describe('mapping', () => {
 
   it('handles visibility and stack spacing', () => {
     const hiddenNode = nodeWith(COMPONENT.TEXT, [
-      [PROPERTY.VISIBLE, VALUE_TYPE.F32, f32Bits(0)],
+      [PROPERTY.VISIBLE, VALUE_TYPE.U8, 0],
     ]);
     expect(hidden(hiddenNode.node(1)!)).toBe(true);
 

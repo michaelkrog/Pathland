@@ -18,6 +18,8 @@ export class PathlandNode {
   readonly props = signal<Map<number, number>>(new Map());
   /** Resolved `STRING`-typed properties (`propertyId → text`). */
   readonly strings = signal<Map<number, string>>(new Map());
+  /** Date value applied via `STYLE::SET_DATE` (`B`=days, `C`=millis of day). */
+  readonly date = signal<{ days: number; millis: number } | null>(null);
   /** Child node ids in insertion order. */
   readonly children = signal<number[]>([]);
 
@@ -115,6 +117,13 @@ export class RetainedTree {
       const node = this.nodes.get(op.a);
       if (node) {
         node.text.set(frame.stringAt(op.b));
+      }
+      return;
+    }
+    if (command === STYLE.SET_DATE) {
+      const node = this.nodes.get(op.a);
+      if (node) {
+        node.date.set({ days: op.b, millis: op.c });
       }
       return;
     }
