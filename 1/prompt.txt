@@ -1,1 +1,1 @@
-1: snake. 2: Add tint. 3: Ok
+All phases, one at a time. Commit in between
