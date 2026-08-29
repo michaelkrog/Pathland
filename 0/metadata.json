@@ -1,0 +1,55 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M162B31CP8EB4E804GX67XQV",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T06:12:09.277824Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "lib/rust/crates/pathland-core/src/constants.rs",
+    "lib/rust/crates/pathland-core/src/events.rs",
+    "lib/rust/crates/pathland-core/src/lib.rs",
+    "lib/rust/crates/pathland-core/tests/events.rs",
+    "lib/rust/crates/pathland-core-transport/src/batch.rs",
+    "lib/rust/crates/pathland-core/status.md",
+    "lib/rust/crates/pathland-core-transport/status.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "f2503f706ef1",
+  "checkpoint_transcript_start": 556,
+  "transcript_lines_at_start": 556,
+  "compact_transcript_start": 556,
+  "token_usage": {
+    "input_tokens": 1931712,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 14382080,
+    "output_tokens": 23518,
+    "api_call_count": 26
+  },
+  "session_metrics": {
+    "turn_count": 59
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T06:12:08.95317Z",
+    "agent_lines": 305,
+    "agent_removed": 20,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 305,
+    "total_lines_changed": 325,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
