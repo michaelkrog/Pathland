@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M165EJ94WSWTHNDKQ7HZQSYK",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T07:06:31.88364Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Properties.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/ValueTypes.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Truncation.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/FontStyle.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/FontDesign.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/TextCase.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/ContentMode.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/ControlSize.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Image.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/View.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java",
+    "lib/java/pathland-view/status.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "aa1dae951be7",
+  "checkpoint_transcript_start": 790,
+  "transcript_lines_at_start": 790,
+  "compact_transcript_start": 790,
+  "token_usage": {
+    "input_tokens": 17074,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2687744,
+    "output_tokens": 20430,
+    "api_call_count": 21
+  },
+  "session_metrics": {
+    "turn_count": 71
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T07:06:31.440717Z",
+    "agent_lines": 539,
+    "agent_removed": 17,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 539,
+    "total_lines_changed": 556,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}
