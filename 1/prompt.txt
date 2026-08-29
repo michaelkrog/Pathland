@@ -1,0 +1,1 @@
+It seems to me that you have gone awa from suing the components from ng-ui fx. ui-button. For this renderer you are only allowed to use components from ngui. If components are missing, then present af temp "not impenented" component.
