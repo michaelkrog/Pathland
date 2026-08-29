@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M174A74KPNJ9X1CMTS42ZJRZ",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T16:05:56.829755Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "lib/angular/src/app/pathland/ngui/mapping.ts"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "ecc975db4344",
+  "checkpoint_transcript_start": 1181,
+  "transcript_lines_at_start": 1181,
+  "compact_transcript_start": 1181,
+  "token_usage": {
+    "input_tokens": 1184,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 2091008,
+    "output_tokens": 4526,
+    "api_call_count": 6
+  },
+  "session_metrics": {
+    "turn_count": 95
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T16:05:56.202131Z",
+    "agent_lines": 8,
+    "agent_removed": 2,
+    "human_added": 4,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 12,
+    "total_lines_changed": 18,
+    "agent_percentage": 55.55555555555556,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
