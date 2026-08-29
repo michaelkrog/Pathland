@@ -34,6 +34,25 @@ impl HostNode {
     pub fn string_property(&self, prop: u16) -> Option<&str> {
         self.strings.get(&prop).map(String::as_str)
     }
+
+    /// An `F32` property value, or a default when absent.
+    pub fn f32_property(&self, prop: u16, default: f32) -> f32 {
+        self.properties
+            .get(&prop)
+            .copied()
+            .map(f32::from_bits)
+            .unwrap_or(default)
+    }
+
+    /// A raw `U32` property value (no f32 reinterpretation), or a default.
+    pub fn u32_property(&self, prop: u16, default: u32) -> u32 {
+        self.properties.get(&prop).copied().unwrap_or(default)
+    }
+
+    /// The `SELECTED` checked state (U8 0/1).
+    pub fn checked(&self) -> bool {
+        self.u32_property(pathland_core::property_id::SELECTED, 0) != 0
+    }
 }
 
 impl Default for HostNode {
