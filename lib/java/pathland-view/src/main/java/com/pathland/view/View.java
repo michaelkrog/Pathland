@@ -127,9 +127,9 @@ public interface View {
                 Modified.prop(Properties.BORDER_RADIUS, radius));
     }
 
-    /** Show/hide the view. */
+    /** Show/hide the view ({@code VISIBLE} is a {@code U8} property). */
     default View visible(boolean visible) {
-        return Modified.props(this, Modified.prop(Properties.VISIBLE, visible ? 1f : 0f));
+        return Modified.props(this, Modified.prop(Properties.VISIBLE, visible ? 1 : 0));
     }
 
     /**

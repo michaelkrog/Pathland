@@ -4,6 +4,8 @@ import com.pathland.view.Categories;
 import com.pathland.view.Commands;
 import com.pathland.view.Components;
 import com.pathland.view.Properties;
+import com.pathland.view.ShapeKind;
+import com.pathland.view.ToggleStyle;
 import com.pathland.view.ValueTypes;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.Opcode;
@@ -173,8 +175,30 @@ public final class HtmlRenderer {
                 String text = escape(node.text == null ? "" : node.text);
                 yield "<button" + dataId + styleAttr(border) + ">" + text + "</button>";
             }
-            case Components.SWITCH, Components.CHECKBOX -> {
-                String role = node.component == Components.SWITCH ? " role=\"switch\"" : "";
+            case Components.COLOR -> {
+                int color = node.properties.getOrDefault(Properties.COLOR, 0xFF000000);
+                // Layout-greedy (SwiftUI Color): expands to the available space.
+                yield "<div" + dataId + " style=\"flex:1 1 auto;align-self:stretch;background-color:"
+                        + rgba(color) + ";" + border + "\"></div>";
+            }
+            case Components.SHAPE -> {
+                int kind = Math.round(node.f32Property(Properties.SHAPE_KIND, ShapeKind.RECTANGLE.wire()));
+                int fill = node.properties.getOrDefault(Properties.COLOR,
+                        node.properties.getOrDefault(Properties.BACKGROUND_COLOR, 0xFF000000));
+                String css = "background-color:" + rgba(fill) + ";";
+                if (kind == ShapeKind.CIRCLE.wire()) {
+                    css += "border-radius:50%;";
+                } else if (kind == ShapeKind.ROUNDED_RECTANGLE.wire()) {
+                    Integer radiusBits = node.properties.get(Properties.BORDER_RADIUS);
+                    if (radiusBits != null) {
+                        css += "border-radius:" + fmt(Float.intBitsToFloat(radiusBits)) + "px;";
+                    }
+                }
+                yield "<div" + dataId + " style=\"" + css + border + "\"></div>";
+            }
+            case Components.TOGGLE -> {
+                int style = Math.round(node.f32Property(Properties.TOGGLE_STYLE, ToggleStyle.SWITCH.wire()));
+                String role = style == ToggleStyle.SWITCH.wire() ? " role=\"switch\"" : "";
                 String checked = node.checked() ? " checked" : "";
                 String text = escape(node.text == null ? "" : node.text);
                 yield "<label" + dataId + " class=\"pathland-toggle\"" + styleAttr(border)

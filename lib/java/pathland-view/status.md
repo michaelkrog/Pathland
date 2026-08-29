@@ -1,6 +1,6 @@
 # pathland-view (Java) — implementation status
 
-**Last updated:** August 28, 2026
+**Last updated:** August 29, 2026
 
 The hand-written, framework-agnostic Java 25+ DSL (`com.pathland.view`):
 SwiftUI-style views, Angular-style signals, fine-grained emitter, `PLPL` wire
@@ -10,11 +10,20 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 ## Implemented
 
 - **Views**: `View` (open interface), `VStack`, `HStack`, `ZStack`, `Text`,
-  `Image`, `Color` (dual identity: a `View` *and* a value passed into style
-  modifiers), `Rectangle`, `Button`, `TextField`, `Spacer`; `body()`
-  composition; `ButtonStyle`/`ViewModifier`/`Environment` (ScopedValue).
+  `Image`, `Color` (dual identity: a `COLOR` view *and* a value passed into
+  style modifiers), `Rectangle` (a `SHAPE` node), `Button`, `TextField`,
+  `Spacer`; `body()` composition; `ButtonStyle`/`ViewModifier`/`Environment`
+  (ScopedValue).
+- **Component IDs**: synced to the spec's grouped ranges (`Components.java`:
+  `TEXT 0x01`, `IMAGE 0x02`, `COLOR 0x03`, `SHAPE 0x04`, `SPACER 0x06`,
+  `VSTACK 0x10`, `HSTACK 0x11`, `ZSTACK 0x12`, `BUTTON 0x20`, `TEXT_FIELD 0x21`,
+  `TOGGLE 0x24`, `SLIDER 0x25`, `COMMENT 0x7F`, …) — frames are spec-valid and
+  cross-language correct.
 - **Modifiers**: `foregroundStyle(Color)` (no `.color()`), `background(Color)`,
   `tint(Color)`, padding/opacity/font/etc. — `Color` is never a modifier.
+- **Value types**: `ValueTypes.forProperty` mirrors `value_type_for`
+  (`VISIBLE`/`ENABLED`/`CLIPS_TO_BOUNDS` are `U8`); `FontWeight` uses the spec's
+  numeric 100–900 scale.
 - **Signals** (`com.pathland.view.signal`): `signal`/`computed`/`effect`/
   `untracked` — glitch-free synchronous flush, equality suppression,
   circular-dependency detection.
@@ -30,12 +39,19 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 
 ## Not implemented / gaps
 
-- **Component IDs are the legacy pre-renumber values** (`Components.java`:
-  `HSTACK 0x0001`, `VSTACK 0x0002`, `SWITCH 0x0006`, `CHECKBOX 0x000D`, `LIST
-  0x000A`, …) — not yet synced to the grouped ranges in `spec/PRIMITIVES.md`.
-- `ZStack` currently materializes as `COMMENT` (no `ZSTACK` component id yet).
-- No `Toggle`/`Slider`-style token (`TOGGLE_STYLE`), no `ACTION_ID`/
-  `BINDING_ID` helpers, no `TEXT_EDITOR`/`PICKER`/`DATE_PICKER`/`MENU` views.
+- Missing **modifiers/properties** (text-format, effects, transform, layout
+  bounds, semantic extras) — see `spec/MODIFIERS.md`; the `View` chain surface
+  covers only a subset.
+- Missing **control views**: `Toggle`/`Slider`/`TextEditor`/`Picker`/
+  `DatePicker`/`Menu`/`ColorPicker`/`Stepper`/`ProgressView`/`Gauge`/
+  `Divider`/`Grid`/`ScrollView`/lazy stacks, and the `ACTION_ID`/`BINDING_ID`
+  helpers that route their events.
+- Missing **events**: `FrameCodec.decodeEvents` decodes pointer +
+  `VALUE_CHANGED` + `TEXT_CHANGED` only — no `KEY_*`, `FOCUS_CHANGED`,
+  `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL`, `DATE_CHANGED`; no
+  `STYLE::SET_DATE` command; no arbitrary `EVENT_LISTENERS` modifier (only
+  `TapGestureView`).
+- `Truncation` has an extra `NONE` value not in the spec.
 
 ## Verified by
 

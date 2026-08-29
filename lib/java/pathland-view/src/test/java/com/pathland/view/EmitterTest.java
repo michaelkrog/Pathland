@@ -186,7 +186,7 @@ class EmitterTest {
         assertEquals(0x01, bytes[0] & 0xFF);
         assertEquals(0x01, bytes[1] & 0xFF);
         assertEquals(0x01, bytes[4] & 0xFF); // a=1
-        assertEquals(0x02, bytes[8] & 0xFF); // b=0x0002 vstack
+        assertEquals(0x10, bytes[8] & 0xFF); // b=0x0010 vstack
         assertEquals(op, Opcode.fromBytes(bytes));
     }
 }

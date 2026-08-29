@@ -6,8 +6,10 @@ import com.pathland.view.emit.PathlandNode;
  * An sRGB color packed as {@code 0xAARRGGBB} (the protocol's literal color encoding,
  * D65 white point). Renderers resolve the exact visual appearance.
  *
- * <p>{@code Color} doubles as a leaf view: placing it in a stack draws a solid-color
- * fill (an {@code IMAGE} node with {@code BACKGROUND_COLOR}).
+ * <p>{@code Color} mirrors SwiftUI's dual identity: it is both a <b>View</b> (a
+ * layout-greedy solid-color fill — a {@code COLOR} node) and a <b>Data Type</b> passed
+ * into style modifiers ({@code foregroundStyle}, {@code background}, {@code border},
+ * {@code tint}). It is never a modifier itself.
  */
 public record Color(int argb) implements View {
 
@@ -29,8 +31,8 @@ public record Color(int argb) implements View {
 
     @Override
     public PathlandNode render(Environment env) {
-        PathlandNode node = new PathlandNode(Components.IMAGE);
-        node.properties.put(Properties.BACKGROUND_COLOR, this);
+        PathlandNode node = new PathlandNode(Components.COLOR);
+        node.properties.put(Properties.COLOR, this);
         return node;
     }
 }

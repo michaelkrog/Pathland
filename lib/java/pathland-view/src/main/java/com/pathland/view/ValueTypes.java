@@ -17,7 +17,7 @@ public final class ValueTypes {
         return switch (prop) {
             case Properties.COLOR, Properties.BACKGROUND_COLOR, Properties.BORDER_COLOR, Properties.TINT -> COLOR;
             case Properties.EVENT_LISTENERS, Properties.BORDER_EDGES -> U32;
-            case Properties.SELECTED -> U8;
+            case Properties.SELECTED, Properties.VISIBLE, Properties.ENABLED, Properties.CLIPS_TO_BOUNDS -> U8;
             case Properties.LABEL, Properties.PROMPT, Properties.FONT_FAMILY -> STRING;
             case Properties.LINE_LIMIT -> U32;
             default -> F32;

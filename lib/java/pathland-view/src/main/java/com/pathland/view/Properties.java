@@ -7,6 +7,8 @@ public final class Properties {
     public static final int SPACING = 0x0001;
     public static final int ALIGNMENT = 0x0002;
     public static final int CONTENT_MARGINS = 0x0005;
+    // Shape
+    public static final int SHAPE_KIND = 0x0006;
     // Text
     public static final int TEXT = 0x000A;
     public static final int LINE_LIMIT = 0x000B;
@@ -17,7 +19,6 @@ public final class Properties {
     public static final int BORDER_WIDTH = 0x1003;
     public static final int BORDER_COLOR = 0x1004;
     public static final int BORDER_RADIUS = 0x1005;
-    public static final int PADDING_STYLE = 0x1006;
     public static final int FONT_SIZE = 0x1007;
     public static final int FONT_WEIGHT = 0x1008;
     public static final int FONT_FAMILY = 0x1009;
@@ -46,6 +47,8 @@ public final class Properties {
     public static final int MAX_VALUE = 0x2008;
     public static final int LABEL = 0x200A;
     public static final int PROMPT = 0x200B;
+    // Control properties
+    public static final int TOGGLE_STYLE = 0x2018;
 
     private Properties() {}
 }
