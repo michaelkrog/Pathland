@@ -1,0 +1,58 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M165Z06K0ZT85AH0SWWY9MST",
+  "strategy": "manual-commit",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "lib/java/pathland-render-html/src/main/java/com/pathland/render/html/HtmlRenderer.java",
+    "lib/java/pathland-render-html/src/test/java/com/pathland/render/html/HtmlRendererTest.java",
+    "lib/java/pathland-render-html/status.md",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/ColorPicker.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Commands.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/DatePicker.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/DatePickerMode.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Divider.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Gauge.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Grid.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/LazyHGrid.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/LazyHStack.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/LazyVGrid.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/LazyVStack.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Menu.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Picker.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/PickerStyle.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/ProgressView.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/ScrollView.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Slider.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Stepper.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/TextEditor.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Toggle.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/View.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/FrameOpcodeSink.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/OpcodeSink.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/ffm/RingOpcodeSink.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/transport/Event.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/transport/FrameCodec.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java",
+    "lib/java/pathland-view/status.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
