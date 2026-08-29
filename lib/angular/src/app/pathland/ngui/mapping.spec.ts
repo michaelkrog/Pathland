@@ -131,6 +131,29 @@ describe('mapping', () => {
     expect(slider(stepped.node(1)!).step).toBe(5);
   });
 
+  it('decodes effects, shadow, underline, font style and frame bounds', () => {
+    const tree = nodeWith(COMPONENT.TEXT, [
+      [PROPERTY.SHADOW_RADIUS, VALUE_TYPE.F32, f32Bits(6)],
+      [PROPERTY.SHADOW_COLOR, VALUE_TYPE.COLOR, 0xff000000],
+      [PROPERTY.BLUR_RADIUS, VALUE_TYPE.F32, f32Bits(4)],
+      [PROPERTY.GRAYSCALE, VALUE_TYPE.F32, f32Bits(0.5)],
+      [PROPERTY.UNDERLINE, VALUE_TYPE.U8, 1],
+      [PROPERTY.ROTATION_DEGREES, VALUE_TYPE.F32, f32Bits(90)],
+      [PROPERTY.FONT_STYLE, VALUE_TYPE.F32, f32Bits(1)],
+      [PROPERTY.LINE_SPACING, VALUE_TYPE.F32, f32Bits(6)],
+      [PROPERTY.MIN_WIDTH, VALUE_TYPE.F32, f32Bits(10)],
+      [PROPERTY.MAX_WIDTH, VALUE_TYPE.F32, f32Bits(200)],
+    ]);
+    const m = buildMods(tree.node(1)!);
+    expect(m.shadow?.shadow).toContain('6px');
+    expect(m.background?.filter).toBe('blur(4px) grayscale(0.5)');
+    expect(m.underline).toBe(true);
+    expect(m.rotation).toBe(90);
+    expect(m.font?.style).toBe('italic');
+    expect(m.font?.lineHeight).toBe('6px');
+    expect(m.frame).toEqual({ minWidth: '10px', maxWidth: '200px' });
+  });
+
   it('formats ARGB colors as rgba', () => {
     expect(argbToRgba(0xffff0000)).toBe('rgba(255,0,0,1.000)');
     expect(argbToRgba(0x80808080)).toBe('rgba(128,128,128,0.502)');

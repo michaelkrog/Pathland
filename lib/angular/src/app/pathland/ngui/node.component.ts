@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
 import {
   HStack, VStack, ZStack, Text, Image, ScrollView, SpacerComponent, Grid, Rectangle, Circle,
   Padding, Color, Background, Border, Rounding, Opacity, Font, Flex, Frame, LineLimit, ForegroundStyle,
+  Shadow, RotationEffect, Underline,
 } from '@apaq/ngui-elements/core';
 import { Button, Checkbox, Toggle, RadioGroup, Menu, Option } from '@apaq/ngui-elements/components';
 import { Select } from '@apaq/ngui-elements/select';
@@ -33,7 +34,7 @@ import {
     Button, Checkbox, Toggle, RadioGroup, Menu, Option, Select, DatePicker, TextArea,
     TextField, TextFieldPrefix, TriggerFor,
 Padding, Color, Background, Border, Rounding, Opacity, Font, Flex, Frame, LineLimit,
-    ForegroundStyle,
+    ForegroundStyle, Shadow, RotationEffect, Underline,
     NotImplementedComponent,
   ],
   templateUrl: './node.component.html',

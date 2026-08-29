@@ -40,6 +40,12 @@ contract: `spec/`.
 - Input is routed back as `VALUE_CHANGED`/`TEXT_CHANGED`/`DATE_CHANGED`
   (toggle/checkbox/button, select/radio-group/segmented, menu, text-area,
   date-picker).
+- **Modifier mapping** (`ngui/mapping.ts`): padding, color, background
+  (color + CSS filter from blur/saturation/contrast/brightness/grayscale/
+  hueRotation/colorInvert), border, rounding, opacity, font (size/weight/
+  family/style/lineHeight), frame (width/height/min/max + alignment),
+  flex (FILL), lineLimit, `[shadow]`, `[rotationEffect]`, `[underline]`,
+  stack/text alignment.
 - **Session** (`ngui/session.service.ts`): connects to `/ws`, the server
   replays the mount frame on connect (`SessionApp`).
 
@@ -49,6 +55,10 @@ contract: `spec/`.
   `RenderResult` registries).
 - Protocol components without an ngui equivalent render as "not implemented"
   placeholders (listed above) until the design system adds them.
+- Protocol modifiers without an ngui equivalent are skipped: `STRIKETHROUGH`,
+  `TEXT_CASE`, `KERNING`, `TRACKING`, `OFFSET`, `POSITION`, `FIXED_SIZE`,
+  `LAYOUT_PRIORITY`, `ASPECT_RATIO`/`CONTENT_MODE`, `MINIMUM_SCALE_FACTOR`,
+  `SCALE`, `CLIPS_TO_BOUNDS`, `Z_INDEX`, `TINT`, `CONTROL_SIZE`.
 - `app.spec.ts` is an `ng test` (Karma/Jasmine) spec; the unit specs
   (`core.spec.ts`, `mapping.spec.ts`) run under vitest.
 

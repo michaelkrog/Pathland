@@ -3,6 +3,7 @@ import { PathlandNode } from '../core/retained-tree';
 import {
   BackgroundOptions, BorderArea, BorderOptions, FlexOptions, FontOptions, FrameOptions,
   NguiAlignment, NguiStackAlignment, NguiTextAlignment, PaddingArea, PaddingOptions, RoundingOptions,
+  ShadowOptions,
 } from './ngui-options';
 
 /**
@@ -88,6 +89,9 @@ export interface NguiMods {
   frame?: FrameOptions;
   flex?: FlexOptions;
   lineLimit?: number;
+  shadow?: ShadowOptions;
+  rotation?: number;
+  underline?: boolean;
 }
 
 /** Decode all modifier properties into ngui inputs (reads the node's signals). */
@@ -119,7 +123,7 @@ export function buildMods(node: PathlandNode): NguiMods {
     mods.opacity = opacity;
   }
   const font = buildFont(node);
-  if (font.size || font.weight || font.family) {
+  if (font.size || font.weight || font.family || font.style || font.lineHeight) {
     mods.font = font;
   }
   const frame = buildFrame(node);
@@ -133,6 +137,22 @@ export function buildMods(node: PathlandNode): NguiMods {
   const lineLimit = node.props().get(PROPERTY.LINE_LIMIT);
   if (lineLimit !== undefined) {
     mods.lineLimit = lineLimit;
+  }
+  const shadow = buildShadow(node);
+  if (shadow) {
+    mods.shadow = shadow;
+  }
+  const rotation = node.f32(PROPERTY.ROTATION_DEGREES);
+  if (rotation !== undefined && rotation !== 0) {
+    mods.rotation = rotation;
+  }
+  const underline = node.props().get(PROPERTY.UNDERLINE);
+  if (underline !== undefined) {
+    mods.underline = underline !== 0;
+  }
+  const filter = buildFilter(node);
+  if (filter) {
+    mods.background = { ...(mods.background ?? {}), filter };
   }
   return mods;
 }
@@ -317,6 +337,50 @@ export function timeValue(node: PathlandNode): string {
   return `${h}:${m}`;
 }
 
+function buildShadow(node: PathlandNode): ShadowOptions | undefined {
+  const radius = node.f32(PROPERTY.SHADOW_RADIUS);
+  if (radius === undefined && node.color(PROPERTY.SHADOW_COLOR) === undefined) {
+    return undefined;
+  }
+  const x = node.f32(PROPERTY.SHADOW_X) ?? 0;
+  const y = node.f32(PROPERTY.SHADOW_Y) ?? 0;
+  const color = argbToRgba(node.color(PROPERTY.SHADOW_COLOR) ?? 0x33000000);
+  return { shadow: `${x}px ${y}px ${radius ?? 0}px ${color}` };
+}
+
+/** CSS filter string from the effect properties (blur/saturation/contrast/…). */
+function buildFilter(node: PathlandNode): string | undefined {
+  const parts: string[] = [];
+  const blur = node.f32(PROPERTY.BLUR_RADIUS);
+  if (blur !== undefined && blur > 0) {
+    parts.push(`blur(${blur}px)`);
+  }
+  const saturation = node.f32(PROPERTY.SATURATION);
+  if (saturation !== undefined) {
+    parts.push(`saturate(${saturation})`);
+  }
+  const contrast = node.f32(PROPERTY.CONTRAST);
+  if (contrast !== undefined) {
+    parts.push(`contrast(${contrast})`);
+  }
+  const brightness = node.f32(PROPERTY.BRIGHTNESS);
+  if (brightness !== undefined) {
+    parts.push(`brightness(${brightness})`);
+  }
+  const grayscale = node.f32(PROPERTY.GRAYSCALE);
+  if (grayscale !== undefined && grayscale > 0) {
+    parts.push(`grayscale(${grayscale})`);
+  }
+  const hue = node.f32(PROPERTY.HUE_ROTATION);
+  if (hue !== undefined && hue !== 0) {
+    parts.push(`hue-rotate(${hue}deg)`);
+  }
+  if ((node.props().get(PROPERTY.COLOR_INVERT) ?? 0) !== 0) {
+    parts.push('invert(1)');
+  }
+  return parts.length > 0 ? parts.join(' ') : undefined;
+}
+
 function buildPadding(node: PathlandNode): PaddingArea[] | undefined {
   const uniform = node.f32(PROPERTY.PADDING);
   const top = node.f32(PROPERTY.PADDING_TOP);
@@ -368,8 +432,8 @@ function buildBorder(node: PathlandNode): BorderOptions | undefined {
   };
 }
 
-function buildFont(node: PathlandNode): { size?: string; weight?: string; family?: string } {
-  const font: { size?: string; weight?: string; family?: string } = {};
+function buildFont(node: PathlandNode): { size?: string; weight?: string; family?: string; style?: string; lineHeight?: string } {
+  const font: { size?: string; weight?: string; family?: string; style?: string; lineHeight?: string } = {};
   const size = node.f32(PROPERTY.FONT_SIZE);
   if (size !== undefined) {
     font.size = `${size}px`;
@@ -382,20 +446,48 @@ function buildFont(node: PathlandNode): { size?: string; weight?: string; family
   if (family) {
     font.family = family;
   }
+  const style = node.f32(PROPERTY.FONT_STYLE);
+  if (style !== undefined && Math.round(style) === 1) {
+    font.style = 'italic';
+  }
+  const lineSpacing = node.f32(PROPERTY.LINE_SPACING);
+  if (lineSpacing !== undefined && lineSpacing !== 0) {
+    font.lineHeight = `${lineSpacing}px`;
+  }
   return font;
 }
 
 function buildFrame(node: PathlandNode): FrameOptions | undefined {
   const width = node.f32(PROPERTY.WIDTH);
   const height = node.f32(PROPERTY.HEIGHT);
-  const frame: { width?: string; height?: string } = {};
+  const minWidth = node.f32(PROPERTY.MIN_WIDTH);
+  const maxWidth = node.f32(PROPERTY.MAX_WIDTH);
+  const minHeight = node.f32(PROPERTY.MIN_HEIGHT);
+  const maxHeight = node.f32(PROPERTY.MAX_HEIGHT);
+  const frame: { width?: string; height?: string; minWidth?: string; maxWidth?: string; minHeight?: string; maxHeight?: string; alignment?: NguiAlignment } = {};
   if (width !== undefined && width > 0) {
     frame.width = `${width}px`;
   }
   if (height !== undefined && height > 0) {
     frame.height = `${height}px`;
   }
-  return frame.width || frame.height ? frame : undefined;
+  if (minWidth !== undefined && minWidth > 0) {
+    frame.minWidth = `${minWidth}px`;
+  }
+  if (maxWidth !== undefined && maxWidth > 0) {
+    frame.maxWidth = `${maxWidth}px`;
+  }
+  if (minHeight !== undefined && minHeight > 0) {
+    frame.minHeight = `${minHeight}px`;
+  }
+  if (maxHeight !== undefined && maxHeight > 0) {
+    frame.maxHeight = `${maxHeight}px`;
+  }
+  // Frame alignment (SwiftUI frame(width:height:alignment:)) only matters once sized.
+  if ((frame.width || frame.height) && node.f32(PROPERTY.ALIGNMENT) !== undefined) {
+    frame.alignment = nguiAlignment(node.f32(PROPERTY.ALIGNMENT)!);
+  }
+  return Object.keys(frame).length > 0 ? frame : undefined;
 }
 
 function buildFlex(node: PathlandNode): FlexOptions | undefined {
@@ -416,6 +508,15 @@ function nguiStackAlignment(wire: number): NguiStackAlignment {
     case ALIGNMENT.LEADING: return 'leading';
     case ALIGNMENT.TRAILING: return 'trailing';
     case ALIGNMENT.FILL: return 'stretch';
+    default: return 'center';
+  }
+}
+
+/** Protocol `Alignment` wire value → ngui frame alignment string. */
+function nguiAlignment(wire: number): NguiAlignment {
+  switch (Math.round(wire)) {
+    case ALIGNMENT.LEADING: return 'leading';
+    case ALIGNMENT.TRAILING: return 'trailing';
     default: return 'center';
   }
 }

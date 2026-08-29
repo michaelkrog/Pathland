@@ -16,6 +16,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
@@ -35,6 +38,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
@@ -54,6 +60,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
@@ -73,6 +82,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
@@ -91,6 +103,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
@@ -110,6 +125,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
         </ui-text>
       }
@@ -125,6 +143,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           (click)="session.sendPointerUp(n.id)">
         </ui-button>
       }
@@ -142,6 +163,9 @@
             [font]="m.font!"
             [frame]="m.frame!"
             [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
             (checkedChange)="onToggleInput(n.id, $event)">
           </ui-checkbox>
         } @else if (toggleStyle(n) === 'button') {
@@ -156,6 +180,9 @@
             [font]="m.font!"
             [frame]="m.frame!"
             [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
             (click)="onToggleInput(n.id, !checked(n))">
           </ui-button>
         } @else {
@@ -171,6 +198,9 @@
             [font]="m.font!"
             [frame]="m.frame!"
             [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
             (valueChange)="onToggleInput(n.id, $event)">
           </ui-toggle>
         }
@@ -191,6 +221,9 @@
             [font]="m.font!"
             [frame]="m.frame!"
             [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
             (valueChange)="session.sendTextChanged(n.id, $event)">
             @if (n.strings().get(LABEL); as label) {
               <span prefix>{{ label }}</span>
@@ -203,6 +236,9 @@
           [value]="n.text() ?? ''"
           [placeholder]="n.strings().get(PROMPT)!"
           [frame]="m.frame!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           (valueChange)="onTextAreaInput(n.id, $event)">
         </ui-text-area>
       }
@@ -216,7 +252,10 @@
           [rounding]="m.rounding!"
           [opacity]="m.opacity!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
         </ui-spacer>
       }
       @case ('scrollView') {
@@ -229,7 +268,10 @@
           [opacity]="m.opacity!"
           [font]="m.font!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
           }
@@ -246,7 +288,10 @@
           [opacity]="m.opacity!"
           [font]="m.font!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
           }
@@ -263,7 +308,10 @@
           [opacity]="m.opacity!"
           [font]="m.font!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
           }
@@ -280,7 +328,10 @@
           [opacity]="m.opacity!"
           [font]="m.font!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
           }
@@ -290,29 +341,47 @@
         <ui-rectangle
           [foregroundStyle]="colorFill(n)"
           [frame]="m.frame!"
-          [flex]="{ grow: 1 }">
+          [flex]="{ grow: 1 }"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
         </ui-rectangle>
       }
       @case ('shape') {
         @if (shapeKind(n) === SHAPE_KIND.CIRCLE) {
-          <ui-circle [foregroundStyle]="colorFill(n)" [frame]="m.frame!"></ui-circle>
+          <ui-circle
+            [foregroundStyle]="colorFill(n)"
+            [frame]="m.frame!"
+            [shadow]="m.shadow!"
+            [rotationEffect]="m.rotation!"
+            [underline]="m.underline!">
+          </ui-circle>
         } @else if (shapeKind(n) === SHAPE_KIND.ROUNDED_RECTANGLE) {
           <ui-rectangle
             [foregroundStyle]="colorFill(n)"
             [rounding]="m.rounding ?? { radius: 0 }"
-            [frame]="m.frame!">
+            [frame]="m.frame!"
+            [shadow]="m.shadow!"
+            [rotationEffect]="m.rotation!"
+            [underline]="m.underline!">
           </ui-rectangle>
         } @else if (shapeKind(n) === SHAPE_KIND.CAPSULE) {
           <ui-rectangle
             [foregroundStyle]="colorFill(n)"
             [rounding]="{ radius: 999 }"
-            [frame]="m.frame!">
+            [frame]="m.frame!"
+            [shadow]="m.shadow!"
+            [rotationEffect]="m.rotation!"
+            [underline]="m.underline!">
           </ui-rectangle>
         } @else if (shapeKind(n) === SHAPE_KIND.ELLIPSE) {
           <ui-rectangle
             [foregroundStyle]="colorFill(n)"
             [rounding]="{ radius: '50%' }"
-            [frame]="m.frame!">
+            [frame]="m.frame!"
+            [shadow]="m.shadow!"
+            [rotationEffect]="m.rotation!"
+            [underline]="m.underline!">
           </ui-rectangle>
         } @else if (shapeKind(n) === SHAPE_KIND.PATH) {
           <pathland-not-implemented name="SHAPE::Path" />
@@ -401,7 +470,10 @@
           [rounding]="m.rounding!"
           [opacity]="m.opacity!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
         </ui-image>
       }
       @default {
