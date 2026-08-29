@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 7.327778056000005,
+    "cost": 7.334798828000005,
     "tokens": {
-      "input": 21856141,
-      "output": 610448,
+      "input": 21857624,
+      "output": 612348,
       "reasoning": 155,
       "cache": {
-        "read": 302347008,
+        "read": 303124224,
         "write": 0
       }
     },
     "time": {
       "created": 1787909577222,
-      "updated": 1787987706130
+      "updated": 1787987751704
     }
   },
   "messages": [
@@ -94369,21 +94369,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.00193464,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 194240,
+          "input": 118,
+          "output": 842,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 193280
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1787987706160
+          "created": 1787987706160,
+          "completed": 1787987730998
         },
+        "finish": "tool-calls",
         "id": "msg_04c5f4130002DlOwXSzKOp6150",
         "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR"
       },
@@ -94422,20 +94425,340 @@
           "tool": "bash",
           "callID": "call_d2bd309468654294975ea8ca",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git add -A && git commit -m \"feat(java): control views + full event surface (Phase 3)\n\nComplete the spec/semantic-control surface in the Java DSL.\n\n- Views: Toggle (TOGGLE_STYLE token + SELECTED + bool binding), Slider,\n  Stepper, TextEditor, ProgressView (determinate/indeterminate), Gauge,\n  Divider, Grid, ScrollView, LazyVStack/HStack/VGrid/HGrid, Picker\n  (options-as-children + SELECTION), Menu (trigger + action items),\n  ColorPicker (COLOR_VALUE + color binding), DatePicker (SET_DATE);\n  factories View.toggle/slider/stepper/...; enums DatePickerMode, PickerStyle\n- Value controls route VALUE_CHANGED through the emitter's value-input\n  registry into their bound signals; DatePicker emits STYLE::SET_DATE and\n  re-emits it on signal change (node-level date binding + OpcodeSink.setDate\n  in frame and ring sinks)\n- Events: full catalog round-trips — KEY_*/FOCUS_CHANGED/EDITING_CHANGED/\n  SUBMIT/SCROLL/WHEEL/DATE_CHANGED added to Commands + Event record +\n  FrameCodec encode/decode; listener bits 0..9 (Commands.Listeners)\n- View: pointerEvents(mask) modifier for arbitrary EVENT_LISTENERS,\n  actionId/bindingId modifiers\n- HtmlRenderer: renders TEXT_EDITOR/STEPPER/PROGRESS_VIEW/GAUGE/DIVIDER/GRID/\n  SCROLLVIEW/LAZY_*/PICKER/MENU/COLOR_PICKER/DATE_PICKER; applies SET_DATE\n- Tests: extended event round-trip (11 kinds), SET_DATE mount+delta, slider/\n  toggle value routing, controls HTML render - 36 tests green\n- status.md updated\" && git log --oneline -1"
             },
+            "output": "[docs/primitive-specs 488fcf0] feat(java): control views + full event surface (Phase 3)\n 33 files changed, 1158 insertions(+), 52 deletions(-)\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ColorPicker.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/DatePicker.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/DatePickerMode.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Divider.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Gauge.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Grid.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/LazyHGrid.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/LazyHStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/LazyVGrid.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/LazyVStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Menu.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Picker.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/PickerStyle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ProgressView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ScrollView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Slider.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Stepper.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/TextEditor.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Toggle.java\n488fcf0 feat(java): control views + full event surface (Phase 3)\n",
+            "metadata": {
+              "output": "[docs/primitive-specs 488fcf0] feat(java): control views + full event surface (Phase 3)\n 33 files changed, 1158 insertions(+), 52 deletions(-)\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ColorPicker.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/DatePicker.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/DatePickerMode.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Divider.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Gauge.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Grid.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/LazyHGrid.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/LazyHStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/LazyVGrid.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/LazyVStack.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Menu.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Picker.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/PickerStyle.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ProgressView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/ScrollView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Slider.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Stepper.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/TextEditor.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Toggle.java\n488fcf0 feat(java): control views + full event surface (Phase 3)\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git add -A && git commit -m \"feat(java): control views + full event surface (Phase 3)\n\nComplete the spec/semantic-control surface in the Java DSL.\n\n- Views: Toggle (TOGGLE_STYLE token + SELECTED + bool binding), Slider,\n  Stepper, TextEditor, ProgressView (determinate/indeterminate), Gauge,\n  Divider, Grid, ScrollView, LazyVStack/HStack/VGrid/HGrid, Picker\n  (options-as-children + SELECTION), Menu (trigger + action items),\n  ColorPicker (COLOR_VALUE + color binding), DatePicker (SET_DATE);\n  factories View.toggle/slider/stepper/...; enums DatePickerMode, PickerStyle\n- Value controls route VALUE_CHANGED through the emitter's value-input\n  registry into their bound signals; DatePicker emits STYLE::SET_DATE and\n  re-emits it on signal change (node-level date binding + OpcodeSink.setDate\n  in frame and ring sinks)\n- Events: full catalog round-trips — KEY_*/FOCUS_CHANGED/EDITING_CHANGED/\n  SUBMIT/SCROLL/WHEEL/DATE_CHANGED added to Commands + Event record +\n  FrameCodec encode/decode; listener bits 0..9 (Commands.Listeners)\n- View: pointerEvents(mask) modifier for arbitrary EVENT_LISTENERS,\n  actionId/bindingId modifiers\n- HtmlRenderer: renders TEXT_EDITOR/STEPPER/PROGRESS_VIEW/GAUGE/DIVIDER/GRID/\n  SCROLLVIEW/LAZY_*/PICKER/MENU/COLOR_PICKER/DATE_PICKER; applies SET_DATE\n- Tests: extended event round-trip (11 kinds), SET_DATE mount+delta, slider/\n  toggle value routing, controls HTML render - 36 tests green\n- status.md updated\" && git log --oneline -1",
             "time": {
-              "start": 1787987722219
+              "start": 1787987730895,
+              "end": 1787987730897
             }
           },
           "id": "prt_04c5f513900140vGkc7yl280vq",
           "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
           "messageID": "msg_04c5f4130002DlOwXSzKOp6150"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "e0cf79f9999d028e684919be927c8b88d6aac324",
+          "type": "step-finish",
+          "tokens": {
+            "total": 194240,
+            "input": 118,
+            "output": 842,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 193280
+            }
+          },
+          "cost": 0.00193464,
+          "id": "prt_04c5fa204001N0JUH8aC0Mp0i5",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5f4130002DlOwXSzKOp6150"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04c4e4719001rqTapCIcBSTIJN",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001704176,
+        "tokens": {
+          "total": 195054,
+          "input": 723,
+          "output": 283,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 194048
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787987731064,
+          "completed": 1787987744741
+        },
+        "finish": "tool-calls",
+        "id": "msg_04c5fa278002VYQH4GceYUWBIN",
+        "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR"
+      },
+      "parts": [
+        {
+          "snapshot": "e0cf79f9999d028e684919be927c8b88d6aac324",
+          "type": "step-start",
+          "id": "prt_04c5fa885001nqRrFTxGG3AFQD",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fa278002VYQH4GceYUWBIN"
+        },
+        {
+          "type": "reasoning",
+          "text": "All three phases done. Let me do a final verification — run the full Rust test suite (should be unaffected) and clean up. Also update the todo list.\n\nActually, Rust wasn't touched. But let me run a final full Rust test to confirm the workspace is green (per AGENTS.md quick start). It's quick.\n\nAlso I should double check the AGENTS.md's mention of \"listener::* bits\" for Rust — not affected.\n\nLet me run cargo test once to confirm nothing regressed (the spec files changed but that doesn't affect compilation). Actually spec files aren't compiled. Skip — but a quick check is cheap and good practice.\n\nLet me run cargo test.",
+          "time": {
+            "start": 1787987732615,
+            "end": 1787987733940
+          },
+          "id": "prt_04c5fa8870012tp5Hjip75q6Xa",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fa278002VYQH4GceYUWBIN"
+        },
+        {
+          "type": "text",
+          "text": "All three phases committed. Final verification — confirm the Rust workspace is still green:",
+          "time": {
+            "start": 1787987733942,
+            "end": 1787987734809
+          },
+          "id": "prt_04c5fadb6001H4v0g88n0Uw5G6",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fa278002VYQH4GceYUWBIN"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "call_2792875927f548a2924825f5",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "cargo test 2>&1 | grep -E \"test result:\" | awk '{s+=$4} END {print \"Rust tests passed: \" s}'",
+              "timeout": 300000,
+              "workdir": "/Users/michael/Development/michaelkrog/Pathland/lib/rust"
+            },
+            "output": "Rust tests passed: 190\n",
+            "metadata": {
+              "output": "Rust tests passed: 190\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cargo test 2>&1 | grep -E \"test result:\" | awk '{s+=$4} END {print \"Rust tests passed: \" s}'",
+            "time": {
+              "start": 1787987744641,
+              "end": 1787987744643
+            }
+          },
+          "id": "prt_04c5fae3800145Q2wiPsNVhkZk",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fa278002VYQH4GceYUWBIN"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "e0cf79f9999d028e684919be927c8b88d6aac324",
+          "type": "step-finish",
+          "tokens": {
+            "total": 195054,
+            "input": 723,
+            "output": 283,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 194048
+            }
+          },
+          "cost": 0.001704176,
+          "id": "prt_04c5fd7b6001MwJiwPP8n4He3s",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fa278002VYQH4GceYUWBIN"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04c4e4719001rqTapCIcBSTIJN",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001551592,
+        "tokens": {
+          "total": 195272,
+          "input": 257,
+          "output": 199,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 194816
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787987744802,
+          "completed": 1787987746664
+        },
+        "finish": "tool-calls",
+        "id": "msg_04c5fd822002H1kgJIomwpyLFR",
+        "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR"
+      },
+      "parts": [
+        {
+          "snapshot": "e0cf79f9999d028e684919be927c8b88d6aac324",
+          "type": "step-start",
+          "id": "prt_04c5fdc04001VQ1iY8yURRTUJV",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fd822002H1kgJIomwpyLFR"
+        },
+        {
+          "type": "tool",
+          "tool": "todowrite",
+          "callID": "call_26a30f1586834d00b711135a",
+          "state": {
+            "status": "completed",
+            "input": {
+              "todos": [
+                {
+                  "content": "Phase 1: wire sync — Components.java renumber, Color/Rectangle/ZStack mapping, ValueTypes + FontWeight fixes, delete stale constants, update HtmlRenderer + tests, status.md, commit",
+                  "priority": "high",
+                  "status": "completed"
+                },
+                {
+                  "content": "Phase 2: modifiers — missing Properties constants, View modifier methods, ValueTypes coverage, enum types, status.md, commit",
+                  "priority": "high",
+                  "status": "completed"
+                },
+                {
+                  "content": "Phase 3: controls/events — control views (Toggle/Slider/Picker/etc.), listener bits + FrameCodec decode, SET_DATE, status.md, commit",
+                  "priority": "high",
+                  "status": "completed"
+                }
+              ]
+            },
+            "output": "[\n  {\n    \"content\": \"Phase 1: wire sync — Components.java renumber, Color/Rectangle/ZStack mapping, ValueTypes + FontWeight fixes, delete stale constants, update HtmlRenderer + tests, status.md, commit\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Phase 2: modifiers — missing Properties constants, View modifier methods, ValueTypes coverage, enum types, status.md, commit\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  },\n  {\n    \"content\": \"Phase 3: controls/events — control views (Toggle/Slider/Picker/etc.), listener bits + FrameCodec decode, SET_DATE, status.md, commit\",\n    \"status\": \"completed\",\n    \"priority\": \"high\"\n  }\n]",
+            "metadata": {
+              "todos": [
+                {
+                  "content": "Phase 1: wire sync — Components.java renumber, Color/Rectangle/ZStack mapping, ValueTypes + FontWeight fixes, delete stale constants, update HtmlRenderer + tests, status.md, commit",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Phase 2: modifiers — missing Properties constants, View modifier methods, ValueTypes coverage, enum types, status.md, commit",
+                  "status": "completed",
+                  "priority": "high"
+                },
+                {
+                  "content": "Phase 3: controls/events — control views (Toggle/Slider/Picker/etc.), listener bits + FrameCodec decode, SET_DATE, status.md, commit",
+                  "status": "completed",
+                  "priority": "high"
+                }
+              ],
+              "truncated": false
+            },
+            "title": "0 todos",
+            "time": {
+              "start": 1787987746454,
+              "end": 1787987746456
+            }
+          },
+          "id": "prt_04c5fdc07001VgfLsWEzTVyXHe",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fd822002H1kgJIomwpyLFR"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "e0cf79f9999d028e684919be927c8b88d6aac324",
+          "type": "step-finish",
+          "tokens": {
+            "total": 195272,
+            "input": 257,
+            "output": 199,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 194816
+            }
+          },
+          "cost": 0.001551592,
+          "id": "prt_04c5fdf38001iIqJQDE3kfZ5Nm",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fd822002H1kgJIomwpyLFR"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04c4e4719001rqTapCIcBSTIJN",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.001830364,
+        "tokens": {
+          "total": 196033,
+          "input": 385,
+          "output": 576,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 195072
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1787987746726,
+          "completed": 1787987751672
+        },
+        "finish": "stop",
+        "id": "msg_04c5fdfa6002NSvpIJDK79ee4M",
+        "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR"
+      },
+      "parts": [
+        {
+          "snapshot": "e0cf79f9999d028e684919be927c8b88d6aac324",
+          "type": "step-start",
+          "id": "prt_04c5fe585001Kdg2EAxZqWYtY7",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fdfa6002NSvpIJDK79ee4M"
+        },
+        {
+          "type": "text",
+          "text": "All three phases complete, each committed separately:\n\n**`da21e74` — Phase 1: wire sync** — `Components.java` renumbered to the spec's grouped ranges (`TEXT 0x01`…`TOGGLE 0x24`, `SLIDER 0x25`, `COMMENT 0x7F`); stale `SWITCH`/`CHECKBOX`/`LIST` removed; `Color` now a real `COLOR` node, `Rectangle` → `SHAPE`+`SHAPE_KIND`, `ZStack` → `ZSTACK`; `ValueTypes` fixed (`VISIBLE`/`ENABLED`/`CLIPS_TO_BOUNDS` were emitting f32 bits for a U8 property — `visible(true)` decoded as false); `FontWeight` → 100–900 scale; `PADDING_STYLE` removed.\n\n**`23f363d` — Phase 2: modifiers** — full `MODIFIERS.md` property catalog (~45 IDs) + ~35 chainable `View` methods (offset/position/fixedSize/shadow/blur/filters/clipShape/rotation/accessibility/imageSource/fontFamily…), complete spec value-type table, new enums (`FontStyle`, `FontDesign`, `TextCase`, `ContentMode`, `ControlSize`), `Truncation.NONE` removed.\n\n**`488fcf0` — Phase 3: controls/events** — 19 new views (`Toggle`, `Slider`, `Stepper`, `TextEditor`, `ProgressView`, `Gauge`, `Divider`, `Grid`, `ScrollView`, `LazyV/HStack/VGrid/HGrid`, `Picker`, `Menu`, `ColorPicker`, `DatePicker`), value controls wired to writable signals via the emitter's value-input registry; `STYLE::SET_DATE` + node-level date binding; full event catalog round-trips (`KEY_*`, `FOCUS_CHANGED`, `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL`, `DATE_CHANGED`) with listener bits 0–9; `pointerEvents(mask)` modifier; HTML renderer covers all new components.\n\n**Verification**: 36 Java tests pass (compiled+run via JDK 22 preview as a stand-in for the unavailable JDK 25) and 190 Rust tests remain green. Remaining known gaps are documented in the Java `status.md`: Java routes events by node id (registries) rather than `ACTION_ID`/`BINDING_ID`, `DATE_CHANGED` has no host registry (two-field payload), and no `SET_DESIGN_TOKEN` helper.",
+          "time": {
+            "start": 1787987748233,
+            "end": 1787987751580
+          },
+          "id": "prt_04c5fe589001YXwbb5o1lTu6TK",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fdfa6002NSvpIJDK79ee4M"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "e0cf79f9999d028e684919be927c8b88d6aac324",
+          "type": "step-finish",
+          "tokens": {
+            "total": 196033,
+            "input": 385,
+            "output": 576,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 195072
+            }
+          },
+          "cost": 0.001830364,
+          "id": "prt_04c5ff2ce001KpdhJwmTUpYXgz",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04c5fdfa6002NSvpIJDK79ee4M"
         }
       ]
     }
