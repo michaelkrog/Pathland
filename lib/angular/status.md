@@ -29,10 +29,17 @@ contract: `spec/`.
   `TOGGLE` (`TOGGLE_STYLE` → switch/checkbox/button), `SLIDER`, `STEPPER`,
   `PICKER`, `MENU`, `COLOR_PICKER`, `DATE_PICKER`, `PROGRESS_VIEW`, `GAUGE`;
   `hidden` reads the `VISIBLE` `U8` bit.
-- **Renderer** (`ngui/node.component.ts|html`): one case per kind — ngui views
-  for the supported ones, native HTML elements for the rest (textarea, select,
-  color/date inputs, range, progress, gauge, stepper); input routed back as
-  `VALUE_CHANGED`/`TEXT_CHANGED`/`DATE_CHANGED`.
+- **Renderer** (`ngui/node.component.ts|html`): one case per kind, using **only
+  `@apaq/ngui` components** — stacks/grids/`ui-text`/`ui-button`/`ui-checkbox`/
+  `ui-toggle`/`ui-text-field`/`ui-text-area`/`ui-select`/`ui-radio-group`/
+  `ui-menu`/`ui-date-picker`/`ui-rectangle`/`ui-circle`. Protocol components the
+  design system lacks render a temporary **"not implemented" placeholder**
+  (`NotImplementedComponent`, ngui-styled): `SLIDER`, `STEPPER`,
+  `PROGRESS_VIEW`, `GAUGE`, `COLOR_PICKER`, `DIVIDER`, `SecureField`,
+  `PICKER::Wheel`, `DATE_PICKER::Time/DateAndTime`, `SHAPE::Path`.
+- Input is routed back as `VALUE_CHANGED`/`TEXT_CHANGED`/`DATE_CHANGED`
+  (toggle/checkbox/button, select/radio-group/segmented, menu, text-area,
+  date-picker).
 - **Session** (`ngui/session.service.ts`): connects to `/ws`, the server
   replays the mount frame on connect (`SessionApp`).
 
@@ -40,6 +47,8 @@ contract: `spec/`.
 
 - No `ACTION_ID`/`BINDING_ID` gating (the Java emitter routes by node id via
   `RenderResult` registries).
+- Protocol components without an ngui equivalent render as "not implemented"
+  placeholders (listed above) until the design system adds them.
 - `app.spec.ts` is an `ng test` (Karma/Jasmine) spec; the unit specs
   (`core.spec.ts`, `mapping.spec.ts`) run under vitest.
 

@@ -189,12 +189,13 @@ export function toggleStyle(node: PathlandNode): 'switch' | 'checkbox' | 'button
   }
 }
 
-/** A slider's numeric range (VALUE/MIN_VALUE/MAX_VALUE, defaults 0/0/1). */
-export function slider(node: PathlandNode): { value: number; min: number; max: number } {
+/** A slider's numeric range (VALUE/MIN_VALUE/MAX_VALUE) + optional STEP_VALUE. */
+export function slider(node: PathlandNode): { value: number; min: number; max: number; step?: number } {
   const min = node.f32(PROPERTY.MIN_VALUE) ?? 0;
   const max = node.f32(PROPERTY.MAX_VALUE) ?? 1;
   const value = node.f32(PROPERTY.VALUE) ?? min;
-  return { value, min, max };
+  const step = node.f32(PROPERTY.STEP_VALUE);
+  return step === undefined ? { value, min, max } : { value, min, max, step };
 }
 
 /** A stepper's numeric range + step (VALUE/MIN_VALUE/MAX_VALUE/STEP_VALUE). */
@@ -226,16 +227,30 @@ export function selection(node: PathlandNode): number | undefined {
   return node.props().get(PROPERTY.SELECTION);
 }
 
+/** The selected option index as a string (for `ui-select`/`ui-radio-group` values). */
+export function selectionString(node: PathlandNode): string | undefined {
+  const value = selection(node);
+  return value === undefined ? undefined : String(value);
+}
+
 /** A `COLOR` node's fill (the COLOR property) as a CSS `rgba(...)` string. */
 export function colorFill(node: PathlandNode): string {
   return argbToRgba(node.color(PROPERTY.COLOR) ?? 0xff000000);
 }
 
+/** A `SHAPE` node's kind (`SHAPE_KIND`, defaults to `Rectangle`). */
+export function shapeKind(node: PathlandNode): number {
+  return Math.round(node.f32(PROPERTY.SHAPE_KIND) ?? SHAPE_KIND.RECTANGLE);
+}
+
 /** A `SHAPE` node's CSS border-radius from `SHAPE_KIND` (+ BORDER_RADIUS for rounded rects). */
 export function shapeRadius(node: PathlandNode): string {
-  const kind = Math.round(node.f32(PROPERTY.SHAPE_KIND) ?? SHAPE_KIND.RECTANGLE);
-  if (kind === SHAPE_KIND.CIRCLE) {
+  const kind = shapeKind(node);
+  if (kind === SHAPE_KIND.CIRCLE || kind === SHAPE_KIND.ELLIPSE) {
     return '50%';
+  }
+  if (kind === SHAPE_KIND.CAPSULE) {
+    return '999px';
   }
   if (kind === SHAPE_KIND.ROUNDED_RECTANGLE) {
     const radius = node.f32(PROPERTY.BORDER_RADIUS);
@@ -262,6 +277,44 @@ export function dateValue(node: PathlandNode): string {
 /** An image's source (the `IMAGE_SOURCE` STRING property). */
 export function imageSource(node: PathlandNode): string {
   return node.strings().get(PROPERTY.IMAGE_SOURCE) ?? node.text() ?? '';
+}
+
+/** Whether a `TEXT_FIELD` masks its input (`IS_SECURE` → `SecureField`). */
+export function secure(node: PathlandNode): boolean {
+  return (node.props().get(PROPERTY.IS_SECURE) ?? 0) !== 0;
+}
+
+/** A picker's visual style (`PICKER_STYLE`): menu / segmented / wheel / radioGroup. */
+export function pickerStyle(node: PathlandNode): 'menu' | 'segmented' | 'wheel' | 'radioGroup' {
+  const wire = node.f32(PROPERTY.PICKER_STYLE);
+  switch (wire === undefined ? 0 : Math.round(wire)) {
+    case 1: return 'segmented';
+    case 2: return 'wheel';
+    case 3: return 'radioGroup';
+    default: return 'menu';
+  }
+}
+
+/** A date picker's mode (`DATE_PICKER_MODE`): date / time / dateAndTime. */
+export function datePickerMode(node: PathlandNode): 'date' | 'time' | 'dateAndTime' {
+  const wire = node.f32(PROPERTY.DATE_PICKER_MODE);
+  switch (wire === undefined ? 0 : Math.round(wire)) {
+    case 1: return 'time';
+    case 2: return 'dateAndTime';
+    default: return 'date';
+  }
+}
+
+/** A date picker's time-of-day (`HH:MM`) from the applied `SET_DATE` millis of day. */
+export function timeValue(node: PathlandNode): string {
+  const date = node.date();
+  if (date === null || date.millis === 0) {
+    return '';
+  }
+  const total = Math.floor(date.millis / 60000);
+  const h = String(Math.floor(total / 60)).padStart(2, '0');
+  const m = String(total % 60).padStart(2, '0');
+  return `${h}:${m}`;
 }
 
 function buildPadding(node: PathlandNode): PaddingArea[] | undefined {

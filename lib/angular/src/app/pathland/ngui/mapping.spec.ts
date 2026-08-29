@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { COMPONENT, PROPERTY, VALUE_TYPE, SIZE, BORDER_EDGE, TOGGLE_STYLE } from '../core/protocol';
+import { COMPONENT, PROPERTY, VALUE_TYPE, SIZE, BORDER_EDGE, TOGGLE_STYLE, SHAPE_KIND } from '../core/protocol';
 import { Opcode } from '../core/frame';
 import { encodeBatch } from '../core/decoder';
 import { decodeFrame } from '../core/decoder';
 import { f32Bits } from '../core/event-encoder';
 import { RetainedTree } from '../core/retained-tree';
-import { argbToRgba, buildMods, hidden, kindOf, stackGap, toggleStyle } from './mapping';
+import { argbToRgba, buildMods, datePickerMode, hidden, kindOf, pickerStyle, secure, selectionString, shapeKind, slider, stackGap, toggleStyle } from './mapping';
 
 /** Build a node with the given SET_PROPERTY ops applied. */
 function nodeWith(component: number, props: [number, number, number][]): RetainedTree {
@@ -98,6 +98,37 @@ describe('mapping', () => {
       [PROPERTY.SPACING, VALUE_TYPE.F32, f32Bits(12)],
     ]);
     expect(stackGap(stack.node(1)!)).toBe(12);
+  });
+
+  it('decodes control style tokens', () => {
+    const segmented = nodeWith(COMPONENT.PICKER, [
+      [PROPERTY.PICKER_STYLE, VALUE_TYPE.F32, f32Bits(1)],
+      [PROPERTY.SELECTION, VALUE_TYPE.U32, 2],
+    ]);
+    expect(pickerStyle(segmented.node(1)!)).toBe('segmented');
+    expect(selectionString(segmented.node(1)!)).toBe('2');
+
+    const date = nodeWith(COMPONENT.DATE_PICKER, [
+      [PROPERTY.DATE_PICKER_MODE, VALUE_TYPE.F32, f32Bits(2)],
+    ]);
+    expect(datePickerMode(date.node(1)!)).toBe('dateAndTime');
+
+    const secret = nodeWith(COMPONENT.TEXT_FIELD, [
+      [PROPERTY.IS_SECURE, VALUE_TYPE.U8, 1],
+    ]);
+    expect(secure(secret.node(1)!)).toBe(true);
+  });
+
+  it('decodes shape kinds and slider step', () => {
+    const shape = nodeWith(COMPONENT.SHAPE, [
+      [PROPERTY.SHAPE_KIND, VALUE_TYPE.F32, f32Bits(SHAPE_KIND.CIRCLE)],
+    ]);
+    expect(shapeKind(shape.node(1)!)).toBe(SHAPE_KIND.CIRCLE);
+
+    const stepped = nodeWith(COMPONENT.SLIDER, [
+      [PROPERTY.STEP_VALUE, VALUE_TYPE.F32, f32Bits(5)],
+    ]);
+    expect(slider(stepped.node(1)!).step).toBe(5);
   });
 
   it('formats ARGB colors as rgba', () => {

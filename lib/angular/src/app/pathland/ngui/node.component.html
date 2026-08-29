@@ -146,7 +146,7 @@
           </ui-checkbox>
         } @else if (toggleStyle(n) === 'button') {
           <ui-button
-            [label]="n.text() ?? ''"
+            [label]="(n.text() ?? '') + (checked(n) ? ' ✓' : '')"
             [padding]="m.padding!"
             [color]="m.color!"
             [background]="m.background!"
@@ -176,31 +176,35 @@
         }
       }
       @case ('textField') {
-        <ui-text-field
-          [value]="n.text() ?? ''"
-          [placeholder]="n.strings().get(PROMPT)!"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!"
-          (valueChange)="session.sendTextChanged(n.id, $event)">
-          @if (n.strings().get(LABEL); as label) {
-            <span prefix>{{ label }}</span>
-          }
-        </ui-text-field>
+        @if (secure(n)) {
+          <pathland-not-implemented name="SecureField" />
+        } @else {
+          <ui-text-field
+            [value]="n.text() ?? ''"
+            [placeholder]="n.strings().get(PROMPT)!"
+            [padding]="m.padding!"
+            [color]="m.color!"
+            [background]="m.background!"
+            [border]="m.border!"
+            [rounding]="m.rounding!"
+            [opacity]="m.opacity!"
+            [font]="m.font!"
+            [frame]="m.frame!"
+            [flex]="m.flex!"
+            (valueChange)="session.sendTextChanged(n.id, $event)">
+            @if (n.strings().get(LABEL); as label) {
+              <span prefix>{{ label }}</span>
+            }
+          </ui-text-field>
+        }
       }
       @case ('textEditor') {
-        <textarea
+        <ui-text-area
           [value]="n.text() ?? ''"
-          [style.width]="m.frame?.width"
-          [style.height]="m.frame?.height"
-          (input)="onTextEditorInput(n.id, $event)">
-        </textarea>
+          [placeholder]="n.strings().get(PROMPT)!"
+          [frame]="m.frame!"
+          (valueChange)="onTextAreaInput(n.id, $event)">
+        </ui-text-area>
       }
       @case ('spacer') {
         <ui-spacer
@@ -283,85 +287,109 @@
         </ui-grid>
       }
       @case ('color') {
-        <div
-          [style.background-color]="colorFill(n)"
-          [style.height]="m.frame?.height"
-          style="flex:1 1 auto;align-self:stretch">
-        </div>
+        <ui-rectangle
+          [foregroundStyle]="colorFill(n)"
+          [frame]="m.frame!"
+          [flex]="{ grow: 1 }">
+        </ui-rectangle>
       }
       @case ('shape') {
-        <div
-          [style.background-color]="colorFill(n)"
-          [style.width]="m.frame?.width"
-          [style.height]="m.frame?.height"
-          [style.border-radius]="shapeRadius(n)">
-        </div>
-      }
-      @case ('divider') {
-        <hr style="border:none;border-top:1px solid #ddd;width:100%">
-      }
-      @case ('progressView') {
-        @if (progress(n).indeterminate) {
-          <div style="width:22px;height:22px;border:3px solid #ccc;border-top-color:#2196F3;border-radius:50%;animation:pathland-spin 0.8s linear infinite"></div>
+        @if (shapeKind(n) === SHAPE_KIND.CIRCLE) {
+          <ui-circle [foregroundStyle]="colorFill(n)" [frame]="m.frame!"></ui-circle>
+        } @else if (shapeKind(n) === SHAPE_KIND.ROUNDED_RECTANGLE) {
+          <ui-rectangle
+            [foregroundStyle]="colorFill(n)"
+            [rounding]="m.rounding ?? { radius: 0 }"
+            [frame]="m.frame!">
+          </ui-rectangle>
+        } @else if (shapeKind(n) === SHAPE_KIND.CAPSULE) {
+          <ui-rectangle
+            [foregroundStyle]="colorFill(n)"
+            [rounding]="{ radius: 999 }"
+            [frame]="m.frame!">
+          </ui-rectangle>
+        } @else if (shapeKind(n) === SHAPE_KIND.ELLIPSE) {
+          <ui-rectangle
+            [foregroundStyle]="colorFill(n)"
+            [rounding]="{ radius: '50%' }"
+            [frame]="m.frame!">
+          </ui-rectangle>
+        } @else if (shapeKind(n) === SHAPE_KIND.PATH) {
+          <pathland-not-implemented name="SHAPE::Path" />
         } @else {
-          <progress [max]="1" [value]="progress(n).value"></progress>
+          <ui-rectangle [foregroundStyle]="colorFill(n)" [frame]="m.frame!"></ui-rectangle>
         }
       }
+      @case ('divider') {
+        <pathland-not-implemented name="DIVIDER" />
+      }
+      @case ('progressView') {
+        <pathland-not-implemented name="PROGRESS_VIEW" />
+      }
       @case ('gauge') {
-        <div style="width:120px;height:10px;background:#eee;border-radius:5px;overflow:hidden">
-          <div [style.width.%]="gaugePercent(n)" style="height:100%;background:#2196F3"></div>
-        </div>
+        <pathland-not-implemented name="GAUGE" />
       }
       @case ('stepper') {
-        <div style="display:inline-flex;align-items:center;gap:8px">
-          <button type="button" (click)="onStepperInput(n.id, -1)">−</button>
-          <span>{{ stepper(n).value }}</span>
-          <button type="button" (click)="onStepperInput(n.id, 1)">+</button>
-        </div>
-      }
-      @case ('picker') {
-        <select [value]="selection(n)" (change)="onPickerInput(n.id, $event)">
-          @for (opt of pickerOptions(n); track opt.index) {
-            <option [value]="opt.index">{{ opt.label }}</option>
-          }
-        </select>
-      }
-      @case ('menu') {
-        <div style="position:relative;display:inline-block">
-          <div>
-            @if (n.children().length > 0) {
-              <pathland-node [nodeId]="n.children()[0]" />
-            }
-          </div>
-          <div style="position:absolute;display:none;background:white;border:1px solid #ccc;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,0.15)">
-            @for (child of n.children().slice(1); track child) {
-              <pathland-node [nodeId]="child" />
-            }
-          </div>
-        </div>
-      }
-      @case ('colorPicker') {
-        <input
-          type="color"
-          [value]="colorHex(n)"
-          (change)="onColorInput(n.id, $event)">
-      }
-      @case ('datePicker') {
-        <input
-          type="date"
-          [value]="dateValue(n)"
-          (change)="onDateInput(n.id, $event)">
+        <pathland-not-implemented name="STEPPER" />
       }
       @case ('slider') {
-        <input
-          type="range"
-          [min]="slider(n).min"
-          [max]="slider(n).max"
-          [value]="slider(n).value"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [opacity]="m.opacity!"
-          (input)="onSliderInput(n.id, $event)">
+        <pathland-not-implemented name="SLIDER" />
+      }
+      @case ('colorPicker') {
+        <pathland-not-implemented name="COLOR_PICKER" />
+      }
+      @case ('picker') {
+        @if (pickerStyle(n) === 'segmented') {
+          <ui-hstack [gap]="4">
+            @for (opt of pickerOptions(n); track opt.index) {
+              <ui-button
+                [label]="selection(n) === opt.index ? opt.label + ' ✓' : opt.label"
+                (click)="onPickerIndex(n.id, opt.index)">
+              </ui-button>
+            }
+          </ui-hstack>
+        } @else if (pickerStyle(n) === 'radioGroup') {
+          <ui-radio-group
+            label=""
+            [value]="selectionString(n)"
+            (valueChange)="onSelectInput(n.id, $event)">
+            @for (opt of pickerOptions(n); track opt.index) {
+              <div [option]="'' + opt.index">{{ opt.label }}</div>
+            }
+          </ui-radio-group>
+        } @else if (pickerStyle(n) === 'wheel') {
+          <pathland-not-implemented name="PICKER::Wheel" />
+        } @else {
+          <ui-select
+            [value]="selectionString(n)"
+            (valueChange)="onSelectInput(n.id, $event)">
+            @for (opt of pickerOptions(n); track opt.index) {
+              <div [option]="'' + opt.index">{{ opt.label }}</div>
+            }
+          </ui-select>
+        }
+      }
+      @case ('menu') {
+        <ui-hstack [gap]="0">
+          <ui-button [triggerFor]="menu" [label]="menuTriggerLabel(n)"></ui-button>
+          <ui-menu #menu (onSelect)="onMenuSelect(n.id, $event)">
+            @for (opt of menuOptions(n); track opt.index) {
+              <div [option]="'' + opt.index">{{ opt.label }}</div>
+            }
+          </ui-menu>
+        </ui-hstack>
+      }
+      @case ('datePicker') {
+        @if (datePickerMode(n) === 'date') {
+          <ui-date-picker
+            [value]="dateValue(n)"
+            (valueChange)="onDatePickerInput(n.id, $event)">
+          </ui-date-picker>
+        } @else if (datePickerMode(n) === 'time') {
+          <pathland-not-implemented name="DATE_PICKER::Time" />
+        } @else {
+          <pathland-not-implemented name="DATE_PICKER::DateAndTime" />
+        }
       }
       @case ('image') {
         <ui-image
