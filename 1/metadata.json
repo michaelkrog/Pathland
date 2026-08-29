@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M16W7ZNEFX5MT6KDZTY095DS",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T13:44:54.211831Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "lib/angular/src/app/pathland/core/event-encoder.ts",
+    "lib/angular/src/app/pathland/ngui/session.service.ts",
+    "lib/angular/src/app/pathland/core/core.spec.ts",
+    "lib/angular/status.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "5ee5277cc2f1",
+  "checkpoint_transcript_start": 1088,
+  "transcript_lines_at_start": 1088,
+  "compact_transcript_start": 1088,
+  "token_usage": {
+    "input_tokens": 1049,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 3063296,
+    "output_tokens": 4958,
+    "api_call_count": 8
+  },
+  "session_metrics": {
+    "turn_count": 83
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T13:44:53.636521Z",
+    "agent_lines": 175,
+    "agent_removed": 3,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 175,
+    "total_lines_changed": 178,
+    "agent_percentage": 100,
+    "metric_version": 2
+  }
+}

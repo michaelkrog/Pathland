@@ -3,7 +3,7 @@
   "checkpoint_id": "01M16W7ZNEFX5MT6KDZTY095DS",
   "strategy": "manual-commit",
   "branch": "docs/primitive-specs",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "lib/angular/src/app/pathland/core/core.spec.ts",
     "lib/angular/src/app/pathland/core/event-encoder.ts",
@@ -17,13 +17,20 @@
       "compact_transcript": "/0/transcript.jsonl",
       "content_hash": "/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/1/metadata.json",
+      "transcript": "/1/full.jsonl",
+      "compact_transcript": "/1/transcript.jsonl",
+      "content_hash": "/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
+    "input_tokens": 1049,
     "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "cache_read_tokens": 3063296,
+    "output_tokens": 4958,
+    "api_call_count": 8
   }
 }
