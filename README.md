@@ -1,12 +1,15 @@
 # Pathland Protocol
 
-> A cross-platform, cross-language UI protocol inspired by SwiftUI
+> A cross-platform, cross-language UI protocol for declarative, retained-mode UI
+>
+> **Status: proof of concept.** Not production software — the wire format and APIs may change before 1.0.
 
 ## Overview
 
 Pathland is a **protocol-first** UI framework for **retained-mode UI** with
-multiple renderer backends. It's inspired by SwiftUI's declarative syntax, but
-designed to be **language-agnostic** and **platform-agnostic**.
+multiple renderer backends. It offers a declarative, retained-mode view API
+(SwiftUI-shaped in ergonomics) designed to be **language-agnostic** and
+**platform-agnostic**.
 
 As of August 2026 the core is a **Rust opcode engine**. It emits the
 application's **declarative view structure** — VStack, HStack, Text, spacing,
@@ -24,6 +27,14 @@ through the shared GTK renderer (`pathland-render-gtk`).
 change detection is fine-grained and signal-based — a signal bound to a node's
 text or a property re-emits only that node's deltas, so only the things that
 actually changed emit opcodes and an unchanged tree emits zero opcodes.
+
+## Project Status
+
+**Proof of concept.** Pathland is a working reference implementation for
+validating the protocol, not production software. The 16-byte opcode engine,
+the Rust and Java DSLs, the GTK4 / HTML / Angular renderers, and the
+SSR + WebSocket demos are all functional (tests green), but the wire format
+(version 1) and every API are subject to change before a 1.0.
 
 ## The Three Elements
 
@@ -80,16 +91,16 @@ remote/browser); transport is an implementation detail, not a fourth element.
 - **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state
 - **Zero-copy**: ring and arena are plain regions of shared linear memory
 - **Single-producer / single-consumer**: guest engine produces; host renderer consumes
-- **Hand-written Java DSL**: the SwiftUI-like view DSL lives as a reusable Java library (`com.pathland.view`), not generated code — one ergonomic surface for desktop, server (Spring/Quarkus), and embedded hosts
+- **Hand-written Java DSL**: the declarative view DSL lives as a reusable Java library (`com.pathland.view`), not generated code — one ergonomic surface for desktop, server (Spring/Quarkus), and embedded hosts
 
 ## Documentation
 
 ### Specification
 
 - [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens
-- [Primitive Views](./spec/PRIMITIVES.md) — the primitive views the protocol supports (SwiftUI groupings), with protocol component IDs and status
-- [Core Modifiers](./spec/MODIFIERS.md) — the core modifiers (protocol `STYLE` properties), SwiftUI-style, with property IDs and status
-- [Core Events](./spec/EVENTS.md) — the core events (raw inputs), SwiftUI-style, with event command IDs and listener bits
+- [Primitive Views](./spec/PRIMITIVES.md) — the primitive views the protocol supports (declarative view groupings), with protocol component IDs and status
+- [Core Modifiers](./spec/MODIFIERS.md) — the core modifiers (protocol `STYLE` properties), with property IDs and status
+- [Core Events](./spec/EVENTS.md) — the core events (raw inputs), with event command IDs and listener bits
 - [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations
 
 ## Rust Workspace
@@ -98,7 +109,7 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 
 | Crate | Element | Responsibility |
 |-------|---------|----------------|
-| `pathland-view` | Retained UI | SwiftUI-style view DSL: VStack/HStack/Text/Button + chainable modifiers building a `pathland-engine::Node` tree (`no_std`) |
+| `pathland-view` | Retained UI | Declarative view DSL: VStack/HStack/Text/Button + chainable modifiers building a `pathland-engine::Node` tree (`no_std`) |
 | `pathland-core` | Opcode engine | Protocol core: fixed 16-byte opcode, ring buffer, bump arena, events, memory layout, Guest/Host/Frame surface (`no_std`, zero-alloc) |
 | `pathland-engine` | Opcode engine | Emitter: retained tree types (`Node`/`Component`) + diff-based reactive emission + reactive **signals** (moved out of `pathland-core`) |
 | `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
@@ -115,11 +126,11 @@ The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/j
 
 | Module | Package | Responsibility |
 |--------|---------|----------------|
-| `pathland-view` | `com.pathland.view` | SwiftUI-like view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |
+| `pathland-view` | `com.pathland.view` | Declarative view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |
 | `pathland-view-processor` | `com.pathland.processor` | JSR 269 annotation processor: generates `<View>_StateBinder` for `State` fields (auto-keyed by field name) |
 | `pathland-render-html` | `com.pathland.render.html` | Pure-function HTML renderer over the opcode stream (SSR) with `data-pathland-id` hydration |
 | `pathland-state-redis` | `com.pathland.state.redis` | Redis-backed `StateStore` over Lettuce (Spring/Quarkus/desktop) |
-| `pathland-demo-views` | `com.pathland.demo` | Shared demo views (`CounterView`/`CounterControls`/`NameField`) declaring `State` fields |
+| `pathland-demo-views` | `com.pathland.demo` | Shared kitchensink demo views (`KitchenSinkView` + per-section components) declaring `State` fields |
 | `pathland-quarkus-demo` | `com.pathland.quarkus` | Quarkus SSR + WebSocket demo consuming the libraries |
 | `pathland-spring-boot-demo` | `com.pathland.spring` | Spring Boot SSR + WebSocket demo consuming the same libraries |
 
@@ -198,12 +209,12 @@ Tokens are identified by dot-separated paths (`color.primary`, `space.2`) and
 referenced via the `DESIGN_TOKEN` value type or overridden globally with
 `SET_DESIGN_TOKEN`. See [Design Token System](./spec/OPCODE.md#design-token-system).
 
-## Roadmap (POC Goals)
+## POC Goals
 
 See the GitHub issues (#12, #13, #15, #16, #18):
 
 1. **16-byte opcode engine** — done
-2. **Core components & modifiers in Rust** (SwiftUI-like API) — done
+2. **Core components & modifiers in Rust** (declarative API) — done
 3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done
 4. **Rust desktop app with GTK4 renderer** (native shared ring) — done
 5. **Native Java library set** (hand-written `com.pathland.view` DSL + signals/computed/effects + reusable HTML renderer + state stores) — done
