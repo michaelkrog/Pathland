@@ -29,7 +29,6 @@
               }
             ],
             "styles": [
-              "node_modules/@apaq/ngui/dist/css/ngui.css",
               "src/styles.css"
             ]
           },
