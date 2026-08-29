@@ -1,0 +1,1 @@
+All phases, one at a time. Commit in between
