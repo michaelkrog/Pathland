@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M16V92PH7GX3YMKDB8WWR91X",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T13:43:19.538142Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "lib/angular/src/app/pathland/ngui/mapping.ts",
+    "lib/angular/src/app/pathland/ngui/ngui-options.ts",
+    "lib/angular/src/app/pathland/ngui/node.component.ts",
+    "lib/angular/src/app/pathland/ngui/mapping.spec.ts",
+    "lib/angular/status.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "5ee5277cc2f1",
+  "checkpoint_transcript_start": 1064,
+  "transcript_lines_at_start": 1064,
+  "compact_transcript_start": 1064,
+  "token_usage": {
+    "input_tokens": 8677,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 9832704,
+    "output_tokens": 12147,
+    "api_call_count": 24
+  },
+  "session_metrics": {
+    "turn_count": 83
+  }
+}
