@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 9.485136452000006,
+    "cost": 9.492733080000008,
     "tokens": {
-      "input": 26556508,
-      "output": 811869,
+      "input": 26556800,
+      "output": 812546,
       "reasoning": 19892,
       "cache": {
-        "read": 402573696,
+        "read": 403585920,
         "write": 0
       }
     },
     "time": {
       "created": 1787909577222,
-      "updated": 1788018881357
+      "updated": 1788018898604
     }
   },
   "messages": [
@@ -130981,21 +130981,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.003810272,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 506410,
+          "input": 219,
+          "output": 335,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 505856
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1788018881399
+          "created": 1788018881399,
+          "completed": 1788018892904
         },
+        "finish": "tool-calls",
         "id": "msg_04e3af377002vuJ8o6JqjiXkEQ",
         "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR"
       },
@@ -131012,21 +131015,116 @@
           "tool": "bash",
           "callID": "call_25d38d41770d4d6797fd0671",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && git add lib/angular && git commit -q -m \"feat(angular): lazy-load control components via @defer (on immediate)\n\nSplit the monolith renderer: the light @apaq/ngui core views (stacks, grids,\ntext, image, spacer, shapes, scroll) stay eager in the recursive driver;\nevery control kind becomes its own lazy component loaded per kind:\n\n- ngui/nodes/: button, toggle, text-field, text-editor, picker, menu,\n  date-picker nodes; shared PathlandNodeHost (abstract directive with\n  nodeId/session/node)\n- parent template: control @case blocks render their lazy node inside\n  @defer (on immediate), so each ngui entry (components, select, text-field,\n  text-area, date-picker, overlay) is code-split and only fetched when that\n  kind actually appears in the tree\n- result: main bundle is just core (~14 kB); select/date-picker/menu/\n  text-field/text-area are separate lazy chunks\n- all unused modifier imports trimmed (build warning-free)\n- status.md updated; ng build clean, 24 vitest + 25 ng test green\" && git log --oneline -1",
               "timeout": 60000
             },
+            "output": "70db44b feat(angular): lazy-load control components via @defer (on immediate)\n",
+            "metadata": {
+              "output": "70db44b feat(angular): lazy-load control components via @defer (on immediate)\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git add lib/angular && git commit -q -m \"feat(angular): lazy-load control components via @defer (on immediate)\n\nSplit the monolith renderer: the light @apaq/ngui core views (stacks, grids,\ntext, image, spacer, shapes, scroll) stay eager in the recursive driver;\nevery control kind becomes its own lazy component loaded per kind:\n\n- ngui/nodes/: button, toggle, text-field, text-editor, picker, menu,\n  date-picker nodes; shared PathlandNodeHost (abstract directive with\n  nodeId/session/node)\n- parent template: control @case blocks render their lazy node inside\n  @defer (on immediate), so each ngui entry (components, select, text-field,\n  text-area, date-picker, overlay) is code-split and only fetched when that\n  kind actually appears in the tree\n- result: main bundle is just core (~14 kB); select/date-picker/menu/\n  text-field/text-area are separate lazy chunks\n- all unused modifier imports trimmed (build warning-free)\n- status.md updated; ng build clean, 24 vitest + 25 ng test green\" && git log --oneline -1",
             "time": {
-              "start": 1788018886150
+              "start": 1788018892820,
+              "end": 1788018892822
             }
           },
           "id": "prt_04e3afaad001jWLfd6AuLfgo4C",
           "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
           "messageID": "msg_04e3af377002vuJ8o6JqjiXkEQ"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "0325a66f791f971c7dd1981f55ee8cdedc948d5b",
+          "type": "step-finish",
+          "tokens": {
+            "total": 506410,
+            "input": 219,
+            "output": 335,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 505856
+            }
+          },
+          "cost": 0.003810272,
+          "id": "prt_04e3b203f001oOew80c0UfNH8N",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04e3af377002vuJ8o6JqjiXkEQ"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_04e36650e001GtAaOAjevFLSQJ",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.003786356,
+        "tokens": {
+          "total": 506783,
+          "input": 73,
+          "output": 342,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 506368
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1788018892978,
+          "completed": 1788018898574
+        },
+        "finish": "stop",
+        "id": "msg_04e3b20b2002rYPtgbbm4HhbdG",
+        "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR"
+      },
+      "parts": [
+        {
+          "snapshot": "0325a66f791f971c7dd1981f55ee8cdedc948d5b",
+          "type": "step-start",
+          "id": "prt_04e3b2875001lsnmwlmQZs4k6f",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04e3b20b2002rYPtgbbm4HhbdG"
+        },
+        {
+          "type": "text",
+          "text": "Done (`70db44b`).\n\n## What changed\nThe recursive renderer now lazy-loads control components per kind:\n\n- **Eager** (light `@apaq/ngui-elements/core`, always needed): stacks/grids/zstack/scroll-view, `text`, `image`, `spacer`, `color`, `shape`, the \"not implemented\" placeholders, and `comment`/`unknown`/`default`.\n- **Lazy** (`ngui/nodes/`, loaded via `@defer (on immediate)`): `button-node`, `toggle-node`, `text-field-node`, `text-editor-node`, `picker-node`, `menu-node`, `date-picker-node` — each a small standalone component with a shared `PathlandNodeHost` base, importing only its own ngui entry (`components`, `select`, `text-field`, `text-area`, `date-picker`, `overlay`).\n\n## Verified\n- **Code-splitting confirmed**: the main bundle is now **~14 kB** (just core). `select`, `date-picker`, `menu`, `text-field`, `text-area` each landed in separate lazy chunks that are only fetched when that kind actually appears in the tree — a text-only app never loads the select/date-picker/menu chunks.\n- `ng build` clean (no warnings), **24 vitest** + **25 `ng test`** green.\n\nOne note: `@defer (on immediate)` still splits the chunks but fetches the used ones right away (no placeholder flash); only chunks for kinds present in the tree are ever requested.",
+          "time": {
+            "start": 1788018894974,
+            "end": 1788018898485
+          },
+          "id": "prt_04e3b287e001VLwtjkZv52ujZI",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04e3b20b2002rYPtgbbm4HhbdG"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "0325a66f791f971c7dd1981f55ee8cdedc948d5b",
+          "type": "step-finish",
+          "tokens": {
+            "total": 506783,
+            "input": 73,
+            "output": 342,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 506368
+            }
+          },
+          "cost": 0.003786356,
+          "id": "prt_04e3b3663001Qlo96hiEnuo1ii",
+          "sessionID": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+          "messageID": "msg_04e3b20b2002rYPtgbbm4HhbdG"
         }
       ]
     }
