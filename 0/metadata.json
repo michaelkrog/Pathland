@@ -1,0 +1,63 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M173P1PBDST2T06YV6WMFAEZ",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-29T15:54:52.672093Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 2,
+  "save_step_count": 1,
+  "files_touched": [
+    "lib/angular/src/styles.css"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "6ed6ff93f0a2",
+  "checkpoint_transcript_start": 1137,
+  "transcript_lines_at_start": 1137,
+  "compact_transcript_start": 1137,
+  "token_usage": {
+    "input_tokens": 613627,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 11207424,
+    "output_tokens": 20790,
+    "api_call_count": 25
+  },
+  "session_metrics": {
+    "turn_count": 90
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-29T15:54:52.049415Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 448,
+    "human_modified": 8,
+    "human_removed": 0,
+    "total_committed": 448,
+    "total_lines_changed": 707,
+    "agent_percentage": 0,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 1,
+      "user_lines_removed": 8,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0,
+      "user_added_per_file": {
+        "lib/angular/src/styles.css": 1
+      },
+      "user_removed_per_file": {
+        "lib/angular/src/styles.css": 8
+      }
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1,
+      "agent_lines_removed": 8
+    }
+  ]
+}
