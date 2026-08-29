@@ -269,20 +269,36 @@ impl NativeHost {
 }
 
 /// Map a raw u32 component id (C ABI) to a `pathland_view::Component`.
-///
-/// Mirrors the `component` variant values: hstack=1, vstack=2, text=3,
-/// button=4, spacer=8.
 pub fn component_from_id(id: u32) -> Option<pathland_view::Component> {
-    match id {
-        x if x == component_type::HSTACK as u32 => Some(pathland_view::Component::HStack),
-        x if x == component_type::VSTACK as u32 => Some(pathland_view::Component::VStack),
-        x if x == component_type::TEXT as u32 => {
-            Some(pathland_view::Component::Text { text: String::new() })
-        }
-        x if x == component_type::BUTTON as u32 => {
-            Some(pathland_view::Component::Button { label: String::new() })
-        }
-        x if x == component_type::SPACER as u32 => Some(pathland_view::Component::Spacer),
+    use pathland_view::Component;
+    match id as u16 {
+        component_type::HSTACK => Some(Component::HStack),
+        component_type::VSTACK => Some(Component::VStack),
+        component_type::ZSTACK => Some(Component::ZStack),
+        component_type::TEXT => Some(Component::Text { text: String::new() }),
+        component_type::BUTTON => Some(Component::Button { label: String::new() }),
+        component_type::SPACER => Some(Component::Spacer),
+        component_type::IMAGE => Some(Component::Image),
+        component_type::COLOR => Some(Component::Color),
+        component_type::SHAPE => Some(Component::Shape),
+        component_type::DIVIDER => Some(Component::Divider),
+        component_type::PROGRESS_VIEW => Some(Component::ProgressView),
+        component_type::GAUGE => Some(Component::Gauge),
+        component_type::GRID => Some(Component::Grid),
+        component_type::SCROLLVIEW => Some(Component::ScrollView),
+        component_type::LAZY_VGRID => Some(Component::LazyVGrid),
+        component_type::LAZY_HGRID => Some(Component::LazyHGrid),
+        component_type::LAZY_VSTACK => Some(Component::LazyVStack),
+        component_type::LAZY_HSTACK => Some(Component::LazyHStack),
+        component_type::TOGGLE => Some(Component::Toggle),
+        component_type::SLIDER => Some(Component::Slider),
+        component_type::TEXT_FIELD => Some(Component::TextField),
+        component_type::TEXT_EDITOR => Some(Component::TextEditor),
+        component_type::STEPPER => Some(Component::Stepper),
+        component_type::DATE_PICKER => Some(Component::DatePicker),
+        component_type::PICKER => Some(Component::Picker),
+        component_type::MENU => Some(Component::Menu),
+        component_type::COLOR_PICKER => Some(Component::ColorPicker),
         _ => None,
     }
 }
@@ -293,16 +309,50 @@ pub fn component_id(component: &pathland_view::Component) -> u32 {
 }
 
 /// Map a raw u32 property id (C ABI) to a protocol property id and derive its
-/// value type. `(property_id, is_color)`.
+/// value type. `(property_id, value_type)`.
 pub fn property_value_type(prop: u32) -> (u16, u8) {
     let pid = prop as u16;
     let vt = if matches!(
         pid,
-        property_id::COLOR | property_id::BACKGROUND_COLOR | property_id::BORDER_COLOR
+        property_id::COLOR
+            | property_id::BACKGROUND_COLOR
+            | property_id::BORDER_COLOR
+            | property_id::COLOR_VALUE
+            | property_id::COLOR_MULTIPLY
+            | property_id::SHADOW_COLOR
     ) {
         pathland_core::value_type::COLOR
-    } else if pid == property_id::EVENT_LISTENERS {
+    } else if matches!(
+        pid,
+        property_id::EVENT_LISTENERS
+            | property_id::BORDER_EDGES
+            | property_id::ACTION_ID
+            | property_id::BINDING_ID
+            | property_id::LINE_LIMIT
+            | property_id::SELECTION
+    ) {
         pathland_core::value_type::U32
+    } else if matches!(
+        pid,
+        property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY | property_id::IMAGE_SOURCE
+    ) {
+        pathland_core::value_type::STRING
+    } else if matches!(
+        pid,
+        property_id::SELECTED
+            | property_id::VISIBLE
+            | property_id::ENABLED
+            | property_id::CLIPS_TO_BOUNDS
+            | property_id::UNDERLINE
+            | property_id::STRIKETHROUGH
+            | property_id::COLOR_INVERT
+            | property_id::ALLOWS_HIT_TESTING
+            | property_id::IS_SECURE
+            | property_id::IS_INDETERMINATE
+            | property_id::FIXED_SIZE_HORIZONTAL
+            | property_id::FIXED_SIZE_VERTICAL
+    ) {
+        pathland_core::value_type::U8
     } else {
         pathland_core::value_type::F32
     };

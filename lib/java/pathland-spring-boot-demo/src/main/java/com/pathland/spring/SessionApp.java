@@ -1,6 +1,6 @@
 package com.pathland.spring;
 
-import com.pathland.demo.CounterView;
+import com.pathland.demo.KitchenSinkView;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
 import com.pathland.view.emit.Emitter;
@@ -27,7 +27,7 @@ import java.util.function.Consumer;
 final class SessionApp {
 
     private final PersistentState state;
-    private final CounterView root;
+    private final KitchenSinkView root;
 
     private final HtmlRenderer html = new HtmlRenderer();
     private final FrameOpcodeSink sink;
@@ -44,7 +44,7 @@ final class SessionApp {
 
     SessionApp(String sessionId, StateStore store) {
         this.state = new PersistentState(store, sessionId);
-        this.root = new CounterView();
+        this.root = new KitchenSinkView();
 
         this.sink = new FrameOpcodeSink() {
             @Override

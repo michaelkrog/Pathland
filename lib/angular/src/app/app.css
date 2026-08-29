@@ -1,0 +1,7 @@
+/* Pathland ngui renderer host. All visual styling lives in the `@apaq/ngui`
+   design system; the host only resets the page chrome. */
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}

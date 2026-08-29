@@ -69,6 +69,7 @@ pub struct Opcode {
 ### Payload encoding conventions
 
 - **Float payloads** (`spacing`, `padding`, sizes) are stored as raw `f32` (IEEE 754) bit patterns in a `u32` field.
+- **Signed payloads** (the `I32` value type, and dedicated commands like `SET_DATE`'s days-since-epoch) are stored as the raw two's-complement bit pattern of a signed value in a `u32` field; a consumer reinterprets the field as `i32`.
 - **Node IDs** are `u32`.
 - **Component types / property IDs** are `u16`; when packed into a 4-byte payload they occupy the low two bytes (the high bytes are reserved / zero unless documented).
 - **Arena references** are a `u32` byte offset into the arena region (see [Arena](#arena)).
@@ -97,13 +98,18 @@ pub struct Opcode {
 
 ### TREE (0x01)
 
+The `componentType` values (the primitive views the protocol supports) are
+catalogued in [PRIMITIVES.md](./PRIMITIVES.md), grouped by their SwiftUI
+counterpart. Component IDs are allocated there spec-first; this file remains
+the wire-format authority.
+
 | Command | Value | A | B | C | Flags | Description |
 |---------|-------|---|---|---|-------|-------------|
 | `CREATE_NODE` | `0x01` | nodeId | componentType (u16, low) | 0 | — | Create a node of `componentType` |
 | `DELETE_NODE` | `0x02` | nodeId | 0 | 0 | — | Delete a node and its subtree |
-| `INSERT_CHILD` | `0x03` | parentId | childId | index | `0x0001` = append | Insert `childId` into `parentId` at `index` |
+| `INSERT_CHILD` | `0x03` | parentId | childId | index | — | Insert `childId` into `parentId` at `index`; append is `index = u32::MAX` (`APPEND`) |
 | `REMOVE_CHILD` | `0x04` | parentId | childId | 0 | — | Remove `childId` from `parentId` |
-| `MOVE_CHILD` | `0x05` | parentId | childId | newIndex | `0x0001` = append | Move child to `newIndex` (after removal) |
+| `MOVE_CHILD` | `0x05` | parentId | childId | newIndex | — | Move child to `newIndex` (after removal); append is `newIndex = u32::MAX` (`APPEND`) |
 
 ### STYLE (0x02)
 
@@ -116,6 +122,7 @@ size hints — plus **styling modifiers** (padding, colors, fonts, borders).
 | `SET_PROPERTY` | `0x01` | nodeId | propertyId (u16, low) + valueType (u8, high byte) | value | — | Set a constraint/style property; `value` depends on `valueType` |
 | `SET_DESIGN_TOKEN` | `0x02` | arenaRef (path) | valueType (u8) | value | — | Override a design token; path is an arena string |
 | `SET_TEXT` | `0x03` | nodeId | arenaRef (utf8) | 0 | — | Set a node's text content |
+| `SET_DATE` | `0x04` | nodeId | days since epoch (I32) | millis of day (U32) | — | Set a node's date value (e.g. a `DATE_PICKER`); see [EVENTS.md](./EVENTS.md#date) for the matching `DATE_CHANGED` event |
 
 `SET_PROPERTY` encodes the value type in the **high byte of `B`** (bits 24–31) and the property id in the low two bytes:
 
@@ -136,6 +143,14 @@ B = (valueType << 16) | propertyId
 | `COLOR` | `0x07` | packed `0xAARRGGBB` |
 | `DESIGN_TOKEN` | `0x08` | arenaRef (token path) |
 
+> **Enum-valued properties** (`ALIGNMENT`, `TEXT_ALIGNMENT`, `TRUNCATION_MODE`,
+> `ROLE`, `STATE`, and the draft `FONT_*`/`CONTENT_MODE`/`CONTROL_SIZE`/`SHAPE_KIND`
+> properties) are carried with the **`F32` value type**, holding the numeric enum
+> code as an f32 bit pattern (e.g. `ALIGNMENT=Center(1)` → `C = 1.0f32.to_bits()`).
+> The enumerated code tables live in
+> [MODIFIERS.md](./MODIFIERS.md#appendix-enumerated-values). The `ENUM` value type
+> (low byte of `C`) is available for explicitly `ENUM`-coded properties.
+
 #### Constraint properties for native layout
 
 The following properties drive native layout; the renderer maps them to its
@@ -146,9 +161,25 @@ available), `-2` = HUG_CONTENT (native intrinsic size).
 | Property | Value | Type | Native meaning |
 |----------|-------|------|----------------|
 | `SPACING` | `0x0001` | F32 | Gap between children |
-| `ALIGNMENT` | `0x0002` | ENUM | Cross-axis alignment |
+| `ALIGNMENT` | `0x0002` | F32 (enum code) | Cross-axis alignment |
+| `CONTENT_MARGINS` | `0x0005` | F32 | Uniform inset between a stack's edge and its content |
 | `WIDTH` | `0x100B` | F32 | Width hint (-1 FILL, -2 HUG) |
 | `HEIGHT` | `0x100C` | F32 | Height hint (-1 FILL, -2 HUG) |
+
+#### Text properties
+
+Text-bearing nodes (`TEXT`, `BUTTON` labels, `TEXT_FIELD`) carry their content
+via `SET_TEXT` (0x03) and their layout via these properties:
+
+| Property | Value | Type | Native meaning |
+|----------|-------|------|----------------|
+| `TEXT` | `0x000A` | STRING | The text content (a `SET_TEXT`-style arena string) |
+| `LINE_LIMIT` | `0x000B` | U32 | Maximum number of lines (0 = unlimited) |
+| `TEXT_ALIGNMENT` | `0x000C` | F32 (enum code) | Alignment of the text block within its bounds |
+| `TRUNCATION_MODE` | `0x000D` | F32 (enum code) | Truncation style when text overflows (`Head`/`Middle`/`Tail`) |
+
+Enumerated values for these and every other enum-valued property are
+consolidated in [MODIFIERS.md](./MODIFIERS.md#appendix-enumerated-values).
 
 #### Styling properties (modifiers)
 
@@ -176,45 +207,97 @@ selecting which edges of a node's border are drawn. Bits are direction-aware:
 | 2 | `0x00000004` | `BOTTOM` | bottom |
 | 3 | `0x00000008` | `TRAILING` | right |
 
-Full property catalog: see the Rust `constants.rs` (carried forward from the
-historical protocol).
+Full property catalog: see [MODIFIERS.md](./MODIFIERS.md) — the core modifiers
+(the protocol's `STYLE` properties) grouped by SwiftUI modifier, with the same
+IDs — and the Rust `constants.rs` (carried forward from the historical
+protocol).
 
 #### Semantic properties
 
 Semantic properties describe a node's meaning and interaction state rather than
 its layout or decoration. Currently exercised: `SELECTED` carries the boolean
-checked state of a `SWITCH`/`CHECKBOX` (`SET_PROPERTY` with the `U8` value type,
-`0` = off, `1` = on). `EVENT_LISTENERS` (below) declares which raw inputs a node
-wants reported.
+checked state of a `TOGGLE` (`SET_PROPERTY` with the `U8` value type, `0` = off,
+`1` = on). `EVENT_LISTENERS` (below) declares which raw inputs a node wants
+reported; `ACTION_ID`/`BINDING_ID` identify bound callbacks that gate event
+delivery (see [EVENTS.md](./EVENTS.md#transport-aware-event-guards-must)).
 
 | Property | Value | Type | Meaning |
 |----------|-------|------|---------|
-| `ROLE` | `0x2001` | ENUM | Accessibility role |
-| `STATE` | `0x2002` | ENUM | Control state |
+| `ROLE` | `0x2001` | ENUM (F32 code) | Accessibility role (see below) |
+| `STATE` | `0x2002` | ENUM (F32 code) | Control/interaction state (see below) |
 | `ENABLED` | `0x2003` | U8 | Whether the control is enabled |
-| `SELECTED` | `0x2004` | U8 | Checked/selected state of a `SWITCH`/`CHECKBOX` |
+| `SELECTED` | `0x2004` | U8 | Checked/selected state of a `TOGGLE` |
 | `EVENT_LISTENERS` | `0x2005` | U32 | Bitmask of raw-input events to report |
 | `VALUE` | `0x2006` | F32 | Current value of a value-bearing control (e.g. `SLIDER`) |
 | `MIN_VALUE` | `0x2007` | F32 | Inclusive minimum of a `SLIDER`'s range |
 | `MAX_VALUE` | `0x2008` | F32 | Inclusive maximum of a `SLIDER`'s range |
 | `LABEL` | `0x200A` | STRING | Caption label of a `TEXT_FIELD` |
 | `PROMPT` | `0x200B` | STRING | Placeholder text of a `TEXT_FIELD` |
+| `ACTION_ID` | `0x2016` | U32 | Bound callback id; gates event delivery for this node |
+| `BINDING_ID` | `0x2017` | U32 | Two-way binding id (control value ↔ app state) |
+| `TOGGLE_STYLE` | `0x2018` | ENUM (F32 code) | Visual style token for a `TOGGLE`: `Switch`=0, `Checkbox`=1, `Button`=2 |
+
+**`ROLE` enumerated values** (accessibility role; carried as an `F32` numeric code, `value_type::F32`):
+
+| Value | Role |
+|-------|------|
+| 0 | `None` (no semantic role) |
+| 1 | `Button` |
+| 2 | `Link` |
+| 3 | `Header` |
+| 4 | `Text` |
+| 5 | `Image` |
+| 6 | `TextField` |
+| 7 | `Slider` |
+| 8 | `Toggle` (Switch/Checkbox/Button styles) |
+| 9 | `Checkbox` |
+| 10 | `RadioButton` |
+| 11 | `Stepper` |
+| 12 | `Tab` |
+| 13 | `TabBar` |
+| 14 | `List` |
+| 15 | `Grid` |
+| 16 | `ScrollView` |
+| 17 | `Adjustable` (value the user can adjust) |
+| 18 | `Summary` |
+| 19 | `Menu` / `PopUpButton` |
+
+**`STATE` enumerated values** (control/interaction state; carried as an `F32` numeric code, `value_type::F32`):
+
+| Value | State |
+|-------|-------|
+| 0 | `Normal` (no special state) |
+| 1 | `Disabled` |
+| 2 | `Focused` |
+| 3 | `Pressed` |
+| 4 | `Selected` |
+| 5 | `Expanded` |
+| 6 | `Busy` |
+
+`STATE` is a **semantic/accessibility** property the application sets; it never
+describes visual styling (hover/press styles stay renderer/token-owned).
 
 `STRING` properties carry their text in the frame's string section: the
 property value is the *relative* offset of a length-prefixed entry, exactly as
 `SET_TEXT`'s `B` field does.
 
-`CHECKBOX` (`0x000D`) is a component type alongside `SWITCH` (`0x0006`): both
-render natively as a boolean control; `SWITCH` is the sliding-pill form and
-`CHECKBOX` the square-with-checkmark form. The renderer owns their visual
+`TOGGLE` (`0x24`) is a boolean control whose visual style is a **token**, not a
+separate component: `TOGGLE_STYLE` (`0x2018`, ENUM) selects the native variant —
+`Switch` (sliding pill), `Checkbox` (square with checkmark), or `Button`
+(toggle button). The checked state is `SELECTED` (`0x2004`, U8 0/1), emitted
+guest → host and reported back host → guest. The renderer owns the visual
 presentation (see [Design Token System](#design-token-system)).
 
-`SLIDER` (`0x000E`) is a continuous numeric control: the guest emits its
+`SLIDER` (`0x25`) is a continuous numeric control: the guest emits its
 `VALUE` plus the `MIN_VALUE`/`MAX_VALUE` range, and the renderer reports value
 changes back as `VALUE_CHANGED` events (host → guest), resolving the semantic
 value from its own track geometry (see [EVENT](#event-0x03--host--guest)).
 
 ### EVENT (0x03) — host → guest
+
+The event commands and their `EVENT_LISTENERS` bits are catalogued in
+[EVENTS.md](./EVENTS.md) (core events, SwiftUI-style); this file defines the
+wire encoding.
 
 Events are the **raw inputs**: the renderer reports what happened (a pointer
 went down/moved/up, a key went down/up) and resolves which node it hit via its
@@ -237,6 +320,11 @@ Each bit requests a raw-input event kind (see [`listener`] flags):
 | 3 | `0x00000008` | `KEY_DOWN` | Report key-down |
 | 4 | `0x00000010` | `KEY_UP` | Report key-up |
 
+> Bits 5–9 (draft) are allocated in [EVENTS.md](./EVENTS.md#event-listeners-event_listeners)
+> for `FOCUS_CHANGED`, `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, and `WHEEL`.
+> Value-bearing controls (`SLIDER`, `TOGGLE`, `DATE_PICKER`, …) report their
+> value changes by component type and do not need a listener bit.
+
 This is what makes **any element** (a `Text`, a `VStack`, …) able to emit
 events — the renderer attaches native input recognition to the matching native
 element when the listener bit is set, not only to buttons. A renderer SHOULD
@@ -252,7 +340,7 @@ element.
 | `KEY_DOWN` | `0x04` | targetId | keyCode (u16, low) | modifiers (u8, low) | `KEY_REPEAT` | Key pressed (bit 1 = auto-repeat) |
 | `KEY_UP` | `0x05` | targetId | keyCode (u16, low) | modifiers (u8, low) | — | Key released |
 | `VALUE_CHANGED` | `0x06` | targetId | value (f32) | 0 | — | A value-bearing control changed (e.g. slider); the renderer resolves the semantic value from its track geometry |
-| `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the batch's string section, referenced by the *relative* `B` offset (same convention as `STYLE::SET_TEXT`) |
+| `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the **event arena** (shared memory, absolute `B` offset) or the batch's string section (network, *relative* `B` offset) — the same dual convention as `STYLE::SET_TEXT` |
 
 ### META (0x04)
 
@@ -291,12 +379,14 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 
 ```
 +───────────────────────────────────────────────────────────────+
-| 0x0000  Header block (64 B)  — cursors, frame counter, layout  |
-| 0x0040  Ring buffer (16 B × slotCount)   [guest → host]        |
+| 0x0000  Header block (80 B)  — cursors, frame counter, layout  |
+| 0x0050  Ring buffer (16 B × slotCount)   [guest → host]        |
 | ...      (slots densely packed, 64-byte aligned base)          |
-| 0x10040 Event ring buffer (16 B × slotCount) [host → guest]    |
+| 0x10050 Event ring buffer (16 B × slotCount) [host → guest]    |
 | ...                                                           |
-| 0x20040 Arena (bump region for strings / token paths / lists)  |
+| 0x20050 Arena (bump region, guest-owned: strings / tokens)     |
+| ...                                                           |
+| 0x30050 Event arena (bump region, host-owned: event strings)   |
 | ...                                                            |
 +───────────────────────────────────────────────────────────────+
 ```
@@ -305,8 +395,16 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 > transport: the renderer writes `EVENT`-category opcodes here and the
 > guest/app drains them. It uses the same 16-byte slot layout as the main
 > (guest → host) ring; both share `slotCount` (same capacity).
+>
+> The **event arena** is the host-owned bump region that makes strings flow
+> **host → guest** over the shared ring: a renderer bump-allocates `TEXT_CHANGED`
+> text (and any future string-bearing event payload) here and references it by
+> its absolute byte offset — exactly mirroring how the guest uses the guest
+> arena for `SET_TEXT` / STRING properties. The host resets its cursor on
+> `META::RESET`; if the event arena is full the host applies backpressure
+> (drops/stalls the event), mirroring ring backpressure.
 
-### Header block (64 bytes)
+### Header block (80 bytes)
 
 | Offset | Size | Field | Producer | Description |
 |--------|------|-------|----------|-------------|
@@ -326,7 +424,9 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 | 0x32 | 4 | `eventSlotCount` | — | Event ring slot count (power of two; = `slotCount`) |
 | 0x36 | 4 | `eventReadCursor` | guest | Event ring slot the guest has consumed up to |
 | 0x3A | 4 | `eventWriteCursor` | host | Event ring slot the host has written up to |
-| 0x3E | 2 | reserved | — | Zero |
+| 0x40 | 4 | `eventArenaOffset` | — | Byte offset of the host→guest event arena region |
+| 0x44 | 4 | `eventArenaBytes` | — | Byte length of the event arena region |
+| 0x48 | 4 | `eventArenaCursor` | host | Next free byte in the event arena |
 
 ### Ring buffer
 
@@ -349,6 +449,27 @@ The guest engine and host share a **single linear memory**. Regions are fixed at
 - Every arena entry is **self-describing**: `[u32 byteLength][bytes...]`.
 - Opcodes reference entries by their **byte offset** (`arenaRef`), so an entry's length is read directly from the arena — all opcodes stay 16 bytes.
 - The guest advances `arenaCursor` monotonically (no free-list, no fragmentation). The arena MAY be reset via `META::RESET`.
+
+### Event arena (host → guest)
+
+The event arena is the **host-owned mirror** of the arena, giving the shared-memory
+transport a host → guest string section so strings flow **both ways on all
+transports**:
+
+- The **host** (renderer) bump-allocates event string payloads here (e.g. the
+  new text of a `TEXT_CHANGED`) and references them by their **absolute byte
+  offset** in the event opcode — the same `SET_TEXT` shared-memory convention
+  used in the guest arena.
+- The **guest** resolves the text from the event arena region when draining
+  events (`EVENT::TEXT_CHANGED`).
+- Entries share the same self-describing `[u32 byteLength][bytes...]` layout as
+  the guest arena.
+- The host advances `eventArenaCursor` monotonically and resets it on
+  `META::RESET`; a full event arena is backpressure (the host drops/stalls the
+  event until the guest drains or a reset lands).
+- Over the **network**, host → guest string payloads use the batch's string
+  section with *relative* offsets instead (see [Transport](#transport)) — the
+  same dual absolute/relative convention as `SET_TEXT`.
 
 ---
 
@@ -456,8 +577,9 @@ network batch.
 
 - **magic / version**: `0x504C504C` (`PLPL`, little-endian on the wire) / `1`.
   A decoder MUST reject batches with a mismatched magic or version.
-- **flags**: direction. `0x0000` = guest → host (tree/style). Bit `0x0001` is
-  reserved for host → guest (raw-input events), not yet implemented.
+- **flags**: direction. `0x0000` = guest → host (tree/style). Bit `0x0001` =
+  host → guest (raw-input events); host → guest batches carry their string
+  payloads in the batch's string section.
 - **frameCount**: the guest frame counter of the batch's first frame (opcodes
   from multiple frames may coalesce into one batch; they remain in order).
 - **arena delta**: the bytes appended to the bump arena since the previous
@@ -482,3 +604,16 @@ first frame after connection).
 ## Conformance
 
 Golden byte vectors for this protocol are in [CONFORMANCE.md](./CONFORMANCE.md).
+
+### Companion specifications
+
+The protocol's semantic surface is catalogued in three companion documents:
+[PRIMITIVES.md](./PRIMITIVES.md) (the primitive views), [MODIFIERS.md](./MODIFIERS.md)
+(the core modifiers, i.e. the `STYLE` properties), and [EVENTS.md](./EVENTS.md)
+(the core events, i.e. the raw inputs). IDs are allocated there spec-first;
+this file remains the wire-format authority and must be updated when new IDs
+land.
+
+> **Implementation status** is tracked per implementing project (a `status.md`
+> in each protocol crate/library), **not** in this specification. This document
+> defines the protocol contract only.

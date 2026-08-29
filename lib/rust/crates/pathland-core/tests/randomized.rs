@@ -39,6 +39,7 @@ fn random_sequences_round_trip_exactly() {
     let layout = MemoryLayout {
         slot_count: 4096,
         arena_bytes: 1 << 16,
+        event_arena_bytes: 1 << 16,
     };
     let mut mem = vec![0u8; layout.total_bytes()];
     init_memory(&mut mem, &layout);

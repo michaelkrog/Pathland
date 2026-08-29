@@ -1,15 +1,8 @@
-/* NgUI design tokens + defaults (the renderer styles its views/modifiers). */
-@import '@apaq/ngui/dist/css/defaults.css';
+/* NgUI design tokens */
 @import '@apaq/ngui/dist/css/ngui.css';
 
 html,
 body {
   margin: 0;
   padding: 0;
-}
-
-.pathland-status {
-  font-family: system-ui, sans-serif;
-  padding: 16px;
-  color: #666;
 }

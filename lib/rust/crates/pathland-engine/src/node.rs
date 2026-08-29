@@ -100,12 +100,56 @@ pub enum Component {
     VStack,
     /// Horizontal stack (native horizontal container).
     HStack,
+    /// Depth-overlapping stack.
+    ZStack,
     /// Text leaf.
     Text { text: String },
     /// Interactive button.
     Button { label: String },
     /// Flexible spacer.
     Spacer,
+    /// Image leaf (`IMAGE_SOURCE` property).
+    Image,
+    /// Solid-color view (`COLOR` property).
+    Color,
+    /// Vector geometry (`SHAPE_KIND` property).
+    Shape,
+    /// Separator line.
+    Divider,
+    /// Determinate progress / activity indicator.
+    ProgressView,
+    /// Range meter.
+    Gauge,
+    /// Static 2D grid.
+    Grid,
+    /// Scrollable container.
+    ScrollView,
+    /// Virtualized vertical grid.
+    LazyVGrid,
+    /// Virtualized horizontal grid.
+    LazyHGrid,
+    /// Virtualized vertical stack.
+    LazyVStack,
+    /// Virtualized horizontal stack.
+    LazyHStack,
+    /// Boolean control (`TOGGLE_STYLE`).
+    Toggle,
+    /// Numeric range control.
+    Slider,
+    /// Single-line text input.
+    TextField,
+    /// Multi-line text input.
+    TextEditor,
+    /// Increment/decrement control.
+    Stepper,
+    /// Date & time selection.
+    DatePicker,
+    /// Selection control (options are children).
+    Picker,
+    /// Action trigger + popover container.
+    Menu,
+    /// Native color picker.
+    ColorPicker,
 }
 
 impl core::fmt::Debug for Component {
@@ -113,9 +157,31 @@ impl core::fmt::Debug for Component {
         match self {
             Component::VStack => f.write_str("VStack"),
             Component::HStack => f.write_str("HStack"),
+            Component::ZStack => f.write_str("ZStack"),
             Component::Text { text } => f.debug_tuple("Text").field(text).finish(),
             Component::Button { label } => f.debug_tuple("Button").field(label).finish(),
             Component::Spacer => f.write_str("Spacer"),
+            Component::Image => f.write_str("Image"),
+            Component::Color => f.write_str("Color"),
+            Component::Shape => f.write_str("Shape"),
+            Component::Divider => f.write_str("Divider"),
+            Component::ProgressView => f.write_str("ProgressView"),
+            Component::Gauge => f.write_str("Gauge"),
+            Component::Grid => f.write_str("Grid"),
+            Component::ScrollView => f.write_str("ScrollView"),
+            Component::LazyVGrid => f.write_str("LazyVGrid"),
+            Component::LazyHGrid => f.write_str("LazyHGrid"),
+            Component::LazyVStack => f.write_str("LazyVStack"),
+            Component::LazyHStack => f.write_str("LazyHStack"),
+            Component::Toggle => f.write_str("Toggle"),
+            Component::Slider => f.write_str("Slider"),
+            Component::TextField => f.write_str("TextField"),
+            Component::TextEditor => f.write_str("TextEditor"),
+            Component::Stepper => f.write_str("Stepper"),
+            Component::DatePicker => f.write_str("DatePicker"),
+            Component::Picker => f.write_str("Picker"),
+            Component::Menu => f.write_str("Menu"),
+            Component::ColorPicker => f.write_str("ColorPicker"),
         }
     }
 }
@@ -125,9 +191,31 @@ pub fn component_type_id(component: &Component) -> u16 {
     match component {
         Component::VStack => component_type::VSTACK,
         Component::HStack => component_type::HSTACK,
+        Component::ZStack => component_type::ZSTACK,
         Component::Text { .. } => component_type::TEXT,
         Component::Button { .. } => component_type::BUTTON,
         Component::Spacer => component_type::SPACER,
+        Component::Image => component_type::IMAGE,
+        Component::Color => component_type::COLOR,
+        Component::Shape => component_type::SHAPE,
+        Component::Divider => component_type::DIVIDER,
+        Component::ProgressView => component_type::PROGRESS_VIEW,
+        Component::Gauge => component_type::GAUGE,
+        Component::Grid => component_type::GRID,
+        Component::ScrollView => component_type::SCROLLVIEW,
+        Component::LazyVGrid => component_type::LAZY_VGRID,
+        Component::LazyHGrid => component_type::LAZY_HGRID,
+        Component::LazyVStack => component_type::LAZY_VSTACK,
+        Component::LazyHStack => component_type::LAZY_HSTACK,
+        Component::Toggle => component_type::TOGGLE,
+        Component::Slider => component_type::SLIDER,
+        Component::TextField => component_type::TEXT_FIELD,
+        Component::TextEditor => component_type::TEXT_EDITOR,
+        Component::Stepper => component_type::STEPPER,
+        Component::DatePicker => component_type::DATE_PICKER,
+        Component::Picker => component_type::PICKER,
+        Component::Menu => component_type::MENU,
+        Component::ColorPicker => component_type::COLOR_PICKER,
     }
 }
 

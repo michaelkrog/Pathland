@@ -5,8 +5,7 @@ public enum Truncation {
 
     HEAD(0),
     MIDDLE(1),
-    TAIL(2),
-    NONE(3);
+    TAIL(2);
 
     private final int wire;
 

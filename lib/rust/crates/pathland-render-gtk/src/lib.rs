@@ -68,6 +68,9 @@ pub struct GtkRenderer {
     /// node id → listener bitmask already attached (idempotency guard so delta
     /// frames don't double-attach controllers).
     attached_listeners: HashMap<u32, u32>,
+    /// node id → composite-body box (Composite Override Mode): the container
+    /// that holds a control's custom child tree.
+    composite_boxes: HashMap<u32, gtk::Widget>,
     /// Set once before the first render so buttons can report clicks.
     event_sink: Option<Rc<RefCell<dyn FnMut(Event)>>>,
 }
@@ -85,6 +88,7 @@ impl GtkRenderer {
             tree: RenderTree::default(),
             widgets: HashMap::new(),
             attached_listeners: HashMap::new(),
+            composite_boxes: HashMap::new(),
             event_sink: None,
         }
     }
@@ -123,6 +127,7 @@ impl GtkRenderer {
         for id in stale {
             self.widgets.remove(&id);
             self.attached_listeners.remove(&id);
+            self.composite_boxes.remove(&id);
         }
 
         // 2. Pre-order walk: get-or-create widgets, update text/style, and
@@ -146,14 +151,40 @@ impl GtkRenderer {
             self.sync_node(*child);
         }
 
-        // Stacks: reconcile the box children (order/content) against the tree
-        // and apply cross-axis alignment to each child.
-        if matches!(
-            node.component_type,
-            component_type::VSTACK | component_type::HSTACK
-        ) {
-            self.sync_children(id, &children, &node);
+        // Containers: reconcile the native children (order/content/positions)
+        // against the tree.
+        if is_container(node.component_type) {
+            self.sync_container(id, &children, &node);
+        } else if is_composite(&node) {
+            self.sync_composite_children(id, &children);
         }
+    }
+
+    /// Composite Override Mode: attach a control's custom child tree as a box
+    /// wrapped by the control's native shell (the widget itself).
+    ///
+    /// Composite bodies attach to button-like controls (`GtkButton` and
+    /// subclasses — `ToggleButton`, `CheckButton`, `MenuButton`); other controls
+    /// ignore children.
+    fn sync_composite_children(&mut self, parent_id: u32, children: &[u32]) {
+        let Some(parent) = self.widgets.get(&parent_id).cloned() else {
+            return;
+        };
+        let Ok(btn) = parent.downcast::<gtk::Button>() else {
+            return;
+        };
+        let box_widget: gtk::Widget = if let Some(bx) = self.composite_boxes.get(&parent_id).cloned() {
+            bx
+        } else {
+            let bx = GtkBox::new(gtk::Orientation::Vertical, 0);
+            bx.set_hexpand(true);
+            bx.set_vexpand(true);
+            btn.set_child(Some(&bx));
+            let bxw: gtk::Widget = bx.upcast();
+            self.composite_boxes.insert(parent_id, bxw.clone());
+            bxw
+        };
+        self.reconcile_box_children(&box_widget, children);
     }
 
     fn get_or_create(&mut self, id: u32, node: &HostNode) -> gtk::Widget {
@@ -169,32 +200,187 @@ impl GtkRenderer {
     fn update(&mut self, widget: gtk::Widget, node: &HostNode) {
         // Padding is styling (a DSL modifier): apply it to any widget as margins.
         apply_padding(&widget, node);
+        apply_style(&widget, node);
 
         // Attach (or reconcile) native input recognition for the node's event
         // listeners. Buttons listen to pointer down/move/up by default; any
         // node can request more via the `EVENT_LISTENERS` property.
         let mask = desired_listeners(node);
         self.attach_listeners(node.id, &widget, mask);
+        // Value/text events: value-bearing controls report by component type,
+        // gated by the transport-aware event guards (a `BINDING_ID`).
+        self.attach_control_events(node.id, &widget, node);
 
-        match node.component_type {
-            component_type::VSTACK | component_type::HSTACK => {
-                // Re-apply spacing on delta frames; orientation is fixed at
-                // creation time (a component-type change recreates the widget).
+        match widget_kind(node.component_type) {
+            WidgetKind::Stack => {
                 if let Ok(bx) = widget.downcast::<GtkBox>() {
                     if let Some(l) = layout::stack_layout(node) {
                         bx.set_spacing(l.spacing);
                     }
                 }
             }
-            component_type::TEXT => {
+            WidgetKind::Text => {
                 if let Ok(label) = widget.downcast::<Label>() {
                     label.set_text(node.text.as_deref().unwrap_or(""));
                     apply_text_style(&label, node);
                 }
             }
-            component_type::BUTTON => {
+            WidgetKind::Button => {
                 if let Ok(btn) = widget.downcast::<Button>() {
-                    btn.set_label(node.text.as_deref().unwrap_or(""));
+                    if !is_composite(node) {
+                        btn.set_label(node.text.as_deref().unwrap_or(""));
+                    }
+                }
+            }
+            WidgetKind::Picker => {
+                if let Ok(dd) = widget.downcast::<gtk::DropDown>() {
+                    let options: Vec<String> = node
+                        .children
+                        .iter()
+                        .filter_map(|c| self.tree.node(*c).and_then(|n| n.text.clone()))
+                        .collect();
+                    let strings: Vec<&str> = options.iter().map(String::as_str).collect();
+                    dd.set_model(Some(&gtk::StringList::new(&strings)));
+                    dd.set_selected(node.u32_property(property_id::SELECTION, 0));
+                }
+            }
+            WidgetKind::Image => {
+                if let Ok(pic) = widget.downcast::<gtk::Picture>() {
+                    if let Some(src) = node.string_property(property_id::IMAGE_SOURCE) {
+                        pic.set_filename(Some(src));
+                    }
+                }
+            }
+            WidgetKind::Toggle => {
+                let active = node.checked();
+                if let Ok(sw) = widget.clone().downcast::<gtk::Switch>() {
+                    sw.set_active(active);
+                } else if let Ok(tb) = widget.clone().downcast::<gtk::ToggleButton>() {
+                    tb.set_active(active);
+                }
+            }
+            WidgetKind::Slider => {
+                if let Ok(scale) = widget.downcast::<gtk::Scale>() {
+                    let min = f64::from(node.f32_property(property_id::MIN_VALUE, 0.0));
+                    let max = f64::from(node.f32_property(property_id::MAX_VALUE, 1.0));
+                    let step = f64::from(node.f32_property(property_id::STEP_VALUE, 0.0));
+                    let value = f64::from(node.f32_property(property_id::VALUE, 0.0));
+                    scale.set_range(min, max);
+                    if step > 0.0 {
+                        scale.set_increments(step, step * 10.0);
+                    }
+                    scale.set_value(value);
+                }
+            }
+            WidgetKind::TextField => {
+                if let Ok(entry) = widget.downcast::<gtk::Entry>() {
+                    entry.set_text(node.text.as_deref().unwrap_or(""));
+entry.set_placeholder_text(Some(node.string_property(property_id::PROMPT).unwrap_or("")));
+                    entry.set_visibility(node.f32_property(property_id::IS_SECURE, 0.0) == 0.0);
+                }
+            }
+            WidgetKind::TextEditor => {
+                if let Ok(view) = widget.downcast::<gtk::TextView>() {
+                    let buf = view.buffer();
+                    if buf.text(&buf.start_iter(), &buf.end_iter(), false).as_str()
+                        != node.text.as_deref().unwrap_or("")
+                    {
+                        buf.set_text(node.text.as_deref().unwrap_or(""));
+                    }
+                }
+            }
+            WidgetKind::ProgressView => {
+                if let Ok(bar) = widget.downcast::<gtk::ProgressBar>() {
+                    let value = node.f32_property(property_id::PROGRESS, 0.0);
+                    let max = node.f32_property(property_id::MAX_VALUE, 1.0);
+                    bar.set_fraction(if max > 0.0 { f64::from(value / max) } else { 0.0 });
+                }
+            }
+            WidgetKind::Gauge => {
+                if let Ok(level) = widget.downcast::<gtk::LevelBar>() {
+                    level.set_min_value(f64::from(node.f32_property(property_id::MIN_VALUE, 0.0)));
+                    level.set_max_value(f64::from(node.f32_property(property_id::MAX_VALUE, 1.0)));
+                    level.set_value(f64::from(node.f32_property(property_id::VALUE, 0.0)));
+                }
+            }
+            WidgetKind::Stepper => {
+                if let Ok(spin) = widget.downcast::<gtk::SpinButton>() {
+                    let min = f64::from(node.f32_property(property_id::MIN_VALUE, 0.0));
+                    let max = f64::from(node.f32_property(property_id::MAX_VALUE, 100.0));
+                    let step = f64::from(node.f32_property(property_id::STEP_VALUE, 1.0));
+                    let adj = spin.adjustment();
+                    adj.set_lower(min);
+                    adj.set_upper(max);
+                    adj.set_step_increment(step);
+                    spin.set_value(f64::from(node.f32_property(property_id::VALUE, 0.0)));
+                }
+            }
+            WidgetKind::ColorPicker => {
+                if let Ok(btn) = widget.downcast::<gtk::ColorButton>() {
+                    btn.set_rgba(&color_rgba(node.u32_property(property_id::COLOR_VALUE, 0xFF00_0000)));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Attach value/text-event emission for value-bearing controls, gated by
+    /// the transport-aware event guards: a control reports `VALUE_CHANGED` /
+    /// `TEXT_CHANGED` only when it carries a `BINDING_ID`.
+    fn attach_control_events(&mut self, id: u32, widget: &gtk::Widget, node: &HostNode) {
+        let binding = node.properties.get(&property_id::BINDING_ID).copied();
+        if binding.is_none() {
+            return;
+        }
+        let Some(sink) = self.event_sink.clone() else {
+            return;
+        };
+        match widget_kind(node.component_type) {
+            WidgetKind::Toggle => {
+                if let Ok(sw) = widget.clone().downcast::<gtk::Switch>() {
+                    sw.connect_active_notify(move |sw| {
+                        sink.borrow_mut()(Event::ValueChanged {
+                            target: id,
+                            value: if sw.is_active() { 1.0 } else { 0.0 },
+                        });
+                    });
+                } else if let Ok(tb) = widget.clone().downcast::<gtk::ToggleButton>() {
+                    tb.connect_toggled(move |tb| {
+                        sink.borrow_mut()(Event::ValueChanged {
+                            target: id,
+                            value: if tb.is_active() { 1.0 } else { 0.0 },
+                        });
+                    });
+                }
+            }
+            WidgetKind::Slider => {
+                if let Ok(scale) = widget.clone().downcast::<gtk::Scale>() {
+                    scale.connect_value_changed(move |scale| {
+                        sink.borrow_mut()(Event::ValueChanged {
+                            target: id,
+                            value: scale.value() as f32,
+                        });
+                    });
+                }
+            }
+            WidgetKind::TextField => {
+                if let Ok(entry) = widget.clone().downcast::<gtk::Entry>() {
+                    entry.connect_changed(move |entry| {
+                        sink.borrow_mut()(Event::TextChanged {
+                            target: id,
+                            value: entry.text().to_string(),
+                        });
+                    });
+                }
+            }
+            WidgetKind::Picker => {
+                if let Ok(dd) = widget.clone().downcast::<gtk::DropDown>() {
+                    dd.connect_selected_notify(move |dd| {
+                        sink.borrow_mut()(Event::ValueChanged {
+                            target: id,
+                            value: dd.selected() as f32,
+                        });
+                    });
                 }
             }
             _ => {}
@@ -223,16 +409,26 @@ impl GtkRenderer {
         self.attached_listeners.insert(id, mask);
     }
 
+    /// Reconcile a container's native children against the tree-ordered child
+    /// widgets. Leaf widgets are preserved (never recreated); only the
+    /// parent→child links are re-established, so unchanged subtrees stay put.
+    fn sync_container(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
+        match widget_kind(node.component_type) {
+            WidgetKind::Stack => self.sync_stack_children(parent_id, children, node),
+            WidgetKind::Grid => self.sync_grid_children(parent_id, children, node),
+            WidgetKind::ScrollView => self.sync_scroll_children(parent_id, children),
+            WidgetKind::Overlay => self.sync_overlay_children(parent_id, children),
+            _ => {}
+        }
+    }
+
     /// Reconcile a stack's children: apply cross-axis alignment to each child
     /// and re-append the tree-ordered child widgets.
-    ///
-    /// Leaf widgets are preserved (never recreated); only the parent→child
-    /// links are re-established, so unchanged subtrees stay put.
-    fn sync_children(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
+    fn sync_stack_children(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
         let Some(parent) = self.widgets.get(&parent_id).cloned() else {
             return;
         };
-        let Some(bx) = parent.downcast_ref::<GtkBox>() else {
+        let Some(_bx) = parent.downcast_ref::<GtkBox>() else {
             return;
         };
         let Some(l) = layout::stack_layout(node) else {
@@ -251,21 +447,91 @@ impl GtkRenderer {
             }
         }
 
-        // Current children in order.
-        let mut current: Vec<gtk::Widget> = Vec::new();
-        let mut c = bx.first_child();
-        while let Some(w) = c {
-            current.push(w.clone());
-            c = w.next_sibling();
-        }
+        self.reconcile_box_children(&parent, children);
+    }
 
-        // Target widgets in tree order.
+    /// Reconcile a `GtkGrid`'s children at their row-major cell positions.
+    fn sync_grid_children(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
+        let Some(parent) = self.widgets.get(&parent_id).cloned() else {
+            return;
+        };
+        let Some(grid) = parent.downcast_ref::<gtk::Grid>() else {
+            return;
+        };
+        let columns = layout::grid_columns(node);
+        if grid_matches(grid, children, columns, &self.widgets) {
+            return;
+        }
+        // Rebuild: remove all current children, then attach at target cells.
+        for w in child_widgets(&parent) {
+            grid.remove(&w);
+        }
+        for (idx, child_id) in children.iter().enumerate() {
+            if let Some(w) = self.widgets.get(child_id) {
+                let (row, col) = layout::grid_cell_position(idx as u32, columns);
+                grid.attach(w, col as i32, row as i32, 1, 1);
+            }
+        }
+    }
+
+    /// Reconcile a `GtkScrolledWindow`: exactly one child (the first).
+    fn sync_scroll_children(&mut self, parent_id: u32, children: &[u32]) {
+        let Some(parent) = self.widgets.get(&parent_id).cloned() else {
+            return;
+        };
+        let Some(sw) = parent.downcast_ref::<gtk::ScrolledWindow>() else {
+            return;
+        };
+        let want: Option<gtk::Widget> = children
+            .first()
+            .and_then(|id| self.widgets.get(id).cloned());
+        if sw.child().as_ref() != want.as_ref() {
+            if let Some(w) = want {
+                sw.set_child(Some(&w));
+            } else {
+                sw.set_child(None::<&gtk::Widget>);
+            }
+        }
+    }
+
+    /// Reconcile a `GtkOverlay`: the first child is the main child, the rest
+    /// are overlays (later = drawn on top).
+    fn sync_overlay_children(&mut self, parent_id: u32, children: &[u32]) {
+        let Some(parent) = self.widgets.get(&parent_id).cloned() else {
+            return;
+        };
+        let Some(ov) = parent.downcast_ref::<gtk::Overlay>() else {
+            return;
+        };
         let target: Vec<gtk::Widget> = children
             .iter()
             .filter_map(|id| self.widgets.get(id).cloned())
             .collect();
+        if child_widgets(&parent) == target {
+            return;
+        }
+        for w in child_widgets(&parent) {
+            ov.remove_overlay(&w);
+        }
+        if let Some(main) = target.first() {
+            ov.set_child(Some(main));
+            for overlay in target.iter().skip(1) {
+                ov.add_overlay(overlay);
+            }
+        }
+    }
 
-        if current != target {
+    /// Re-append the tree-ordered child widgets to a box (order/content diff).
+    fn reconcile_box_children(&mut self, parent: &gtk::Widget, children: &[u32]) {
+        let current = child_widgets(parent);
+        let target: Vec<gtk::Widget> = children
+            .iter()
+            .filter_map(|id| self.widgets.get(id).cloned())
+            .collect();
+        if current == target {
+            return;
+        }
+        if let Ok(bx) = parent.clone().downcast::<GtkBox>() {
             for w in current {
                 bx.remove(&w);
             }
@@ -276,15 +542,343 @@ impl GtkRenderer {
     }
 }
 
+/// The native widget kind a component type maps to (pure, headless-testable).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WidgetKind {
+    /// `VSTACK`/`HSTACK`/`LAZY_VSTACK`/`LAZY_HSTACK` → `GtkBox`.
+    Stack,
+    /// `TEXT` → `GtkLabel`.
+    Text,
+    /// `BUTTON` → `GtkButton`.
+    Button,
+    /// `GRID`/`LAZY_VGRID`/`LAZY_HGRID` → `GtkGrid`.
+    Grid,
+    /// `SCROLLVIEW` → `GtkScrolledWindow`.
+    ScrollView,
+    /// `ZSTACK` → `GtkOverlay`.
+    Overlay,
+    /// `SPACER` → an expanding empty box.
+    Spacer,
+    /// `IMAGE` → `GtkPicture`.
+    Image,
+    /// `TOGGLE` → `GtkSwitch`/`GtkCheckButton`/`GtkToggleButton` (`TOGGLE_STYLE`).
+    Toggle,
+    /// `SLIDER` → `GtkScale`.
+    Slider,
+    /// `TEXT_FIELD` → `GtkEntry`.
+    TextField,
+    /// `TEXT_EDITOR` → `GtkTextView`.
+    TextEditor,
+    /// `COLOR` → `GtkDrawingArea` (solid fill).
+    Color,
+    /// `SHAPE` → `GtkDrawingArea` (`SHAPE_KIND`).
+    Shape,
+    /// `DIVIDER` → `GtkSeparator`.
+    Divider,
+    /// `PROGRESS_VIEW` → `GtkProgressBar`/`GtkSpinner`.
+    ProgressView,
+    /// `GAUGE` → `GtkLevelBar`.
+    Gauge,
+    /// `STEPPER` → `GtkSpinButton`.
+    Stepper,
+    /// `DATE_PICKER` → `GtkCalendar`.
+    DatePicker,
+    /// `PICKER` → `GtkDropDown` (options are children).
+    Picker,
+    /// `MENU` → `GtkMenuButton`.
+    Menu,
+    /// `COLOR_PICKER` → `GtkColorButton`.
+    ColorPicker,
+    /// Any component the renderer does not map yet → a blank `GtkLabel`.
+    Blank,
+}
+
+/// Map a component type to its native widget kind.
+pub fn widget_kind(component_type: u16) -> WidgetKind {
+    match component_type {
+        component_type::VSTACK
+        | component_type::HSTACK
+        | component_type::LAZY_VSTACK
+        | component_type::LAZY_HSTACK => WidgetKind::Stack,
+        component_type::TEXT => WidgetKind::Text,
+        component_type::BUTTON => WidgetKind::Button,
+        component_type::GRID
+        | component_type::LAZY_VGRID
+        | component_type::LAZY_HGRID => WidgetKind::Grid,
+        component_type::SCROLLVIEW => WidgetKind::ScrollView,
+        component_type::ZSTACK => WidgetKind::Overlay,
+        component_type::SPACER => WidgetKind::Spacer,
+        component_type::IMAGE => WidgetKind::Image,
+        component_type::TOGGLE => WidgetKind::Toggle,
+        component_type::SLIDER => WidgetKind::Slider,
+        component_type::TEXT_FIELD => WidgetKind::TextField,
+        component_type::TEXT_EDITOR => WidgetKind::TextEditor,
+        component_type::COLOR => WidgetKind::Color,
+        component_type::SHAPE => WidgetKind::Shape,
+        component_type::DIVIDER => WidgetKind::Divider,
+        component_type::PROGRESS_VIEW => WidgetKind::ProgressView,
+        component_type::GAUGE => WidgetKind::Gauge,
+        component_type::STEPPER => WidgetKind::Stepper,
+        component_type::DATE_PICKER => WidgetKind::DatePicker,
+        component_type::PICKER => WidgetKind::Picker,
+        component_type::MENU => WidgetKind::Menu,
+        component_type::COLOR_PICKER => WidgetKind::ColorPicker,
+        _ => WidgetKind::Blank,
+    }
+}
+
+/// Whether a component type reconciles native children (a container).
+fn is_container(component_type: u16) -> bool {
+    matches!(
+        component_type,
+        component_type::VSTACK
+            | component_type::HSTACK
+            | component_type::LAZY_VSTACK
+            | component_type::LAZY_HSTACK
+            | component_type::GRID
+            | component_type::LAZY_VGRID
+            | component_type::LAZY_HGRID
+            | component_type::SCROLLVIEW
+            | component_type::ZSTACK
+    )
+}
+
+/// Whether a semantic control has a custom body (Composite Override Mode):
+/// children present → the control renders the child tree wrapped in its native
+/// shell instead of its default chrome.
+fn is_composite(node: &HostNode) -> bool {
+    !node.children.is_empty()
+        && matches!(
+            node.component_type,
+            component_type::BUTTON | component_type::TOGGLE | component_type::MENU
+        )
+}
+
+/// The current child widgets of a native widget, in child/draw order.
+fn child_widgets(widget: &gtk::Widget) -> Vec<gtk::Widget> {
+    let mut out = Vec::new();
+    let mut c = widget.first_child();
+    while let Some(w) = c {
+        out.push(w.clone());
+        c = w.next_sibling();
+    }
+    out
+}
+
+/// Whether a grid's children already sit at their target cell positions.
+fn grid_matches(
+    grid: &gtk::Grid,
+    children: &[u32],
+    columns: Option<u32>,
+    widgets: &HashMap<u32, gtk::Widget>,
+) -> bool {
+    if child_widgets(&grid.clone().upcast()).len() != children.len() {
+        return false;
+    }
+    for (idx, child_id) in children.iter().enumerate() {
+        let Some(w) = widgets.get(child_id) else {
+            return false;
+        };
+        let (row, col) = layout::grid_cell_position(idx as u32, columns);
+        if grid.child_at(col as i32, row as i32).as_ref() != Some(w) {
+            return false;
+        }
+    }
+    true
+}
+
 /// Build the base native widget for a node (no children attached, no input
 /// controllers — those are attached later in [`GtkRenderer::update`]).
 fn build_widget(node: &HostNode) -> gtk::Widget {
-    match node.component_type {
-        component_type::VSTACK | component_type::HSTACK => stack_widget(node),
-        component_type::TEXT => Label::new(Some(node.text.as_deref().unwrap_or(""))).upcast(),
-        component_type::BUTTON => Button::with_label(node.text.as_deref().unwrap_or("")).upcast(),
-        _ => Label::new(Some("")).upcast(),
+    match widget_kind(node.component_type) {
+        WidgetKind::Stack => stack_widget(node),
+        WidgetKind::Text => Label::new(Some(node.text.as_deref().unwrap_or(""))).upcast(),
+        WidgetKind::Button => Button::with_label(node.text.as_deref().unwrap_or("")).upcast(),
+        WidgetKind::Grid => {
+            let grid = gtk::Grid::new();
+            grid.set_halign(Align::Fill);
+            grid.set_valign(Align::Fill);
+            grid.upcast()
+        }
+        WidgetKind::ScrollView => {
+            let sw = gtk::ScrolledWindow::new();
+            sw.set_halign(Align::Fill);
+            sw.set_valign(Align::Fill);
+            sw.set_policy(gtk::PolicyType::Automatic, gtk::PolicyType::Automatic);
+            sw.upcast()
+        }
+        WidgetKind::Overlay => gtk::Overlay::new().upcast(),
+        WidgetKind::Spacer => {
+            let bx = GtkBox::new(gtk::Orientation::Vertical, 0);
+            bx.set_hexpand(true);
+            bx.set_vexpand(true);
+            bx.upcast()
+        }
+        WidgetKind::Image => gtk::Picture::new().upcast(),
+        WidgetKind::Toggle => toggle_widget(node),
+        WidgetKind::Slider => {
+            let min = f64::from(node.f32_property(property_id::MIN_VALUE, 0.0));
+            let max = f64::from(node.f32_property(property_id::MAX_VALUE, 1.0));
+            let scale = gtk::Scale::with_range(gtk::Orientation::Horizontal, min, max, 0.0);
+            scale.set_draw_value(false);
+            scale.set_hexpand(true);
+            scale.upcast()
+        }
+        WidgetKind::TextField => {
+            let entry = gtk::Entry::new();
+            if node.f32_property(property_id::IS_SECURE, 0.0) != 0.0 {
+                entry.set_visibility(false);
+            }
+            entry.set_placeholder_text(Some(node.string_property(property_id::PROMPT).unwrap_or("")));
+            entry.upcast()
+        }
+        WidgetKind::TextEditor => gtk::TextView::new().upcast(),
+        WidgetKind::Color => color_widget(node),
+        WidgetKind::Shape => shape_widget(node),
+        WidgetKind::Divider => gtk::Separator::new(gtk::Orientation::Horizontal).upcast(),
+        WidgetKind::ProgressView => progress_widget(node),
+        WidgetKind::Gauge => {
+            let level = gtk::LevelBar::new();
+            level.set_min_value(f64::from(node.f32_property(property_id::MIN_VALUE, 0.0)));
+            level.set_max_value(f64::from(node.f32_property(property_id::MAX_VALUE, 1.0)));
+            level.set_value(f64::from(node.f32_property(property_id::VALUE, 0.0)));
+            level.upcast()
+        }
+        WidgetKind::Stepper => {
+            let min = f64::from(node.f32_property(property_id::MIN_VALUE, 0.0));
+            let max = f64::from(node.f32_property(property_id::MAX_VALUE, 100.0));
+            let step = f64::from(node.f32_property(property_id::STEP_VALUE, 1.0));
+            let spin = gtk::SpinButton::with_range(min, max, step);
+            spin.set_value(f64::from(node.f32_property(property_id::VALUE, min as f32)));
+            spin.upcast()
+        }
+        WidgetKind::DatePicker => gtk::Calendar::new().upcast(),
+        WidgetKind::Picker => picker_widget(node),
+        WidgetKind::Menu => {
+            let menu = gtk::MenuButton::new();
+            menu.set_label(node.text.as_deref().unwrap_or(""));
+            menu.upcast()
+        }
+        WidgetKind::ColorPicker => {
+            let btn = gtk::ColorButton::new();
+            btn.set_rgba(&color_rgba(node.u32_property(property_id::COLOR_VALUE, 0xFF00_0000)));
+            btn.upcast()
+        }
+        WidgetKind::Blank => Label::new(Some("")).upcast(),
     }
+}
+
+/// Build a `TOGGLE` widget from its `TOGGLE_STYLE` token (`Switch`=0,
+/// `Checkbox`=1, `Button`=2).
+fn toggle_widget(node: &HostNode) -> gtk::Widget {
+    match node.f32_property(property_id::TOGGLE_STYLE, 0.0).round() as u8 {
+        1 => {
+            let cb = gtk::CheckButton::new();
+            cb.set_active(node.checked());
+            cb.upcast()
+        }
+        2 => {
+            let tb = gtk::ToggleButton::new();
+            tb.set_active(node.checked());
+            tb.upcast()
+        }
+        _ => {
+            let sw = gtk::Switch::new();
+            sw.set_active(node.checked());
+            sw.upcast()
+        }
+    }
+}
+
+/// Build a `COLOR` widget: a `GtkDrawingArea` filled with the `COLOR` value.
+fn color_widget(node: &HostNode) -> gtk::Widget {
+    let (r, g, b, a) = unpack_color(node.u32_property(property_id::COLOR, 0xFF00_0000));
+    let area = gtk::DrawingArea::new();
+    area.set_draw_func(move |_, cr, w, h| {
+        cr.set_source_rgba(r, g, b, a);
+        cr.rectangle(0.0, 0.0, w as f64, h as f64);
+        let _ = cr.fill();
+    });
+    area.set_hexpand(true);
+    area.set_vexpand(true);
+    area.upcast()
+}
+
+/// Build a `SHAPE` widget: a `GtkDrawingArea` filling the `SHAPE_KIND` geometry
+/// with the fill color.
+fn shape_widget(node: &HostNode) -> gtk::Widget {
+    let kind = node.f32_property(property_id::SHAPE_KIND, 0.0).round() as u8;
+    let radius = f64::from(node.f32_property(property_id::BORDER_RADIUS, 8.0));
+    let (r, g, b, a) = unpack_color(node.u32_property(property_id::COLOR, 0xFF00_0000));
+    let area = gtk::DrawingArea::new();
+    area.set_draw_func(move |_, cr, w, h| {
+        let (w, h) = (w as f64, h as f64);
+        cr.set_source_rgba(r, g, b, a);
+        match kind {
+            0 | 4 => {
+                cr.arc(w / 2.0, h / 2.0, w.min(h) / 2.0, 0.0, std::f64::consts::TAU);
+                let _ = cr.fill();
+            }
+            3 => {
+                let rad = w.min(h) / 2.0;
+                let _ = rad;
+                cr.rectangle(0.0, 0.0, w, h);
+                let _ = cr.fill();
+            }
+            2 => {
+                let _ = radius;
+                cr.rectangle(0.0, 0.0, w, h);
+                let _ = cr.fill();
+            }
+            _ => {
+                cr.rectangle(0.0, 0.0, w, h);
+                let _ = cr.fill();
+            }
+        }
+    });
+    area.set_hexpand(true);
+    area.set_vexpand(true);
+    area.upcast()
+}
+
+/// Build a `PROGRESS_VIEW`: determinate → `GtkProgressBar`, indeterminate →
+/// `GtkSpinner`.
+fn progress_widget(node: &HostNode) -> gtk::Widget {
+    let indeterminate = node.f32_property(property_id::IS_INDETERMINATE, 0.0) != 0.0
+        || node.f32_property(property_id::PROGRESS, -1.0) < 0.0;
+    if indeterminate {
+        let spinner = gtk::Spinner::new();
+        spinner.start();
+        spinner.upcast()
+    } else {
+        let bar = gtk::ProgressBar::new();
+        bar.set_fraction(f64::from(node.f32_property(property_id::PROGRESS, 0.0)));
+        bar.upcast()
+    }
+}
+
+/// Build a `PICKER` widget: a `GtkDropDown` whose options are the child texts.
+fn picker_widget(node: &HostNode) -> gtk::Widget {
+    let _ = node;
+    let dropdown = gtk::DropDown::from_strings(&[]);
+    dropdown.set_hexpand(true);
+    dropdown.upcast()
+}
+
+/// A `0xAARRGGBB` color as a `gdk::RGBA`.
+fn color_rgba(argb: u32) -> gtk::gdk::RGBA {
+    let (r, g, b, a) = unpack_color(argb);
+    gtk::gdk::RGBA::new(r as f32, g as f32, b as f32, a as f32)
+}
+
+/// Unpack a `0xAARRGGBB` color into `(r, g, b, alpha)` where `alpha` is `0..1`.
+fn unpack_color(argb: u32) -> (f64, f64, f64, f64) {
+    (
+        f64::from((argb >> 16) & 0xFF) / 255.0,
+        f64::from((argb >> 8) & 0xFF) / 255.0,
+        f64::from(argb & 0xFF) / 255.0,
+        f64::from((argb >> 24) & 0xFF) / 255.0,
+    )
 }
 
 /// The listener bitmask a node wants: buttons listen to pointer down/move/up by
@@ -399,7 +993,88 @@ fn apply_padding(widget: &gtk::Widget, node: &HostNode) {
     widget.set_margin_start(e.left);
 }
 
-/// Apply color/font-size text style from properties via Pango attributes.
+/// Apply the directly-mappable style properties to any widget: visibility,
+/// opacity, size hints, content margins, plus CSS-backed decoration
+/// (background, border, font family/weight).
+fn apply_style(widget: &gtk::Widget, node: &HostNode) {
+    if let Some(bits) = node.properties.get(&property_id::VISIBLE) {
+        widget.set_visible(*bits != 0);
+    }
+    if let Some(bits) = node.properties.get(&property_id::OPACITY) {
+        widget.set_opacity(f64::from(f32::from_bits(*bits)));
+    }
+    let w = node.properties.get(&property_id::WIDTH).map(|b| f32::from_bits(*b));
+    let h = node.properties.get(&property_id::HEIGHT).map(|b| f32::from_bits(*b));
+    if w.is_some() || h.is_some() {
+        widget.set_size_request(
+            w.filter(|v| *v > 0.0).map(|v| v as i32).unwrap_or(-1),
+            h.filter(|v| *v > 0.0).map(|v| v as i32).unwrap_or(-1),
+        );
+    }
+    if let Some(bits) = node.properties.get(&property_id::CONTENT_MARGINS) {
+        let m = f32::from_bits(*bits) as i32;
+        widget.set_margin_top(m);
+        widget.set_margin_end(m);
+        widget.set_margin_bottom(m);
+        widget.set_margin_start(m);
+    }
+
+    let css = style_css(node);
+    if !css.is_empty() {
+        widget.set_widget_name(&format!("pathland-{}", node.id));
+        let provider = gtk::CssProvider::new();
+        let _ = provider.load_from_data(&format!("#pathland-{} {{ {css} }}", node.id));
+        widget
+            .style_context()
+            .add_provider(&provider, gtk::STYLE_PROVIDER_PRIORITY_APPLICATION);
+    }
+}
+
+/// CSS decoration (background, border, font family) for a node, keyed by its
+/// widget name (set in [`apply_style`]).
+fn style_css(node: &HostNode) -> String {
+    let mut css = String::new();
+    if let Some(bits) = node.properties.get(&property_id::BACKGROUND_COLOR) {
+        let (r, g, b, a) = unpack_color(*bits);
+        css.push_str(&format!(
+            "background-color:rgba({:.0},{:.0},{:.0},{:.3});",
+            r * 255.0,
+            g * 255.0,
+            b * 255.0,
+            a
+        ));
+    }
+    if let Some(bits) = node.properties.get(&property_id::BORDER_WIDTH) {
+        let w = f32::from_bits(*bits);
+        let (r, g, b, a) = unpack_color(node.u32_property(property_id::BORDER_COLOR, 0xFF00_0000));
+        css.push_str(&format!(
+            "border:{w}px solid rgba({:.0},{:.0},{:.0},{:.3});",
+            r * 255.0,
+            g * 255.0,
+            b * 255.0,
+            a
+        ));
+    }
+    if let Some(bits) = node.properties.get(&property_id::BORDER_RADIUS) {
+        let r = f32::from_bits(*bits);
+        if r != 0.0 {
+            css.push_str(&format!("border-radius:{r}px;"));
+        }
+    }
+    if let Some(family) = node.string_property(property_id::FONT_FAMILY) {
+        css.push_str(&format!("font-family:'{}';", family.replace('\'', "\\'")));
+    }
+    if let Some(bits) = node.properties.get(&property_id::FONT_WEIGHT) {
+        let w = f32::from_bits(*bits);
+        if w > 0.0 {
+            css.push_str(&format!("font-weight:{w};"));
+        }
+    }
+    css
+}
+
+/// Apply color/font-size/font-weight text style from properties via Pango
+/// attributes.
 fn apply_text_style(label: &Label, node: &HostNode) {
     let attrs = pango::AttrList::new();
     if let Some(fs) = node.properties.get(&property_id::FONT_SIZE) {
@@ -564,6 +1239,51 @@ mod tests {
     fn renderer_placeholder_compiles() {
         // Ensures the renderer type is constructible without a display.
         let _r = GtkRenderer::new();
+    }
+
+    #[test]
+    fn widget_kind_maps_grouped_components() {
+        use component_type::*;
+        assert_eq!(widget_kind(VSTACK), WidgetKind::Stack);
+        assert_eq!(widget_kind(HSTACK), WidgetKind::Stack);
+        assert_eq!(widget_kind(LAZY_VSTACK), WidgetKind::Stack);
+        assert_eq!(widget_kind(LAZY_HSTACK), WidgetKind::Stack);
+        assert_eq!(widget_kind(TEXT), WidgetKind::Text);
+        assert_eq!(widget_kind(BUTTON), WidgetKind::Button);
+        assert_eq!(widget_kind(GRID), WidgetKind::Grid);
+        assert_eq!(widget_kind(LAZY_VGRID), WidgetKind::Grid);
+        assert_eq!(widget_kind(LAZY_HGRID), WidgetKind::Grid);
+        assert_eq!(widget_kind(SCROLLVIEW), WidgetKind::ScrollView);
+        assert_eq!(widget_kind(ZSTACK), WidgetKind::Overlay);
+        assert_eq!(widget_kind(SPACER), WidgetKind::Spacer);
+        assert_eq!(widget_kind(IMAGE), WidgetKind::Image);
+        assert_eq!(widget_kind(TOGGLE), WidgetKind::Toggle);
+        assert_eq!(widget_kind(SLIDER), WidgetKind::Slider);
+        assert_eq!(widget_kind(TEXT_FIELD), WidgetKind::TextField);
+        assert_eq!(widget_kind(TEXT_EDITOR), WidgetKind::TextEditor);
+        assert_eq!(widget_kind(COLOR), WidgetKind::Color);
+        assert_eq!(widget_kind(SHAPE), WidgetKind::Shape);
+        assert_eq!(widget_kind(DIVIDER), WidgetKind::Divider);
+        assert_eq!(widget_kind(PROGRESS_VIEW), WidgetKind::ProgressView);
+        assert_eq!(widget_kind(GAUGE), WidgetKind::Gauge);
+        assert_eq!(widget_kind(STEPPER), WidgetKind::Stepper);
+        assert_eq!(widget_kind(DATE_PICKER), WidgetKind::DatePicker);
+        assert_eq!(widget_kind(PICKER), WidgetKind::Picker);
+        assert_eq!(widget_kind(MENU), WidgetKind::Menu);
+        assert_eq!(widget_kind(COLOR_PICKER), WidgetKind::ColorPicker);
+        // Components without a mapping fall back to a blank widget.
+        assert_eq!(widget_kind(COMMENT), WidgetKind::Blank);
+    }
+
+    #[test]
+    fn container_kinds_are_recognized() {
+        use component_type::*;
+        for ct in [VSTACK, HSTACK, GRID, SCROLLVIEW, ZSTACK] {
+            assert!(is_container(ct), "{ct:#x} should be a container");
+        }
+        for ct in [TEXT, BUTTON, SPACER, IMAGE, TOGGLE, SLIDER] {
+            assert!(!is_container(ct), "{ct:#x} should not be a container");
+        }
     }
 
     #[test]

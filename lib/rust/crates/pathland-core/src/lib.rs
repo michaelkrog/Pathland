@@ -163,6 +163,9 @@ pub struct Guest<'a> {
     /// Host → guest event ring (guest reads raw inputs here).
     event_slots: &'a mut [u8],
     arena: &'a mut [u8],
+    /// Host → guest event arena (host-owned bump; the guest resolves `TEXT_CHANGED`
+    /// text here over the shared ring).
+    event_arena: &'a mut [u8],
     /// Write cursor captured at `begin_frame`.
     frame_start: u32,
 }
@@ -173,13 +176,15 @@ impl<'a> Guest<'a> {
     pub fn new(mem: &'a mut [u8], layout: &MemoryLayout) -> Self {
         let (header, rest) = mem.split_at_mut(memory::HEADER_SIZE);
         let (slots, rest) = rest.split_at_mut(layout.ring_bytes());
-        let (event_slots, arena) = rest.split_at_mut(layout.event_ring_bytes());
+        let (event_slots, rest) = rest.split_at_mut(layout.event_ring_bytes());
+        let (arena, event_arena) = rest.split_at_mut(layout.arena_bytes);
         let frame_start = header::get_u32(header, OFF_WRITE_CURSOR);
         Self {
             header,
             slots,
             event_slots,
             arena,
+            event_arena,
             frame_start,
         }
     }
@@ -274,6 +279,20 @@ impl<'a> Guest<'a> {
         Ok(arena_ref)
     }
 
+    /// Set a node's date value via `STYLE::SET_DATE` (draft): `days` since the
+    /// epoch (I32, pre-1970 negative) and `millis` of day (U32, 0..86,400,000).
+    pub fn set_date(&mut self, node_id: u32, days: i32, millis: u32) -> Result<(), RingError> {
+        let op = Opcode::new(
+            category::STYLE,
+            crate::style::SET_DATE,
+            0,
+            node_id,
+            days as u32,
+            millis,
+        );
+        ring_fn::push(self.slots, self.header, self.mask(), &op)
+    }
+
     /// Allocate arbitrary bytes into the arena, returning the offset.
     pub fn alloc(&mut self, bytes: &[u8]) -> Result<u32, ArenaError> {
         arena_fn::alloc(self.arena, self.header, bytes)
@@ -300,7 +319,7 @@ impl<'a> Guest<'a> {
         let mask = self.mask();
         let ops = ring_fn::read_events(&self.event_slots, self.header, mask);
         ops.into_iter()
-            .filter_map(|op| Event::try_from(op).ok())
+            .filter_map(|op| crate::events::decode_event(&op, self.event_arena))
             .collect()
     }
 
@@ -310,6 +329,11 @@ impl<'a> Guest<'a> {
     pub fn drain_event_opcodes(&mut self) -> Vec<Opcode> {
         let mask = self.mask();
         ring_fn::read_events(&self.event_slots, self.header, mask)
+    }
+
+    /// The host → guest event arena bump cursor (diagnostics/tests).
+    pub fn event_arena_cursor(&self) -> u32 {
+        header::get_u32(self.header, memory::OFF_EVENT_ARENA_CURSOR)
     }
 
     /// Push a raw `EVENT`-category opcode into the host → guest event ring.
@@ -420,6 +444,9 @@ pub struct Host<'a> {
     /// Host → guest event ring (host writes raw inputs here).
     event_slots: &'a mut [u8],
     arena: &'a [u8],
+    /// Host → guest event arena (host-owned bump; the host writes event string
+    /// payloads here, e.g. `TEXT_CHANGED` text over the shared ring).
+    event_arena: &'a mut [u8],
     /// Number of frames already consumed by this host view.
     consumed: u32,
 }
@@ -429,7 +456,8 @@ impl<'a> Host<'a> {
     pub fn new(mem: &'a mut [u8], layout: &MemoryLayout) -> Self {
         let (header, rest) = mem.split_at_mut(memory::HEADER_SIZE);
         let (slots, rest) = rest.split_at_mut(layout.ring_bytes());
-        let (event_slots, arena) = rest.split_at_mut(layout.event_ring_bytes());
+        let (event_slots, rest) = rest.split_at_mut(layout.event_ring_bytes());
+        let (arena, event_arena) = rest.split_at_mut(layout.arena_bytes);
         let slots: &'a [u8] = slots;
         let arena: &'a [u8] = arena;
         Self {
@@ -437,6 +465,7 @@ impl<'a> Host<'a> {
             slots,
             event_slots,
             arena,
+            event_arena,
             consumed: 0,
         }
     }
@@ -483,15 +512,44 @@ impl<'a> Host<'a> {
 
         header::set_u32(self.header, OFF_READ_CURSOR, end as u32);
         self.consumed = frame_count;
+
+        // A `META::RESET` invalidates prior state: reset the host → guest event
+        // arena cursor so the host starts bump-allocating fresh (matching the
+        // guest arena's reset-on-RESET semantics).
+        let reset_seen = self.slots[start * Opcode::SIZE..end * Opcode::SIZE]
+            .chunks_exact(Opcode::SIZE)
+            .any(|slot| {
+                let bytes: [u8; 16] = slot.try_into().unwrap();
+                let op = Opcode::from_bytes(&bytes);
+                op.category() == category::META && op.command() == crate::meta::RESET
+            });
+        if reset_seen {
+            memory::header::set_u32(self.header, memory::OFF_EVENT_ARENA_CURSOR, 0);
+        }
+
         frames
     }
 
     /// Write a raw-input event (host → guest) into the event ring, encoded as a
     /// 16-byte `EVENT` opcode. The renderer reports inputs here; the guest
     /// drains them via [`Guest::drain_events`].
+    ///
+    /// `TextChanged` text is bump-allocated into the host → guest **event
+    /// arena** and referenced by its absolute offset in `B` (the `SET_TEXT`
+    /// shared-memory convention); the guest resolves it from the same region.
+    /// If the event arena is full the event is rejected with [`RingError::Full`]
+    /// (backpressure).
     pub fn send_event(&mut self, event: &Event) -> Result<(), RingError> {
         let mask = slot_mask(self.header);
-        ring_fn::push_event(self.event_slots, self.header, mask, &event.encode())
+        let op = match event {
+            Event::TextChanged { target, value } => {
+                let offset = crate::arena::alloc_event(&mut self.event_arena, self.header, value.as_bytes())
+                    .map_err(|_| RingError::Full)?;
+                Opcode::new(category::EVENT, crate::event::TEXT_CHANGED, 0, *target, offset, 0)
+            }
+            _ => event.encode(),
+        };
+        ring_fn::push_event(self.event_slots, self.header, mask, &op)
     }
 }
 
@@ -634,6 +692,7 @@ mod tests {
         let layout = MemoryLayout {
             slot_count: 4,
             arena_bytes: MemoryLayout::default().arena_bytes,
+            event_arena_bytes: MemoryLayout::default().event_arena_bytes,
         };
         let mut mem = vec![0u8; layout.total_bytes()];
         init_memory(&mut mem, &layout);

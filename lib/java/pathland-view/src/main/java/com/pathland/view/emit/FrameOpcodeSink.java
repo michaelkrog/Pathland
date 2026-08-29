@@ -59,7 +59,7 @@ public class FrameOpcodeSink implements OpcodeSink {
 
     @Override
     public void insertChild(int parent, int child, int index) {
-        push(Categories.TREE, Commands.Tree.INSERT_CHILD, Commands.Flags.INSERT_APPEND, parent, child, index);
+        push(Categories.TREE, Commands.Tree.INSERT_CHILD, 0, parent, child, index);
     }
 
     @Override
@@ -89,6 +89,11 @@ public class FrameOpcodeSink implements OpcodeSink {
         } else {
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, ValueEncoder.encodeBits(valueType, value));
         }
+    }
+
+    @Override
+    public void setDate(int nodeId, int days, int millisOfDay) {
+        push(Categories.STYLE, Commands.Style.SET_DATE, 0, nodeId, days, millisOfDay);
     }
 
     /** Append a length-prefixed string to the string section, returning its offset. */

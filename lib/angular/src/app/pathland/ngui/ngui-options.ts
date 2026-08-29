@@ -76,3 +76,11 @@ export interface FlexOptions {
 export interface LineLimitOptions {
   lineLimit?: number;
 }
+
+export interface ShadowOptions {
+  shadow?: string;
+}
+
+export interface RotationOptions {
+  angle?: number;
+}

@@ -1,6 +1,6 @@
 @let node = nodeOf(nodeId());
 @if (node; as n) {
-  @if (!hidden(n)) {
+  @if (!hidden(n) && !ignored(n)) {
     @let m = mods(n);
     @switch (kindOf(n)) {
       @case ('hstack') {
@@ -16,6 +16,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
@@ -35,11 +38,58 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
           }
         </ui-vstack>
+      }
+      @case ('lazyVStack') {
+        <ui-vstack
+          [gap]="stackGap(n)!"
+          [alignment]="stackAlignment(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
+          [lineLimit]="m.lineLimit!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-vstack>
+      }
+      @case ('lazyHStack') {
+        <ui-hstack
+          [gap]="stackGap(n)!"
+          [alignment]="stackAlignment(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
+          [lineLimit]="m.lineLimit!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-hstack>
       }
       @case ('zstack') {
         <ui-zstack
@@ -53,6 +103,9 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
@@ -72,74 +125,31 @@
           [font]="m.font!"
           [frame]="m.frame!"
           [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!"
           [lineLimit]="m.lineLimit!">
         </ui-text>
       }
       @case ('button') {
-        <ui-button
-          [label]="n.text() ?? ''"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!"
-          (click)="session.sendPointerUp(n.id)">
-        </ui-button>
+        @defer (on immediate) {
+          <pathland-button-node [nodeId]="nodeId()" />
+        }
       }
-      @case ('checkbox') {
-        <ui-checkbox
-          [label]="n.text() ?? ''"
-          [checked]="checked(n)"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!"
-          (checkedChange)="session.sendPointerUp(n.id)">
-        </ui-checkbox>
-      }
-      @case ('switch') {
-        <ui-toggle
-          [label]="n.text() ?? ''"
-          [value]="checked(n)"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!"
-          (valueChange)="session.sendPointerUp(n.id)">
-        </ui-toggle>
+      @case ('toggle') {
+        @defer (on immediate) {
+          <pathland-toggle-node [nodeId]="nodeId()" />
+        }
       }
       @case ('textField') {
-        <ui-text-field
-          [value]="n.text() ?? ''"
-          [placeholder]="n.strings().get(PROMPT)!"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!"
-          (valueChange)="session.sendTextChanged(n.id, $event)">
-          @if (n.strings().get(LABEL); as label) {
-            <span prefix>{{ label }}</span>
-          }
-        </ui-text-field>
+        @defer (on immediate) {
+          <pathland-text-field-node [nodeId]="nodeId()" />
+        }
+      }
+      @case ('textEditor') {
+        @defer (on immediate) {
+          <pathland-text-editor-node [nodeId]="nodeId()" />
+        }
       }
       @case ('spacer') {
         <ui-spacer
@@ -151,7 +161,10 @@
           [rounding]="m.rounding!"
           [opacity]="m.opacity!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
         </ui-spacer>
       }
       @case ('scrollView') {
@@ -164,27 +177,14 @@
           [opacity]="m.opacity!"
           [font]="m.font!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
           }
         </ui-scroll-view>
-      }
-      @case ('list') {
-        <ui-list
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!">
-          @for (child of n.children(); track child) {
-            <pathland-node [nodeId]="child" />
-          }
-        </ui-list>
       }
       @case ('grid') {
         <ui-grid
@@ -197,26 +197,143 @@
           [opacity]="m.opacity!"
           [font]="m.font!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
           @for (child of n.children(); track child) {
             <pathland-node [nodeId]="child" />
           }
         </ui-grid>
       }
-      @case ('slider') {
-        <input
-          type="range"
-          [min]="slider(n).min"
-          [max]="slider(n).max"
-          [value]="slider(n).value"
+      @case ('lazyVGrid') {
+        <ui-grid
+          [gap]="stackGap(n)!"
           [padding]="m.padding!"
           [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
           [opacity]="m.opacity!"
-          (input)="onSliderInput(n.id, $event)">
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-grid>
+      }
+      @case ('lazyHGrid') {
+        <ui-grid
+          [gap]="stackGap(n)!"
+          [padding]="m.padding!"
+          [color]="m.color!"
+          [background]="m.background!"
+          [border]="m.border!"
+          [rounding]="m.rounding!"
+          [opacity]="m.opacity!"
+          [font]="m.font!"
+          [frame]="m.frame!"
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
+          @for (child of n.children(); track child) {
+            <pathland-node [nodeId]="child" />
+          }
+        </ui-grid>
+      }
+      @case ('color') {
+        <ui-rectangle
+          [foregroundStyle]="colorFill(n)"
+          [frame]="m.frame!"
+          [flex]="{ grow: 1 }"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
+        </ui-rectangle>
+      }
+      @case ('shape') {
+        @if (shapeKind(n) === SHAPE_KIND.CIRCLE) {
+          <ui-circle
+            [foregroundStyle]="colorFill(n)"
+            [frame]="m.frame!"
+            [shadow]="m.shadow!"
+            [rotationEffect]="m.rotation!"
+            [underline]="m.underline!">
+          </ui-circle>
+        } @else if (shapeKind(n) === SHAPE_KIND.ROUNDED_RECTANGLE) {
+          <ui-rectangle
+            [foregroundStyle]="colorFill(n)"
+            [rounding]="m.rounding ?? { radius: 0 }"
+            [frame]="m.frame!"
+            [shadow]="m.shadow!"
+            [rotationEffect]="m.rotation!"
+            [underline]="m.underline!">
+          </ui-rectangle>
+        } @else if (shapeKind(n) === SHAPE_KIND.CAPSULE) {
+          <ui-rectangle
+            [foregroundStyle]="colorFill(n)"
+            [rounding]="{ radius: 999 }"
+            [frame]="m.frame!"
+            [shadow]="m.shadow!"
+            [rotationEffect]="m.rotation!"
+            [underline]="m.underline!">
+          </ui-rectangle>
+        } @else if (shapeKind(n) === SHAPE_KIND.ELLIPSE) {
+          <ui-rectangle
+            [foregroundStyle]="colorFill(n)"
+            [rounding]="{ radius: '50%' }"
+            [frame]="m.frame!"
+            [shadow]="m.shadow!"
+            [rotationEffect]="m.rotation!"
+            [underline]="m.underline!">
+          </ui-rectangle>
+        } @else if (shapeKind(n) === SHAPE_KIND.PATH) {
+          <pathland-not-implemented name="SHAPE::Path" />
+        } @else {
+          <ui-rectangle [foregroundStyle]="colorFill(n)" [frame]="m.frame!"></ui-rectangle>
+        }
+      }
+      @case ('divider') {
+        <pathland-not-implemented name="DIVIDER" />
+      }
+      @case ('progressView') {
+        <pathland-not-implemented name="PROGRESS_VIEW" />
+      }
+      @case ('gauge') {
+        <pathland-not-implemented name="GAUGE" />
+      }
+      @case ('stepper') {
+        <pathland-not-implemented name="STEPPER" />
+      }
+      @case ('slider') {
+        <pathland-not-implemented name="SLIDER" />
+      }
+      @case ('colorPicker') {
+        <pathland-not-implemented name="COLOR_PICKER" />
+      }
+      @case ('picker') {
+        @defer (on immediate) {
+          <pathland-picker-node [nodeId]="nodeId()" />
+        }
+      }
+      @case ('menu') {
+        @defer (on immediate) {
+          <pathland-menu-node [nodeId]="nodeId()" />
+        }
+      }
+      @case ('datePicker') {
+        @defer (on immediate) {
+          <pathland-date-picker-node [nodeId]="nodeId()" />
+        }
       }
       @case ('image') {
         <ui-image
-          [src]="n.text() ?? ''"
+          [src]="imageSource(n)"
           [padding]="m.padding!"
           [color]="m.color!"
           [background]="m.background!"
@@ -224,7 +341,10 @@
           [rounding]="m.rounding!"
           [opacity]="m.opacity!"
           [frame]="m.frame!"
-          [flex]="m.flex!">
+          [flex]="m.flex!"
+          [shadow]="m.shadow!"
+          [rotationEffect]="m.rotation!"
+          [underline]="m.underline!">
         </ui-image>
       }
       @default {

@@ -271,6 +271,7 @@ mod tests {
         let layout = crate::memory::MemoryLayout {
             slot_count,
             arena_bytes: 64,
+            event_arena_bytes: 64,
         };
         let mut mem = vec![0u8; layout.total_bytes()];
         crate::init_memory(&mut mem, &layout);

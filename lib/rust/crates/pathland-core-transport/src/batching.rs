@@ -165,7 +165,7 @@ mod tests {
     use pathland_core::{category, Opcode};
 
     fn op(n: u32) -> Opcode {
-        Opcode::new(category::TREE, 0x01, 0, n, 0x0002, 0)
+        Opcode::new(category::TREE, 0x01, 0, n, 0x0010, 0)
     }
 
     fn empty_arena() -> &'static [u8] {

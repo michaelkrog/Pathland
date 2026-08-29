@@ -1,7 +1,7 @@
-//! Linear-memory layout and the 64-byte header block.
+//! Linear-memory layout and the 80-byte header block.
 //!
 //! The guest engine and host share a single linear memory with fixed regions:
-//! header block → ring buffer → arena. See `spec/OPCODE.md`.
+//! header block → ring buffer → arena → event arena. See `spec/OPCODE.md`.
 
 use crate::opcode::OPCODE_SIZE;
 
@@ -14,8 +14,10 @@ pub const PROTOCOL_VERSION: u16 = 1;
 pub const DEFAULT_SLOT_COUNT: usize = 4096;
 /// Default arena capacity in bytes.
 pub const DEFAULT_ARENA_BYTES: usize = 1 << 20; // 1 MiB
+/// Default host → guest (event) arena capacity in bytes.
+pub const DEFAULT_EVENT_ARENA_BYTES: usize = 1 << 20; // 1 MiB
 
-// --- Header field offsets (64-byte header) ---
+// --- Header field offsets (80-byte header) ---
 /// Byte offset of `magic: u32`.
 pub const OFF_MAGIC: usize = 0x00;
 /// Byte offset of `version: u16`.
@@ -48,16 +50,24 @@ pub const OFF_EVENT_SLOT_COUNT: usize = 0x32;
 pub const OFF_EVENT_READ_CURSOR: usize = 0x36;
 /// Byte offset of `eventWriteCursor: u32` (host-owned).
 pub const OFF_EVENT_WRITE_CURSOR: usize = 0x3A;
+/// Byte offset of `eventArenaOffset: u32`.
+pub const OFF_EVENT_ARENA_OFFSET: usize = 0x40;
+/// Byte offset of `eventArenaBytes: u32`.
+pub const OFF_EVENT_ARENA_BYTES: usize = 0x44;
+/// Byte offset of `eventArenaCursor: u32` (host-owned).
+pub const OFF_EVENT_ARENA_CURSOR: usize = 0x48;
 /// Total header size in bytes.
-pub const HEADER_SIZE: usize = 0x40;
+pub const HEADER_SIZE: usize = 0x50;
 
 /// The fixed layout of the shared linear memory.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MemoryLayout {
     /// Ring capacity in slots (must be a power of two).
     pub slot_count: usize,
-    /// Arena capacity in bytes.
+    /// Guest arena capacity in bytes.
     pub arena_bytes: usize,
+    /// Host → guest (event) arena capacity in bytes.
+    pub event_arena_bytes: usize,
 }
 
 impl Default for MemoryLayout {
@@ -65,6 +75,7 @@ impl Default for MemoryLayout {
         Self {
             slot_count: DEFAULT_SLOT_COUNT,
             arena_bytes: DEFAULT_ARENA_BYTES,
+            event_arena_bytes: DEFAULT_EVENT_ARENA_BYTES,
         }
     }
 }
@@ -83,9 +94,14 @@ impl MemoryLayout {
         self.slot_count * OPCODE_SIZE
     }
 
-    /// Total linear memory size: header + ring + event ring + arena.
+    /// Total linear memory size: header + ring + event ring + arena + event
+    /// arena.
     pub fn total_bytes(&self) -> usize {
-        HEADER_SIZE + self.ring_bytes() + self.event_ring_bytes() + self.arena_bytes
+        HEADER_SIZE
+            + self.ring_bytes()
+            + self.event_ring_bytes()
+            + self.arena_bytes
+            + self.event_arena_bytes
     }
 
     /// Byte offset of the ring region (directly after the header).
@@ -100,10 +116,17 @@ impl MemoryLayout {
         self.ring_offset() + self.ring_bytes()
     }
 
-    /// Byte offset of the arena region (directly after the event ring).
+    /// Byte offset of the guest arena region (directly after the event ring).
     #[inline]
     pub fn arena_offset(&self) -> usize {
         self.event_ring_offset() + self.event_ring_bytes()
+    }
+
+    /// Byte offset of the host → guest (event) arena region (after the guest
+    /// arena). Owned by the host: it bump-allocates event string payloads here.
+    #[inline]
+    pub fn event_arena_offset(&self) -> usize {
+        self.arena_offset() + self.arena_bytes
     }
 
     /// Ring mask for wrapping a cursor (slot count is a power of two).
@@ -155,6 +178,9 @@ pub(crate) mod header {
         set_u32(buf, OFF_EVENT_SLOT_COUNT, layout.slot_count as u32);
         set_u32(buf, OFF_EVENT_READ_CURSOR, 0);
         set_u32(buf, OFF_EVENT_WRITE_CURSOR, 0);
+        set_u32(buf, OFF_EVENT_ARENA_OFFSET, layout.event_arena_offset() as u32);
+        set_u32(buf, OFF_EVENT_ARENA_BYTES, layout.event_arena_bytes as u32);
+        set_u32(buf, OFF_EVENT_ARENA_CURSOR, 0);
     }
 
     /// Validate a header against a layout; returns false if the memory is not a
@@ -177,6 +203,8 @@ pub(crate) mod header {
             && get_u32(buf, OFF_EVENT_RING_OFFSET) as usize == layout.event_ring_offset()
             && get_u32(buf, OFF_EVENT_RING_BYTES) as usize == layout.event_ring_bytes()
             && get_u32(buf, OFF_EVENT_SLOT_COUNT) as usize == layout.slot_count
+            && get_u32(buf, OFF_EVENT_ARENA_OFFSET) as usize == layout.event_arena_offset()
+            && get_u32(buf, OFF_EVENT_ARENA_BYTES) as usize == layout.event_arena_bytes
     }
 }
 
@@ -186,8 +214,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn header_size_is_64() {
-        assert_eq!(HEADER_SIZE, 64);
+    fn header_size_is_80() {
+        assert_eq!(HEADER_SIZE, 80);
     }
 
     #[test]
@@ -218,6 +246,15 @@ mod tests {
         let other = MemoryLayout {
             slot_count: layout.slot_count,
             arena_bytes: layout.arena_bytes + 4096,
+            event_arena_bytes: layout.event_arena_bytes,
+        };
+        assert!(!header::validate(&buf, &other));
+
+        // A different event arena size must be rejected.
+        let other = MemoryLayout {
+            slot_count: layout.slot_count,
+            arena_bytes: layout.arena_bytes,
+            event_arena_bytes: layout.event_arena_bytes + 4096,
         };
         assert!(!header::validate(&buf, &other));
 
@@ -225,6 +262,7 @@ mod tests {
         let other = MemoryLayout {
             slot_count: layout.slot_count / 2,
             arena_bytes: layout.arena_bytes,
+            event_arena_bytes: layout.event_arena_bytes,
         };
         assert!(!header::validate(&buf, &other));
     }
@@ -249,8 +287,16 @@ mod tests {
             HEADER_SIZE + layout.ring_bytes() + layout.event_ring_bytes()
         );
         assert_eq!(
-            layout.total_bytes(),
+            layout.event_arena_offset(),
             HEADER_SIZE + layout.ring_bytes() + layout.event_ring_bytes() + layout.arena_bytes
+        );
+        assert_eq!(
+            layout.total_bytes(),
+            HEADER_SIZE
+                + layout.ring_bytes()
+                + layout.event_ring_bytes()
+                + layout.arena_bytes
+                + layout.event_arena_bytes
         );
         assert!(layout.slot_count.is_power_of_two());
     }
@@ -281,6 +327,18 @@ mod tests {
         );
         assert_eq!(
             header::get_u32(&buf, OFF_EVENT_WRITE_CURSOR),
+            0
+        );
+        assert_eq!(
+            header::get_u32(&buf, OFF_EVENT_ARENA_OFFSET),
+            layout.event_arena_offset() as u32
+        );
+        assert_eq!(
+            header::get_u32(&buf, OFF_EVENT_ARENA_BYTES),
+            layout.event_arena_bytes as u32
+        );
+        assert_eq!(
+            header::get_u32(&buf, OFF_EVENT_ARENA_CURSOR),
             0
         );
     }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CATEGORY, TREE, STYLE, COMPONENT, PROPERTY, VALUE_TYPE, EVENT } from './protocol';
+import { CATEGORY, META, TREE, STYLE, COMPONENT, PROPERTY, VALUE_TYPE, EVENT } from './protocol';
 import { Opcode } from './frame';
 import { decodeFrame, encodeBatch, StringSectionWriter } from './decoder';
 import { eventRouter, f32Bits, f32FromBits } from './event-encoder';
@@ -18,12 +18,17 @@ function mountFrame(): Uint8Array {
 }
 
 describe('protocol constants', () => {
-  it('matches the canonical component/property ids', () => {
-    expect(COMPONENT.VSTACK).toBe(0x0002);
-    expect(COMPONENT.TEXT).toBe(0x0003);
-    expect(COMPONENT.BUTTON).toBe(0x0004);
+  it('matches the canonical spec component/property ids', () => {
+    expect(COMPONENT.TEXT).toBe(0x01);
+    expect(COMPONENT.COLOR).toBe(0x03);
+    expect(COMPONENT.VSTACK).toBe(0x10);
+    expect(COMPONENT.HSTACK).toBe(0x11);
+    expect(COMPONENT.TOGGLE).toBe(0x24);
+    expect(COMPONENT.SLIDER).toBe(0x25);
+    expect(COMPONENT.COMMENT).toBe(0x7f);
     expect(PROPERTY.PADDING).toBe(0x1011);
     expect(PROPERTY.COLOR).toBe(0x100a);
+    expect(PROPERTY.TINT).toBe(0x1030);
     expect(VALUE_TYPE.STRING).toBe(0x05);
   });
 });
@@ -69,6 +74,55 @@ describe('eventRouter', () => {
     const frame = decodeFrame(bytes);
     expect(frame.opcodes[0].command).toBe(EVENT.VALUE_CHANGED);
     expect(f32FromBits(frame.opcodes[0].b)).toBeCloseTo(0.75);
+  });
+
+  it('encodes raw value bits and date-changed', () => {
+    const raw = decodeFrame(eventRouter.valueBits(8, 0xff2196f3));
+    expect(raw.opcodes[0].command).toBe(EVENT.VALUE_CHANGED);
+    expect(raw.opcodes[0].b).toBe(0xff2196f3);
+
+    const date = decodeFrame(eventRouter.dateChanged(9, 20487, 0));
+    expect(date.opcodes[0].command).toBe(EVENT.DATE_CHANGED);
+    expect(date.opcodes[0].b).toBe(20487);
+  });
+
+  it('encodes the full raw-input event catalog', () => {
+    const pointer = decodeFrame(eventRouter.pointerDown(2, 10.5, 20.5));
+    expect(pointer.opcodes[0].command).toBe(EVENT.POINTER_DOWN);
+    expect(f32FromBits(pointer.opcodes[0].b)).toBeCloseTo(10.5);
+
+    const move = decodeFrame(eventRouter.pointerMove(2, 1, 2, 1)); // HOVER_ENTER flag
+    expect(move.opcodes[0].command).toBe(EVENT.POINTER_MOVE);
+    expect(move.opcodes[0].flags).toBe(1);
+
+    const key = decodeFrame(eventRouter.keyDown(3, 0x20, 0x01, 0x0002)); // Space + Shift + repeat
+    expect(key.opcodes[0].command).toBe(EVENT.KEY_DOWN);
+    expect(key.opcodes[0].b).toBe(0x20);
+    expect(key.opcodes[0].c).toBe(0x01);
+    expect(key.opcodes[0].flags).toBe(0x0002);
+
+    const keyUp = decodeFrame(eventRouter.keyUp(3, 0x20, 0));
+    expect(keyUp.opcodes[0].command).toBe(EVENT.KEY_UP);
+
+    const focus = decodeFrame(eventRouter.focusChanged(4, true));
+    expect(focus.opcodes[0].command).toBe(EVENT.FOCUS_CHANGED);
+    expect(focus.opcodes[0].b).toBe(1);
+
+    const editing = decodeFrame(eventRouter.editingChanged(4, false));
+    expect(editing.opcodes[0].command).toBe(EVENT.EDITING_CHANGED);
+    expect(editing.opcodes[0].b).toBe(0);
+
+    const submit = decodeFrame(eventRouter.submit(4));
+    expect(submit.opcodes[0].command).toBe(EVENT.SUBMIT);
+
+    const scroll = decodeFrame(eventRouter.scroll(5, 120, -30));
+    expect(scroll.opcodes[0].command).toBe(EVENT.SCROLL);
+    expect(f32FromBits(scroll.opcodes[0].b)).toBeCloseTo(120);
+    expect(f32FromBits(scroll.opcodes[0].c)).toBeCloseTo(-30);
+
+    const wheel = decodeFrame(eventRouter.wheel(5, 1.5, -2));
+    expect(wheel.opcodes[0].command).toBe(EVENT.WHEEL);
+    expect(f32FromBits(wheel.opcodes[0].b)).toBeCloseTo(1.5);
   });
 
   it('packs/unpacks f32 bits', () => {
@@ -118,5 +172,54 @@ describe('RetainedTree', () => {
       new Opcode(CATEGORY.TREE, TREE.REMOVE_CHILD, 0, 1, 2, 0),
     ], new Uint8Array())));
     expect(tree.node(1)?.children()).toEqual([]);
+  });
+
+  it('applies STYLE::SET_DATE to a date picker node', () => {
+    const bytes = encodeBatch([
+      new Opcode(CATEGORY.TREE, TREE.CREATE_NODE, 0, 1, COMPONENT.DATE_PICKER, 0),
+      new Opcode(CATEGORY.STYLE, STYLE.SET_DATE, 0, 1, 20487, 43200000),
+    ], new Uint8Array());
+
+    const tree = new RetainedTree();
+    tree.applyFrame(decodeFrame(bytes));
+
+    expect(tree.node(1)?.date()).toEqual({ days: 20487, millis: 43200000 });
+  });
+
+  it('stores design-token overrides and resolves override/default/parent', () => {
+    const strings = new StringSectionWriter();
+    const primary = strings.push('color.primary');
+    const font = strings.push('font.body.size');
+    const bytes = encodeBatch([
+      new Opcode(CATEGORY.STYLE, STYLE.SET_DESIGN_TOKEN, 0, primary, VALUE_TYPE.COLOR, 0xff00ff00),
+      new Opcode(CATEGORY.STYLE, STYLE.SET_DESIGN_TOKEN, 0, font, VALUE_TYPE.F32, f32Bits(18)),
+    ], strings.toBytes());
+
+    const tree = new RetainedTree();
+    tree.applyFrame(decodeFrame(bytes));
+
+    expect(tree.token('color.primary')).toBe(0xff00ff00); // override wins
+    expect(tree.token('color.background')).toBe(0xffffffff); // renderer default
+    expect(tree.token('font.body.size')).toBe(18); // F32 override decoded
+    expect(tree.token('font.body.weight')).toBe(400); // parent-path default (font.body)
+  });
+
+  it('handles META::RESET and META::ENVIRONMENT', () => {
+    const tree = new RetainedTree();
+    tree.applyFrame(decodeFrame(encodeBatch([
+      new Opcode(CATEGORY.META, META.ENVIRONMENT, 0, f32Bits(1280), f32Bits(720), 0),
+    ], new Uint8Array())));
+    expect(tree.viewport()).toEqual({ width: 1280, height: 720 });
+
+    tree.applyFrame(decodeFrame(encodeBatch([
+      new Opcode(CATEGORY.TREE, TREE.CREATE_NODE, 0, 1, COMPONENT.TEXT, 0),
+    ], new Uint8Array())));
+    expect(tree.has(1)).toBe(true);
+
+    tree.applyFrame(decodeFrame(encodeBatch([
+      new Opcode(CATEGORY.META, META.RESET, 0, 0, 0, 0),
+    ], new Uint8Array())));
+    expect(tree.has(1)).toBe(false);
+    expect(tree.viewport()).toBeNull();
   });
 });

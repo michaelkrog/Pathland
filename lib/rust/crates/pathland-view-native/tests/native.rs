@@ -45,10 +45,10 @@ fn flat_builder_emit_then_render_tree() {
 #[test]
 fn component_from_id_maps_flat_surface() {
     assert_eq!(
-        component_from_id(2),
+        component_from_id(0x10),
         Some(pathland_view::Component::VStack)
     );
-    assert_eq!(component_from_id(3), Some(pathland_view::Component::Text { text: "".into() }));
+    assert_eq!(component_from_id(0x01), Some(pathland_view::Component::Text { text: "".into() }));
     assert!(component_from_id(999).is_none());
 }
 

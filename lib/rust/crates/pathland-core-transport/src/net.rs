@@ -67,7 +67,7 @@ mod tests {
     #[test]
     fn encodes_and_clears() {
         let opcodes = [
-            Opcode::new(category::TREE, tree::CREATE_NODE, 0, 1, 0x0002, 0),
+            Opcode::new(category::TREE, tree::CREATE_NODE, 0, 1, 0x0010, 0),
             Opcode::new(
                 category::STYLE,
                 0x01,

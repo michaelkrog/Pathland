@@ -12,6 +12,10 @@ This document provides **golden byte arrays** for the Pathland opcode protocol (
 The vectors are enforced by the reference Rust encoder (`pathland-core`,
 `crates/pathland-core/src/conformance.rs`).
 
+Companion catalogs: [PRIMITIVES.md](./PRIMITIVES.md) (views), [MODIFIERS.md](./MODIFIERS.md)
+(modifiers/properties), [EVENTS.md](./EVENTS.md) (events). New IDs allocated
+there must gain vectors before implementations depend on them.
+
 ## Opcode Layout
 
 ```
@@ -22,17 +26,17 @@ All multi-byte fields little-endian. `A`/`B`/`C` may carry `f32` bit patterns.
 
 ## Vectors
 
-### 1. TREE:CREATE_NODE (id=1, VSTACK=0x0002)
+### 1. TREE:CREATE_NODE (id=1, VSTACK=0x0010)
 
 ```
-01 01 00 00 01 00 00 00 02 00 00 00 00 00 00 00
+01 01 00 00 01 00 00 00 10 00 00 00 00 00 00 00
 ```
 
 - `01` category = TREE
 - `01` command = CREATE_NODE
 - `00 00` flags = 0
 - `01 00 00 00` A = nodeId = 1
-- `02 00 00 00` B = componentType = 0x0002 (VSTACK)
+- `10 00 00 00` B = componentType = 0x0010 (VSTACK)
 - `00 00 00 00` C = 0
 
 ### 2. TREE:INSERT_CHILD (parent=0, child=1, index=APPEND)
@@ -207,6 +211,12 @@ into the event ring must reproduce the exact vector-11 bytes in the slot at
 `eventWriteCursor`, then advance `eventWriteCursor`; the guest advances
 `eventReadCursor` after draining.
 
+String-bearing events (`TEXT_CHANGED`) resolve their text from the host → guest
+**event arena** (header `eventArenaOffset` 0x40 / `eventArenaCursor` 0x48,
+host-owned, shared memory) or the batch's string section (network) — the same
+dual absolute/relative convention as `STYLE::SET_TEXT`. See OPCODE.md's
+[event arena](./OPCODE.md#event-arena-host--guest) section.
+
 ## Network Batch Conformance
 
 A network batch serializes opcodes + an arena delta (see
@@ -220,7 +230,7 @@ delta is the self-describing entry for `"Hi"`: `[02 00 00 00][48 69]`.
 
 ```
 4C 50 4C 50 01 00 00 00 01 00 00 00 01 00 00 00
-01 01 00 00 01 00 00 00 02 00 00 00 00 00 00 00
+01 01 00 00 01 00 00 00 10 00 00 00 00 00 00 00
 06 00 00 00 02 00 00 00 48 69
 ```
 
@@ -229,7 +239,7 @@ delta is the self-describing entry for `"Hi"`: `[02 00 00 00][48 69]`.
 - `00 00` = flags (guest → host)
 - `01 00 00 00` = frameCount = 1
 - `01 00 00 00` = opcodeCount = 1
-- `01 01 00 00 01 00 00 00 02 00 00 00 00 00 00 00` = the CREATE_NODE opcode (16 bytes)
+- `01 01 00 00 01 00 00 00 10 00 00 00 00 00 00 00` = the CREATE_NODE opcode (16 bytes)
 - `06 00 00 00` = arenaDeltaLen = 6
 - `02 00 00 00 48 69` = arena entry `[len=2]["Hi"]`
 

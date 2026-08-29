@@ -20,7 +20,31 @@ pub enum ArenaError {
 /// The cursor lives in the header block (`OFF_ARENA_CURSOR`).
 #[inline]
 pub(crate) fn alloc(data: &mut [u8], header: &mut [u8], bytes: &[u8]) -> Result<u32, ArenaError> {
-    let cursor = header::get_u32(header, crate::memory::OFF_ARENA_CURSOR) as usize;
+    alloc_at(data, header, crate::memory::OFF_ARENA_CURSOR, bytes)
+}
+
+/// Allocate `bytes` into the host → guest (event) arena region, returning its
+/// byte offset. The cursor lives in the header block
+/// (`OFF_EVENT_ARENA_CURSOR`, host-owned) — the host writes event string
+/// payloads here so the guest can resolve them over the shared ring.
+#[inline]
+pub(crate) fn alloc_event(
+    data: &mut [u8],
+    header: &mut [u8],
+    bytes: &[u8],
+) -> Result<u32, ArenaError> {
+    alloc_at(data, header, crate::memory::OFF_EVENT_ARENA_CURSOR, bytes)
+}
+
+/// Allocate into any arena region, using the given header cursor offset.
+#[inline]
+pub(crate) fn alloc_at(
+    data: &mut [u8],
+    header: &mut [u8],
+    cursor_off: usize,
+    bytes: &[u8],
+) -> Result<u32, ArenaError> {
+    let cursor = header::get_u32(header, cursor_off) as usize;
     let len = bytes.len();
     let needed = 4 + len;
     if cursor + needed > data.len() {
@@ -28,7 +52,7 @@ pub(crate) fn alloc(data: &mut [u8], header: &mut [u8], bytes: &[u8]) -> Result<
     }
     data[cursor..cursor + 4].copy_from_slice(&(len as u32).to_le_bytes());
     data[cursor + 4..cursor + needed].copy_from_slice(bytes);
-    header::set_u32(header, crate::memory::OFF_ARENA_CURSOR, (cursor + needed) as u32);
+    header::set_u32(header, cursor_off, (cursor + needed) as u32);
     Ok(cursor as u32)
 }
 
@@ -76,7 +100,7 @@ mod tests {
         crate::init_memory(&mut buf, &layout);
         let (head, rest) = buf.split_at_mut(crate::memory::HEADER_SIZE);
         let (_, rest) = rest.split_at_mut(layout.ring_bytes() + layout.event_ring_bytes());
-        let arena_data = rest;
+        let (arena_data, _event_arena) = rest.split_at_mut(layout.arena_bytes);
         let off = alloc_str(arena_data, head, "Hello").unwrap();
         assert_eq!(get(arena_data, off).unwrap(), b"Hello");
         assert_eq!(get_str(arena_data, off).unwrap(), "Hello");
@@ -90,7 +114,7 @@ mod tests {
         crate::init_memory(&mut buf, &layout);
         let (head, rest) = buf.split_at_mut(crate::memory::HEADER_SIZE);
         let (_, rest) = rest.split_at_mut(layout.ring_bytes() + layout.event_ring_bytes());
-        let arena_data = rest;
+        let (arena_data, _event_arena) = rest.split_at_mut(layout.arena_bytes);
         let o1 = alloc_str(arena_data, head, "ab").unwrap();
         let o2 = alloc_str(arena_data, head, "cdef").unwrap();
         assert!(o2 > o1);
@@ -105,7 +129,7 @@ mod tests {
         crate::init_memory(&mut buf, &layout);
         let (head, rest) = buf.split_at_mut(crate::memory::HEADER_SIZE);
         let (_, rest) = rest.split_at_mut(layout.ring_bytes() + layout.event_ring_bytes());
-        let arena_data = rest;
+        let (arena_data, _event_arena) = rest.split_at_mut(layout.arena_bytes);
         assert_eq!(
             alloc(arena_data, head, &[0u8; 1024 * 1024]).unwrap_err(),
             ArenaError::OutOfSpace

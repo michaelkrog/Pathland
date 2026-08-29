@@ -54,6 +54,7 @@ fn out_of_space_is_reported_via_guest_alloc() {
     let layout = MemoryLayout {
         slot_count: 64,
         arena_bytes: 8,
+        event_arena_bytes: 8,
     };
     let mut m = Memory::new(layout);
 
@@ -69,6 +70,7 @@ fn set_text_maps_arena_full_to_ring_full() {
     let layout = MemoryLayout {
         slot_count: 64,
         arena_bytes: 8,
+        event_arena_bytes: 8,
     };
     let mut m = Memory::new(layout);
 

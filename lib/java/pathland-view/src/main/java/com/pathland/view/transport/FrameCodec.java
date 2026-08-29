@@ -72,6 +72,15 @@ public final class FrameCodec {
                         event.target(),
                         Float.floatToRawIntBits(event.value()),
                         0));
+            } else if (event.isKeyDown() || event.isKeyUp()) {
+                opcodes.add(new Opcode(
+                        Categories.EVENT, event.command(), event.flags(), event.target(), event.b(), event.c()));
+            } else if (event.isDateChanged()) {
+                opcodes.add(new Opcode(
+                        Categories.EVENT, Commands.Event.DATE_CHANGED, 0, event.target(), event.b(), event.c()));
+            } else if (event.isFocusChanged() || event.isEditingChanged() || event.isSubmit()) {
+                opcodes.add(new Opcode(
+                        Categories.EVENT, event.command(), 0, event.target(), event.b(), 0));
             } else {
                 opcodes.add(new Opcode(
                         Categories.EVENT,
@@ -101,21 +110,23 @@ public final class FrameCodec {
                 continue;
             }
             int command = op.command();
-            if (command == Commands.Event.TEXT_CHANGED) {
-                events.add(Event.textChanged(op.a(), parsed.stringAt(op.b())));
-            } else if (command == Commands.Event.VALUE_CHANGED) {
-                events.add(Event.valueChanged(op.a(), Float.intBitsToFloat(op.b())));
-            } else if (command == Commands.Event.POINTER_DOWN
-                    || command == Commands.Event.POINTER_MOVE
-                    || command == Commands.Event.POINTER_UP) {
-                events.add(new Event(
-                        command,
-                        op.a(),
-                        op.flags(),
-                        Float.intBitsToFloat(op.b()),
-                        Float.intBitsToFloat(op.c()),
-                        0,
-                        null));
+            switch (command) {
+                case Commands.Event.TEXT_CHANGED -> events.add(Event.textChanged(op.a(), parsed.stringAt(op.b())));
+                case Commands.Event.VALUE_CHANGED -> events.add(Event.valueChanged(op.a(), Float.intBitsToFloat(op.b())));
+                case Commands.Event.KEY_DOWN -> events.add(Event.keyDown(op.a(), op.b(), op.c(), op.flags()));
+                case Commands.Event.KEY_UP -> events.add(Event.keyUp(op.a(), op.b(), op.c()));
+                case Commands.Event.DATE_CHANGED -> events.add(Event.dateChanged(op.a(), op.b(), op.c()));
+                case Commands.Event.FOCUS_CHANGED -> events.add(Event.focusChanged(op.a(), op.b() != 0));
+                case Commands.Event.EDITING_CHANGED -> events.add(Event.editingChanged(op.a(), op.b() != 0));
+                case Commands.Event.SUBMIT -> events.add(Event.submit(op.a()));
+                case Commands.Event.SCROLL -> events.add(Event.scroll(
+                        op.a(), Float.intBitsToFloat(op.b()), Float.intBitsToFloat(op.c())));
+                case Commands.Event.WHEEL -> events.add(Event.wheel(
+                        op.a(), Float.intBitsToFloat(op.b()), Float.intBitsToFloat(op.c())));
+                case Commands.Event.POINTER_DOWN, Commands.Event.POINTER_MOVE, Commands.Event.POINTER_UP -> events.add(
+                        new Event(command, op.a(), op.flags(), Float.intBitsToFloat(op.b()),
+                                Float.intBitsToFloat(op.c()), 0, null, 0, 0));
+                default -> { }
             }
         }
         return events;

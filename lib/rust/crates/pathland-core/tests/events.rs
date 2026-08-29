@@ -61,6 +61,7 @@ fn event_ring_reports_full() {
     let layout = MemoryLayout {
         slot_count: 2,
         arena_bytes: 1 << 10,
+        event_arena_bytes: 1 << 10,
     };
     let mut m = Memory::new(layout);
 
@@ -85,7 +86,127 @@ fn event_ring_reports_full() {
 }
 
 #[test]
-fn events_and_tree_rings_are_independent() {
+    fn text_changed_round_trips_over_the_shared_ring() {
+        use pathland_core::component_type;
+
+        let mut m = Memory::new(MemoryLayout::default());
+
+        {
+            let mut h = m.host();
+            h.send_event(&Event::TextChanged {
+                target: 7,
+                value: "hello".into(),
+            })
+            .unwrap();
+        }
+
+        let mut g = m.guest();
+        assert_eq!(
+            g.drain_events(),
+            vec![Event::TextChanged {
+                target: 7,
+                value: "hello".into()
+            }]
+        );
+        assert!(g.drain_events().is_empty());
+
+        // The event arena cursor advanced past the entry.
+        assert_eq!(g.event_arena_cursor(), 4 + 5, "4-byte length prefix + 5 bytes of text");
+
+        // Sanity: tree frames and the event arena coexist.
+        {
+            let mut g2 = m.guest();
+            g2.begin_frame();
+            g2.create_node(1, component_type::VSTACK).unwrap();
+            g2.end_frame();
+        }
+        {
+            let mut h2 = m.host();
+            assert_eq!(h2.frames().len(), 1);
+        }
+    }
+
+    #[test]
+    fn guest_set_date_emits_the_set_date_command() {
+        use pathland_core::{component_type, style};
+
+        let mut m = Memory::new(MemoryLayout::default());
+        {
+            let mut g = m.guest();
+            g.begin_frame();
+            g.create_node(1, component_type::DATE_PICKER).unwrap();
+            g.set_date(1, -1, 3_600_000).unwrap();
+            g.end_frame();
+        }
+        let ops: Vec<_> = {
+            let mut h = m.host();
+            h.frames()[0].opcodes().collect()
+        };
+        assert_eq!(ops.len(), 2);
+        let date = &ops[1];
+        assert_eq!(date.category(), pathland_core::category::STYLE);
+        assert_eq!(date.command(), style::SET_DATE);
+        assert_eq!(date.a(), 1);
+        assert_eq!(date.b() as i32, -1);
+        assert_eq!(date.c(), 3_600_000);
+    }
+
+    #[test]
+    fn reset_recycles_the_event_arena() {
+        let mut m = Memory::new(MemoryLayout::default());
+
+        {
+            let mut h = m.host();
+            h.send_event(&Event::TextChanged {
+                target: 1,
+                value: "aaa".into(),
+            })
+            .unwrap();
+        }
+        {
+            let mut g = m.guest();
+            assert_eq!(g.drain_events().len(), 1);
+        }
+
+        // A guest META::RESET frame resets the host's event arena cursor.
+        {
+            let mut g = m.guest();
+            g.begin_frame();
+            g.reset().unwrap();
+            g.end_frame();
+        }
+        {
+            let mut h = m.host();
+            assert_eq!(h.frames().len(), 1);
+        }
+        {
+            let g = m.guest();
+            assert_eq!(g.event_arena_cursor(), 0, "event arena cursor resets on META::RESET");
+        }
+
+        // The host can write fresh text into the recycled arena.
+        {
+            let mut h = m.host();
+            h.send_event(&Event::TextChanged {
+                target: 2,
+                value: "bb".into(),
+            })
+            .unwrap();
+        }
+        {
+            let mut g = m.guest();
+            assert_eq!(
+                g.drain_events(),
+                vec![Event::TextChanged {
+                    target: 2,
+                    value: "bb".into()
+                }]
+            );
+        }
+    }
+
+#[test]
+    fn events_and_tree_rings_are_independent() {
     let mut m = Memory::new(MemoryLayout::default());
 
     // Interleave a tree frame and events; each direction must not corrupt the other.

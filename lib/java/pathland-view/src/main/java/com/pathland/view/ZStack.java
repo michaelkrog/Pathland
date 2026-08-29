@@ -22,7 +22,7 @@ public final class ZStack implements View {
 
     @Override
     public PathlandNode render(Environment env) {
-        PathlandNode node = new PathlandNode(Components.COMMENT);
+        PathlandNode node = new PathlandNode(Components.ZSTACK);
         for (View child : children) {
             node.children.add(child.render(env));
         }
