@@ -132,115 +132,24 @@
         </ui-text>
       }
       @case ('button') {
-        <ui-button
-          [label]="n.text() ?? ''"
-          [padding]="m.padding!"
-          [color]="m.color!"
-          [background]="m.background!"
-          [border]="m.border!"
-          [rounding]="m.rounding!"
-          [opacity]="m.opacity!"
-          [font]="m.font!"
-          [frame]="m.frame!"
-          [flex]="m.flex!"
-          [shadow]="m.shadow!"
-          [rotationEffect]="m.rotation!"
-          [underline]="m.underline!"
-          (click)="session.sendPointerUp(n.id)">
-        </ui-button>
+        @defer (on immediate) {
+          <pathland-button-node [nodeId]="nodeId()" />
+        }
       }
       @case ('toggle') {
-        @if (toggleStyle(n) === 'checkbox') {
-          <ui-checkbox
-            [label]="n.text() ?? ''"
-            [checked]="checked(n)"
-            [padding]="m.padding!"
-            [color]="m.color!"
-            [background]="m.background!"
-            [border]="m.border!"
-            [rounding]="m.rounding!"
-            [opacity]="m.opacity!"
-            [font]="m.font!"
-            [frame]="m.frame!"
-            [flex]="m.flex!"
-          [shadow]="m.shadow!"
-          [rotationEffect]="m.rotation!"
-          [underline]="m.underline!"
-            (checkedChange)="onToggleInput(n.id, $event)">
-          </ui-checkbox>
-        } @else if (toggleStyle(n) === 'button') {
-          <ui-button
-            [label]="(n.text() ?? '') + (checked(n) ? ' ✓' : '')"
-            [padding]="m.padding!"
-            [color]="m.color!"
-            [background]="m.background!"
-            [border]="m.border!"
-            [rounding]="m.rounding!"
-            [opacity]="m.opacity!"
-            [font]="m.font!"
-            [frame]="m.frame!"
-            [flex]="m.flex!"
-          [shadow]="m.shadow!"
-          [rotationEffect]="m.rotation!"
-          [underline]="m.underline!"
-            (click)="onToggleInput(n.id, !checked(n))">
-          </ui-button>
-        } @else {
-          <ui-toggle
-            [label]="n.text() ?? ''"
-            [value]="checked(n)"
-            [padding]="m.padding!"
-            [color]="m.color!"
-            [background]="m.background!"
-            [border]="m.border!"
-            [rounding]="m.rounding!"
-            [opacity]="m.opacity!"
-            [font]="m.font!"
-            [frame]="m.frame!"
-            [flex]="m.flex!"
-          [shadow]="m.shadow!"
-          [rotationEffect]="m.rotation!"
-          [underline]="m.underline!"
-            (valueChange)="onToggleInput(n.id, $event)">
-          </ui-toggle>
+        @defer (on immediate) {
+          <pathland-toggle-node [nodeId]="nodeId()" />
         }
       }
       @case ('textField') {
-        @if (secure(n)) {
-          <pathland-not-implemented name="SecureField" />
-        } @else {
-          <ui-text-field
-            [value]="n.text() ?? ''"
-            [placeholder]="n.strings().get(PROMPT)!"
-            [padding]="m.padding!"
-            [color]="m.color!"
-            [background]="m.background!"
-            [border]="m.border!"
-            [rounding]="m.rounding!"
-            [opacity]="m.opacity!"
-            [font]="m.font!"
-            [frame]="m.frame!"
-            [flex]="m.flex!"
-          [shadow]="m.shadow!"
-          [rotationEffect]="m.rotation!"
-          [underline]="m.underline!"
-            (valueChange)="session.sendTextChanged(n.id, $event)">
-            @if (n.strings().get(LABEL); as label) {
-              <span prefix>{{ label }}</span>
-            }
-          </ui-text-field>
+        @defer (on immediate) {
+          <pathland-text-field-node [nodeId]="nodeId()" />
         }
       }
       @case ('textEditor') {
-        <ui-text-area
-          [value]="n.text() ?? ''"
-          [placeholder]="n.strings().get(PROMPT)!"
-          [frame]="m.frame!"
-          [shadow]="m.shadow!"
-          [rotationEffect]="m.rotation!"
-          [underline]="m.underline!"
-          (valueChange)="onTextAreaInput(n.id, $event)">
-        </ui-text-area>
+        @defer (on immediate) {
+          <pathland-text-editor-node [nodeId]="nodeId()" />
+        }
       }
       @case ('spacer') {
         <ui-spacer
@@ -408,56 +317,18 @@
         <pathland-not-implemented name="COLOR_PICKER" />
       }
       @case ('picker') {
-        @if (pickerStyle(n) === 'segmented') {
-          <ui-hstack [gap]="4">
-            @for (opt of pickerOptions(n); track opt.index) {
-              <ui-button
-                [label]="selection(n) === opt.index ? opt.label + ' ✓' : opt.label"
-                (click)="onPickerIndex(n.id, opt.index)">
-              </ui-button>
-            }
-          </ui-hstack>
-        } @else if (pickerStyle(n) === 'radioGroup') {
-          <ui-radio-group
-            label=""
-            [value]="selectionString(n)"
-            (valueChange)="onSelectInput(n.id, $event)">
-            @for (opt of pickerOptions(n); track opt.index) {
-              <div [option]="'' + opt.index">{{ opt.label }}</div>
-            }
-          </ui-radio-group>
-        } @else if (pickerStyle(n) === 'wheel') {
-          <pathland-not-implemented name="PICKER::Wheel" />
-        } @else {
-          <ui-select
-            [value]="selectionString(n)"
-            (valueChange)="onSelectInput(n.id, $event)">
-            @for (opt of pickerOptions(n); track opt.index) {
-              <div [option]="'' + opt.index">{{ opt.label }}</div>
-            }
-          </ui-select>
+        @defer (on immediate) {
+          <pathland-picker-node [nodeId]="nodeId()" />
         }
       }
       @case ('menu') {
-        <ui-hstack [gap]="0">
-          <ui-button [triggerFor]="menu" [label]="menuTriggerLabel(n)"></ui-button>
-          <ui-menu #menu (onSelect)="onMenuSelect(n.id, $event)">
-            @for (opt of menuOptions(n); track opt.index) {
-              <div [option]="'' + opt.index">{{ opt.label }}</div>
-            }
-          </ui-menu>
-        </ui-hstack>
+        @defer (on immediate) {
+          <pathland-menu-node [nodeId]="nodeId()" />
+        }
       }
       @case ('datePicker') {
-        @if (datePickerMode(n) === 'date') {
-          <ui-date-picker
-            [value]="dateValue(n)"
-            (valueChange)="onDatePickerInput(n.id, $event)">
-          </ui-date-picker>
-        } @else if (datePickerMode(n) === 'time') {
-          <pathland-not-implemented name="DATE_PICKER::Time" />
-        } @else {
-          <pathland-not-implemented name="DATE_PICKER::DateAndTime" />
+        @defer (on immediate) {
+          <pathland-date-picker-node [nodeId]="nodeId()" />
         }
       }
       @case ('image') {

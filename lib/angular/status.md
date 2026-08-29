@@ -31,14 +31,21 @@ contract: `spec/`.
   `TOGGLE` (`TOGGLE_STYLE` → switch/checkbox/button), `SLIDER`, `STEPPER`,
   `PICKER`, `MENU`, `COLOR_PICKER`, `DATE_PICKER`, `PROGRESS_VIEW`, `GAUGE`;
   `hidden` reads the `VISIBLE` `U8` bit.
-- **Renderer** (`ngui/node.component.ts|html`): one case per kind, using **only
-  `@apaq/ngui` components** — stacks/grids/`ui-text`/`ui-button`/`ui-checkbox`/
-  `ui-toggle`/`ui-text-field`/`ui-text-area`/`ui-select`/`ui-radio-group`/
-  `ui-menu`/`ui-date-picker`/`ui-rectangle`/`ui-circle`. Protocol components the
-  design system lacks render a temporary **"not implemented" placeholder**
-  (`NotImplementedComponent`, ngui-styled): `SLIDER`, `STEPPER`,
-  `PROGRESS_VIEW`, `GAUGE`, `COLOR_PICKER`, `DIVIDER`, `SecureField`,
-  `PICKER::Wheel`, `DATE_PICKER::Time/DateAndTime`, `SHAPE::Path`.
+- **Renderer** (`ngui/node.component.ts|html` + `ngui/nodes/`): one case per
+  kind, using **only `@apaq/ngui` components** — stacks/grids/`ui-text`/
+  `ui-rectangle`/`ui-circle`/`ui-image`/`ui-spacer`/`ui-scroll-view` stay eager
+  (the light `core` entry, always needed). The **control kinds are lazy-loaded
+  per kind via `@defer (on immediate)`** (`nodes/`): `button-node`,
+  `toggle-node`, `text-field-node`, `text-editor-node`, `picker-node`,
+  `menu-node`, `date-picker-node` — each imports only its own ngui entry
+  (`components`, `select`, `text-field`, `text-area`, `date-picker`, `overlay`),
+  so a tree that uses none of them never fetches those chunks (verified: main
+  bundle holds only core; select/date-picker/menu/text-field/text-area land in
+  separate lazy chunks). Protocol components the design system lacks render a
+  temporary **"not implemented" placeholder** (`NotImplementedComponent`,
+  ngui-styled): `SLIDER`, `STEPPER`, `PROGRESS_VIEW`, `GAUGE`, `COLOR_PICKER`,
+  `DIVIDER`, `SecureField`, `PICKER::Wheel`, `DATE_PICKER::Time/DateAndTime`,
+  `SHAPE::Path`.
 - Input is routed back as `VALUE_CHANGED`/`TEXT_CHANGED`/`DATE_CHANGED`
   (toggle/checkbox/button, select/radio-group/segmented, menu, text-area,
   date-picker).
