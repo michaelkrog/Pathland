@@ -1,1 +1,1 @@
-angular.json needs to add the assets/fonts from node_modules/@apaq/ngui/dist/assets.
+The ngui.css was already includes in styles.css. I had not noticed.
