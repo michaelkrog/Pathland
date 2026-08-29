@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { CATEGORY, TREE, STYLE, COMPONENT, PROPERTY, VALUE_TYPE, EVENT } from './protocol';
+import { CATEGORY, META, TREE, STYLE, COMPONENT, PROPERTY, VALUE_TYPE, EVENT } from './protocol';
 import { Opcode } from './frame';
 import { decodeFrame, encodeBatch, StringSectionWriter } from './decoder';
 import { eventRouter, f32Bits, f32FromBits } from './event-encoder';
@@ -145,5 +145,42 @@ describe('RetainedTree', () => {
     tree.applyFrame(decodeFrame(bytes));
 
     expect(tree.node(1)?.date()).toEqual({ days: 20487, millis: 43200000 });
+  });
+
+  it('stores design-token overrides and resolves override/default/parent', () => {
+    const strings = new StringSectionWriter();
+    const primary = strings.push('color.primary');
+    const font = strings.push('font.body.size');
+    const bytes = encodeBatch([
+      new Opcode(CATEGORY.STYLE, STYLE.SET_DESIGN_TOKEN, 0, primary, VALUE_TYPE.COLOR, 0xff00ff00),
+      new Opcode(CATEGORY.STYLE, STYLE.SET_DESIGN_TOKEN, 0, font, VALUE_TYPE.F32, f32Bits(18)),
+    ], strings.toBytes());
+
+    const tree = new RetainedTree();
+    tree.applyFrame(decodeFrame(bytes));
+
+    expect(tree.token('color.primary')).toBe(0xff00ff00); // override wins
+    expect(tree.token('color.background')).toBe(0xffffffff); // renderer default
+    expect(tree.token('font.body.size')).toBe(18); // F32 override decoded
+    expect(tree.token('font.body.weight')).toBe(400); // parent-path default (font.body)
+  });
+
+  it('handles META::RESET and META::ENVIRONMENT', () => {
+    const tree = new RetainedTree();
+    tree.applyFrame(decodeFrame(encodeBatch([
+      new Opcode(CATEGORY.META, META.ENVIRONMENT, 0, f32Bits(1280), f32Bits(720), 0),
+    ], new Uint8Array())));
+    expect(tree.viewport()).toEqual({ width: 1280, height: 720 });
+
+    tree.applyFrame(decodeFrame(encodeBatch([
+      new Opcode(CATEGORY.TREE, TREE.CREATE_NODE, 0, 1, COMPONENT.TEXT, 0),
+    ], new Uint8Array())));
+    expect(tree.has(1)).toBe(true);
+
+    tree.applyFrame(decodeFrame(encodeBatch([
+      new Opcode(CATEGORY.META, META.RESET, 0, 0, 0, 0),
+    ], new Uint8Array())));
+    expect(tree.has(1)).toBe(false);
+    expect(tree.viewport()).toBeNull();
   });
 });

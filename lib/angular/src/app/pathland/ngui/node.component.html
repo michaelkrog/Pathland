@@ -1,6 +1,6 @@
 @let node = nodeOf(nodeId());
 @if (node; as n) {
-  @if (!hidden(n)) {
+  @if (!hidden(n) && !ignored(n)) {
     @let m = mods(n);
     @switch (kindOf(n)) {
       @case ('hstack') {
@@ -365,7 +365,7 @@
       }
       @case ('image') {
         <ui-image
-          [src]="n.text() ?? ''"
+          [src]="imageSource(n)"
           [padding]="m.padding!"
           [color]="m.color!"
           [background]="m.background!"

@@ -5,11 +5,11 @@ import {
 } from '@apaq/ngui-elements/core';
 import { Button, Checkbox, Toggle } from '@apaq/ngui-elements/components';
 import { TextField, TextFieldPrefix } from '@apaq/ngui-elements/text-field';
-import { PROPERTY } from '../core/protocol';
+import { PROPERTY, COMPONENT } from '../core/protocol';
 import { PathlandNode } from '../core/retained-tree';
 import { PathlandSession } from './session.service';
 import {
-  buildMods, checked, colorFill, colorHex, dateValue, gaugePercent, hidden, kindOf,
+  buildMods, checked, colorFill, colorHex, dateValue, gaugePercent, hidden, imageSource, kindOf,
   progress, selection, shapeRadius, slider, stackAlignment, stackGap, stepper, textAlignment,
   toggleStyle, zstackAlignment,
 } from './mapping';
@@ -55,6 +55,10 @@ export class PathlandNodeComponent {
   shapeRadius = shapeRadius;
   colorHex = colorHex;
   dateValue = dateValue;
+  imageSource = imageSource;
+
+  /** Whether the node must be ignored: `COMMENT` (opaque/debug, no native element). */
+  ignored = (n: PathlandNode): boolean => n.component === COMPONENT.COMMENT;
 
   /** A slider's value change, routed back as a raw `VALUE_CHANGED` event. */
   onSliderInput(nodeId: number, event: Event): void {

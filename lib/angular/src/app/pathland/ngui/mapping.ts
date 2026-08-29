@@ -259,6 +259,11 @@ export function dateValue(node: PathlandNode): string {
   return new Date(Date.UTC(1970, 0, date.days)).toISOString().slice(0, 10);
 }
 
+/** An image's source (the `IMAGE_SOURCE` STRING property). */
+export function imageSource(node: PathlandNode): string {
+  return node.strings().get(PROPERTY.IMAGE_SOURCE) ?? node.text() ?? '';
+}
+
 function buildPadding(node: PathlandNode): PaddingArea[] | undefined {
   const uniform = node.f32(PROPERTY.PADDING);
   const top = node.f32(PROPERTY.PADDING_TOP);

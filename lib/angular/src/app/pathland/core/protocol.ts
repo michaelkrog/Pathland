@@ -25,6 +25,11 @@ export const STYLE = {
   SET_DATE: 0x04,
 } as const;
 
+export const META = {
+  RESET: 0x01,
+  ENVIRONMENT: 0x02,
+} as const;
+
 export const EVENT = {
   POINTER_DOWN: 0x01,
   POINTER_MOVE: 0x02,
