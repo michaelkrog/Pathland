@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M162TEED20E2YMX3F1T31HWX",
+  "strategy": "manual-commit",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "lib/rust/crates/pathland-render-gtk/src/host.rs",
+    "lib/rust/crates/pathland-render-gtk/src/lib.rs",
+    "lib/rust/crates/pathland-render-gtk/status.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 23552,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 41747968,
+    "output_tokens": 39452,
+    "api_call_count": 61
+  }
+}
