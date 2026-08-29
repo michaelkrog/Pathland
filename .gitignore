@@ -13,3 +13,6 @@ lib/java/**/target/
 .idea/
 *.iml
 **/.vscode
+
+# Ad-hoc node installs (Entire CLI hooks)
+/node_modules/
