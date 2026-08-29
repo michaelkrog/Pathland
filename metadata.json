@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M1671PBD8GVFK2QN87WDT5HZ",
+  "strategy": "manual-commit",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "lib/java/pathland-demo-views/pom.xml",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/AppearanceSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/ColorSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/DateSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/KitchenSinkView.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/LayoutSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/PickerSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/SectionCard.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/TextFieldSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/TextStylesSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/ToggleSection.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/ValueControlsSection.java",
+    "lib/java/pathland-demo-views/src/test/java/com/pathland/demo/KitchenSinkViewTest.java",
+    "lib/java/pathland-demo-views/status.md",
+    "lib/java/pathland-quarkus-demo/src/main/java/com/pathland/quarkus/SessionApp.java",
+    "lib/java/pathland-render-html/src/main/java/com/pathland/render/html/HtmlRenderer.java",
+    "lib/java/pathland-render-html/status.md",
+    "lib/java/pathland-spring-boot-demo/src/main/java/com/pathland/spring/SessionApp.java"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
