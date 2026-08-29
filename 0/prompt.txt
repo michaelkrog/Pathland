@@ -1,0 +1,15 @@
+Explore the Java DSL in /Users/michael/Development/michaelkrog/Pathland/lib/java/pathland-view/src/main/java/com/pathland/view/ (and subpackages). I need a precise inventory to compare against the protocol spec.
+
+Report the following, with exact class/method names and file paths:
+
+1. **Components.java** (or wherever component type IDs are defined): list every component constant and its numeric ID value verbatim.
+2. **Properties.java** (property IDs): list every property constant and its numeric ID. Note especially which of these exist: SPACING, ALIGNMENT, CONTENT_MARGINS, SHAPE_KIND, TEXT, LINE_LIMIT, TEXT_ALIGNMENT, TRUNCATION_MODE, OFFSET_X/Y, POSITION_X/Y, FIXED_SIZE_*, LAYOUT_PRIORITY, Z_INDEX, ASPECT_RATIO, CONTENT_MODE, MINIMUM_SCALE_FACTOR, WIDTH, HEIGHT, PADDING, PADDING_TOP/RIGHT/BOTTOM/LEFT, BORDER_EDGES, MIN_WIDTH, IDEAL_WIDTH, MAX_WIDTH, MIN_HEIGHT, IDEAL_HEIGHT, MAX_HEIGHT, BACKGROUND_COLOR, BORDER_WIDTH, BORDER_COLOR, BORDER_RADIUS, FONT_SIZE, FONT_WEIGHT, FONT_FAMILY, COLOR, OPACITY, VISIBLE, CLIPS_TO_BOUNDS, FONT_STYLE, FONT_DESIGN, FONT_WIDTH, KERNING, TRACKING, BASELINE_OFFSET, LINE_SPACING, TEXT_CASE, UNDERLINE, STRIKETHROUGH, TINT, SHADOW_COLOR/RADIUS/X/Y, BLUR_RADIUS, SATURATION, CONTRAST, BRIGHTNESS, GRAYSCALE, HUE_ROTATION, COLOR_MULTIPLY, COLOR_INVERT, ROTATION_DEGREES, SCALE, ALLOWS_HIT_TESTING, IMAGE_SOURCE, CONTENT_MODE, ROLE, STATE, ENABLED, SELECTED, EVENT_LISTENERS, VALUE, MIN_VALUE, MAX_VALUE, STEP_VALUE, LABEL, PROMPT, CONTROL_SIZE, IS_SECURE, PROGRESS, IS_INDETERMINATE, SELECTION, COLOR_VALUE, DATE_PICKER_MODE, PICKER_STYLE, ACTION_ID, BINDING_ID, TOGGLE_STYLE.
+3. **View.java**: list every default method on the View interface (the modifier chain surface) — names and signatures.
+4. **View subclasses / factory methods**: list every concrete view type and the static factory (View.text, View.vstack, etc.). Note especially: VStack, HStack, ZStack, Text, Image, Color, Rectangle, Button, TextField, Spacer, Toggle, Slider, TextEditor, Picker, DatePicker, Menu, ColorPicker, Stepper, ProgressView, Gauge, Divider, Shape, ScrollView, Grid, LazyVStack/HStack/Grid.
+5. **Emitter.java** (com.pathland.view.emit): how it renders each view — does it map to protocol components? Which component IDs does it emit for ZStack, Color, Spacer, Rectangle, Text, Button, Image?
+6. **Color.java**: the full class — what component/properties does its render() emit?
+7. **Events / listener bits**: search for EVENT_LISTENERS usage, pointer_events, TapGestureView, TEXT_CHANGED encode/decode, and any KEY_/FOCUS/EDITING/SUBMIT/SCROLL/WHEEL/VALUE_CHANGED event support. Where are events encoded/decoded (transport)?
+8. **ValueTypes.java**: list every property -> value type mapping.
+9. Note which files exist under com/pathland/view/ (top-level + subpackages emit, signal, transport, ffm, state, view, event if any).
+
+Be thorough — list names and IDs verbatim, don't summarize away numbers. Report as a structured list grouped by the 9 points.
