@@ -66,8 +66,8 @@ describe('mapping', () => {
     ]);
     const m = buildMods(tree.node(1)!);
     expect(m.padding).toEqual({ paddingAreas: [{ edge: 'All', gap: 16 }] });
-    expect(m.color).toBe('rgba(136,136,136,1.000)');
-    expect(m.background).toEqual({ color: 'rgba(33,150,243,1.000)' });
+    expect(m.color).toBe('rgba(136,136,136,1)');
+    expect(m.background).toEqual({ color: 'rgba(33,150,243,1)' });
     expect(m.font).toEqual({ size: '20px' });
     expect(m.frame).toEqual({ width: '100px' });
     expect(m.flex).toEqual({ grow: 1, basis: '100%' });
@@ -83,7 +83,7 @@ describe('mapping', () => {
     const m = buildMods(tree.node(1)!);
     expect(m.border).toEqual({
       borderAreas: [{ side: 'All', width: 2 }],
-      color: 'rgba(255,0,0,1.000)',
+      color: 'rgba(255,0,0,1)',
     });
     expect(m.rounding).toEqual({ radius: 6 });
   });
@@ -155,7 +155,7 @@ describe('mapping', () => {
   });
 
   it('formats ARGB colors as rgba', () => {
-    expect(argbToRgba(0xffff0000)).toBe('rgba(255,0,0,1.000)');
+    expect(argbToRgba(0xffff0000)).toBe('rgba(255,0,0,1)');
     expect(argbToRgba(0x80808080)).toBe('rgba(128,128,128,0.502)');
   });
 });

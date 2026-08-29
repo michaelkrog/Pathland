@@ -539,12 +539,18 @@ function cssFontWeight(wire: number): string {
   }
 }
 
+/** Format an alpha channel 0..1 so ngui's `COLOR_RGBA` macro parses it (it
+ * accepts `1`, `.5`/`0.5`, `0%` — not `1.000`). */
+function cssAlpha(value: number): string {
+  const s = value.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+  return s === '0' ? '0.0' : s;
+}
+
 /** Format `0xAARRGGBB` as a CSS `rgba(...)` string (alpha in `0..1`). */
 export function argbToRgba(argb: number): string {
   const a = (argb >>> 24) & 0xff;
   const r = (argb >>> 16) & 0xff;
   const g = (argb >>> 8) & 0xff;
   const b = argb & 0xff;
-  const alpha = (a / 255).toFixed(3);
-  return `rgba(${r},${g},${b},${alpha})`;
+  return `rgba(${r},${g},${b},${cssAlpha(a / 255)})`;
 }
