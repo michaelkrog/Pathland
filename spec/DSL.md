@@ -71,10 +71,19 @@ DSL must be *shaped* by them:
   subtree once; reactivity comes from **signals**, never from re-evaluating the
   body. This is what lets the emitter produce fine-grained
   `SET_TEXT`/`SET_PROPERTY`/`SET_DATE` deltas instead of rebuilding the tree.
-- **Modifiers are decoupled from views.** Any modifier applies to any view
-  (`.padding` works on a `Text` and a `VStack` alike). A modifier a given
-  renderer cannot apply is **allowed and ignored** — the property is still
-  emitted.
+- **Modifiers are decoupled from views — and never hard-bound to a view
+  type.** Any modifier applies to any view (`.padding` works on a `Text` and a
+  `VStack` alike), and any developer can **author a custom modifier in
+  application code** (a `ViewModifier`) that applies to any existing view —
+  library primitive, container, control, custom view, or an already-modified
+  view (see [§5.6](#56-custom-modifiers-developer-authored)). A modifier a
+  given renderer cannot apply is **allowed and ignored** — the property is
+  still emitted.
+- **There is exactly one modifier mechanism.** Built-in core modifiers are
+  **not** a separate syntax: they are `ViewModifier` values the library ships,
+  and the sugar methods (`.padding(_:)`, `.foregroundStyle(_:)`) are
+  conveniences that construct them via `.modifier(...)`. Core and
+  application-authored modifiers share the same surface.
 - **Constructor properties vs modifiers.** Structural/layout parameters
   (`alignment`, `spacing`) are **constructor arguments**, never chainable.
   Everything decorative (padding, color, font, frame, border, …) is a
@@ -106,6 +115,11 @@ agnostic. Conventions used:
   a two-way binding target. A control takes a `WritableSignal<T>` for its
   value (see [§3](#3-state-model-signals)).
 - `()` — the action a `Button` fires.
+- `.modifier(name)` — apply a **modifier value** to a view; chainable on any
+  view. Every modifier — built-in or application-authored — is such a value
+  ([§5.6](#56-custom-modifiers-developer-authored)); the sugar names
+  (`.padding`, `.foregroundStyle`, …) are shorthand that construct the
+  built-in values.
 - Modifiers chain as `.name(args)` on any view and are applied
   **innermost-first** (the last chained modifier's property wins).
 
@@ -286,6 +300,13 @@ property** (`.frame` → `WIDTH` + `HEIGHT` + `ALIGNMENT`; `.border` →
 `BORDER_COLOR` + `BORDER_WIDTH`; `.shadow` → `SHADOW_COLOR` + `SHADOW_RADIUS` +
 `SHADOW_X` + `SHADOW_Y`). `Java DSL (current)` is the reference realization.
 
+**One mechanism for every modifier.** Each entry in the tables below is a
+`ViewModifier` value. `padding(16)` is shorthand for
+`.modifier(Padding.of(16))`; `foregroundStyle(color)` for
+`.modifier(ForegroundStyle.of(color))`. The tables list the sugar names; core
+and application-authored modifiers use the same `.modifier(...)` surface
+([§5.6](#56-custom-modifiers-developer-authored)).
+
 ### 5.1 Layout & frame
 
 | Modifier | Canonical (SwiftUI-shaped) | Java DSL (current) | Property(ies) |
@@ -391,6 +412,48 @@ today rather than a typed enum. Raw input listeners are exposed only through
 `.pointerEvents(mask)` — there is no per-event sugar (e.g. a `.focusable` or
 `.onSubmit` that sets the matching bit).
 
+### 5.6 Custom modifiers (developer-authored)
+
+In SwiftUI any developer can define a modifier that applies to **any** existing
+view — and Pathland is the same. This is a **first-class, MUST** property of
+every conformant DSL: modifiers are never hard-bound to a view type.
+
+- **Applicable to any view.** A modifier works on a library primitive
+  (`Text`), a container (`VStack`), a control (`Button`), a custom view, or an
+  already-modified view. The same modifier value applies everywhere.
+- **One mechanism.** Core and application-authored modifiers are the **same
+  surface**: a `ViewModifier` value applied via `.modifier(...)`. The library's
+  sugar names (`.padding`, `.foregroundStyle`, …) are conveniences that
+  construct the built-in `ViewModifier` values; there is exactly one modifier
+  mechanism ([§5](#5-modifier-surface)).
+
+| | Canonical | Java DSL (`com.pathland.view`) | Rust DSL (`pathland-view`) |
+|-|-----------|-------------------------------|----------------------------|
+| authoring | `struct Card: ViewModifier { func body(content: Content) -> some View }` | `@FunctionalInterface ViewModifier { View body(View content) }` | `trait ViewModifier { fn apply(&mut Node) }` |
+| applying | `content.modifier(Card())` | `content.modifier(new CardStyle())` | `content.modifier(Card)` |
+| sugar | `.padding(16)` ≡ `.modifier(Padding(16))` | `.padding(16)` → separate property-map path today (see §7) | `.padding(16.0)` ≡ `.modifier(Padding(16.0))` |
+
+**Composition**: a custom modifier composes core modifiers **or** wraps
+`content` with additional structure (a background, an overlay, a frame) and
+returns the decorated view — exactly SwiftUI's `body(content: Content)`.
+
+**Emission contract**: a custom modifier composed from core modifiers emits the
+same one-`SET_PROPERTY`-per-property deltas as writing the modifiers inline;
+emission stays diff-based, and a renderer that cannot apply a modifier
+**allows and ignores** it.
+
+**Realization deltas**:
+- **Rust** — already conformant: every core modifier (`Padding`, `FontSize`,
+  `ForegroundStyle`, `Frame`, …) implements `ViewModifier`, and the sugar
+  methods delegate to `.modifier(...)`. Caveat: `apply(&mut Node)` mutates the
+  built node's properties only — it cannot wrap `content` with new structure
+  (the Java/SwiftUI `body(content)` form can). A conformant DSL's
+  custom-modifier mechanism should support wrapping.
+- **Java** — the custom `ViewModifier.body(View)` is SwiftUI-shaped, but the
+  **core** modifiers currently go through a separate property-map path
+  (`Modified.props`), not `ViewModifier`. Converging them to one mechanism is
+  proposed in [§7](#7-java-convergence-proposal).
+
 ---
 
 ## 6. Authoring conventions
@@ -465,6 +528,12 @@ Guidance for the proposal:
   returned a `VStack`) is replaced by `Group.of(View...)`, a transparent
   container view (SwiftUI `Group`) that composites its children;
   `View.group(...)` is removed with the rest of the factories.
+- **Unify core and custom modifiers.** Re-implement the core modifiers as
+  `ViewModifier` values (`Padding.of(16)`, `ForegroundStyle.of(color)`) applied
+  via `.modifier(...)`; keep the `.padding(16)` sugar but have it delegate to
+  `.modifier(Padding.of(16))`. Core and custom modifiers then share one
+  mechanism and one syntax (Rust is already conformant). Parameterized
+  modifier values use `.of(...)` too (e.g. `CardStyle.of(padding, color)`).
 - Add a static `.of()` factory for each `ShapeKind` (`Circle.of()`,
   `Capsule.of()`, `RoundedRectangle.of(cornerRadius:)`) to match the
   canonical view set.
@@ -492,6 +561,10 @@ are the companion specs.
   `Picker`, `Menu`, `DatePicker`, `ColorPicker`.
 - [ ] **Modifiers** — every entry of [§5](#5-modifier-surface), chainable on
   any view, innermost-first, emitting one property per underlying argument.
+- [ ] **Custom modifiers / unified mechanism** — a `ViewModifier` authoring
+  surface (`body(content) -> View`) + `.modifier(...)` chainable on **any**
+  view; **core modifiers are implemented through the same mechanism**, never a
+  separate syntax ([§5.6](#56-custom-modifiers-developer-authored)).
 - [ ] **Signals** — `signal`, `computed`, `effect`, `untracked`,
   `get`/`set`/`update`/`asReadonly`, with equality suppression, synchronous
   flush, glitch-free propagation, error caching, write discipline, circular
@@ -581,6 +654,11 @@ Representative rows; the full surface is in [§4](#4-view-surface) and
 | `.fontWeight(.bold)` | `.fontWeight(FontWeight)` | `.fontWeight(FontWeight.BOLD)` | `.font_weight(700.0)` |
 | `.shadow(color:radius:x:y:)` | `.shadow(color:radius:x:y:)` | `.shadow(Color, float, float, float)` | (not yet) |
 | `.onTapGesture { go() }` | `.onTapGesture(action)` | `.onTapGesture(() -> go())` | `.on_tap_gesture(|| go())` |
+| `content.modifier(Card())` | `content.modifier(Card())` | `content.modifier(CardStyle.of(...))` | `.modifier(Card)` |
+
+Core modifier sugar (`.padding`, `.foregroundStyle`, …) is shorthand for
+`.modifier(CoreModifier.of(...))` in every realization — one mechanism for
+built-in and application-authored modifiers alike ([§5.6](#56-custom-modifiers-developer-authored)).
 
 **Status deltas captured by this table**: the Java DSL is surface-complete but
 uses static-factory syntax and a few non-SwiftUI parameter orders (see
