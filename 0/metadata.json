@@ -1,0 +1,51 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M18RC9TV0NYRV4X4AD653M0Y",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-08-30T07:15:49.814789Z",
+  "branch": "docs/primitive-specs",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/CounterSection.java",
+    "lib/java/pathland-quarkus-demo/src/main/java/com/pathland/quarkus/PathlandSocket.java",
+    "lib/java/pathland-quarkus-demo/src/main/java/com/pathland/quarkus/SessionApp.java",
+    "lib/java/pathland-spring-boot-demo/src/main/java/com/pathland/spring/PathlandSocket.java",
+    "lib/java/pathland-spring-boot-demo/src/main/java/com/pathland/spring/SessionApp.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/DatePicker.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/DateInput.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/RenderResult.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/EmitterTest.java",
+    "lib/java/pathland-view/status.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-pro",
+  "turn_id": "e58cfe8f6b36",
+  "checkpoint_transcript_start": 1228,
+  "transcript_lines_at_start": 1228,
+  "compact_transcript_start": 1228,
+  "token_usage": {
+    "input_tokens": 1135,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1717504,
+    "output_tokens": 1504,
+    "api_call_count": 4
+  },
+  "session_metrics": {
+    "turn_count": 100
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-08-30T07:15:49.162004Z",
+    "agent_lines": 0,
+    "agent_removed": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 0,
+    "total_lines_changed": 0,
+    "agent_percentage": 0,
+    "metric_version": 2
+  }
+}
