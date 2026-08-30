@@ -36,8 +36,9 @@ public final class ColorSection implements View {
                         ColorPicker.of(accent.signal()),
                         HStack.of(
                                 accent.get().modifier(FrameMod.of(120, 60, Alignment.CENTER)),
-                                Rectangle.of().modifier(FrameMod.of(120, 60, Alignment.CENTER))
-                                        .modifier(Background.of(accent.signal()))
+                                Rectangle.of().modifiers(
+                                        FrameMod.of(120, 60, Alignment.CENTER),
+                                        Background.of(accent.signal()))
                         ).modifier(Padding.of(4)),
                         Text.of(accentLabel).modifier(Padding.of(4))
                 ).modifier(Padding.of(4))

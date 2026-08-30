@@ -36,8 +36,9 @@ public final class KitchenSinkView implements View {
                 new TextStylesSection(),
                 new AppearanceSection(),
                 Text.of("Pathland · per-session · 16-byte deltas")
-                        .modifier(ForegroundStyle.of(Color.rgb(0x88, 0x88, 0x88)))
-                        .modifier(Padding.of(16))
+                        .modifiers(
+                                ForegroundStyle.of(Color.rgb(0x88, 0x88, 0x88)),
+                                Padding.of(16))
         ).modifier(Padding.of(24)));
     }
 }

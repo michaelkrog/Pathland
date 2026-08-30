@@ -42,10 +42,11 @@ public final class SectionCard implements View {
                 Text.of(title).modifiers(FontSize.of(14), FontWeightMod.of(FontWeight.SEMIBOLD), ForegroundStyle.of(TITLE_COLOR)),
                 Divider.of().modifier(Padding.of(0, 0, 8, 0)),
                 content
-        ).modifier(Padding.of(16))
-                .modifier(Background.of(Color.WHITE))
-                .modifier(Border.of(BORDER, 1, 10))
-                .modifier(CornerRadius.of(10))
-                .modifier(FrameMod.of(Commands.Size.FILL, Float.NaN, Alignment.FILL));
+        ).modifiers(
+                Padding.of(16),
+                Background.of(Color.WHITE),
+                Border.of(BORDER, 1, 10),
+                CornerRadius.of(10),
+                FrameMod.of(Commands.Size.FILL, Float.NaN, Alignment.FILL));
     }
 }

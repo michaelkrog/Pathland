@@ -46,10 +46,13 @@ public final class TextStylesSection implements View {
                         Text.of("K e r n e d").modifier(Kerning.of(2)),
                         Text.of("Tracking").modifier(Tracking.of(3)),
                         Text.of("A very long line of text that must be truncated to a single line.")
-                                .modifiers(LineLimit.of(1), TruncationMod.of(Truncation.TAIL))
-                                .modifier(FrameMod.of(280, Float.NaN, Alignment.CENTER)),
-                        Text.of("Centered").modifier(TextAlignmentMod.of(TextAlignment.CENTER))
-                                .modifier(FrameMod.of(180, Float.NaN, Alignment.CENTER))
+                                .modifiers(
+                                        LineLimit.of(1),
+                                        TruncationMod.of(Truncation.TAIL),
+                                        FrameMod.of(280, Float.NaN, Alignment.CENTER)),
+                        Text.of("Centered").modifiers(
+                                TextAlignmentMod.of(TextAlignment.CENTER),
+                                FrameMod.of(180, Float.NaN, Alignment.CENTER))
                 ).modifier(Padding.of(4))
         );
     }

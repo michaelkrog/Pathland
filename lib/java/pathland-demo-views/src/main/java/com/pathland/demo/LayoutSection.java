@@ -43,11 +43,16 @@ public final class LayoutSection implements View {
                                 Text.of("Right"))
                                 .modifier(FrameMod.of(260, Float.NaN, Alignment.CENTER)),
                         ZStack.of(
-                                Rectangle.of().modifier(FrameMod.of(180, 80, Alignment.CENTER))
-                                        .modifiers(Background.of(Color.rgb(0xE3, 0xF2, 0xFD)), CornerRadius.of(8)),
-                                Text.of("badge").modifiers(FontSize.of(12), Padding.of(4))
-                                        .modifiers(Background.of(Color.rgb(0xFF, 0xC1, 0x07)), CornerRadius.of(4))
-                                        .modifier(Offset.of(0, 28))
+                                Rectangle.of().modifiers(
+                                        FrameMod.of(180, 80, Alignment.CENTER),
+                                        Background.of(Color.rgb(0xE3, 0xF2, 0xFD)),
+                                        CornerRadius.of(8)),
+                                Text.of("badge").modifiers(
+                                        FontSize.of(12),
+                                        Padding.of(4),
+                                        Background.of(Color.rgb(0xFF, 0xC1, 0x07)),
+                                        CornerRadius.of(4),
+                                        Offset.of(0, 28))
                         ).modifier(Padding.of(4)),
                         Divider.of()
                 ).modifier(Padding.of(4))
@@ -55,7 +60,9 @@ public final class LayoutSection implements View {
     }
 
     private static View cell(String label) {
-        return Text.of(label).modifier(Padding.of(12))
-                .modifiers(Background.of(Color.rgb(0xF3, 0xF4, 0xF6)), CornerRadius.of(6));
+        return Text.of(label).modifiers(
+                Padding.of(12),
+                Background.of(Color.rgb(0xF3, 0xF4, 0xF6)),
+                CornerRadius.of(6));
     }
 }
