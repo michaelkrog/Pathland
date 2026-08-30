@@ -3,6 +3,7 @@ package com.pathland.spring;
 import com.pathland.demo.KitchenSinkView;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
+import com.pathland.view.emit.DateInput;
 import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
@@ -35,6 +36,7 @@ final class SessionApp {
     private final Map<Integer, Runnable> tapActions;
     private final Map<Integer, Consumer<String>> textInputs;
     private final Map<Integer, Consumer<Float>> valueInputs;
+    private final Map<Integer, DateInput> dateInputs;
     private final int rootId;
 
     /** Frames emitted before the connection attaches, replayed to it on connect. */
@@ -69,6 +71,7 @@ final class SessionApp {
         this.tapActions = result.tapActions();
         this.textInputs = result.textInputs();
         this.valueInputs = result.valueInputs();
+        this.dateInputs = result.dateInputs();
         this.rootId = result.rootId();
     }
 
@@ -111,6 +114,11 @@ final class SessionApp {
                     Consumer<Float> sink = valueInputs.get(event.target());
                     if (sink != null) {
                         sink.accept(event.value());
+                    }
+                } else if (event.isDateChanged()) {
+                    DateInput sink = dateInputs.get(event.target());
+                    if (sink != null) {
+                        sink.accept(event.days(), event.millisOfDay());
                     }
                 }
             }

@@ -15,8 +15,9 @@ import java.util.UUID;
  * The live-updates WebSocket endpoint. Sessions are <strong>1:1</strong>: the session id
  * is carried by the {@code session} cookie set on the SSR page (the browser sends it
  * automatically on the handshake), and each connection owns its own {@link SessionApp}.
- * The server pushes deltas only to that one connection; the client sends binary
- * {@code EVENT} batches back into the same session's reactive state.
+ * The id is resolved <strong>once per connection</strong> (this endpoint bean is
+ * connection-scoped) and memoized, so every message — events and close — routes to the
+ * same session even when the cookie is absent (e.g. an Angular client with no SSR visit).
  */
 @WebSocket(path = "/ws")
 public class PathlandSocket {
@@ -26,6 +27,8 @@ public class PathlandSocket {
 
     @Inject
     PathlandApp app;
+
+    private volatile String sessionId;
 
     @OnOpen
     void open() {
@@ -48,16 +51,30 @@ public class PathlandSocket {
         app.dispatch(sessionId(), message);
     }
 
-    /** The session id from the {@code session} cookie sent on the handshake. */
+    /** The per-connection session id: the {@code session} cookie, or a fresh id memoized once. */
     private String sessionId() {
-        String cookie = connection.handshakeRequest().header("Cookie");
-        if (cookie == null) {
-            return UUID.randomUUID().toString();
+        String current = sessionId;
+        if (current == null) {
+            synchronized (this) {
+                current = sessionId;
+                if (current == null) {
+                    current = resolveSessionId();
+                    sessionId = current;
+                }
+            }
         }
-        for (String part : cookie.split(";")) {
-            String[] kv = part.trim().split("=", 2);
-            if (kv.length == 2 && "session".equals(kv[0]) && !kv[1].isBlank()) {
-                return kv[1];
+        return current;
+    }
+
+    /** The session id from the {@code session} cookie (case-insensitive), else a fresh id. */
+    private String resolveSessionId() {
+        String cookie = connection.handshakeRequest().header("Cookie");
+        if (cookie != null) {
+            for (String part : cookie.split(";")) {
+                String[] kv = part.trim().split("=", 2);
+                if (kv.length == 2 && "session".equalsIgnoreCase(kv[0].trim()) && !kv[1].isBlank()) {
+                    return kv[1].trim();
+                }
             }
         }
         return UUID.randomUUID().toString();

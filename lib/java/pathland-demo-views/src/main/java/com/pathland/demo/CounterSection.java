@@ -1,5 +1,6 @@
 package com.pathland.demo;
 
+import com.pathland.view.Alignment;
 import com.pathland.view.Color;
 import com.pathland.view.FontWeight;
 import com.pathland.view.View;
@@ -23,7 +24,7 @@ public final class CounterSection implements View {
         return new SectionCard("Counter · State + Button + Stepper",
                 View.vstack(
                         View.text(countLabel).fontSize(28).fontWeight(FontWeight.BOLD),
-                        View.hstack(
+                        View.hstack(Alignment.LEADING, 4,
                                 View.button("−", () -> count.update(v -> v - step.get().intValue())),
                                 View.button("+", () -> count.update(v -> v + step.get().intValue())),
                                 View.button("Reset", () -> count.set(0))

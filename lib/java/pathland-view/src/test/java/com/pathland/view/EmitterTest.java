@@ -264,6 +264,19 @@ class EmitterTest {
     }
 
     @Test
+    void datePickerRoutesDateIntoItsSignal() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        WritableSignal<Integer> days = Signals.signal(20487);
+        RenderResult result = emitter.mount(View.datePicker(DatePickerMode.DATE, days), Environment.DEFAULT);
+
+        assertEquals(1, result.dateInputs().size(), "the date picker exposes one date input");
+        assertEquals(0, result.valueInputs().size(), "a date picker has no value input");
+        result.dateInputs().values().iterator().next().accept(21000, 0);
+        assertEquals(21000, days.get(), "DATE_CHANGED writes straight into the bound signal");
+    }
+
+    @Test
     void toggleRoutesBooleanValueAndEmitsSelected() {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
