@@ -1,6 +1,6 @@
 # pathland-view (Java) — implementation status
 
-**Last updated:** August 29, 2026
+**Last updated:** August 30, 2026
 
 The hand-written, framework-agnostic Java 25+ DSL (`com.pathland.view`):
 SwiftUI-style views, Angular-style signals, fine-grained emitter, `PLPL` wire
@@ -9,13 +9,32 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 
 ## Implemented
 
-- **Views**: `View` (open interface), `VStack`, `HStack`, `ZStack`, `Text`,
-  `Image`, `Color` (dual identity: a `COLOR` view *and* a value passed into
-  style modifiers), `Rectangle` (a `SHAPE` node), `Button`, `TextField`,
-  `Spacer`, `TextEditor`, `Toggle`, `Slider`, `Stepper`, `ProgressView`,
-  `Gauge`, `Divider`, `Grid`, `ScrollView`, `LazyVStack`, `LazyHStack`,
-  `LazyVGrid`, `LazyHGrid`, `Picker`, `Menu`, `ColorPicker`, `DatePicker`;
-  `body()` composition; `ButtonStyle`/`ViewModifier`/`Environment`
+- **Construction is `.of()` only**: every concrete view/control exposes a
+  static `<ViewName>.of(...)` factory (`Text.of`, `VStack.of`,
+  `Button.of(label, action)`, `Slider.of(binding, min, max)`,
+  `DatePicker.of(mode, days)`, …); constructors are private and the former
+  `View.*` static-factory surface is **removed**. `Slider`/`Stepper` are
+  binding-first (initial value read from the signal); `Toggle` also offers the
+  SwiftUI-closer `of(label, isOn)` overload; `Color.of(int)` alias.
+- **One modifier mechanism**: core modifiers are `ViewModifier` values
+  (`Padding.of(16)`, `ForegroundStyle.of(color)`, `Border.of(color, width)`,
+  `FrameMod.of(w, h, align)`, …) applied via `.modifier(...)`; the `.padding`
+  sugar delegates to `.modifier(Padding.of(...))`. Built-in and
+  application-authored modifiers share the exact same surface (spec `DSL.md`
+  §5.6). Reactive overloads (`ForegroundStyle.of(Signal)`,
+  `Background.of(Signal)`, `FontSize.of(Signal)`) re-emit only the bound node.
+  Enum-collision modifier names use the `Mod` suffix (`FontWeightMod`,
+  `TextAlignmentMod`, `TruncationMod`, `TextCaseMod`, `FontStyleMod`,
+  `FontDesignMod`, `ControlSizeMod`); `FrameMod` avoids `emit.Frame`.
+- **Views**: `View` (open interface), `VStack`, `HStack`, `ZStack`, `Group`
+  (transparent container, maps to a `VSTACK` node today), `Text`, `Image`,
+  `Color` (dual identity: a `COLOR` view *and* a value passed into style
+  modifiers), shapes (`Rectangle`, `Circle`, `Capsule`, `Ellipse`,
+  `RoundedRectangle`, generic `Shape.of(ShapeKind)` — all `SHAPE` nodes),
+  `Button`, `TextField`, `Spacer`, `TextEditor`, `Toggle`, `Slider`, `Stepper`,
+  `ProgressView`, `Gauge`, `Divider`, `Grid`, `ScrollView`, `LazyVStack`,
+  `LazyHStack`, `LazyVGrid`, `LazyHGrid`, `Picker`, `Menu`, `ColorPicker`,
+  `DatePicker`; `body()` composition; `ButtonStyle`/`ViewModifier`/`Environment`
   (ScopedValue).
 - **Component IDs**: synced to the spec's grouped ranges (`Components.java`:
   `TEXT 0x01`, `IMAGE 0x02`, `COLOR 0x03`, `SHAPE 0x04`, `DIVIDER 0x05`,
@@ -37,7 +56,8 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
   (`Commands.Listeners`). `FrameCodec.decodeEvents` decodes all of them.
 - **Modifiers** (chainable on any view): `padding`, `foregroundStyle(Color)`
   (no `.color()`), `background(Color)`, `tint(Color)`, `opacity`, `fontSize`,
-  `fontWeight`, `border`, `visible`/`hidden`, `frame` (fixed and
+  `fontWeight`, `border` (`border(Color, width)` canonical + `(width, color,
+  radius)` convenience), `visible`/`hidden`, `frame` (fixed and
   min/ideal/max), `offset`, `position`, `fixedSize`, `layoutPriority`,
   `zIndex`, `aspectRatio`/`scaledToFit`/`scaledToFill`, `minimumScaleFactor`,
   `fontStyle`/`italic`/`fontDesign`/`fontWidth`/`kerning`/`tracking`/
@@ -47,7 +67,8 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
   `grayscale`/`hueRotation`/`colorMultiply`/`colorInvert`, `clipped`/
   `clipShape`, `rotation`, `scaleEffect`, `disabled`, `allowsHitTesting`,
   `controlSize`, `accessibilityLabel`/`accessibilityRole`/`accessibilityState`,
-  `imageSource` — `Color` is never a modifier.
+  `imageSource`, `pointerEvents` (OR-in), `actionId`/`bindingId`,
+  `onTapGesture` — `Color` is never a modifier.
 - **Value types**: `ValueTypes.forProperty` mirrors `value_type_for` —
   `COLOR` family → `COLOR`; `VISIBLE`/`ENABLED`/`CLIPS_TO_BOUNDS`/`UNDERLINE`/
   `STRIKETHROUGH`/`COLOR_INVERT`/`ALLOWS_HIT_TESTING`/`IS_SECURE`/
