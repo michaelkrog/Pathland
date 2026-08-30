@@ -2,10 +2,19 @@ package com.pathland.demo;
 
 import com.pathland.view.Alignment;
 import com.pathland.view.Color;
+import com.pathland.view.ColorPicker;
+import com.pathland.view.HStack;
+import com.pathland.view.Rectangle;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.Background;
+import com.pathland.view.FrameMod;
+import com.pathland.view.Padding;
+
 
 /**
  * Color section: a {@code ColorPicker} bound to a persisted {@code State<Color>}, a
@@ -23,15 +32,16 @@ public final class ColorSection implements View {
     @Override
     public View body() {
         return new SectionCard("Color · ColorPicker + Color view + Rectangle",
-                View.vstack(
-                        View.colorPicker(accent.signal()),
-                        View.hstack(
-                                accent.get().frame(120, 60, Alignment.CENTER),
-                                View.rectangle().frame(120, 60, Alignment.CENTER)
-                                        .background(accent.signal())
-                        ).padding(4),
-                        View.text(accentLabel).padding(4)
-                ).padding(4)
+                VStack.of(
+                        ColorPicker.of(accent.signal()),
+                        HStack.of(
+                                accent.get().modifier(FrameMod.of(120, 60, Alignment.CENTER)),
+                                Rectangle.of().modifiers(
+                                        FrameMod.of(120, 60, Alignment.CENTER),
+                                        Background.of(accent.signal()))
+                        ).modifier(Padding.of(4)),
+                        Text.of(accentLabel).modifier(Padding.of(4))
+                ).modifier(Padding.of(4))
         );
     }
 }

@@ -1,10 +1,17 @@
 package com.pathland.demo;
 
 import com.pathland.view.Alignment;
+import com.pathland.view.Text;
+import com.pathland.view.TextEditor;
+import com.pathland.view.TextField;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.FrameMod;
+import com.pathland.view.Padding;
+
 
 /**
  * Text-input section: a single-line {@code TextField} and a multi-line
@@ -20,11 +27,11 @@ public final class TextFieldSection implements View {
     @Override
     public View body() {
         return new SectionCard("Text · TextField + TextEditor",
-                View.vstack(
-                        View.textField("Your name", name.signal()),
-                        View.textEditor(name.signal()).frame(240, 64, Alignment.CENTER),
-                        View.text(greeting).padding(4)
-                ).padding(4)
+                VStack.of(
+                        TextField.of("Your name", name.signal()),
+                        TextEditor.of(name.signal()).modifier(FrameMod.of(240, 64, Alignment.CENTER)),
+                        Text.of(greeting).modifier(Padding.of(4))
+                ).modifier(Padding.of(4))
         );
     }
 }

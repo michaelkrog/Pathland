@@ -11,18 +11,33 @@ public final class LazyHStack implements View {
     private final Alignment alignment;
     private final Float spacing;
 
-    public LazyHStack(View... children) {
+    private LazyHStack(View... children) {
         this(null, null, List.of(children));
     }
 
-    public LazyHStack(Alignment alignment, float spacing, View... children) {
+    private LazyHStack(Alignment alignment, float spacing, View... children) {
         this(alignment, spacing, List.of(children));
     }
 
-    public LazyHStack(Alignment alignment, Float spacing, List<View> children) {
+    private LazyHStack(Alignment alignment, Float spacing, List<View> children) {
         this.children = List.copyOf(children);
         this.alignment = alignment;
         this.spacing = spacing;
+    }
+
+    /** A virtualized horizontal stack. */
+    public static LazyHStack of(View... children) {
+        return new LazyHStack(children);
+    }
+
+    /** A virtualized horizontal stack with constructor layout properties. */
+    public static LazyHStack of(Alignment alignment, float spacing, View... children) {
+        return new LazyHStack(alignment, spacing, children);
+    }
+
+    /** A virtualized horizontal stack with constructor layout properties. */
+    public static LazyHStack of(Alignment alignment, Float spacing, List<View> children) {
+        return new LazyHStack(alignment, spacing, children);
     }
 
     @Override

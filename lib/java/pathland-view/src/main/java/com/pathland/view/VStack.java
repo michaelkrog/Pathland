@@ -14,22 +14,42 @@ public final class VStack implements View {
     private final Alignment alignment;
     private final Float spacing;
 
-    public VStack(View... children) {
+    private VStack(View... children) {
         this(null, null, List.of(children));
     }
 
-    public VStack(List<View> children) {
+    private VStack(List<View> children) {
         this(null, null, children);
     }
 
-    public VStack(Alignment alignment, float spacing, View... children) {
+    private VStack(Alignment alignment, float spacing, View... children) {
         this(alignment, spacing, List.of(children));
     }
 
-    public VStack(Alignment alignment, Float spacing, List<View> children) {
+    private VStack(Alignment alignment, Float spacing, List<View> children) {
         this.children = List.copyOf(children);
         this.alignment = alignment;
         this.spacing = spacing;
+    }
+
+    /** A vertical stack. */
+    public static VStack of(View... children) {
+        return new VStack(children);
+    }
+
+    /** A vertical stack. */
+    public static VStack of(List<View> children) {
+        return new VStack(children);
+    }
+
+    /** A vertical stack with constructor layout properties. */
+    public static VStack of(Alignment alignment, float spacing, View... children) {
+        return new VStack(alignment, spacing, children);
+    }
+
+    /** A vertical stack with constructor layout properties. */
+    public static VStack of(Alignment alignment, Float spacing, List<View> children) {
+        return new VStack(alignment, spacing, children);
     }
 
     @Override

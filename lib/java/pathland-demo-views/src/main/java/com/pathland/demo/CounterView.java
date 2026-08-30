@@ -1,7 +1,12 @@
 package com.pathland.demo;
 
 import com.pathland.view.Color;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
+import com.pathland.view.ForegroundStyle;
+import com.pathland.view.Padding;
+
 
 /**
  * The application's root view: the {@link CounterControls} and {@link NameField}
@@ -12,11 +17,11 @@ public final class CounterView implements View {
 
     @Override
     public View body() {
-        return View.vstack(
+        return VStack.of(
                 new CounterControls(),
                 new NameField(),
-                View.text("Pathland · per-session · 16-byte deltas")
-                        .foregroundStyle(Color.rgb(0x88, 0x88, 0x88))
-        ).padding(24);
+                Text.of("Pathland · per-session · 16-byte deltas")
+                        .modifier(ForegroundStyle.of(Color.rgb(0x88, 0x88, 0x88)))
+        ).modifier(Padding.of(24));
     }
 }

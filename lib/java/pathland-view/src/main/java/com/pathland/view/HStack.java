@@ -14,22 +14,42 @@ public final class HStack implements View {
     private final Alignment alignment;
     private final Float spacing;
 
-    public HStack(View... children) {
+    private HStack(View... children) {
         this(null, null, List.of(children));
     }
 
-    public HStack(List<View> children) {
+    private HStack(List<View> children) {
         this(null, null, children);
     }
 
-    public HStack(Alignment alignment, float spacing, View... children) {
+    private HStack(Alignment alignment, float spacing, View... children) {
         this(alignment, spacing, List.of(children));
     }
 
-    public HStack(Alignment alignment, Float spacing, List<View> children) {
+    private HStack(Alignment alignment, Float spacing, List<View> children) {
         this.children = List.copyOf(children);
         this.alignment = alignment;
         this.spacing = spacing;
+    }
+
+    /** A horizontal stack. */
+    public static HStack of(View... children) {
+        return new HStack(children);
+    }
+
+    /** A horizontal stack. */
+    public static HStack of(List<View> children) {
+        return new HStack(children);
+    }
+
+    /** A horizontal stack with constructor layout properties. */
+    public static HStack of(Alignment alignment, float spacing, View... children) {
+        return new HStack(alignment, spacing, children);
+    }
+
+    /** A horizontal stack with constructor layout properties. */
+    public static HStack of(Alignment alignment, Float spacing, List<View> children) {
+        return new HStack(alignment, spacing, children);
     }
 
     @Override

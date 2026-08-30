@@ -12,8 +12,13 @@ public final class ColorPicker implements View {
 
     private final WritableSignal<Color> binding;
 
-    public ColorPicker(WritableSignal<Color> binding) {
+    private ColorPicker(WritableSignal<Color> binding) {
         this.binding = binding;
+    }
+
+    /** A native color picker bound to {@code binding}. */
+    public static ColorPicker of(WritableSignal<Color> binding) {
+        return new ColorPicker(binding);
     }
 
     @Override

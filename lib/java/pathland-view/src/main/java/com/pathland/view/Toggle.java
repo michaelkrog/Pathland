@@ -16,7 +16,7 @@ public final class Toggle implements View {
     private final String label;
     private final WritableSignal<Boolean> binding;
 
-    public Toggle(ToggleStyle style, boolean selected, WritableSignal<Boolean> binding, String label) {
+    private Toggle(ToggleStyle style, boolean selected, WritableSignal<Boolean> binding, String label) {
         this.style = style;
         this.selected = selected;
         this.binding = binding;
@@ -24,8 +24,23 @@ public final class Toggle implements View {
     }
 
     /** A {@code Switch}-style toggle with no label. */
-    public Toggle(boolean selected, WritableSignal<Boolean> binding) {
+    private Toggle(boolean selected, WritableSignal<Boolean> binding) {
         this(ToggleStyle.SWITCH, selected, binding, null);
+    }
+
+    /** A toggle with a style token, checked state, binding, and label. */
+    public static Toggle of(ToggleStyle style, boolean selected, WritableSignal<Boolean> binding, String label) {
+        return new Toggle(style, selected, binding, label);
+    }
+
+    /** A {@code Switch}-style toggle with no label. */
+    public static Toggle of(boolean selected, WritableSignal<Boolean> binding) {
+        return new Toggle(selected, binding);
+    }
+
+    /** A {@code Switch}-style toggle with a label (SwiftUI {@code Toggle("label", isOn:)}). */
+    public static Toggle of(String label, WritableSignal<Boolean> binding) {
+        return new Toggle(ToggleStyle.SWITCH, binding.get(), binding, label);
     }
 
     @Override

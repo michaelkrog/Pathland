@@ -11,8 +11,13 @@ public final class TextEditor implements View {
 
     private final WritableSignal<String> binding;
 
-    public TextEditor(WritableSignal<String> binding) {
+    private TextEditor(WritableSignal<String> binding) {
         this.binding = binding;
+    }
+
+    /** A multi-line text editing area bound to {@code binding}. */
+    public static TextEditor of(WritableSignal<String> binding) {
+        return new TextEditor(binding);
     }
 
     @Override

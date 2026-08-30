@@ -32,9 +32,9 @@ class EmitterTest {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
 
-        View root = View.vstack(
-                View.text("Hello"),
-                View.button("Tap", () -> { }));
+        View root = VStack.of(
+                Text.of("Hello"),
+                Button.of("Tap", () -> { }));
 
         RenderResult result = emitter.mount(root, Environment.DEFAULT);
         Frame frame = sink.frame();
@@ -56,7 +56,7 @@ class EmitterTest {
 
         WritableSignal<Integer> count = Signals.signal(0);
         Signal<String> label = Signals.computed(() -> "Count: " + count.get());
-        View root = View.vstack(View.text("Static"), View.text(label));
+        View root = VStack.of(Text.of("Static"), Text.of(label));
         emitter.mount(root, Environment.DEFAULT);
 
         // The label's text node is id 3 (root=1, static text=2, reactive text=3).
@@ -78,7 +78,7 @@ class EmitterTest {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
         WritableSignal<String> text = Signals.signal("same");
-        emitter.mount(View.vstack(View.text(text)), Environment.DEFAULT);
+        emitter.mount(VStack.of(Text.of(text)), Environment.DEFAULT);
 
         text.set("same"); // equality-suppressed: nothing happens
         assertEquals(1, sink.framesProduced(), "unchanged signal must not produce a new frame");
@@ -90,7 +90,7 @@ class EmitterTest {
         Emitter emitter = new Emitter(sink);
         WritableSignal<Integer> count = Signals.signal(0);
         Signal<Color> color = Signals.computed(() -> count.get() % 2 == 0 ? Color.RED : Color.BLUE);
-        emitter.mount(View.vstack(View.text("x").foregroundStyle(color)), Environment.DEFAULT);
+        emitter.mount(VStack.of(Text.of("x").modifier(ForegroundStyle.of(color))), Environment.DEFAULT);
 
         count.set(1);
         Frame delta = sink.frame();
@@ -106,12 +106,12 @@ class EmitterTest {
     void newModifiersEmitSpecValueTypes() {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
-        View root = View.text("x")
-                .visible(false)      // U8, low byte 0
-                .disabled(true)      // U8, low byte 0 (disabled -> ENABLED=0)
-                .fontFamily("Georgia") // STRING
-                .lineLimit(2)        // U32
-                .scaledToFit();      // CONTENT_MODE enum code as F32
+        View root = Text.of("x")
+                .modifier(Visible.of(false))      // U8, low byte 0
+                .modifier(Disabled.of(true))      // U8, low byte 0 (disabled -> ENABLED=0)
+                .modifier(FontFamily.of("Georgia")) // STRING
+                .modifier(LineLimit.of(2))        // U32
+                .modifier(ScaledToFit.of());      // CONTENT_MODE enum code as F32
         emitter.mount(root, Environment.DEFAULT);
         Frame frame = sink.frame();
 
@@ -147,9 +147,9 @@ class EmitterTest {
     void buttonStyleScopesDownTheTree() {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
-        View root = View.vstack(
-                        View.button("Increment", () -> { }))
-                .buttonStyle(BorderedButtonStyle.INSTANCE);
+        View root = VStack.of(
+                        Button.of("Increment", () -> { }))
+                .modifier(ButtonStyleMod.of(BorderedButtonStyle.INSTANCE));
         RenderResult result = emitter.mount(root, Environment.DEFAULT);
         Frame frame = sink.frame();
 
@@ -164,7 +164,7 @@ class EmitterTest {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
         WritableSignal<String> name = Signals.signal("");
-        RenderResult result = emitter.mount(View.textField("Your name", name), Environment.DEFAULT);
+        RenderResult result = emitter.mount(TextField.of("Your name", name), Environment.DEFAULT);
 
         assertEquals(1, result.textInputs().size(), "the text field exposes one input sink");
         assertEquals(0, result.valueInputs().size(), "a text field has no value input");
@@ -197,7 +197,7 @@ class EmitterTest {
     void frameCodecRoundTrips() {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
-        emitter.mount(View.vstack(View.text("Hello Pathland")), Environment.DEFAULT);
+        emitter.mount(VStack.of(Text.of("Hello Pathland")), Environment.DEFAULT);
 
         byte[] wire = FrameCodec.encodeFrame(sink.frame());
         Frame decoded = FrameCodec.decodeFrame(wire);
@@ -229,7 +229,7 @@ class EmitterTest {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
         WritableSignal<Integer> days = Signals.signal(20487);
-        emitter.mount(View.datePicker(DatePickerMode.DATE, days), Environment.DEFAULT);
+        emitter.mount(DatePicker.of(DatePickerMode.DATE, days), Environment.DEFAULT);
 
         Frame initial = sink.frame();
         boolean sawSetDate = false;
@@ -256,7 +256,7 @@ class EmitterTest {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
         WritableSignal<Float> value = Signals.signal(0.5f);
-        RenderResult result = emitter.mount(View.slider(0.5f, 0f, 1f, value), Environment.DEFAULT);
+        RenderResult result = emitter.mount(Slider.of(value, 0f, 1f), Environment.DEFAULT);
 
         assertEquals(1, result.valueInputs().size(), "the slider exposes one value input");
         result.valueInputs().values().iterator().next().accept(0.75f);
@@ -268,7 +268,7 @@ class EmitterTest {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
         WritableSignal<Integer> days = Signals.signal(20487);
-        RenderResult result = emitter.mount(View.datePicker(DatePickerMode.DATE, days), Environment.DEFAULT);
+        RenderResult result = emitter.mount(DatePicker.of(DatePickerMode.DATE, days), Environment.DEFAULT);
 
         assertEquals(1, result.dateInputs().size(), "the date picker exposes one date input");
         assertEquals(0, result.valueInputs().size(), "a date picker has no value input");
@@ -281,7 +281,7 @@ class EmitterTest {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
         WritableSignal<Boolean> on = Signals.signal(false);
-        RenderResult result = emitter.mount(View.toggle(ToggleStyle.CHECKBOX, false, on, "Go"), Environment.DEFAULT);
+        RenderResult result = emitter.mount(Toggle.of(ToggleStyle.CHECKBOX, false, on, "Go"), Environment.DEFAULT);
 
         result.valueInputs().values().iterator().next().accept(1f);
         assertEquals(Boolean.TRUE, on.get(), "VALUE_CHANGED 0/1 writes into the boolean binding");

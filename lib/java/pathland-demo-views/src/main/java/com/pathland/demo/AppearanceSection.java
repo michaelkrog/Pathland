@@ -2,8 +2,24 @@ package com.pathland.demo;
 
 import com.pathland.view.Alignment;
 import com.pathland.view.Color;
+import com.pathland.view.HStack;
+import com.pathland.view.Rectangle;
 import com.pathland.view.ShapeKind;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
+import com.pathland.view.Background;
+import com.pathland.view.Border;
+import com.pathland.view.ClipShape;
+import com.pathland.view.CornerRadius;
+import com.pathland.view.FrameMod;
+import com.pathland.view.Hidden;
+import com.pathland.view.Padding;
+import com.pathland.view.Rotation;
+import com.pathland.view.ScaleEffect;
+import com.pathland.view.Shadow;
+import com.pathland.view.ZIndex;
+
 
 /**
  * Appearance section: the appearance and transform modifiers — border, shadow,
@@ -18,23 +34,30 @@ public final class AppearanceSection implements View {
     @Override
     public View body() {
         return new SectionCard("Appearance · border / shadow / opacity / transform",
-                View.vstack(
-                        View.text("Card with shadow").padding(20).background(Color.WHITE)
-                                .border(2, BLUE_200, 12).cornerRadius(12)
-                                .shadow(Color.rgb(0, 0, 0), 6, 2, 4),
-                        View.text("Rotated 6°").rotation(6).padding(8)
-                                .background(RED_50).cornerRadius(6),
-                        View.text("Scaled 1.2×").scaleEffect(1.2f).padding(8)
-                                .background(GREEN_50).cornerRadius(6),
-                        View.text("This text is hidden").hidden(),
-                        View.hstack(
-                                View.rectangle().frame(90, 60, Alignment.CENTER)
-                                        .background(Color.RED).clipShape(ShapeKind.CIRCLE),
-                                View.rectangle().frame(90, 60, Alignment.CENTER)
-                                        .background(Color.BLUE).cornerRadius(12)
-                        ).padding(4),
-                        View.text("zIndex above").zIndex(3)
-                ).padding(4)
+                VStack.of(
+                        Text.of("Card with shadow").modifiers(
+                                        Padding.of(20),
+                                        Background.of(Color.WHITE),
+                                        Border.of(BLUE_200, 2, 12),
+                                        CornerRadius.of(12),
+                                        Shadow.of(Color.rgb(0, 0, 0), 6, 2, 4)),
+                        Text.of("Rotated 6°").modifiers(Rotation.of(6), Padding.of(8))
+                                .modifiers(Background.of(RED_50), CornerRadius.of(6)),
+                        Text.of("Scaled 1.2×").modifiers(ScaleEffect.of(1.2f), Padding.of(8))
+                                .modifiers(Background.of(GREEN_50), CornerRadius.of(6)),
+                        Text.of("This text is hidden").modifier(Hidden.of()),
+                        HStack.of(
+                                Rectangle.of().modifiers(
+                                        FrameMod.of(90, 60, Alignment.CENTER),
+                                        Background.of(Color.RED),
+                                        ClipShape.of(ShapeKind.CIRCLE)),
+                                Rectangle.of().modifiers(
+                                        FrameMod.of(90, 60, Alignment.CENTER),
+                                        Background.of(Color.BLUE),
+                                        CornerRadius.of(12))
+                        ).modifier(Padding.of(4)),
+                        Text.of("zIndex above").modifier(ZIndex.of(3))
+                ).modifier(Padding.of(4))
         );
     }
 }

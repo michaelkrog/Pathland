@@ -1,11 +1,19 @@
 package com.pathland.demo;
 
+import com.pathland.view.Button;
 import com.pathland.view.Color;
+import com.pathland.view.Menu;
+import com.pathland.view.Picker;
 import com.pathland.view.PickerStyle;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.ForegroundStyle;
+import com.pathland.view.Padding;
+
 
 /**
  * Selection section: a {@code Picker} in two styles ({@code Segmented} and
@@ -20,18 +28,18 @@ public final class PickerSection implements View {
     @Override
     public View body() {
         return new SectionCard("Picker + Menu",
-                View.vstack(
-                        View.text(choiceLabel).padding(4),
-                        View.picker(PickerStyle.SEGMENTED, choice.signal(),
-                                View.text("One"), View.text("Two"), View.text("Three")),
-                        View.picker(PickerStyle.MENU, choice.signal(),
-                                View.text("One"), View.text("Two"), View.text("Three")),
-                        View.menu(View.button("Actions ▾", () -> { }),
-                                View.button("Item 1", () -> { }),
-                                View.button("Item 2", () -> { })),
-                        View.text("Menu action items are Buttons; choices route via VALUE_CHANGED")
-                                .foregroundStyle(Color.rgb(0x88, 0x88, 0x88))
-                ).padding(4)
+                VStack.of(
+                        Text.of(choiceLabel).modifier(Padding.of(4)),
+                        Picker.of(PickerStyle.SEGMENTED, choice.signal(),
+                                Text.of("One"), Text.of("Two"), Text.of("Three")),
+                        Picker.of(PickerStyle.MENU, choice.signal(),
+                                Text.of("One"), Text.of("Two"), Text.of("Three")),
+                        Menu.of(Button.of("Actions ▾", () -> { }),
+                                Button.of("Item 1", () -> { }),
+                                Button.of("Item 2", () -> { })),
+                        Text.of("Menu action items are Buttons; choices route via VALUE_CHANGED")
+                                .modifier(ForegroundStyle.of(Color.rgb(0x88, 0x88, 0x88)))
+                ).modifier(Padding.of(4))
         );
     }
 }

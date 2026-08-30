@@ -14,9 +14,14 @@ public final class DatePicker implements View {
     private final DatePickerMode mode;
     private final WritableSignal<Integer> days;
 
-    public DatePicker(DatePickerMode mode, WritableSignal<Integer> days) {
+    private DatePicker(DatePickerMode mode, WritableSignal<Integer> days) {
         this.mode = mode;
         this.days = days;
+    }
+
+    /** A date & time picker bound to days-since-epoch. */
+    public static DatePicker of(DatePickerMode mode, WritableSignal<Integer> days) {
+        return new DatePicker(mode, days);
     }
 
     @Override

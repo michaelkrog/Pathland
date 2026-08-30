@@ -11,18 +11,33 @@ public final class LazyHGrid implements View {
     private final Alignment alignment;
     private final Float spacing;
 
-    public LazyHGrid(View... children) {
+    private LazyHGrid(View... children) {
         this(null, null, List.of(children));
     }
 
-    public LazyHGrid(Alignment alignment, float spacing, View... children) {
+    private LazyHGrid(Alignment alignment, float spacing, View... children) {
         this(alignment, spacing, List.of(children));
     }
 
-    public LazyHGrid(Alignment alignment, Float spacing, List<View> children) {
+    private LazyHGrid(Alignment alignment, Float spacing, List<View> children) {
         this.children = List.copyOf(children);
         this.alignment = alignment;
         this.spacing = spacing;
+    }
+
+    /** A virtualized horizontal grid; children are cells. */
+    public static LazyHGrid of(View... children) {
+        return new LazyHGrid(children);
+    }
+
+    /** A virtualized horizontal grid with constructor layout properties. */
+    public static LazyHGrid of(Alignment alignment, float spacing, View... children) {
+        return new LazyHGrid(alignment, spacing, children);
+    }
+
+    /** A virtualized horizontal grid with constructor layout properties. */
+    public static LazyHGrid of(Alignment alignment, Float spacing, List<View> children) {
+        return new LazyHGrid(alignment, spacing, children);
     }
 
     @Override

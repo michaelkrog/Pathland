@@ -1,10 +1,16 @@
 package com.pathland.demo;
 
+import com.pathland.view.Text;
+import com.pathland.view.Toggle;
 import com.pathland.view.ToggleStyle;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.Button;
+import com.pathland.view.Padding;
+
 
 /**
  * Toggle section: the same {@code Toggle} control in all three {@code ToggleStyle}
@@ -22,12 +28,12 @@ public final class ToggleSection implements View {
     @Override
     public View body() {
         return new SectionCard("Toggle · Switch / Checkbox / Button",
-                View.vstack(
-                        View.toggle(ToggleStyle.SWITCH, dark.get(), dark.signal(), "Dark mode"),
-                        View.toggle(ToggleStyle.CHECKBOX, notify.get(), notify.signal(), "Notify me"),
-                        View.toggle(ToggleStyle.BUTTON, bold.get(), bold.signal(), "Bold toggle"),
-                        View.text(summary).padding(4)
-                ).padding(4)
+                VStack.of(
+                        Toggle.of(ToggleStyle.SWITCH, dark.get(), dark.signal(), "Dark mode"),
+                        Toggle.of(ToggleStyle.CHECKBOX, notify.get(), notify.signal(), "Notify me"),
+                        Toggle.of(ToggleStyle.BUTTON, bold.get(), bold.signal(), "Bold toggle"),
+                        Text.of(summary).modifier(Padding.of(4))
+                ).modifier(Padding.of(4))
         );
     }
 }

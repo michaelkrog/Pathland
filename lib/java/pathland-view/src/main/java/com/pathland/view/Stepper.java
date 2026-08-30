@@ -9,24 +9,27 @@ import com.pathland.view.signal.WritableSignal;
  */
 public final class Stepper implements View {
 
-    private final float value;
     private final float min;
     private final float max;
     private final float step;
     private final WritableSignal<Float> binding;
 
-    public Stepper(float value, float min, float max, float step, WritableSignal<Float> binding) {
-        this.value = value;
+    private Stepper(WritableSignal<Float> binding, float min, float max, float step) {
         this.min = min;
         this.max = max;
         this.step = step;
         this.binding = binding;
     }
 
+    /** A discrete increment/decrement control bound to {@code binding}. */
+    public static Stepper of(WritableSignal<Float> binding, float min, float max, float step) {
+        return new Stepper(binding, min, max, step);
+    }
+
     @Override
     public PathlandNode render(Environment env) {
         PathlandNode node = new PathlandNode(Components.STEPPER);
-        node.properties.put(Properties.VALUE, value);
+        node.properties.put(Properties.VALUE, binding.get());
         node.properties.put(Properties.MIN_VALUE, min);
         node.properties.put(Properties.MAX_VALUE, max);
         node.properties.put(Properties.STEP_VALUE, step);

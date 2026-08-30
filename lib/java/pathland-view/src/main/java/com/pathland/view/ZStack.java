@@ -12,12 +12,22 @@ public final class ZStack implements View {
 
     private final List<View> children;
 
-    public ZStack(View... children) {
+    private ZStack(View... children) {
         this(List.of(children));
     }
 
-    public ZStack(List<View> children) {
+    private ZStack(List<View> children) {
         this.children = List.copyOf(children);
+    }
+
+    /** An overlapping stack. */
+    public static ZStack of(View... children) {
+        return new ZStack(children);
+    }
+
+    /** An overlapping stack. */
+    public static ZStack of(List<View> children) {
+        return new ZStack(children);
     }
 
     @Override

@@ -11,18 +11,33 @@ public final class LazyVGrid implements View {
     private final Alignment alignment;
     private final Float spacing;
 
-    public LazyVGrid(View... children) {
+    private LazyVGrid(View... children) {
         this(null, null, List.of(children));
     }
 
-    public LazyVGrid(Alignment alignment, float spacing, View... children) {
+    private LazyVGrid(Alignment alignment, float spacing, View... children) {
         this(alignment, spacing, List.of(children));
     }
 
-    public LazyVGrid(Alignment alignment, Float spacing, List<View> children) {
+    private LazyVGrid(Alignment alignment, Float spacing, List<View> children) {
         this.children = List.copyOf(children);
         this.alignment = alignment;
         this.spacing = spacing;
+    }
+
+    /** A virtualized vertical grid; children are cells. */
+    public static LazyVGrid of(View... children) {
+        return new LazyVGrid(children);
+    }
+
+    /** A virtualized vertical grid with constructor layout properties. */
+    public static LazyVGrid of(Alignment alignment, float spacing, View... children) {
+        return new LazyVGrid(alignment, spacing, children);
+    }
+
+    /** A virtualized vertical grid with constructor layout properties. */
+    public static LazyVGrid of(Alignment alignment, Float spacing, List<View> children) {
+        return new LazyVGrid(alignment, spacing, children);
     }
 
     @Override
