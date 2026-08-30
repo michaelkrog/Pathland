@@ -1,6 +1,10 @@
 package com.pathland.demo;
 
 import com.pathland.view.Alignment;
+import com.pathland.view.Text;
+import com.pathland.view.TextEditor;
+import com.pathland.view.TextField;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
@@ -20,10 +24,10 @@ public final class TextFieldSection implements View {
     @Override
     public View body() {
         return new SectionCard("Text · TextField + TextEditor",
-                View.vstack(
-                        View.textField("Your name", name.signal()),
-                        View.textEditor(name.signal()).frame(240, 64, Alignment.CENTER),
-                        View.text(greeting).padding(4)
+                VStack.of(
+                        TextField.of("Your name", name.signal()),
+                        TextEditor.of(name.signal()).frame(240, 64, Alignment.CENTER),
+                        Text.of(greeting).padding(4)
                 ).padding(4)
         );
     }

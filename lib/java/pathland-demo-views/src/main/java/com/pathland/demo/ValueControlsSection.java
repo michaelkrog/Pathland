@@ -1,6 +1,12 @@
 package com.pathland.demo;
 
 import com.pathland.view.FontWeight;
+import com.pathland.view.Gauge;
+import com.pathland.view.ProgressView;
+import com.pathland.view.Slider;
+import com.pathland.view.Stepper;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
@@ -19,12 +25,12 @@ public final class ValueControlsSection implements View {
     @Override
     public View body() {
         return new SectionCard("Value controls · Slider / Stepper / Gauge / Progress",
-                View.vstack(
-                        View.text(valueLabel).fontSize(22).fontWeight(FontWeight.BOLD),
-                        View.slider(value.get(), 0f, 100f, value.signal()),
-                        View.stepper(value.get(), 0f, 100f, 5f, value.signal()),
-                        View.gauge(value.get(), 0f, 100f),
-                        View.progressView(value.get() / 100f)
+                VStack.of(
+                        Text.of(valueLabel).fontSize(22).fontWeight(FontWeight.BOLD),
+                        Slider.of(value.signal(), 0f, 100f),
+                        Stepper.of(value.signal(), 0f, 100f, 5f),
+                        Gauge.of(value.get(), 0f, 100f),
+                        ProgressView.of(value.get() / 100f)
                 ).padding(4)
         );
     }

@@ -1,5 +1,8 @@
 package com.pathland.demo;
 
+import com.pathland.view.Button;
+import com.pathland.view.HStack;
+import com.pathland.view.Text;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
@@ -17,9 +20,9 @@ public final class CounterControls implements View {
 
     @Override
     public View body() {
-        return View.hstack(
-                View.text(countLabel),
-                View.button("Increment", () -> count.update(v -> v + 1))
+        return HStack.of(
+                Text.of(countLabel),
+                Button.of("Increment", () -> count.update(v -> v + 1))
         ).padding(16);
     }
 }

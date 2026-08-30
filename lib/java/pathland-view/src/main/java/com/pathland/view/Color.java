@@ -24,6 +24,11 @@ public record Color(int argb) implements View {
         return new Color(0xFF000000 | (r << 16) | (g << 8) | b);
     }
 
+    /** A color from its packed {@code 0xAARRGGBB} value. */
+    public static Color of(int argb) {
+        return new Color(argb);
+    }
+
     /** An sRGB color with explicit alpha ({@code 0..255}). */
     public static Color argb(int a, int r, int g, int b) {
         return new Color((a << 24) | (r << 16) | (g << 8) | b);

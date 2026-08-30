@@ -1,8 +1,13 @@
 package com.pathland.demo;
 
 import com.pathland.view.Alignment;
+import com.pathland.view.Button;
 import com.pathland.view.Color;
 import com.pathland.view.FontWeight;
+import com.pathland.view.HStack;
+import com.pathland.view.Stepper;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
@@ -22,15 +27,15 @@ public final class CounterSection implements View {
     @Override
     public View body() {
         return new SectionCard("Counter · State + Button + Stepper",
-                View.vstack(
-                        View.text(countLabel).fontSize(28).fontWeight(FontWeight.BOLD),
-                        View.hstack(Alignment.LEADING, 4,
-                                View.button("−", () -> count.update(v -> v - step.get().intValue())),
-                                View.button("+", () -> count.update(v -> v + step.get().intValue())),
-                                View.button("Reset", () -> count.set(0))
+                VStack.of(
+                        Text.of(countLabel).fontSize(28).fontWeight(FontWeight.BOLD),
+                        HStack.of(Alignment.LEADING, 4,
+                                Button.of("−", () -> count.update(v -> v - step.get().intValue())),
+                                Button.of("+", () -> count.update(v -> v + step.get().intValue())),
+                                Button.of("Reset", () -> count.set(0))
                         ).padding(4),
-                        View.text("Step size").foregroundStyle(Color.rgb(0x88, 0x88, 0x88)),
-                        View.stepper(step.get(), 1, 10, 1, step.signal())
+                        Text.of("Step size").foregroundStyle(Color.rgb(0x88, 0x88, 0x88)),
+                        Stepper.of(step.signal(), 1, 10, 1)
                 ).padding(4)
         );
     }

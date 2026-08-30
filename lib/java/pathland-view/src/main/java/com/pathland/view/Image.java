@@ -7,13 +7,18 @@ public final class Image implements View {
 
     private final String source;
 
-    public Image() {
-        this(null);
+    private Image(String source) {
+        this.source = source;
+    }
+
+    /** An image with no source (the renderer's default visual). */
+    public static Image of() {
+        return new Image(null);
     }
 
     /** An image with a source (resource name, file path, or absolute URL). */
-    public Image(String source) {
-        this.source = source;
+    public static Image of(String source) {
+        return new Image(source);
     }
 
     @Override

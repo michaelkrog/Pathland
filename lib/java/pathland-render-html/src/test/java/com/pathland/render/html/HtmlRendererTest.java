@@ -1,9 +1,20 @@
 package com.pathland.render.html;
 
+import com.pathland.view.Button;
 import com.pathland.view.Color;
+import com.pathland.view.DatePicker;
+import com.pathland.view.DatePickerMode;
+import com.pathland.view.Divider;
 import com.pathland.view.Environment;
+import com.pathland.view.Picker;
 import com.pathland.view.PickerStyle;
+import com.pathland.view.ProgressView;
+import com.pathland.view.Slider;
+import com.pathland.view.Text;
+import com.pathland.view.TextEditor;
+import com.pathland.view.Toggle;
 import com.pathland.view.ToggleStyle;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.FrameOpcodeSink;
@@ -29,9 +40,9 @@ class HtmlRendererTest {
 
     @Test
     void rendersVStackOfTextAndButton() {
-        View root = View.vstack(
-                View.text("Hello Pathland"),
-                View.button("Increment", () -> { }));
+        View root = VStack.of(
+                Text.of("Hello Pathland"),
+                Button.of("Increment", () -> { }));
         HtmlRenderer renderer = render(root);
         String html = renderer.render(1);
 
@@ -45,7 +56,7 @@ class HtmlRendererTest {
     void appliesLiveDeltaInPlace() {
         WritableSignal<Integer> count = Signals.signal(0);
         Signal<String> label = Signals.computed(() -> "Count: " + count.get());
-        View root = View.vstack(View.text("Static"), View.text(label));
+        View root = VStack.of(Text.of("Static"), Text.of(label));
 
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
@@ -64,7 +75,7 @@ class HtmlRendererTest {
 
     @Test
     void rendersBorderedStyledButton() {
-        View root = View.vstack(View.button("Go", () -> { }))
+        View root = VStack.of(Button.of("Go", () -> { }))
                 .buttonStyle(com.pathland.view.BorderedButtonStyle.INSTANCE);
         String html = render(root).render(1);
         assertTrue(html.contains("border-radius:6px"));
@@ -76,14 +87,14 @@ class HtmlRendererTest {
         WritableSignal<Float> value = Signals.signal(0.5f);
         WritableSignal<Boolean> on = Signals.signal(true);
         WritableSignal<Integer> choice = Signals.signal(0);
-        View root = View.vstack(
-                View.toggle(ToggleStyle.CHECKBOX, true, on, "Go"),
-                View.slider(0.5f, 0f, 1f, value),
-                View.picker(PickerStyle.MENU, choice, View.text("A"), View.text("B")),
-                View.progressView(0.4f),
-                View.divider(),
-                View.textEditor(Signals.signal("hello")),
-                View.datePicker(com.pathland.view.DatePickerMode.DATE, Signals.signal(20487)));
+        View root = VStack.of(
+                Toggle.of(ToggleStyle.CHECKBOX, true, on, "Go"),
+                Slider.of(value, 0f, 1f),
+                Picker.of(PickerStyle.MENU, choice, Text.of("A"), Text.of("B")),
+                ProgressView.of(0.4f),
+                Divider.of(),
+                TextEditor.of(Signals.signal("hello")),
+                DatePicker.of(DatePickerMode.DATE, Signals.signal(20487)));
         String html = render(root).render(1);
 
         assertTrue(html.contains("type=\"checkbox\""), "toggle checkbox");
@@ -98,7 +109,7 @@ class HtmlRendererTest {
 
     @Test
     void escapesText() {
-        String html = render(View.vstack(View.text("<a & b>"))).renderFragment(1);
+        String html = render(VStack.of(Text.of("<a & b>"))).renderFragment(1);
         assertTrue(html.contains("&lt;a &amp; b&gt;"));
     }
 }

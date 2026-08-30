@@ -3,7 +3,10 @@ package com.pathland.demo;
 import com.pathland.view.Alignment;
 import com.pathland.view.Color;
 import com.pathland.view.Commands;
+import com.pathland.view.Divider;
 import com.pathland.view.FontWeight;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 
 /**
@@ -26,9 +29,9 @@ public final class SectionCard implements View {
 
     @Override
     public View body() {
-        return View.vstack(
-                View.text(title).fontSize(14).fontWeight(FontWeight.SEMIBOLD).foregroundStyle(TITLE_COLOR),
-                View.divider().padding(0, 0, 8, 0),
+        return VStack.of(
+                Text.of(title).fontSize(14).fontWeight(FontWeight.SEMIBOLD).foregroundStyle(TITLE_COLOR),
+                Divider.of().padding(0, 0, 8, 0),
                 content
         ).padding(16)
                 .background(Color.WHITE)

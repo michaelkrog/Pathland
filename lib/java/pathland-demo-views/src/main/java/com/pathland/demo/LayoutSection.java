@@ -2,7 +2,16 @@ package com.pathland.demo;
 
 import com.pathland.view.Alignment;
 import com.pathland.view.Color;
+import com.pathland.view.Divider;
+import com.pathland.view.Grid;
+import com.pathland.view.HStack;
+import com.pathland.view.LazyVStack;
+import com.pathland.view.Rectangle;
+import com.pathland.view.Spacer;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
+import com.pathland.view.ZStack;
 
 /**
  * Layout section: the container primitives — {@code Grid}, {@code LazyVStack},
@@ -13,33 +22,33 @@ public final class LayoutSection implements View {
     @Override
     public View body() {
         return new SectionCard("Layout · Grid / Lazy / HStack+Spacer / ZStack / Divider",
-                View.vstack(
-                        View.grid(
+                VStack.of(
+                        Grid.of(
                                 cell("1"), cell("2"), cell("3"),
                                 cell("4"), cell("5"), cell("6")),
-                        View.lazyVStack(
-                                View.text("Lazy row A"),
-                                View.text("Lazy row B"),
-                                View.text("Lazy row C")).padding(4),
-                        View.hstack(
-                                View.text("Left"),
-                                View.spacer(),
-                                View.text("Right"))
+                        LazyVStack.of(
+                                Text.of("Lazy row A"),
+                                Text.of("Lazy row B"),
+                                Text.of("Lazy row C")).padding(4),
+                        HStack.of(
+                                Text.of("Left"),
+                                Spacer.of(),
+                                Text.of("Right"))
                                 .frame(260, Float.NaN, Alignment.CENTER),
-                        View.zstack(
-                                View.rectangle().frame(180, 80, Alignment.CENTER)
+                        ZStack.of(
+                                Rectangle.of().frame(180, 80, Alignment.CENTER)
                                         .background(Color.rgb(0xE3, 0xF2, 0xFD)).cornerRadius(8),
-                                View.text("badge").fontSize(12).padding(4)
+                                Text.of("badge").fontSize(12).padding(4)
                                         .background(Color.rgb(0xFF, 0xC1, 0x07)).cornerRadius(4)
                                         .offset(0, 28)
                         ).padding(4),
-                        View.divider()
+                        Divider.of()
                 ).padding(4)
         );
     }
 
     private static View cell(String label) {
-        return View.text(label).padding(12)
+        return Text.of(label).padding(12)
                 .background(Color.rgb(0xF3, 0xF4, 0xF6)).cornerRadius(6);
     }
 }

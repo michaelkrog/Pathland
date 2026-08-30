@@ -2,6 +2,11 @@ package com.pathland.demo;
 
 import com.pathland.view.Alignment;
 import com.pathland.view.Color;
+import com.pathland.view.ColorPicker;
+import com.pathland.view.HStack;
+import com.pathland.view.Rectangle;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
@@ -23,14 +28,14 @@ public final class ColorSection implements View {
     @Override
     public View body() {
         return new SectionCard("Color · ColorPicker + Color view + Rectangle",
-                View.vstack(
-                        View.colorPicker(accent.signal()),
-                        View.hstack(
+                VStack.of(
+                        ColorPicker.of(accent.signal()),
+                        HStack.of(
                                 accent.get().frame(120, 60, Alignment.CENTER),
-                                View.rectangle().frame(120, 60, Alignment.CENTER)
+                                Rectangle.of().frame(120, 60, Alignment.CENTER)
                                         .background(accent.signal())
                         ).padding(4),
-                        View.text(accentLabel).padding(4)
+                        Text.of(accentLabel).padding(4)
                 ).padding(4)
         );
     }

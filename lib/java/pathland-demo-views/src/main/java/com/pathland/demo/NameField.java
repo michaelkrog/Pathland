@@ -1,5 +1,8 @@
 package com.pathland.demo;
 
+import com.pathland.view.Text;
+import com.pathland.view.TextField;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
@@ -17,9 +20,9 @@ public final class NameField implements View {
 
     @Override
     public View body() {
-        return View.vstack(
-                View.textField("Your name", name.signal()),
-                View.text(nameLabel)
+        return VStack.of(
+                TextField.of("Your name", name.signal()),
+                Text.of(nameLabel)
         );
     }
 }

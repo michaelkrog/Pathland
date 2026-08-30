@@ -13,15 +13,23 @@ public final class Button implements View {
     private final View label;
     private final Runnable action;
 
-    /** A button with a plain text title. */
-    public Button(String title, Runnable action) {
+    private Button(String title, Runnable action) {
         this(Text.of(title), action);
     }
 
-    /** A button with an arbitrary child view as its label. */
-    public Button(View label, Runnable action) {
+    private Button(View label, Runnable action) {
         this.label = label;
         this.action = action;
+    }
+
+    /** A button with a plain text title. */
+    public static Button of(String title, Runnable action) {
+        return new Button(title, action);
+    }
+
+    /** A button with an arbitrary child view as its label. */
+    public static Button of(View label, Runnable action) {
+        return new Button(label, action);
     }
 
     @Override

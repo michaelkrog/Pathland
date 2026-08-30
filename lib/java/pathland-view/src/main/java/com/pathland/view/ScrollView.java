@@ -9,8 +9,13 @@ public final class ScrollView implements View {
 
     private final List<View> children;
 
-    public ScrollView(View... children) {
+    private ScrollView(View... children) {
         this.children = List.of(children);
+    }
+
+    /** A scrollable content container. */
+    public static ScrollView of(View... children) {
+        return new ScrollView(children);
     }
 
     @Override

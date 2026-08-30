@@ -1,6 +1,9 @@
 package com.pathland.demo;
 
+import com.pathland.view.DatePicker;
 import com.pathland.view.DatePickerMode;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
@@ -20,9 +23,9 @@ public final class DateSection implements View {
     @Override
     public View body() {
         return new SectionCard("DatePicker · STYLE::SET_DATE",
-                View.vstack(
-                        View.datePicker(DatePickerMode.DATE, days.signal()),
-                        View.text(dateLabel).padding(4)
+                VStack.of(
+                        DatePicker.of(DatePickerMode.DATE, days.signal()),
+                        Text.of(dateLabel).padding(4)
                 ).padding(4)
         );
     }

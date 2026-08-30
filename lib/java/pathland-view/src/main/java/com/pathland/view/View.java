@@ -2,9 +2,6 @@ package com.pathland.view;
 
 import com.pathland.view.emit.PathlandNode;
 import com.pathland.view.signal.Signal;
-import com.pathland.view.signal.WritableSignal;
-
-import java.util.List;
 
 /**
  * A composable view (SwiftUI ergonomics). Composite views declare their subtree with
@@ -15,7 +12,7 @@ import java.util.List;
  * {@code View} directly.
  *
  * <p>{@link #body()} is evaluated once at mount — reactivity comes from signals
- * ({@link #text(Signal)}, {@code Signals.computed}), not from body re-evaluation.
+ * ({@link Text#of(Signal)}, {@code Signals.computed}), not from body re-evaluation.
  *
  * <p>Global modifiers are chainable on any view. Constructor (structural/layout)
  * properties are passed to the view constructors and are never chainable; spacing
@@ -119,13 +116,26 @@ public interface View {
         return Modified.props(this, Modified.prop(Properties.FONT_WEIGHT, (float) weight.wire()));
     }
 
-    /** Draw a border around the view. */
-    default View border(float width, Color color, float radius) {
+    /** Draw a border around the view (SwiftUI {@code .border(_:width:)}). */
+    default View border(Color color, float width) {
+        return Modified.props(
+                this,
+                Modified.prop(Properties.BORDER_WIDTH, width),
+                Modified.prop(Properties.BORDER_COLOR, color));
+    }
+
+    /** Draw a border with a corner radius (a convenience; {@code color} first). */
+    default View border(Color color, float width, float radius) {
         return Modified.props(
                 this,
                 Modified.prop(Properties.BORDER_WIDTH, width),
                 Modified.prop(Properties.BORDER_COLOR, color),
                 Modified.prop(Properties.BORDER_RADIUS, radius));
+    }
+
+    /** Draw a border around the view (deprecated order; use {@link #border(Color, float)}). */
+    default View border(float width, Color color, float radius) {
+        return border(color, width, radius);
     }
 
     /** Show/hide the view ({@code VISIBLE} is a {@code U8} property). */
@@ -470,184 +480,5 @@ public interface View {
      */
     default View onTapGesture(Runnable action) {
         return new TapGestureView(this, action);
-    }
-
-    // ------------------------------------------------------------------
-    // Static entry points
-    // ------------------------------------------------------------------
-
-    /** A {@code Text} leaf with static content. */
-    static Text text(String content) {
-        return Text.of(content);
-    }
-
-    /** A {@code Text} leaf bound to a reactive signal. */
-    static Text text(Signal<String> binding) {
-        return Text.of(binding);
-    }
-
-    /** An {@code Image} leaf. */
-    static Image image() {
-        return new Image();
-    }
-
-    /** An {@code Image} leaf with a source (resource name, file path, or absolute URL). */
-    static Image image(String source) {
-        return new Image(source);
-    }
-
-    /** A {@code Rectangle} shape. */
-    static Rectangle rectangle() {
-        return new Rectangle();
-    }
-
-    /** A {@code Spacer} (flexible space). */
-    static Spacer spacer() {
-        return new Spacer();
-    }
-
-    /** A vertical stack. */
-    static VStack vstack(View... children) {
-        return new VStack(children);
-    }
-
-    /** A vertical stack with constructor layout properties. */
-    static VStack vstack(Alignment alignment, float spacing, View... children) {
-        return new VStack(alignment, spacing, children);
-    }
-
-    /** A horizontal stack. */
-    static HStack hstack(View... children) {
-        return new HStack(children);
-    }
-
-    /** A horizontal stack with constructor layout properties. */
-    static HStack hstack(Alignment alignment, float spacing, View... children) {
-        return new HStack(alignment, spacing, children);
-    }
-
-    /** An overlapping stack. */
-    static ZStack zstack(View... children) {
-        return new ZStack(children);
-    }
-
-    /** A button with a string title. */
-    static Button button(String title, Runnable action) {
-        return new Button(title, action);
-    }
-
-    /** A button with an arbitrary child view as its label. */
-    static Button button(View label, Runnable action) {
-        return new Button(label, action);
-    }
-
-    /** A text field bound to a writable signal. */
-    static TextField textField(String placeholder, WritableSignal<String> binding) {
-        return new TextField(placeholder, binding);
-    }
-
-    /** A multi-line text editor bound to a writable signal. */
-    static TextEditor textEditor(WritableSignal<String> binding) {
-        return new TextEditor(binding);
-    }
-
-    /** A boolean control (switch/checkbox/toggle button) with a label. */
-    static Toggle toggle(ToggleStyle style, boolean selected, WritableSignal<Boolean> binding, String label) {
-        return new Toggle(style, selected, binding, label);
-    }
-
-    /** A {@code Switch}-style boolean control. */
-    static Toggle toggle(boolean selected, WritableSignal<Boolean> binding) {
-        return new Toggle(selected, binding);
-    }
-
-    /** A numeric range control. */
-    static Slider slider(float value, float min, float max, WritableSignal<Float> binding) {
-        return new Slider(value, min, max, binding);
-    }
-
-    /** A discrete increment/decrement control. */
-    static Stepper stepper(float value, float min, float max, float step, WritableSignal<Float> binding) {
-        return new Stepper(value, min, max, step, binding);
-    }
-
-    /** A determinate progress bar ({@code value} in {@code 0..1}). */
-    static ProgressView progressView(float value) {
-        return ProgressView.progress(value);
-    }
-
-    /** An indeterminate activity indicator. */
-    static ProgressView progressView() {
-        return ProgressView.indeterminate();
-    }
-
-    /** A read-only range meter. */
-    static Gauge gauge(float value, float min, float max) {
-        return new Gauge(value, min, max);
-    }
-
-    /** An axis-aligned separator line. */
-    static Divider divider() {
-        return new Divider();
-    }
-
-    /** A static 2D matrix grid. */
-    static Grid grid(View... children) {
-        return new Grid(children);
-    }
-
-    /** A scrollable content container. */
-    static ScrollView scrollView(View... children) {
-        return new ScrollView(children);
-    }
-
-    /** A virtualized vertical stack. */
-    static LazyVStack lazyVStack(View... children) {
-        return new LazyVStack(children);
-    }
-
-    /** A virtualized horizontal stack. */
-    static LazyHStack lazyHStack(View... children) {
-        return new LazyHStack(children);
-    }
-
-    /** A virtualized vertical grid. */
-    static LazyVGrid lazyVGrid(View... children) {
-        return new LazyVGrid(children);
-    }
-
-    /** A virtualized horizontal grid. */
-    static LazyHGrid lazyHGrid(View... children) {
-        return new LazyHGrid(children);
-    }
-
-    /** A selection control; the children are the options, {@code SELECTION} is the chosen index. */
-    static Picker picker(PickerStyle style, WritableSignal<Integer> selection, View... options) {
-        return new Picker(style, selection, options);
-    }
-
-    /** A menu with a custom trigger and action items. */
-    static Menu menu(View trigger, View... actions) {
-        return new Menu(trigger, actions);
-    }
-
-    /** A menu that reports the chosen action item index via {@code VALUE_CHANGED}. */
-    static Menu menu(View trigger, WritableSignal<Integer> selection, View... actions) {
-        return new Menu(trigger, selection, actions);
-    }
-
-    /** A native color picker bound to a color signal. */
-    static ColorPicker colorPicker(WritableSignal<Color> binding) {
-        return new ColorPicker(binding);
-    }
-
-    /** A date picker bound to days-since-epoch. */
-    static DatePicker datePicker(DatePickerMode mode, WritableSignal<Integer> days) {
-        return new DatePicker(mode, days);
-    }
-
-    /** Compose a list of child views into one {@link View}. */
-    static View group(List<View> children) {
-        return vstack(children.toArray(new View[0]));
     }
 }

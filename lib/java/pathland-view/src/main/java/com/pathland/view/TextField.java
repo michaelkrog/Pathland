@@ -14,9 +14,14 @@ public final class TextField implements View {
     private final String placeholder;
     private final WritableSignal<String> binding;
 
-    public TextField(String placeholder, WritableSignal<String> binding) {
+    private TextField(String placeholder, WritableSignal<String> binding) {
         this.placeholder = placeholder;
         this.binding = binding;
+    }
+
+    /** A single-line text input bound to {@code binding}. */
+    public static TextField of(String placeholder, WritableSignal<String> binding) {
+        return new TextField(placeholder, binding);
     }
 
     @Override

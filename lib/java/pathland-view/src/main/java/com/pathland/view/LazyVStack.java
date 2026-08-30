@@ -11,18 +11,33 @@ public final class LazyVStack implements View {
     private final Alignment alignment;
     private final Float spacing;
 
-    public LazyVStack(View... children) {
+    private LazyVStack(View... children) {
         this(null, null, List.of(children));
     }
 
-    public LazyVStack(Alignment alignment, float spacing, View... children) {
+    private LazyVStack(Alignment alignment, float spacing, View... children) {
         this(alignment, spacing, List.of(children));
     }
 
-    public LazyVStack(Alignment alignment, Float spacing, List<View> children) {
+    private LazyVStack(Alignment alignment, Float spacing, List<View> children) {
         this.children = List.copyOf(children);
         this.alignment = alignment;
         this.spacing = spacing;
+    }
+
+    /** A virtualized vertical stack. */
+    public static LazyVStack of(View... children) {
+        return new LazyVStack(children);
+    }
+
+    /** A virtualized vertical stack with constructor layout properties. */
+    public static LazyVStack of(Alignment alignment, float spacing, View... children) {
+        return new LazyVStack(alignment, spacing, children);
+    }
+
+    /** A virtualized vertical stack with constructor layout properties. */
+    public static LazyVStack of(Alignment alignment, Float spacing, List<View> children) {
+        return new LazyVStack(alignment, spacing, children);
     }
 
     @Override

@@ -13,15 +13,25 @@ public final class BorderedButtonStyle implements ButtonStyle {
     private final Color borderColor;
     private final float radius;
 
-    public BorderedButtonStyle() {
+    private BorderedButtonStyle() {
         this(10f, Color.rgb(33, 150, 243), Color.rgb(25, 118, 210), 6f);
     }
 
-    public BorderedButtonStyle(float padding, Color background, Color borderColor, float radius) {
+    private BorderedButtonStyle(float padding, Color background, Color borderColor, float radius) {
         this.padding = padding;
         this.background = background;
         this.borderColor = borderColor;
         this.radius = radius;
+    }
+
+    /** The default bordered style. */
+    public static BorderedButtonStyle of() {
+        return new BorderedButtonStyle();
+    }
+
+    /** A bordered style with explicit padding, background, border color, and radius. */
+    public static BorderedButtonStyle of(float padding, Color background, Color borderColor, float radius) {
+        return new BorderedButtonStyle(padding, background, borderColor, radius);
     }
 
     @Override

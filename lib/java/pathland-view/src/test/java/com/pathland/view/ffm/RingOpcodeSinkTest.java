@@ -1,8 +1,11 @@
 package com.pathland.view.ffm;
 
+import com.pathland.view.Button;
 import com.pathland.view.Categories;
 import com.pathland.view.Commands;
 import com.pathland.view.Environment;
+import com.pathland.view.Text;
+import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Opcode;
@@ -40,7 +43,7 @@ class RingOpcodeSinkTest {
         try (RingOpcodeSink sink = new RingOpcodeSink(core)) {
             Emitter emitter = new Emitter(sink);
             emitter.mount(
-                    View.vstack(View.text("Hi"), View.button("Go", () -> { })),
+                    VStack.of(Text.of("Hi"), Button.of("Go", () -> { })),
                     Environment.DEFAULT);
 
             long len = core.ringLen(sink.handle());

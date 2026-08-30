@@ -11,18 +11,33 @@ public final class Grid implements View {
     private final Alignment alignment;
     private final Float spacing;
 
-    public Grid(View... children) {
+    private Grid(View... children) {
         this(null, null, List.of(children));
     }
 
-    public Grid(Alignment alignment, float spacing, View... children) {
+    private Grid(Alignment alignment, float spacing, View... children) {
         this(alignment, spacing, List.of(children));
     }
 
-    public Grid(Alignment alignment, Float spacing, List<View> children) {
+    private Grid(Alignment alignment, Float spacing, List<View> children) {
         this.children = List.copyOf(children);
         this.alignment = alignment;
         this.spacing = spacing;
+    }
+
+    /** A static 2D matrix grid; children are cells, row-major. */
+    public static Grid of(View... children) {
+        return new Grid(children);
+    }
+
+    /** A static 2D matrix grid with constructor layout properties. */
+    public static Grid of(Alignment alignment, float spacing, View... children) {
+        return new Grid(alignment, spacing, children);
+    }
+
+    /** A static 2D matrix grid with constructor layout properties. */
+    public static Grid of(Alignment alignment, Float spacing, List<View> children) {
+        return new Grid(alignment, spacing, children);
     }
 
     @Override

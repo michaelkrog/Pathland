@@ -16,10 +16,15 @@ public final class Picker implements View {
     private final WritableSignal<Integer> selection;
     private final List<View> options;
 
-    public Picker(PickerStyle style, WritableSignal<Integer> selection, View... options) {
+    private Picker(PickerStyle style, WritableSignal<Integer> selection, View... options) {
         this.style = style;
         this.selection = selection;
         this.options = List.of(options);
+    }
+
+    /** A selection control; the options are the children. */
+    public static Picker of(PickerStyle style, WritableSignal<Integer> selection, View... options) {
+        return new Picker(style, selection, options);
     }
 
     @Override

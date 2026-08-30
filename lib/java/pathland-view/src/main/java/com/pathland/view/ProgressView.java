@@ -16,6 +16,11 @@ public final class ProgressView implements View {
     }
 
     /** A determinate progress bar ({@code value} in {@code 0..1}). */
+    public static ProgressView of(float value) {
+        return new ProgressView(value);
+    }
+
+    /** A determinate progress bar ({@code value} in {@code 0..1}). */
     public static ProgressView progress(float value) {
         return new ProgressView(value);
     }

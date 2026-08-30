@@ -9,10 +9,15 @@ public final class Gauge implements View {
     private final float min;
     private final float max;
 
-    public Gauge(float value, float min, float max) {
+    private Gauge(float value, float min, float max) {
         this.value = value;
         this.min = min;
         this.max = max;
+    }
+
+    /** A read-only range meter. */
+    public static Gauge of(float value, float min, float max) {
+        return new Gauge(value, min, max);
     }
 
     @Override
