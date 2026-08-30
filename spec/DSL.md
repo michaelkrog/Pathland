@@ -42,7 +42,7 @@ A DSL in a new language is **conformant** when it:
 > (`com.pathland.view`) and the Rust DSL (`pathland-view`) are the two reference
 > realizations and are cited here by their **current signatures**; where they
 > diverge from the canonical form below, that divergence is noted as a *delta*,
-> and [§7](#7-java-convergence-proposal) proposes how the Java DSL converges.
+> and [§7](#7-java-dsl-convergence-adopted) records the adopted Java convergence.
 > This document defines the contract only.
 
 ### Two guiding rules
@@ -128,7 +128,7 @@ Per-language adaptation rules:
 | Language | Case | Composition mechanism | Example |
 |----------|------|-----------------------|---------|
 | SwiftUI | `camelCase` | trailing closures + result builder | `VStack { Text("x").padding() }` |
-| Java (`com.pathland.view`) | `camelCase` | static factories + varargs + chainable default methods | `View.vstack(View.text("x").padding(16))` |
+| Java (`com.pathland.view`) | `camelCase` | `.of()` factories + varargs + `.modifier(...)`/`.modifiers(...)` | `VStack.of(Text.of("x").modifier(Padding.of(16)))` |
 | Rust (`pathland-view`) | `snake_case` | macros + free functions + chainable trait methods | `vstack![text("x").padding(16.0)]` |
 
 ---
@@ -208,39 +208,39 @@ Component ids and wire behavior come from
 
 | View | Canonical (SwiftUI-shaped) | Java DSL (current) | Emits / Binds |
 |------|---------------------------|--------------------|---------------|
-| `Text` | `Text("…")` / `Text(Signal<String>)` | `View.text(String)` / `View.text(Signal<String>)` | `TEXT` 0x01; content `SET_TEXT` |
-| `Image` | `Image("name")` / `Image(systemName:)` | `View.image()` / `View.image(String source)` | `IMAGE` 0x02; `IMAGE_SOURCE` 0x1002 |
+| `Text` | `Text("…")` / `Text(Signal<String>)` | `Text.of(String)` / `Text.of(Signal<String>)` | `TEXT` 0x01; content `SET_TEXT` |
+| `Image` | `Image("name")` / `Image(systemName:)` | `Image.of()` / `Image.of(String source)` | `IMAGE` 0x02; `IMAGE_SOURCE` 0x1002 |
 | `Color` | `Color(.sRGB, red:green:blue:)` (a View) | `Color.rgb(int,int,int)` (implements `View`) | `COLOR` 0x03; `COLOR` 0x100A |
-| `Shape` | `Rectangle()`, `Circle()`, `Capsule()`, `RoundedRectangle(cornerRadius:)` | `View.rectangle()` | `SHAPE` 0x04; `SHAPE_KIND` 0x0006 |
-| `Divider` | `Divider()` | `View.divider()` | `DIVIDER` 0x05 |
-| `Spacer` | `Spacer()` | `View.spacer()` | `SPACER` 0x06 |
-| `ProgressView` | `ProgressView(value:)` / `ProgressView()` | `View.progressView(float)` / `View.progressView()` | `PROGRESS_VIEW` 0x07; `PROGRESS` 0x200E / `IS_INDETERMINATE` 0x200F |
-| `Gauge` | `Gauge(value:in:)` | `View.gauge(float value, float min, float max)` | `GAUGE` 0x08; `VALUE`/`MIN_VALUE`/`MAX_VALUE` |
+| `Shape` | `Rectangle()`, `Circle()`, `Capsule()`, `RoundedRectangle(cornerRadius:)` | `Rectangle.of()` | `SHAPE` 0x04; `SHAPE_KIND` 0x0006 |
+| `Divider` | `Divider()` | `Divider.of()` | `DIVIDER` 0x05 |
+| `Spacer` | `Spacer()` | `Spacer.of()` | `SPACER` 0x06 |
+| `ProgressView` | `ProgressView(value:)` / `ProgressView()` | `ProgressView.of(float)` / `ProgressView.of()` | `PROGRESS_VIEW` 0x07; `PROGRESS` 0x200E / `IS_INDETERMINATE` 0x200F |
+| `Gauge` | `Gauge(value:in:)` | `Gauge.of(float value, float min, float max)` | `GAUGE` 0x08; `VALUE`/`MIN_VALUE`/`MAX_VALUE` |
 
-**Deltas (Java)**: primitives are constructed via the `View.` static factory
-(`View.text("…")`) rather than direct construction (`Text("…")`). Shape kinds
-other than `Rectangle` are not exposed as named constructors in the Java DSL
-today (only `View.rectangle()`); the canonical form exposes the full
-`ShapeKind` set.
+**Deltas (Java)**: primitives are constructed with `<ViewName>.of(...)`
+factories (`Text.of("…")`). Full `ShapeKind` coverage ships as named views
+(`Rectangle.of()`, `Circle.of()`, `Capsule.of()`, `Ellipse.of()`,
+`RoundedRectangle.of(cornerRadius:)`) plus generic `Shape.of(ShapeKind)` for
+`Path`.
 
 ### 4.2 Layout & container nodes
 
 | View | Canonical (SwiftUI-shaped) | Java DSL (current) | Emits / Binds |
 |------|---------------------------|--------------------|---------------|
-| `VStack` | `VStack(alignment:spacing:) { … }` | `View.vstack(View...)` / `View.vstack(Alignment, float, View...)` | `VSTACK` 0x10; `SPACING` 0x0001, `ALIGNMENT` 0x0002, `CONTENT_MARGINS` 0x0005 |
-| `HStack` | `HStack(alignment:spacing:) { … }` | `View.hstack(View...)` / `View.hstack(Alignment, float, View...)` | `HSTACK` 0x11 |
-| `ZStack` | `ZStack(alignment:) { … }` | `View.zstack(View...)` | `ZSTACK` 0x12; `ALIGNMENT` |
-| `Grid` | `Grid(alignment:horizontalSpacing:verticalSpacing:) { … }` | `View.grid(View...)` | `GRID` 0x13 |
-| `ScrollView` | `ScrollView { … }` | `View.scrollView(View...)` | `SCROLLVIEW` 0x14 |
-| `LazyVGrid` | `LazyVGrid(columns:alignment:spacing:) { … }` | `View.lazyVGrid(View...)` | `LAZY_VGRID` 0x15 |
-| `LazyHGrid` | `LazyHGrid(rows:alignment:spacing:) { … }` | `View.lazyHGrid(View...)` | `LAZY_HGRID` 0x16 |
-| `LazyVStack` | `LazyVStack(alignment:spacing:) { … }` | `View.lazyVStack(View...)` | `LAZY_VSTACK` 0x1B |
-| `LazyHStack` | `LazyHStack(alignment:spacing:) { … }` | `View.lazyHStack(View...)` | `LAZY_HSTACK` 0x1C |
+| `VStack` | `VStack(alignment:spacing:) { … }` | `VStack.of(View...)` / `VStack.of(Alignment, float, View...)` | `VSTACK` 0x10; `SPACING` 0x0001, `ALIGNMENT` 0x0002, `CONTENT_MARGINS` 0x0005 |
+| `HStack` | `HStack(alignment:spacing:) { … }` | `HStack.of(View...)` / `HStack.of(Alignment, float, View...)` | `HSTACK` 0x11 |
+| `ZStack` | `ZStack(alignment:) { … }` | `ZStack.of(View...)` | `ZSTACK` 0x12; `ALIGNMENT` |
+| `Grid` | `Grid(alignment:horizontalSpacing:verticalSpacing:) { … }` | `Grid.of(View...)` | `GRID` 0x13 |
+| `ScrollView` | `ScrollView { … }` | `ScrollView.of(View...)` | `SCROLLVIEW` 0x14 |
+| `LazyVGrid` | `LazyVGrid(columns:alignment:spacing:) { … }` | `LazyVGrid.of(View...)` | `LAZY_VGRID` 0x15 |
+| `LazyHGrid` | `LazyHGrid(rows:alignment:spacing:) { … }` | `LazyHGrid.of(View...)` | `LAZY_HGRID` 0x16 |
+| `LazyVStack` | `LazyVStack(alignment:spacing:) { … }` | `LazyVStack.of(View...)` | `LAZY_VSTACK` 0x1B |
+| `LazyHStack` | `LazyHStack(alignment:spacing:) { … }` | `LazyHStack.of(View...)` | `LAZY_HSTACK` 0x1C |
 
-**Deltas (Java)**: stacks are constructed with the `View.vstack(...)` factory
-using varargs (`View.vstack(children...)`), not a builder/trailing-closure
+**Deltas (Java)**: stacks are constructed with the `<ViewName>.of(...)` factory
+using varargs (`VStack.of(children...)`), not a builder/trailing-closure
 block. Constructor layout properties come as a separate overload
-(`View.vstack(Alignment, float, View...)`). The canonical SwiftUI form passes
+(`VStack.of(Alignment, float, View...)`). The canonical SwiftUI form passes
 `alignment`/`spacing` as labeled constructor arguments inside the braces' call.
 
 ### 4.3 Semantic controls
@@ -249,26 +249,27 @@ Two-way value controls bind a `WritableSignal`. Actions bind a callback.
 
 | Control | Canonical (SwiftUI-shaped) | Java DSL (current) | Emits / Binds |
 |---------|---------------------------|--------------------|---------------|
-| `Button` | `Button("title", action)` / `Button(action:label:)` | `View.button(String, Runnable)` / `View.button(View, Runnable)` | `BUTTON` 0x20; tap = composed `POINTER_DOWN`+`POINTER_UP` |
-| `TextField` | `TextField("placeholder", text: writable)` | `View.textField(String, WritableSignal<String>)` | `TEXT_FIELD` 0x21; `TEXT_CHANGED` → text input |
+| `Button` | `Button("title", action)` / `Button(action:label:)` | `Button.of(String, Runnable)` / `Button.of(View, Runnable)` | `BUTTON` 0x20; tap = composed `POINTER_DOWN`+`POINTER_UP` |
+| `TextField` | `TextField("placeholder", text: writable)` | `TextField.of(String, WritableSignal<String>)` | `TEXT_FIELD` 0x21; `TEXT_CHANGED` → text input |
 | `SecureField` | `SecureField("…", text: writable)` | (secure via `IS_SECURE` token) | `TEXT_FIELD` 0x21 + `IS_SECURE` 0x200D |
-| `TextEditor` | `TextEditor(text: writable)` | `View.textEditor(WritableSignal<String>)` | `TEXT_EDITOR` 0x22 |
-| `Toggle` | `Toggle("label", isOn: writable)` | `View.toggle(boolean, WritableSignal<Boolean>)` / `View.toggle(ToggleStyle, boolean, WritableSignal<Boolean>, String)` | `TOGGLE` 0x24; `VALUE_CHANGED` → value input; `TOGGLE_STYLE` 0x2018 |
-| `Slider` | `Slider(value: writable, in: min...max)` | `View.slider(float value, float min, float max, WritableSignal<Float>)` | `SLIDER` 0x25; `VALUE_CHANGED` → value input |
-| `Stepper` | `Stepper("label", value: writable, in: min...max, step:)` | `View.stepper(float, float, float, float, WritableSignal<Float>)` | `STEPPER` 0x26; `VALUE_CHANGED` → value input |
-| `DatePicker` | `DatePicker("label", selection: writable, displayedComponents:)` | `View.datePicker(DatePickerMode, WritableSignal<Integer>)` | `DATE_PICKER` 0x27; `DATE_CHANGED` → date input; value via `STYLE::SET_DATE` |
-| `Picker` | `Picker("label", selection: writable) { options }` | `View.picker(PickerStyle, WritableSignal<Integer>, View... options)` | `PICKER` 0x28; `VALUE_CHANGED` (index) → value input |
-| `Menu` | `Menu { actions } label: { trigger }` | `View.menu(View trigger, View... actions)` / `View.menu(View, WritableSignal<Integer>, View...)` | `MENU` 0x29; `VALUE_CHANGED` (item index) → value input |
-| `ColorPicker` | `ColorPicker("label", selection: writable)` | `View.colorPicker(WritableSignal<Color>)` | `COLOR_PICKER` 0x2A; `VALUE_CHANGED` (packed `0xAARRGGBB` as f32) → value input |
+| `TextEditor` | `TextEditor(text: writable)` | `TextEditor.of(WritableSignal<String>)` | `TEXT_EDITOR` 0x22 |
+| `Toggle` | `Toggle("label", isOn: writable)` | `Toggle.of(boolean, WritableSignal<Boolean>)` / `Toggle.of(String label, WritableSignal<Boolean>)` / `Toggle.of(ToggleStyle, boolean, WritableSignal<Boolean>, String)` | `TOGGLE` 0x24; `VALUE_CHANGED` → value input; `TOGGLE_STYLE` 0x2018 |
+| `Slider` | `Slider(value: writable, in: min...max)` | `Slider.of(WritableSignal<Float>, float min, float max)` | `SLIDER` 0x25; `VALUE_CHANGED` → value input |
+| `Stepper` | `Stepper("label", value: writable, in: min...max, step:)` | `Stepper.of(WritableSignal<Float>, float min, float max, float step)` | `STEPPER` 0x26; `VALUE_CHANGED` → value input |
+| `DatePicker` | `DatePicker("label", selection: writable, displayedComponents:)` | `DatePicker.of(DatePickerMode, WritableSignal<Integer>)` | `DATE_PICKER` 0x27; `DATE_CHANGED` → date input; value via `STYLE::SET_DATE` |
+| `Picker` | `Picker("label", selection: writable) { options }` | `Picker.of(PickerStyle, WritableSignal<Integer>, View... options)` | `PICKER` 0x28; `VALUE_CHANGED` (index) → value input |
+| `Menu` | `Menu { actions } label: { trigger }` | `Menu.of(View trigger, View... actions)` / `Menu.of(View, WritableSignal<Integer>, View...)` | `MENU` 0x29; `VALUE_CHANGED` (item index) → value input |
+| `ColorPicker` | `ColorPicker("label", selection: writable)` | `ColorPicker.of(WritableSignal<Color>)` | `COLOR_PICKER` 0x2A; `VALUE_CHANGED` (packed `0xAARRGGBB` as f32) → value input |
 
-**Deltas (Java)**: the value binding is a positional constructor argument
-(`View.slider(value, min, max, binding)`) instead of SwiftUI's labeled
-`value:in:` range binding. `Button` takes a `(label, action)` pair rather than
-SwiftUI's `Button("title") { action }` trailing-action form. `Toggle` takes
-`(style, selected, binding, label)` positionally; `DatePicker` binds
-**days-since-epoch** (`WritableSignal<Integer>`) rather than a date object —
-the protocol's `SET_DATE`/`DATE_CHANGED` two-field encoding is
-days + millis-of-day (see [§7](#7-java-convergence-proposal)).
+**Deltas (Java)**: the value binding is **binding-first** in `.of(...)` —
+`Slider.of(binding, min, max)` reads the initial value from the signal (the
+single source of truth) instead of SwiftUI's labeled `value:in:` range
+binding. `Button` takes a `(label, action)` pair rather than SwiftUI's
+`Button("title") { action }` trailing-action form. `Toggle` offers the
+SwiftUI-closer `of(label, isOn)`; `DatePicker` binds **days-since-epoch**
+(`WritableSignal<Integer>`) rather than a date object — the protocol's
+`SET_DATE`/`DATE_CHANGED` two-field encoding is days + millis-of-day (see
+[§7](#7-java-dsl-convergence-adopted)).
 
 **Control guarantees** (from PRIMITIVES.md): a control without children renders
 in **Native Token Mode** (native OS control); a control with a child subtree
@@ -281,13 +282,13 @@ event guards) — see [EVENTS.md](./EVENTS.md).
 
 | Gesture | Canonical (SwiftUI-shaped) | Java DSL (current) | Rust DSL (current) |
 |---------|---------------------------|--------------------|--------------------|
-| tap | `.onTapGesture { action }` | `.onTapGesture(Runnable)` | `.on_tap_gesture(f)` |
-| raw pointer | `.gesture` composition from raw inputs | `.pointerEvents(int mask)` | `.pointer_events(u32 mask)` |
+| tap | `.onTapGesture { action }` | `.modifier(TapGesture.of(Runnable))` | `.on_tap_gesture(f)` |
+| raw pointer | `.gesture` composition from raw inputs | `.modifier(PointerEvents.of(int mask))` | `.pointer_events(u32 mask)` |
 
 Tap is **not** a protocol event: it is composed app-side from `POINTER_DOWN`
-then `POINTER_UP` on the same target (`EVENT_LISTENERS` bits 0|2). The DSL's
-`.onTapGesture` declares those listeners and records the action; the host
-routes the recognized tap via the emitter's tap-action registry.
+then `POINTER_UP` on the same target (`EVENT_LISTENERS` bits 0|2). The
+`TapGesture` modifier value declares those listeners and records the action;
+the host routes the recognized tap via the emitter's tap-action registry.
 
 ---
 
@@ -303,26 +304,32 @@ property** (`.frame` → `WIDTH` + `HEIGHT` + `ALIGNMENT`; `.border` →
 **One mechanism for every modifier.** Each entry in the tables below is a
 `ViewModifier` value. `padding(16)` is shorthand for
 `.modifier(Padding.of(16))`; `foregroundStyle(color)` for
-`.modifier(ForegroundStyle.of(color))`. The tables list the sugar names; core
-and application-authored modifiers use the same `.modifier(...)` surface
-([§5.6](#56-custom-modifiers-developer-authored)).
+`.modifier(ForegroundStyle.of(color))`. The tables list the canonical sugar
+names; core and application-authored modifiers use the same `.modifier(...)`
+surface ([§5.6](#56-custom-modifiers-developer-authored)).
+
+> **Java realization**: the Java DSL ships **no modifier sugar on `View`** —
+> modifiers are values applied via `.modifier(X.of(...))` (single) or
+> `.modifiers(X.of(...), Y.of(...))` (several, innermost-first). The "Java DSL
+> (current)" column lists the value form; the parameter list is carried from the
+> canonical signature.
 
 ### 5.1 Layout & frame
 
 | Modifier | Canonical (SwiftUI-shaped) | Java DSL (current) | Property(ies) |
 |----------|---------------------------|--------------------|---------------|
-| `frame` | `.frame(width:height:alignment:)` | `.frame(float width, float height, Alignment)` | `WIDTH` 0x100B, `HEIGHT` 0x100C, `ALIGNMENT` 0x0002 |
-| `frame(min:…)` | `.frame(minWidth:idealWidth:maxWidth:minHeight:idealHeight:maxHeight:)` | `.frame(float, float, float, float, float, float)` (NaN = unset) | `MIN_WIDTH` 0x0012 … `MAX_HEIGHT` 0x0017 |
-| `padding` | `.padding(_:)` / `.padding(_:edges:)` | `.padding(int)` / `.padding(float)` / `.padding(int top, int right, int bottom, int left)` | `PADDING` 0x1011 / `PADDING_TOP` 0x1012 … `PADDING_LEFT` 0x1015 |
-| `offset` | `.offset(x:y:)` | `.offset(float x, float y)` | `OFFSET_X` 0x000E, `OFFSET_Y` 0x000F |
-| `position` | `.position(x:y:)` | `.position(float x, float y)` | `POSITION_X` 0x0010, `POSITION_Y` 0x0011 |
-| `fixedSize` | `.fixedSize()` / `.fixedSize(horizontal:vertical:)` | `.fixedSize()` / `.fixedSize(boolean, boolean)` | `FIXED_SIZE_HORIZONTAL` 0x0018, `FIXED_SIZE_VERTICAL` 0x0019 |
-| `layoutPriority` | `.layoutPriority(_:)` | `.layoutPriority(float)` | `LAYOUT_PRIORITY` 0x001A |
-| `zIndex` | `.zIndex(_:)` | `.zIndex(float)` | `Z_INDEX` 0x100F |
-| `aspectRatio` | `.aspectRatio(_:contentMode:)` | `.aspectRatio(float, ContentMode)` | `ASPECT_RATIO` 0x001B, `CONTENT_MODE` 0x001C |
-| `scaledToFit` | `.scaledToFit()` | `.scaledToFit()` | `CONTENT_MODE` 0x001C (Fit) |
-| `scaledToFill` | `.scaledToFill()` | `.scaledToFill()` | `CONTENT_MODE` 0x001C (Fill) |
-| `minimumScaleFactor` | `.minimumScaleFactor(_:)` | `.minimumScaleFactor(float)` | `MINIMUM_SCALE_FACTOR` 0x001D |
+| `frame` | `.frame(width:height:alignment:)` | `.modifier(FrameMod.of(float width, float height, Alignment))` | `WIDTH` 0x100B, `HEIGHT` 0x100C, `ALIGNMENT` 0x0002 |
+| `frame(min:…)` | `.frame(minWidth:idealWidth:maxWidth:minHeight:idealHeight:maxHeight:)` | `.modifier(FrameMod.of(float, float, float, float, float, float))` (NaN = unset) | `MIN_WIDTH` 0x0012 … `MAX_HEIGHT` 0x0017 |
+| `padding` | `.padding(_:)` / `.padding(_:edges:)` | `.modifier(Padding.of(int))` / `.modifier(Padding.of(float))` / `.modifier(Padding.of(int top, int right, int bottom, int left))` | `PADDING` 0x1011 / `PADDING_TOP` 0x1012 … `PADDING_LEFT` 0x1015 |
+| `offset` | `.offset(x:y:)` | `.modifier(Offset.of(float x, float y))` | `OFFSET_X` 0x000E, `OFFSET_Y` 0x000F |
+| `position` | `.position(x:y:)` | `.modifier(Position.of(float x, float y))` | `POSITION_X` 0x0010, `POSITION_Y` 0x0011 |
+| `fixedSize` | `.fixedSize()` / `.fixedSize(horizontal:vertical:)` | `.modifier(FixedSize.of())` / `.modifier(FixedSize.of(boolean, boolean))` | `FIXED_SIZE_HORIZONTAL` 0x0018, `FIXED_SIZE_VERTICAL` 0x0019 |
+| `layoutPriority` | `.layoutPriority(_:)` | `.modifier(LayoutPriority.of(float))` | `LAYOUT_PRIORITY` 0x001A |
+| `zIndex` | `.zIndex(_:)` | `.modifier(ZIndex.of(float))` | `Z_INDEX` 0x100F |
+| `aspectRatio` | `.aspectRatio(_:contentMode:)` | `.modifier(AspectRatio.of(float, ContentMode))` | `ASPECT_RATIO` 0x001B, `CONTENT_MODE` 0x001C |
+| `scaledToFit` | `.scaledToFit()` | `.modifier(ScaledToFit.of())` | `CONTENT_MODE` 0x001C (Fit) |
+| `scaledToFill` | `.scaledToFill()` | `.modifier(ScaledToFill.of())` | `CONTENT_MODE` 0x001C (Fill) |
+| `minimumScaleFactor` | `.minimumScaleFactor(_:)` | `.modifier(MinimumScaleFactor.of(float))` | `MINIMUM_SCALE_FACTOR` 0x001D |
 
 **Semantics**: `WIDTH`/`HEIGHT` use the sentinels `FILL` (−1.0 = expand) and
 `HUG_CONTENT` (−2.0 = intrinsic); omitting an axis leaves it to the native
@@ -333,23 +340,23 @@ placement within the parent.
 
 | Modifier | Canonical (SwiftUI-shaped) | Java DSL (current) | Property(ies) |
 |----------|---------------------------|--------------------|---------------|
-| `font` | `.font(.system(size:))` | `.fontSize(float)` / `.fontSize(Signal<Float>)` | `FONT_SIZE` 0x1007 |
-| `fontWeight` | `.fontWeight(_:)` | `.fontWeight(FontWeight)` | `FONT_WEIGHT` 0x1008 (100–900) |
-| `font` (custom) | `.font(.custom(name:size:))` | `.fontFamily(String)` | `FONT_FAMILY` 0x1009 |
-| `fontStyle` | `.italic()` / `.fontDesign(_:)` | `.italic()` / `.fontStyle(FontStyle)` / `.fontDesign(FontDesign)` | `FONT_STYLE` 0x1017, `FONT_DESIGN` 0x1018 |
-| `fontWidth` | `.fontWidth(_:)` | `.fontWidth(float)` | `FONT_WIDTH` 0x1019 |
-| `kerning` | `.kerning(_:)` | `.kerning(float)` | `KERNING` 0x101A |
-| `tracking` | `.tracking(_:)` | `.tracking(float)` | `TRACKING` 0x101B |
-| `baselineOffset` | `.baselineOffset(_:)` | `.baselineOffset(float)` | `BASELINE_OFFSET` 0x101C |
-| `lineSpacing` | `.lineSpacing(_:)` | `.lineSpacing(float)` | `LINE_SPACING` 0x101D |
-| `lineLimit` | `.lineLimit(_:)` | `.lineLimit(int)` | `LINE_LIMIT` 0x000B (0 = unlimited) |
-| `multilineTextAlignment` | `.multilineTextAlignment(_:)` | `.multilineTextAlignment(TextAlignment)` | `TEXT_ALIGNMENT` 0x000C |
-| `truncationMode` | `.truncationMode(_:)` | `.truncationMode(Truncation)` | `TRUNCATION_MODE` 0x000D |
-| `textCase` | `.textCase(_:)` | `.textCase(TextCase)` | `TEXT_CASE` 0x101E |
-| `underline` | `.underline()` | `.underline()` / `.underline(boolean)` | `UNDERLINE` 0x101F |
-| `strikethrough` | `.strikethrough()` | `.strikethrough()` / `.strikethrough(boolean)` | `STRIKETHROUGH` 0x1020 |
-| `foregroundStyle` | `.foregroundStyle(_:)` | `.foregroundStyle(Color)` / `.foregroundStyle(Signal<Color>)` | `COLOR` 0x100A |
-| `tint` | `.tint(_:)` | `.tint(Color)` | `TINT` 0x1030 |
+| `font` | `.font(.system(size:))` | `.modifier(FontSize.of(float))` / `.modifier(FontSize.of(Signal<Float>))` | `FONT_SIZE` 0x1007 |
+| `fontWeight` | `.fontWeight(_:)` | `.modifier(FontWeightMod.of(FontWeight))` | `FONT_WEIGHT` 0x1008 (100–900) |
+| `font` (custom) | `.font(.custom(name:size:))` | `.modifier(FontFamily.of(String))` | `FONT_FAMILY` 0x1009 |
+| `fontStyle` | `.italic()` / `.fontDesign(_:)` | `.modifier(Italic.of())` / `.modifier(FontStyleMod.of(FontStyle))` / `.modifier(FontDesignMod.of(FontDesign))` | `FONT_STYLE` 0x1017, `FONT_DESIGN` 0x1018 |
+| `fontWidth` | `.fontWidth(_:)` | `.modifier(FontWidth.of(float))` | `FONT_WIDTH` 0x1019 |
+| `kerning` | `.kerning(_:)` | `.modifier(Kerning.of(float))` | `KERNING` 0x101A |
+| `tracking` | `.tracking(_:)` | `.modifier(Tracking.of(float))` | `TRACKING` 0x101B |
+| `baselineOffset` | `.baselineOffset(_:)` | `.modifier(BaselineOffset.of(float))` | `BASELINE_OFFSET` 0x101C |
+| `lineSpacing` | `.lineSpacing(_:)` | `.modifier(LineSpacing.of(float))` | `LINE_SPACING` 0x101D |
+| `lineLimit` | `.lineLimit(_:)` | `.modifier(LineLimit.of(int))` | `LINE_LIMIT` 0x000B (0 = unlimited) |
+| `multilineTextAlignment` | `.multilineTextAlignment(_:)` | `.modifier(TextAlignmentMod.of(TextAlignment))` | `TEXT_ALIGNMENT` 0x000C |
+| `truncationMode` | `.truncationMode(_:)` | `.modifier(TruncationMod.of(Truncation))` | `TRUNCATION_MODE` 0x000D |
+| `textCase` | `.textCase(_:)` | `.modifier(TextCaseMod.of(TextCase))` | `TEXT_CASE` 0x101E |
+| `underline` | `.underline()` | `.modifier(Underline.of())` / `.modifier(Underline.of(boolean))` | `UNDERLINE` 0x101F |
+| `strikethrough` | `.strikethrough()` | `.modifier(Strikethrough.of())` / `.modifier(Strikethrough.of(boolean))` | `STRIKETHROUGH` 0x1020 |
+| `foregroundStyle` | `.foregroundStyle(_:)` | `.modifier(ForegroundStyle.of(Color))` / `.modifier(ForegroundStyle.of(Signal<Color>))` | `COLOR` 0x100A |
+| `tint` | `.tint(_:)` | `.modifier(Tint.of(Color))` | `TINT` 0x1030 |
 
 > **`Color` is never a modifier** — there is no `.color()` and
 > `.foregroundColor(_:)` is deprecated. Foreground styling is
@@ -359,33 +366,33 @@ placement within the parent.
 
 | Modifier | Canonical (SwiftUI-shaped) | Java DSL (current) | Property(ies) |
 |----------|---------------------------|--------------------|---------------|
-| `background` | `.background(_:)` | `.background(Color)` / `.background(Signal<Color>)` | `BACKGROUND_COLOR` 0x1001 |
-| `border` | `.border(_:width:)` | `.border(float width, Color color, float radius)` | `BORDER_COLOR` 0x1004, `BORDER_WIDTH` 0x1003, `BORDER_RADIUS` 0x1005 |
+| `background` | `.background(_:)` | `.modifier(Background.of(Color))` / `.modifier(Background.of(Signal<Color>))` | `BACKGROUND_COLOR` 0x1001 |
+| `border` | `.border(_:width:)` | `.modifier(Border.of(Color color, float width, float radius))` | `BORDER_COLOR` 0x1004, `BORDER_WIDTH` 0x1003, `BORDER_RADIUS` 0x1005 |
 | `border` (edges) | `.border(_:width:edges:)` | (not exposed) | + `BORDER_EDGES` 0x1016 (u32 bitmask: `TOP`=1, `LEADING`=2, `BOTTOM`=4, `TRAILING`=8) |
-| `cornerRadius` | `.cornerRadius(_:)` | `.cornerRadius(float)` | `BORDER_RADIUS` 0x1005 |
-| `shadow` | `.shadow(color:radius:x:y:)` | `.shadow(Color, float, float, float)` / `.shadow(float)` | `SHADOW_COLOR` 0x1021, `SHADOW_RADIUS` 0x1022, `SHADOW_X` 0x1023, `SHADOW_Y` 0x1024 |
-| `opacity` | `.opacity(_:)` | `.opacity(float)` | `OPACITY` 0x100D |
-| `blur` | `.blur(radius:)` | `.blur(float)` | `BLUR_RADIUS` 0x1025 |
-| `saturation` | `.saturation(_:)` | `.saturation(float)` | `SATURATION` 0x1026 |
-| `contrast` | `.contrast(_:)` | `.contrast(float)` | `CONTRAST` 0x1027 |
-| `brightness` | `.brightness(_:)` | `.brightness(float)` | `BRIGHTNESS` 0x1028 |
-| `grayscale` | `.grayscale(_:)` | `.grayscale(float)` | `GRAYSCALE` 0x1029 |
-| `hueRotation` | `.hueRotation(_:)` | `.hueRotation(float)` | `HUE_ROTATION` 0x102A |
-| `colorMultiply` | `.colorMultiply(_:)` | `.colorMultiply(Color)` | `COLOR_MULTIPLY` 0x102B |
-| `colorInvert` | `.colorInvert()` | `.colorInvert()` | `COLOR_INVERT` 0x102C |
-| `clipped` | `.clipped()` | `.clipped()` | `CLIPS_TO_BOUNDS` 0x1010 |
-| `clipShape` | `.clipShape(_:)` | `.clipShape(ShapeKind)` | `CLIPS_TO_BOUNDS` 0x1010 + `SHAPE_KIND` 0x0006 |
+| `cornerRadius` | `.cornerRadius(_:)` | `.modifier(CornerRadius.of(float))` | `BORDER_RADIUS` 0x1005 |
+| `shadow` | `.shadow(color:radius:x:y:)` | `.modifier(Shadow.of(Color, float, float, float))` / `.modifier(Shadow.of(float))` | `SHADOW_COLOR` 0x1021, `SHADOW_RADIUS` 0x1022, `SHADOW_X` 0x1023, `SHADOW_Y` 0x1024 |
+| `opacity` | `.opacity(_:)` | `.modifier(Opacity.of(float))` | `OPACITY` 0x100D |
+| `blur` | `.blur(radius:)` | `.modifier(Blur.of(float))` | `BLUR_RADIUS` 0x1025 |
+| `saturation` | `.saturation(_:)` | `.modifier(Saturation.of(float))` | `SATURATION` 0x1026 |
+| `contrast` | `.contrast(_:)` | `.modifier(Contrast.of(float))` | `CONTRAST` 0x1027 |
+| `brightness` | `.brightness(_:)` | `.modifier(Brightness.of(float))` | `BRIGHTNESS` 0x1028 |
+| `grayscale` | `.grayscale(_:)` | `.modifier(Grayscale.of(float))` | `GRAYSCALE` 0x1029 |
+| `hueRotation` | `.hueRotation(_:)` | `.modifier(HueRotation.of(float))` | `HUE_ROTATION` 0x102A |
+| `colorMultiply` | `.colorMultiply(_:)` | `.modifier(ColorMultiply.of(Color))` | `COLOR_MULTIPLY` 0x102B |
+| `colorInvert` | `.colorInvert()` | `.modifier(ColorInvert.of())` | `COLOR_INVERT` 0x102C |
+| `clipped` | `.clipped()` | `.modifier(Clipped.of())` | `CLIPS_TO_BOUNDS` 0x1010 |
+| `clipShape` | `.clipShape(_:)` | `.modifier(ClipShape.of(ShapeKind))` | `CLIPS_TO_BOUNDS` 0x1010 + `SHAPE_KIND` 0x0006 |
 
-**Delta (Java)**: `.border` takes `(width, color, radius)` — SwiftUI's
-parameter order is `.border(color, width)` and corner radius is a separate
-`.cornerRadius`. The canonical order MUST be color-then-width.
+**Delta (Java)**: the border modifier value is `Border.of(color, width[, radius])`
+— canonical color-then-width order; corner radius is a separate
+`.cornerRadius` value (`CornerRadius.of`).
 
 ### 5.4 Transform
 
 | Modifier | Canonical (SwiftUI-shaped) | Java DSL (current) | Property(ies) |
 |----------|---------------------------|--------------------|---------------|
-| `rotationEffect` | `.rotationEffect(_:anchor:)` | `.rotation(float)` | `ROTATION_DEGREES` 0x102D |
-| `scaleEffect` | `.scaleEffect(_:anchor:)` | `.scaleEffect(float)` | `SCALE` 0x102E |
+| `rotationEffect` | `.rotationEffect(_:anchor:)` | `.modifier(Rotation.of(float))` | `ROTATION_DEGREES` 0x102D |
+| `scaleEffect` | `.scaleEffect(_:anchor:)` | `.modifier(ScaleEffect.of(float))` | `SCALE` 0x102E |
 
 Anchor is renderer-token-owned (center default); the protocol does not transmit
 anchors. Transforms do not affect layout.
@@ -394,23 +401,24 @@ anchors. Transforms do not affect layout.
 
 | Modifier | Canonical (SwiftUI-shaped) | Java DSL (current) | Property(ies) |
 |----------|---------------------------|--------------------|---------------|
-| `hidden` | `.hidden()` | `.hidden()` / `.visible(boolean)` | `VISIBLE` 0x100E |
-| `disabled` | `.disabled(_:)` | `.disabled(boolean)` | `ENABLED` 0x2003 (inverse: 1 = interactive) |
-| `allowsHitTesting` | `.allowsHitTesting(_:)` | `.allowsHitTesting(boolean)` | `ALLOWS_HIT_TESTING` 0x102F |
-| `controlSize` | `.controlSize(_:)` | `.controlSize(ControlSize)` | `CONTROL_SIZE` 0x200C |
-| `accessibilityLabel` | `.accessibilityLabel(_:)` | `.accessibilityLabel(String)` | `LABEL` 0x200A |
-| `accessibilityRole` | `.accessibilityRole(_:)` | `.accessibilityRole(int)` | `ROLE` 0x2001 |
-| `accessibilityState` | `.accessibilityState(_:)` | `.accessibilityState(int)` | `STATE` 0x2002 |
+| `hidden` | `.hidden()` | `.modifier(Hidden.of())` / `.modifier(Visible.of(boolean))` | `VISIBLE` 0x100E |
+| `disabled` | `.disabled(_:)` | `.modifier(Disabled.of(boolean))` | `ENABLED` 0x2003 (inverse: 1 = interactive) |
+| `allowsHitTesting` | `.allowsHitTesting(_:)` | `.modifier(AllowsHitTesting.of(boolean))` | `ALLOWS_HIT_TESTING` 0x102F |
+| `controlSize` | `.controlSize(_:)` | `.modifier(ControlSizeMod.of(ControlSize))` | `CONTROL_SIZE` 0x200C |
+| `accessibilityLabel` | `.accessibilityLabel(_:)` | `.modifier(AccessibilityLabel.of(String))` | `LABEL` 0x200A |
+| `accessibilityRole` | `.accessibilityRole(_:)` | `.modifier(AccessibilityRole.of(int))` | `ROLE` 0x2001 |
+| `accessibilityState` | `.accessibilityState(_:)` | `.modifier(AccessibilityState.of(int))` | `STATE` 0x2002 |
 | `modifier` (custom) | `.modifier(_:)` | `.modifier(ViewModifier)` | composes core modifiers |
-| `buttonStyle` | `.buttonStyle(_:)` | `.buttonStyle(ButtonStyle)` | environment-scoped (ScopedValue) |
-| `focusable` | `.focusable(_:)` | (via `.pointerEvents`) | **no property** — declares `FOCUS` listener bit 5; observe `FOCUS_CHANGED` |
-| raw listeners | `.pointerEvents(mask)` / `.pointer_events(mask)` | `.pointerEvents(int)` | `EVENT_LISTENERS` 0x2005 (u32 bitmask, bits per EVENTS.md) |
+| `buttonStyle` | `.buttonStyle(_:)` | `.modifier(ButtonStyleMod.of(ButtonStyle))` | environment-scoped (ScopedValue) |
+| `focusable` | `.focusable(_:)` | (via the `PointerEvents` modifier) | **no property** — declares `FOCUS` listener bit 5; observe `FOCUS_CHANGED` |
+| raw listeners | `.pointerEvents(mask)` / `.pointer_events(mask)` | `.modifier(PointerEvents.of(int))` | `EVENT_LISTENERS` 0x2005 (u32 bitmask, bits per EVENTS.md) |
 
 **Delta (Java)**: `.visible(boolean)` is a Pathland extra (SwiftUI only has
-`.hidden()`). `.accessibilityRole`/`.accessibilityState` take raw `int` codes
-today rather than a typed enum. Raw input listeners are exposed only through
-`.pointerEvents(mask)` — there is no per-event sugar (e.g. a `.focusable` or
-`.onSubmit` that sets the matching bit).
+`.hidden()` — `Visible.of(...)`/`Hidden.of()`). `.accessibilityRole`/
+`.accessibilityState` take raw `int` codes today rather than a typed enum. Raw
+input listeners are exposed only through the `PointerEvents` modifier value —
+there is no per-event sugar (e.g. a `.focusable` or `.onSubmit` that sets the
+matching bit).
 
 ### 5.6 Custom modifiers (developer-authored)
 
@@ -425,13 +433,15 @@ every conformant DSL: modifiers are never hard-bound to a view type.
   surface**: a `ViewModifier` value applied via `.modifier(...)`. The library's
   sugar names (`.padding`, `.foregroundStyle`, …) are conveniences that
   construct the built-in `ViewModifier` values; there is exactly one modifier
-  mechanism ([§5](#5-modifier-surface)).
+  mechanism ([§5](#5-modifier-surface)). The Java realization ships **no sugar**
+  — `.modifier(Padding.of(16))` is the only form (plus the `.modifiers(...)`
+  varargs convenience for several at once).
 
 | | Canonical | Java DSL (`com.pathland.view`) | Rust DSL (`pathland-view`) |
 |-|-----------|-------------------------------|----------------------------|
 | authoring | `struct Card: ViewModifier { func body(content: Content) -> some View }` | `@FunctionalInterface ViewModifier { View body(View content) }` | `trait ViewModifier { fn apply(&mut Node) }` |
-| applying | `content.modifier(Card())` | `content.modifier(new CardStyle())` | `content.modifier(Card)` |
-| sugar | `.padding(16)` ≡ `.modifier(Padding(16))` | `.padding(16)` → separate property-map path today (see §7) | `.padding(16.0)` ≡ `.modifier(Padding(16.0))` |
+| applying | `content.modifier(Card())` | `content.modifier(CardStyle.of(...))` / `content.modifiers(A.of(...), B.of(...))` | `content.modifier(Card)` |
+| sugar | `.padding(16)` ≡ `.modifier(Padding(16))` | **no sugar** — `.modifier(Padding.of(16))` only | `.padding(16.0)` ≡ `.modifier(Padding(16.0))` |
 
 **Composition**: a custom modifier composes core modifiers **or** wraps
 `content` with additional structure (a background, an overlay, a frame) and
@@ -449,10 +459,11 @@ emission stays diff-based, and a renderer that cannot apply a modifier
   built node's properties only — it cannot wrap `content` with new structure
   (the Java/SwiftUI `body(content)` form can). A conformant DSL's
   custom-modifier mechanism should support wrapping.
-- **Java** — the custom `ViewModifier.body(View)` is SwiftUI-shaped, but the
-  **core** modifiers currently go through a separate property-map path
-  (`Modified.props`), not `ViewModifier`. Converging them to one mechanism is
-  proposed in [§7](#7-java-convergence-proposal).
+- **Java** — fully conformant: every core modifier is a `ViewModifier` value
+  (`Padding.of(16)`, `ForegroundStyle.of(color)`, …) applied via `.modifier(...)`;
+  `View` has no modifier sugar, and `buttonStyle` is the `ButtonStyleMod`
+  modifier value. Application-authored `ViewModifier.body(View)` is
+  SwiftUI-shaped and can wrap content with structure.
 
 ---
 
@@ -493,55 +504,49 @@ A conformant DSL follows these conventions:
 
 ---
 
-## 7. Java convergence proposal
+## 7. Java DSL convergence (adopted)
 
-The Java DSL (`com.pathland.view`) has the complete surface; its *syntax*
-drifts from the canonical SwiftUI shape. This section proposes convergence as a
-future workstream (out of scope for this document's landing). It is a
-**proposal** — the canonical contract is defined in [§4](#4-view-surface) and
-[§5](#5-modifier-surface), not here.
+The Java DSL (`com.pathland.view`) has the complete surface. The convergence
+below has been **adopted** (`.of()` construction, the removal of the `View.*`
+factories, and modifiers as `ViewModifier` values); the remaining items are
+marked *optional*. The canonical contract is [§4](#4-view-surface) and
+[§5](#5-modifier-surface).
 
-| Canonical | Java today | Proposed Java (SwiftUI-closer) |
-|-----------|-----------|--------------------------------|
-| `Text("…")` | `View.text(String)` / `View.text(Signal<String>)` | `Text.of(String)` / `Text.of(Signal<String>)` |
-| `Button("…", action)` / `Button(action:label:)` | `View.button(String, Runnable)` / `View.button(View, Runnable)` | `Button.of(String, Runnable)` / `Button.of(View, Runnable)` |
-| `Toggle("label", isOn: writable)` | `View.toggle(boolean, WritableSignal<Boolean>)` (+ `ToggleStyle` overload) | `Toggle.of(String label, WritableSignal<Boolean>)` (+ `ToggleStyle` overload) |
-| `Slider(value: in:)` | `View.slider(value, min, max, binding)` | `Slider.of(binding, min, max)` keeping positional order: binding first |
-| `.border(color, width)` | `.border(width, color, radius)` | add `.border(Color, float)`; keep `(width, color, radius)` as the corner-radius convenience |
-| `DatePicker(selection:)` | `View.datePicker(DatePickerMode, WritableSignal<Integer>)` | `DatePicker.of(mode, days)` (optionally a `Date`-shaped overload encoding days + millis-of-day per `SET_DATE`/`DATE_CHANGED`) |
+| Canonical | Java (adopted) | Optional / remaining |
+|-----------|----------------|----------------------|
+| `Text("…")` | `Text.of(String)` / `Text.of(Signal<String>)` | — |
+| `Button("…", action)` / `Button(action:label:)` | `Button.of(String, Runnable)` / `Button.of(View, Runnable)` | — |
+| `Toggle("label", isOn: writable)` | `Toggle.of(String label, WritableSignal<Boolean>)` (+ `ToggleStyle` overload) | — |
+| `Slider(value: in:)` | `Slider.of(binding, min, max)` (binding first) | — |
+| `.border(color, width)` | `Border.of(Color, float)` via `.modifier(...)` | `Border.of(Color, float, float)` radius convenience |
+| `DatePicker(selection:)` | `DatePicker.of(mode, days)` | *optional* `Date`-shaped overload encoding days + millis-of-day per `SET_DATE`/`DATE_CHANGED` |
 
-Guidance for the proposal:
+Adopted conventions:
 
-- **`.of()` is the one construction path.** Every concrete view/control
-  exposes a static `<ViewName>.of(...)` factory on its own class. Construction
-  is never `new <ViewName>()` and never `View.<name>(...)`.
-- **Remove the `View.*` static-factory surface.** Once the `.of()` factories
-  land and `pathland-demo-views` + both demos migrate, delete the entire
-  static-factory block in `View.java` — `text`, `image`, `rectangle`,
-  `spacer`, `vstack`, `hstack`, `zstack`, `button`, `textField`,
-  `textEditor`, `toggle`, `slider`, `stepper`, `progressView`, `gauge`,
-  `divider`, `grid`, `scrollView`, `lazyVStack`, `lazyHStack`, `lazyVGrid`,
-  `lazyHGrid`, `picker`, `menu`, `colorPicker`, `datePicker`, `group`. The
-  chainable default modifiers on `View` stay. This is a deliberate, single
-  breaking change — additive first (`.of()` factories), then removal.
-- **`Group` becomes a first-class view.** `View.group(List<View>)` (which
-  returned a `VStack`) is replaced by `Group.of(View...)`, a transparent
-  container view (SwiftUI `Group`) that composites its children;
-  `View.group(...)` is removed with the rest of the factories.
-- **Unify core and custom modifiers.** Re-implement the core modifiers as
+- **`.of()` is the one construction path.** Every concrete view/control exposes
+  a static `<ViewName>.of(...)` factory on its own class. Construction is never
+  `new <ViewName>()` and never `View.<name>(...)`.
+- **The `View.*` static-factory surface is removed.** The entire factory block
+  (`text`, `image`, `rectangle`, `spacer`, `vstack`, `hstack`, `zstack`,
+  `button`, `textField`, `textEditor`, `toggle`, `slider`, `stepper`,
+  `progressView`, `gauge`, `divider`, `grid`, `scrollView`, `lazyVStack`,
+  `lazyHStack`, `lazyVGrid`, `lazyHGrid`, `picker`, `menu`, `colorPicker`,
+  `datePicker`, `group`) is deleted from `View.java`.
+- **`Group` is a first-class view.** `Group.of(View...)` is a transparent
+  container view (SwiftUI `Group`).
+- **Core and custom modifiers share one mechanism.** Core modifiers are
   `ViewModifier` values (`Padding.of(16)`, `ForegroundStyle.of(color)`) applied
-  via `.modifier(...)`; keep the `.padding(16)` sugar but have it delegate to
-  `.modifier(Padding.of(16))`. Core and custom modifiers then share one
-  mechanism and one syntax (Rust is already conformant). Parameterized
-  modifier values use `.of(...)` too (e.g. `CardStyle.of(padding, color)`).
-- Add a static `.of()` factory for each `ShapeKind` (`Circle.of()`,
-  `Capsule.of()`, `RoundedRectangle.of(cornerRadius:)`) to match the
-  canonical view set.
-- Consider a `ButtonStyle`/`environment` path that lets the trailing-action
+  via `.modifier(...)` — there is **no sugar on `View`**; several modifiers at
+  once use `.modifiers(...)`, innermost-first. Parameterized modifier values use
+  `.of(...)`; `buttonStyle` is the `ButtonStyleMod` value.
+- **Full `ShapeKind` coverage.** `Circle.of()`, `Capsule.of()`, `Ellipse.of()`,
+  `RoundedRectangle.of(cornerRadius:)`, generic `Shape.of(ShapeKind)` (for
+  `Path`).
+- *Optional*: a `ButtonStyle`/`environment` path letting the trailing-action
   form (`Button(label) { action }`) read the action from the environment, if a
   Java-idiomatic trailing lambda is desirable.
-- Land the convergence only after the DSL.md surface is stable, and update
-  `lib/java/pathland-view/status.md` in the same change.
+- *Optional*: a `Date`-shaped `DatePicker` binding (see table).
+- Implementation status: `lib/java/pathland-view/status.md`.
 
 ---
 
@@ -638,35 +643,37 @@ Representative rows; the full surface is in [§4](#4-view-surface) and
 
 | SwiftUI | Canonical DSL | Java DSL (current) | Rust DSL (current) |
 |---------|---------------|--------------------|--------------------|
-| `Text("Hi")` | `Text("Hi")` | `View.text("Hi")` | `text("Hi")` |
-| `VStack(alignment: .center, spacing: 8) { … }` | `VStack(alignment:spacing:) { … }` | `View.vstack(Alignment.CENTER, 8, children...)` | `vstack![…].spacing(8.0)` |
-| `Button("+") { inc() }` | `Button("+", action)` | `View.button("+", () -> inc())` | `button("+")` (no action yet) |
-| `TextField("Name", text: $name)` | `TextField("Name", text: writable)` | `View.textField("Name", name)` | `TextField { placeholder }` (no binding yet) |
-| `Toggle("On", isOn: $on)` | `Toggle("On", isOn: writable)` | `View.toggle(selected, binding)` | `Toggle(style)` (no binding yet) |
-| `Slider(value: $v, in: 0...100)` | `Slider(value: writable, in: min...max)` | `View.slider(v, 0, 100, vSig)` | `Slider { value, min, max }` (no binding yet) |
-| `DatePicker("D", selection: $d)` | `DatePicker("D", selection: writable)` | `View.datePicker(DatePickerMode.DATE, days)` | `DatePicker` (bare) |
-| `.foregroundStyle(.red)` | `.foregroundStyle(Color)` | `.foregroundStyle(Color)` | `.foreground_style(Color(0xFF0000FF))` |
-| `.background(.gray)` | `.background(Color)` | `.background(Color)` | `.background(Color(0xFFEEEEEE))` |
-| `.border(.blue, width: 2)` | `.border(Color, width: 2)` | `.border(2, Color, 8)` | `.border(Color, 2.0)` |
-| `.frame(width: 100, height: 24)` | `.frame(width:height:alignment:)` | `.frame(100, 24, Alignment)` | `.frame(Some(100.0), Some(24.0), None)` |
-| `.padding(16)` | `.padding(16)` | `.padding(16)` | `.padding(16.0)` |
-| `.font(.system(size: 28))` | `.font(size: 28)` | `.fontSize(28)` | `.font_size(28.0)` |
-| `.fontWeight(.bold)` | `.fontWeight(FontWeight)` | `.fontWeight(FontWeight.BOLD)` | `.font_weight(700.0)` |
-| `.shadow(color:radius:x:y:)` | `.shadow(color:radius:x:y:)` | `.shadow(Color, float, float, float)` | (not yet) |
-| `.onTapGesture { go() }` | `.onTapGesture(action)` | `.onTapGesture(() -> go())` | `.on_tap_gesture(|| go())` |
+| `Text("Hi")` | `Text("Hi")` | `Text.of("Hi")` | `text("Hi")` |
+| `VStack(alignment: .center, spacing: 8) { … }` | `VStack(alignment:spacing:) { … }` | `VStack.of(Alignment.CENTER, 8, children...)` | `vstack![…].modifier(Spacing.of(8.0))` |
+| `Button("+") { inc() }` | `Button("+", action)` | `Button.of("+", () -> inc())` | `button("+")` (no action yet) |
+| `TextField("Name", text: $name)` | `TextField("Name", text: writable)` | `TextField.of("Name", name)` | `TextField { placeholder }` (no binding yet) |
+| `Toggle("On", isOn: $on)` | `Toggle("On", isOn: writable)` | `Toggle.of(selected, binding)` | `Toggle(style)` (no binding yet) |
+| `Slider(value: $v, in: 0...100)` | `Slider(value: writable, in: min...max)` | `Slider.of(vSig, 0, 100)` | `Slider { value, min, max }` (no binding yet) |
+| `DatePicker("D", selection: $d)` | `DatePicker("D", selection: writable)` | `DatePicker.of(DatePickerMode.DATE, days)` | `DatePicker` (bare) |
+| `.foregroundStyle(.red)` | `.foregroundStyle(Color)` | `.modifier(ForegroundStyle.of(Color))` | `.foreground_style(Color(0xFF0000FF))` |
+| `.background(.gray)` | `.background(Color)` | `.modifier(Background.of(Color))` | `.background(Color(0xFFEEEEEE))` |
+| `.border(.blue, width: 2)` | `.border(Color, width: 2)` | `.modifier(Border.of(Color, 2))` | `.border(Color, 2.0)` |
+| `.frame(width: 100, height: 24)` | `.frame(width:height:alignment:)` | `.modifier(FrameMod.of(100, 24, Alignment.CENTER))` | `.frame(Some(100.0), Some(24.0), None)` |
+| `.padding(16)` | `.padding(16)` | `.modifier(Padding.of(16))` | `.padding(16.0)` |
+| `.font(.system(size: 28))` | `.font(size: 28)` | `.modifier(FontSize.of(28))` | `.font_size(28.0)` |
+| `.fontWeight(.bold)` | `.fontWeight(FontWeight)` | `.modifier(FontWeightMod.of(FontWeight.BOLD))` | `.font_weight(700.0)` |
+| `.shadow(color:radius:x:y:)` | `.shadow(color:radius:x:y:)` | `.modifier(Shadow.of(Color, float, float, float))` | (not yet) |
+| `.onTapGesture { go() }` | `.onTapGesture(action)` | `.modifier(TapGesture.of(() -> go()))` | `.on_tap_gesture(|| go())` |
 | `content.modifier(Card())` | `content.modifier(Card())` | `content.modifier(CardStyle.of(...))` | `.modifier(Card)` |
 
 Core modifier sugar (`.padding`, `.foregroundStyle`, …) is shorthand for
-`.modifier(CoreModifier.of(...))` in every realization — one mechanism for
-built-in and application-authored modifiers alike ([§5.6](#56-custom-modifiers-developer-authored)).
+`.modifier(CoreModifier.of(...))` — one mechanism for built-in and
+application-authored modifiers alike ([§5.6](#56-custom-modifiers-developer-authored)).
+The Java realization has **no sugar**: `.modifier(Padding.of(16))` is the only
+form, with `.modifiers(...)` for several at once.
 
-**Status deltas captured by this table**: the Java DSL is surface-complete but
-uses static-factory syntax and a few non-SwiftUI parameter orders (see
-[§7](#7-java-convergence-proposal)); the Rust DSL is structural today —
-`pathland-view` exposes the view/modifier surface without signals, two-way
-bindings, or actions (signals live in `pathland-core::signal` for engine-side
-binding). Neither difference affects the protocol; both are per-project
-implementation status tracked in each project's `status.md`.
+**Status deltas captured by this table**: the Java DSL is surface-complete —
+`<ViewName>.of(...)` construction, modifiers as values via `.modifier(...)`
+(no sugar on `View`), `ButtonStyleMod` for `.buttonStyle`; the Rust DSL is
+structural today — `pathland-view` exposes the view/modifier surface without
+signals, two-way bindings, or actions (signals live in `pathland-core::signal`
+for engine-side binding). Both are per-project implementation status tracked in
+each project's `status.md`.
 
 ---
 
