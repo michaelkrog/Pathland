@@ -1,0 +1,13 @@
+I also get this: [Info] The macro "rgba(136,136,136,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445)
+[Info] The macro "rgba(85,100,109,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445)
+[Info] The macro "rgba(136,136,136,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445)
+[Info] The macro "rgba(85,100,109,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445, x4)
+[Info] The macro "rgba(136,136,136,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445)
+[Info] The macro "rgba(85,100,109,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445)
+[Info] The macro "rgba(33,150,243,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445)
+[Info] The macro "rgba(0,0,0,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445)
+[Info] The macro "rgba(85,100,109,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445, x2)
+[Info] The macro "rgba(0,0,0,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445)
+[Info] The macro "rgba(85,100,109,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445, x2)
+[Info] The macro "rgba(0,0,0,1.000)" is not supported (chunk-QYJ6CNO3.js, line 2445, x2)  The regexp for parsing it in ngui looks like this: export const COLOR_RGBA: RegExp = /^rgba?\(\s*\d+(?:\.\d+)?%?\s*,\s*\d+(?:\.\d+)?%?\s*,\s*\d+(?:\.\d+)?%?\s*(?:,\s*(?:0?\.\d+|1|0%))?\s*\)$/;
+Perhaps we just need to format the color at bit different so ngui can parse it?
