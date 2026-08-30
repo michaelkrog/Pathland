@@ -440,21 +440,34 @@ future workstream (out of scope for this document's landing). It is a
 
 | Canonical | Java today | Proposed Java (SwiftUI-closer) |
 |-----------|-----------|--------------------------------|
-| `Text("…")` | `View.text("…")` | `new Text("…")` (direct construction; keep `View.text` as a factory alias) |
-| `Button("…", action)` / `Button(action:label:)` | `View.button(String, Runnable)` | `Button.of("…", () -> …)`; a `Button(String)` + `Button(View, Runnable)` mirroring `Button(title, action)` |
-| `Toggle("label", isOn: writable)` | `View.toggle(boolean, WritableSignal<Boolean>)` | labeled params or an overload `Toggle.of(String label, WritableSignal<Boolean>)` |
+| `Text("…")` | `View.text(String)` / `View.text(Signal<String>)` | `Text.of(String)` / `Text.of(Signal<String>)` |
+| `Button("…", action)` / `Button(action:label:)` | `View.button(String, Runnable)` / `View.button(View, Runnable)` | `Button.of(String, Runnable)` / `Button.of(View, Runnable)` |
+| `Toggle("label", isOn: writable)` | `View.toggle(boolean, WritableSignal<Boolean>)` (+ `ToggleStyle` overload) | `Toggle.of(String label, WritableSignal<Boolean>)` (+ `ToggleStyle` overload) |
 | `Slider(value: in:)` | `View.slider(value, min, max, binding)` | `Slider.of(binding, min, max)` keeping positional order: binding first |
 | `.border(color, width)` | `.border(width, color, radius)` | add `.border(Color, float)`; keep `(width, color, radius)` as the corner-radius convenience |
-| `DatePicker(selection:)` | `View.datePicker(DatePickerMode, WritableSignal<Integer>)` | keep days-since-epoch binding; optionally add a `Date`-shaped wrapper that encodes days + millis-of-day per `SET_DATE`/`DATE_CHANGED` |
+| `DatePicker(selection:)` | `View.datePicker(DatePickerMode, WritableSignal<Integer>)` | `DatePicker.of(mode, days)` (optionally a `Date`-shaped overload encoding days + millis-of-day per `SET_DATE`/`DATE_CHANGED`) |
 
 Guidance for the proposal:
 
-- Prefer **additive overloads/aliases** over breaking changes; keep the
-  existing factory names working so application code (the demos) migrates
-  incrementally.
-- Add a `SwiftUIShape`-style named constructor for each `ShapeKind`
-  (`Circle.of()`, `Capsule.of()`, `RoundedRectangle.of(cornerRadius:)`) to
-  match the canonical view set.
+- **`.of()` is the one construction path.** Every concrete view/control
+  exposes a static `<ViewName>.of(...)` factory on its own class. Construction
+  is never `new <ViewName>()` and never `View.<name>(...)`.
+- **Remove the `View.*` static-factory surface.** Once the `.of()` factories
+  land and `pathland-demo-views` + both demos migrate, delete the entire
+  static-factory block in `View.java` — `text`, `image`, `rectangle`,
+  `spacer`, `vstack`, `hstack`, `zstack`, `button`, `textField`,
+  `textEditor`, `toggle`, `slider`, `stepper`, `progressView`, `gauge`,
+  `divider`, `grid`, `scrollView`, `lazyVStack`, `lazyHStack`, `lazyVGrid`,
+  `lazyHGrid`, `picker`, `menu`, `colorPicker`, `datePicker`, `group`. The
+  chainable default modifiers on `View` stay. This is a deliberate, single
+  breaking change — additive first (`.of()` factories), then removal.
+- **`Group` becomes a first-class view.** `View.group(List<View>)` (which
+  returned a `VStack`) is replaced by `Group.of(View...)`, a transparent
+  container view (SwiftUI `Group`) that composites its children;
+  `View.group(...)` is removed with the rest of the factories.
+- Add a static `.of()` factory for each `ShapeKind` (`Circle.of()`,
+  `Capsule.of()`, `RoundedRectangle.of(cornerRadius:)`) to match the
+  canonical view set.
 - Consider a `ButtonStyle`/`environment` path that lets the trailing-action
   form (`Button(label) { action }`) read the action from the environment, if a
   Java-idiomatic trailing lambda is desirable.
