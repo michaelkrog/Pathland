@@ -6,6 +6,11 @@ import com.pathland.view.ScrollView;
 import com.pathland.view.Text;
 import com.pathland.view.VStack;
 import com.pathland.view.View;
+import com.pathland.view.FontSize;
+import com.pathland.view.FontWeightMod;
+import com.pathland.view.ForegroundStyle;
+import com.pathland.view.Padding;
+
 
 /**
  * The kitchen-sink application root: every demo section stacked in a scrollable
@@ -17,9 +22,9 @@ public final class KitchenSinkView implements View {
     @Override
     public View body() {
         return ScrollView.of(VStack.of(
-                Text.of("Pathland Kitchensink").fontSize(24).fontWeight(FontWeight.BOLD).padding(8),
+                Text.of("Pathland Kitchensink").modifiers(FontSize.of(24), FontWeightMod.of(FontWeight.BOLD), Padding.of(8)),
                 Text.of("Every protocol primitive, control, modifier, and state binding")
-                        .foregroundStyle(Color.rgb(0x88, 0x88, 0x88)),
+                        .modifier(ForegroundStyle.of(Color.rgb(0x88, 0x88, 0x88))),
                 new CounterSection(),
                 new TextFieldSection(),
                 new ToggleSection(),
@@ -31,8 +36,8 @@ public final class KitchenSinkView implements View {
                 new TextStylesSection(),
                 new AppearanceSection(),
                 Text.of("Pathland · per-session · 16-byte deltas")
-                        .foregroundStyle(Color.rgb(0x88, 0x88, 0x88))
-                        .padding(16)
-        ).padding(24));
+                        .modifier(ForegroundStyle.of(Color.rgb(0x88, 0x88, 0x88)))
+                        .modifier(Padding.of(16))
+        ).modifier(Padding.of(24)));
     }
 }

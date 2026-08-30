@@ -21,6 +21,8 @@ import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.signal.WritableSignal;
+import com.pathland.view.ButtonStyleMod;
+
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -76,7 +78,7 @@ class HtmlRendererTest {
     @Test
     void rendersBorderedStyledButton() {
         View root = VStack.of(Button.of("Go", () -> { }))
-                .buttonStyle(com.pathland.view.BorderedButtonStyle.INSTANCE);
+                .modifier(ButtonStyleMod.of(com.pathland.view.BorderedButtonStyle.INSTANCE));
         String html = render(root).render(1);
         assertTrue(html.contains("border-radius:6px"));
         assertTrue(html.contains("data-pathland-id=\"2\""), "styled button keeps its node id");

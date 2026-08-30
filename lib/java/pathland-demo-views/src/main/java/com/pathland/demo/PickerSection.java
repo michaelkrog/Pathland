@@ -11,6 +11,9 @@ import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.ForegroundStyle;
+import com.pathland.view.Padding;
+
 
 /**
  * Selection section: a {@code Picker} in two styles ({@code Segmented} and
@@ -26,7 +29,7 @@ public final class PickerSection implements View {
     public View body() {
         return new SectionCard("Picker + Menu",
                 VStack.of(
-                        Text.of(choiceLabel).padding(4),
+                        Text.of(choiceLabel).modifier(Padding.of(4)),
                         Picker.of(PickerStyle.SEGMENTED, choice.signal(),
                                 Text.of("One"), Text.of("Two"), Text.of("Three")),
                         Picker.of(PickerStyle.MENU, choice.signal(),
@@ -35,8 +38,8 @@ public final class PickerSection implements View {
                                 Button.of("Item 1", () -> { }),
                                 Button.of("Item 2", () -> { })),
                         Text.of("Menu action items are Buttons; choices route via VALUE_CHANGED")
-                                .foregroundStyle(Color.rgb(0x88, 0x88, 0x88))
-                ).padding(4)
+                                .modifier(ForegroundStyle.of(Color.rgb(0x88, 0x88, 0x88)))
+                ).modifier(Padding.of(4))
         );
     }
 }

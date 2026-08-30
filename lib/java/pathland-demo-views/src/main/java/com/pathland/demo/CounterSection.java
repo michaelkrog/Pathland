@@ -12,6 +12,11 @@ import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.FontSize;
+import com.pathland.view.FontWeightMod;
+import com.pathland.view.ForegroundStyle;
+import com.pathland.view.Padding;
+
 
 /**
  * Counter section: a persisted {@code State<Integer>} mutated by buttons and a
@@ -28,15 +33,15 @@ public final class CounterSection implements View {
     public View body() {
         return new SectionCard("Counter · State + Button + Stepper",
                 VStack.of(
-                        Text.of(countLabel).fontSize(28).fontWeight(FontWeight.BOLD),
+                        Text.of(countLabel).modifiers(FontSize.of(28), FontWeightMod.of(FontWeight.BOLD)),
                         HStack.of(Alignment.LEADING, 4,
                                 Button.of("−", () -> count.update(v -> v - step.get().intValue())),
                                 Button.of("+", () -> count.update(v -> v + step.get().intValue())),
                                 Button.of("Reset", () -> count.set(0))
-                        ).padding(4),
-                        Text.of("Step size").foregroundStyle(Color.rgb(0x88, 0x88, 0x88)),
+                        ).modifier(Padding.of(4)),
+                        Text.of("Step size").modifier(ForegroundStyle.of(Color.rgb(0x88, 0x88, 0x88))),
                         Stepper.of(step.signal(), 1, 10, 1)
-                ).padding(4)
+                ).modifier(Padding.of(4))
         );
     }
 }

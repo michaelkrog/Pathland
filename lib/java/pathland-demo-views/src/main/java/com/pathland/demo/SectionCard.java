@@ -8,6 +8,15 @@ import com.pathland.view.FontWeight;
 import com.pathland.view.Text;
 import com.pathland.view.VStack;
 import com.pathland.view.View;
+import com.pathland.view.Background;
+import com.pathland.view.Border;
+import com.pathland.view.CornerRadius;
+import com.pathland.view.FontSize;
+import com.pathland.view.FontWeightMod;
+import com.pathland.view.ForegroundStyle;
+import com.pathland.view.FrameMod;
+import com.pathland.view.Padding;
+
 
 /**
  * A reusable kitchen-sink section card: a titled, bordered, rounded container that
@@ -30,13 +39,13 @@ public final class SectionCard implements View {
     @Override
     public View body() {
         return VStack.of(
-                Text.of(title).fontSize(14).fontWeight(FontWeight.SEMIBOLD).foregroundStyle(TITLE_COLOR),
-                Divider.of().padding(0, 0, 8, 0),
+                Text.of(title).modifiers(FontSize.of(14), FontWeightMod.of(FontWeight.SEMIBOLD), ForegroundStyle.of(TITLE_COLOR)),
+                Divider.of().modifier(Padding.of(0, 0, 8, 0)),
                 content
-        ).padding(16)
-                .background(Color.WHITE)
-                .border(1, BORDER, 10)
-                .cornerRadius(10)
-                .frame(Commands.Size.FILL, Float.NaN, Alignment.FILL);
+        ).modifier(Padding.of(16))
+                .modifier(Background.of(Color.WHITE))
+                .modifier(Border.of(BORDER, 1, 10))
+                .modifier(CornerRadius.of(10))
+                .modifier(FrameMod.of(Commands.Size.FILL, Float.NaN, Alignment.FILL));
     }
 }

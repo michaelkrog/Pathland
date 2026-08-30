@@ -7,6 +7,8 @@ import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.Padding;
+
 
 /**
  * A view component: the count label plus its increment button. The {@code count} state is
@@ -23,6 +25,6 @@ public final class CounterControls implements View {
         return HStack.of(
                 Text.of(countLabel),
                 Button.of("Increment", () -> count.update(v -> v + 1))
-        ).padding(16);
+        ).modifier(Padding.of(16));
     }
 }

@@ -8,6 +8,8 @@ import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.Padding;
+
 
 /**
  * Date section: a {@code DatePicker} bound to a persisted {@code State<Integer>}
@@ -25,8 +27,8 @@ public final class DateSection implements View {
         return new SectionCard("DatePicker · STYLE::SET_DATE",
                 VStack.of(
                         DatePicker.of(DatePickerMode.DATE, days.signal()),
-                        Text.of(dateLabel).padding(4)
-                ).padding(4)
+                        Text.of(dateLabel).modifier(Padding.of(4))
+                ).modifier(Padding.of(4))
         );
     }
 }

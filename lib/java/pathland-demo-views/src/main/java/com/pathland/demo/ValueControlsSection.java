@@ -11,6 +11,10 @@ import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.FontSize;
+import com.pathland.view.FontWeightMod;
+import com.pathland.view.Padding;
+
 
 /**
  * Value-controls section: one persisted {@code State<Float>} driving a {@code Slider},
@@ -26,12 +30,12 @@ public final class ValueControlsSection implements View {
     public View body() {
         return new SectionCard("Value controls · Slider / Stepper / Gauge / Progress",
                 VStack.of(
-                        Text.of(valueLabel).fontSize(22).fontWeight(FontWeight.BOLD),
+                        Text.of(valueLabel).modifiers(FontSize.of(22), FontWeightMod.of(FontWeight.BOLD)),
                         Slider.of(value.signal(), 0f, 100f),
                         Stepper.of(value.signal(), 0f, 100f, 5f),
                         Gauge.of(value.get(), 0f, 100f),
                         ProgressView.of(value.get() / 100f)
-                ).padding(4)
+                ).modifier(Padding.of(4))
         );
     }
 }

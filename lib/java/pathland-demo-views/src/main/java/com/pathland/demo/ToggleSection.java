@@ -8,6 +8,9 @@ import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.Button;
+import com.pathland.view.Padding;
+
 
 /**
  * Toggle section: the same {@code Toggle} control in all three {@code ToggleStyle}
@@ -29,8 +32,8 @@ public final class ToggleSection implements View {
                         Toggle.of(ToggleStyle.SWITCH, dark.get(), dark.signal(), "Dark mode"),
                         Toggle.of(ToggleStyle.CHECKBOX, notify.get(), notify.signal(), "Notify me"),
                         Toggle.of(ToggleStyle.BUTTON, bold.get(), bold.signal(), "Bold toggle"),
-                        Text.of(summary).padding(4)
-                ).padding(4)
+                        Text.of(summary).modifier(Padding.of(4))
+                ).modifier(Padding.of(4))
         );
     }
 }

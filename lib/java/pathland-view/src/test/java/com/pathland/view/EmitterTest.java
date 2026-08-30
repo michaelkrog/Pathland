@@ -90,7 +90,7 @@ class EmitterTest {
         Emitter emitter = new Emitter(sink);
         WritableSignal<Integer> count = Signals.signal(0);
         Signal<Color> color = Signals.computed(() -> count.get() % 2 == 0 ? Color.RED : Color.BLUE);
-        emitter.mount(VStack.of(Text.of("x").foregroundStyle(color)), Environment.DEFAULT);
+        emitter.mount(VStack.of(Text.of("x").modifier(ForegroundStyle.of(color))), Environment.DEFAULT);
 
         count.set(1);
         Frame delta = sink.frame();
@@ -107,11 +107,11 @@ class EmitterTest {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);
         View root = Text.of("x")
-                .visible(false)      // U8, low byte 0
-                .disabled(true)      // U8, low byte 0 (disabled -> ENABLED=0)
-                .fontFamily("Georgia") // STRING
-                .lineLimit(2)        // U32
-                .scaledToFit();      // CONTENT_MODE enum code as F32
+                .modifier(Visible.of(false))      // U8, low byte 0
+                .modifier(Disabled.of(true))      // U8, low byte 0 (disabled -> ENABLED=0)
+                .modifier(FontFamily.of("Georgia")) // STRING
+                .modifier(LineLimit.of(2))        // U32
+                .modifier(ScaledToFit.of());      // CONTENT_MODE enum code as F32
         emitter.mount(root, Environment.DEFAULT);
         Frame frame = sink.frame();
 
@@ -149,7 +149,7 @@ class EmitterTest {
         Emitter emitter = new Emitter(sink);
         View root = VStack.of(
                         Button.of("Increment", () -> { }))
-                .buttonStyle(BorderedButtonStyle.INSTANCE);
+                .modifier(ButtonStyleMod.of(BorderedButtonStyle.INSTANCE));
         RenderResult result = emitter.mount(root, Environment.DEFAULT);
         Frame frame = sink.frame();
 

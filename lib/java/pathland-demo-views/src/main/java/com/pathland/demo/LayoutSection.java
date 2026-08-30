@@ -12,6 +12,13 @@ import com.pathland.view.Text;
 import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.ZStack;
+import com.pathland.view.Background;
+import com.pathland.view.CornerRadius;
+import com.pathland.view.FontSize;
+import com.pathland.view.FrameMod;
+import com.pathland.view.Offset;
+import com.pathland.view.Padding;
+
 
 /**
  * Layout section: the container primitives — {@code Grid}, {@code LazyVStack},
@@ -29,26 +36,26 @@ public final class LayoutSection implements View {
                         LazyVStack.of(
                                 Text.of("Lazy row A"),
                                 Text.of("Lazy row B"),
-                                Text.of("Lazy row C")).padding(4),
+                                Text.of("Lazy row C")).modifier(Padding.of(4)),
                         HStack.of(
                                 Text.of("Left"),
                                 Spacer.of(),
                                 Text.of("Right"))
-                                .frame(260, Float.NaN, Alignment.CENTER),
+                                .modifier(FrameMod.of(260, Float.NaN, Alignment.CENTER)),
                         ZStack.of(
-                                Rectangle.of().frame(180, 80, Alignment.CENTER)
-                                        .background(Color.rgb(0xE3, 0xF2, 0xFD)).cornerRadius(8),
-                                Text.of("badge").fontSize(12).padding(4)
-                                        .background(Color.rgb(0xFF, 0xC1, 0x07)).cornerRadius(4)
-                                        .offset(0, 28)
-                        ).padding(4),
+                                Rectangle.of().modifier(FrameMod.of(180, 80, Alignment.CENTER))
+                                        .modifiers(Background.of(Color.rgb(0xE3, 0xF2, 0xFD)), CornerRadius.of(8)),
+                                Text.of("badge").modifiers(FontSize.of(12), Padding.of(4))
+                                        .modifiers(Background.of(Color.rgb(0xFF, 0xC1, 0x07)), CornerRadius.of(4))
+                                        .modifier(Offset.of(0, 28))
+                        ).modifier(Padding.of(4)),
                         Divider.of()
-                ).padding(4)
+                ).modifier(Padding.of(4))
         );
     }
 
     private static View cell(String label) {
-        return Text.of(label).padding(12)
-                .background(Color.rgb(0xF3, 0xF4, 0xF6)).cornerRadius(6);
+        return Text.of(label).modifier(Padding.of(12))
+                .modifiers(Background.of(Color.rgb(0xF3, 0xF4, 0xF6)), CornerRadius.of(6));
     }
 }

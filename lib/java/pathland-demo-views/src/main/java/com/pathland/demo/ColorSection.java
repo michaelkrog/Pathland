@@ -11,6 +11,10 @@ import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.state.State;
+import com.pathland.view.Background;
+import com.pathland.view.FrameMod;
+import com.pathland.view.Padding;
+
 
 /**
  * Color section: a {@code ColorPicker} bound to a persisted {@code State<Color>}, a
@@ -31,12 +35,12 @@ public final class ColorSection implements View {
                 VStack.of(
                         ColorPicker.of(accent.signal()),
                         HStack.of(
-                                accent.get().frame(120, 60, Alignment.CENTER),
-                                Rectangle.of().frame(120, 60, Alignment.CENTER)
-                                        .background(accent.signal())
-                        ).padding(4),
-                        Text.of(accentLabel).padding(4)
-                ).padding(4)
+                                accent.get().modifier(FrameMod.of(120, 60, Alignment.CENTER)),
+                                Rectangle.of().modifier(FrameMod.of(120, 60, Alignment.CENTER))
+                                        .modifier(Background.of(accent.signal()))
+                        ).modifier(Padding.of(4)),
+                        Text.of(accentLabel).modifier(Padding.of(4))
+                ).modifier(Padding.of(4))
         );
     }
 }
