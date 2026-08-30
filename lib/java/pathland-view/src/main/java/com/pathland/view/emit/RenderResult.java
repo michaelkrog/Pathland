@@ -11,9 +11,11 @@ import java.util.function.Consumer;
  * @param tapActions  node id → pointer-up action
  * @param textInputs  node id → text-input sink (TEXT_CHANGED)
  * @param valueInputs node id → value-input sink (VALUE_CHANGED)
+ * @param dateInputs  node id → date-input sink (DATE_CHANGED)
  */
 public record RenderResult(
         int rootId,
         Map<Integer, Runnable> tapActions,
         Map<Integer, Consumer<String>> textInputs,
-        Map<Integer, Consumer<Float>> valueInputs) {}
+        Map<Integer, Consumer<Float>> valueInputs,
+        Map<Integer, DateInput> dateInputs) {}

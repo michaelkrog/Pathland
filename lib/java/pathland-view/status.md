@@ -29,7 +29,8 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
   `Menu` bind to writable signals and route `VALUE_CHANGED` through the
   emitter's value-input registry; `TextEditor` mirrors `TextField`.
   `DatePicker` emits `STYLE::SET_DATE` (and re-emits it on signal change via a
-  node-level date binding).
+  node-level date binding) and routes `DATE_CHANGED` through a dedicated
+  date-input registry (`RenderResult.dateInputs`).
 - **Events**: the full catalog round-trips — pointer, `KEY_*`, `VALUE_CHANGED`,
   `TEXT_CHANGED`, `FOCUS_CHANGED`, `EDITING_CHANGED`, `SUBMIT`, `SCROLL`,
   `WHEEL`, `DATE_CHANGED`; listener bits `0..9` declared
@@ -73,8 +74,6 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 - `ACTION_ID`/`BINDING_ID` are usable as modifiers (`actionId`/`bindingId`) but
   the Java model routes events by node id through the emitter's registries
   (`RenderResult`), so controls don't set them automatically.
-- `DATE_CHANGED` decodes on the wire but has no Java host-side registry (the
-  two-field payload doesn't fit `Consumer<Float>`); apps handle it directly.
 - No `STYLE::SET_DESIGN_TOKEN` DSL helper.
 
 ## Verified by

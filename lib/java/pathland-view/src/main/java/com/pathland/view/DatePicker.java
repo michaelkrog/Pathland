@@ -25,6 +25,7 @@ public final class DatePicker implements View {
         node.properties.put(Properties.DATE_PICKER_MODE, (float) mode.wire());
         node.days = days.get();
         node.dateBinding = days;
+        node.dateInput = (d, m) -> days.set(d);
         return node;
     }
 }

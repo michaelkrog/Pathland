@@ -60,6 +60,9 @@ public final class PathlandNode {
     /** Writable value-input sink (sliders/switches); the emitter routes VALUE_CHANGED into it. */
     public Consumer<Float> valueInput;
 
+    /** Writable date-input sink (date pickers); the emitter routes DATE_CHANGED into it. */
+    public DateInput dateInput;
+
     public PathlandNode(int component) {
         this.component = component;
     }

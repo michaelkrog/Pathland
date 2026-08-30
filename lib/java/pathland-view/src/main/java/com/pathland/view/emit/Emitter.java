@@ -30,6 +30,7 @@ public final class Emitter {
     private final Map<Integer, Runnable> tapActions = new LinkedHashMap<>();
     private final Map<Integer, Consumer<String>> textInputs = new LinkedHashMap<>();
     private final Map<Integer, Consumer<Float>> valueInputs = new LinkedHashMap<>();
+    private final Map<Integer, DateInput> dateInputs = new LinkedHashMap<>();
     private final List<EffectRef> bindings = new ArrayList<>();
     private int nextId = 1;
     private int rootId;
@@ -52,6 +53,7 @@ public final class Emitter {
         tapActions.clear();
         textInputs.clear();
         valueInputs.clear();
+        dateInputs.clear();
         collectInputs(tree);
 
         sink.beginFrame();
@@ -61,7 +63,12 @@ public final class Emitter {
         bindings.clear();
         registerBindings(tree);
         rootId = tree.id;
-        return new RenderResult(rootId, Map.copyOf(tapActions), Map.copyOf(textInputs), Map.copyOf(valueInputs));
+        return new RenderResult(
+                rootId,
+                Map.copyOf(tapActions),
+                Map.copyOf(textInputs),
+                Map.copyOf(valueInputs),
+                Map.copyOf(dateInputs));
     }
 
     /** The root node id (0 until mounted). */
@@ -94,6 +101,9 @@ public final class Emitter {
         }
         if (node.valueInput != null) {
             valueInputs.put(node.id, node.valueInput);
+        }
+        if (node.dateInput != null) {
+            dateInputs.put(node.id, node.dateInput);
         }
         for (PathlandNode child : node.children) {
             collectInputs(child);
