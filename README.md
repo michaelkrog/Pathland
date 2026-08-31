@@ -53,17 +53,12 @@ Pathland is composed of three elements. They are the vocabulary the whole
 project speaks, so they are settled and used consistently:
 
 ```
-┌────────────────────┐        ┌─────────────────────┐
-│ 1. Retained UI     │        │ 3. Renderer         │
-│ the app's UI tree  │────┐   │ maps opcodes onto   │
-│ (any language,     │    │   │ native elements +   │
-│  any platform)     │    │   │ event reporting     │
-└────────────────────┘    │   └───────────▲─────────┘
-                         │                │
-┌────────────────────┐    │                │
-│ 2. Opcode engine   │◄───┘                │
-│ reconciles + emits │─────────────────────┘
-└────────────────────┘
+┌────────────────────┐   ┌────────────────────┐   ┌─────────────────────┐
+│ 1. Retained UI     │   │ 2. Opcode engine   │   │ 3. Renderer         │
+│ the app's UI tree  │──⇢│ reconciles + emits │──⇢│ maps opcodes onto   │
+│ (any language,     │   │                    │   │ native elements +   │
+│  any platform)     │   │                    │   │ event reporting     │
+└────────────────────┘   └────────────────────┘   └─────────────────────┘
 ```
 
 1. **Retained UI** — the application's canonical retained UI tree. It is the
