@@ -1,22 +1,27 @@
-# Pathland — Grant Proposal Working Document
+# Pathland — Grant Proposal (Submittable Draft)
 
-**Status:** Draft — raw material for an NLnet / NGI ("Open Internet Stack") proposal
-**Date:** 2026-08-31
-**Intended fund:** NLnet — new Open Internet Stack funds (reopen **Sept 3, 2026**, deadline **Nov 3, 2026**)
-**Applying entity:** Company / legal entity (TBD — verify eligibility against the specific fund when the call opens)
+**Fund:** NLnet / NGI "Open Internet Stack" — new fund calls reopen **Sept 3, 2026**; deadline **Nov 3, 2026, 12:00 CET**
+**Status:** Ready to adapt into the NLnet propose form
+**Prepared:** 2026-08-31
 
-This document is the working source for the NLnet application form. It is not
-the submission itself — every section maps 1:1 to a field in the NLnet propose
-form, and budget/rates are left as placeholders to fill after scoping effort.
+> **Proposal name:**
+> **Pathland — an implementable open UI-protocol standard: specification, conformance, validation, hardening, evidence.**
 
 ---
 
-## 1. One-liner (proposal name)
+## 1. Applicant
 
-> **Pathland 1.0 — a vetted, implementable open UI-protocol standard.**
-> Turn a proof-of-concept 16-byte binary protocol for retained-mode UI into a
-> formally specified, fuzzed, benchmarked, and independently implementable open
-> standard with a live multi-platform demo.
+| Field | Value |
+|-------|-------|
+| Legal entity | Apaq ApS |
+| Country | Denmark (EU) |
+| VAT / CVR | DK41717955 |
+| Website | https://apaq.dk |
+| Contact | Michael Krog · mic@apaq.dk |
+| Role | Founder / lead developer (solo) |
+| Capacity | Part-time R&D, 10 h/week during the project |
+
+---
 
 ## 2. Problem
 
@@ -24,17 +29,17 @@ Server-driven UI (SDUI) and cross-platform UI are fragmented: each platform
 re-invents retained-mode UI inside a closed framework (Flutter, React Native,
 Compose Multiplatform, per-vendor SDUI like Airbnb/Lyft/Spotify). The result:
 
-- **No open, language- and platform-agnostic *protocol* exists** for describing
+- **No open, language- and platform-agnostic *protocol*** exists for describing
   declarative, retained-mode UI — only frameworks that couple the UI model to a
   specific runtime.
 - **No single wire format** serves the full spectrum from embedded (LVGL on
-  microcontrollers) to in-browser (WASM) to server-driven enterprise apps, so
-  teams build and maintain N different UI transports.
+  microcontrollers) to in-browser to server-driven enterprise apps, so teams
+  build and maintain N different UI transports.
 - **Full-tree serialization is wasteful**: typical SDUI re-sends large JSON
   payloads; large, reactive trees cannot sustain high frame rates on the wire or
   on the main thread.
 
-## 3. Innovation — why this is a standard, not another framework
+## 3. Innovation — a standard, not another framework
 
 Pathland describes **WHAT** the UI is — structure + constraint properties
 (VStack, HStack, Text, spacing, padding, alignment) — as a stream of **fixed
@@ -43,139 +48,154 @@ Renderers are **pure functions of the stream**, so the same opcode stream maps
 onto native widgets on every platform (GTK4, DOM/HTML, LVGL-planned).
 
 The engine is **transport- and process-agnostic**: the producer and consumer
-only need to exchange bytes, so it runs identically across:
-
-1. **Embedded dual-core** (FreeRTOS): logic on Core 0 → opcodes over an SRAM
-   ring → LVGL on Core 1 (ESP32).
-2. **Pure in-browser client**: a WASM Web Worker produces into a
-   `SharedArrayBuffer` the main-thread DOM renderer consumes — no Virtual DOM
-   diffing, no main-thread lock.
-3. **Native desktop**: the flat C ABI (`pathland-view-native`) / Java FFM over a
-   zero-copy shared ring into GTK4/native widgets.
-4. **Distributed / server-driven**: Java (Spring/Quarkus), C# backends emit
-   self-contained `PLPL` frames over WebSocket (and, planned, gRPC) to Web,
-   mobile, or desktop renderers.
+only need to exchange bytes, so it runs identically across embedded dual-core,
+pure in-browser (WASM worker → `SharedArrayBuffer`), native desktop (C ABI /
+Java FFM over a zero-copy shared ring), and distributed server-driven modes.
 
 **Emission is diff-based and reactive**: a signal bound to a node re-emits only
-that node's deltas; an unchanged tree emits **zero** opcodes. This is what makes
-the binary format dramatically smaller than JSON SDUI and fast enough for the
+that node's deltas; an unchanged tree emits **zero** opcodes. That is what makes
+the binary format dramatically smaller than JSON SDUI and fast enough for a
 120 FPS interaction target.
 
-The open-standard angle (vs. a framework): anyone can implement a Pathland
-renderer or DSL in any language against the spec and the golden conformance
-vectors, with no lock-in to a runtime.
+The open-standard angle: anyone can implement a Pathland renderer or DSL in any
+language against the spec and the golden conformance vectors, with no lock-in to
+a runtime.
 
 ## 4. The specification (exists — split, not monolithic)
 
-The normative spec is **already present** in the repository and is treated as
-the specification for this proposal:
+The normative spec is **already present** and is the contract this proposal
+matures:
 
 | File | Content |
 |------|---------|
 | `spec/OPCODE.md` | 16-byte opcode format, ring buffer, arena, frame lifecycle, value types, design tokens |
-| `spec/PRIMITIVES.md` | Primitive views + component IDs (`0x01`–`0x2F`) |
+| `spec/PRIMITIVES.md` | Primitive views + component IDs |
 | `spec/MODIFIERS.md` | Core modifiers/properties + value types + enum codes |
 | `spec/EVENTS.md` | Core events + listener bits |
-| `spec/CONFORMANCE.md` | Golden byte vectors for validating implementations |
-| `spec/DSL.md` | The authoring surface (SwiftUI-shaped DSL contract) — authoring, not wire spec |
+| `spec/CONFORMANCE.md` | Golden byte vectors |
+| `spec/DSL.md` | Authoring surface (SwiftUI-shaped DSL contract) — informative |
 
-Gap for the grant: a lightweight **`spec/README.md` index** and a consolidated
-**property-key registry** table so the split files read as one implementable
-whole (reframed issue #48).
+Gap this proposal fills: a **spec index + consolidated property-key registry**
+and a **cross-language validator** so the split files read as one implementable
+whole and cannot drift.
 
-## 5. Work packages
+## 5. Scope & work packages (core-first)
 
-> Budget = cost-recovery. Fill effort (hours) and hourly rate; NLnet pays
-> cost-recovery, not commercial rates.
+The **core is the deliverable** (an implementable open standard); the visual
+layer is cheap proof, not the product.
 
-| WP | Deliverable | Maps to | Effort (h) | Rate (€/h) | Cost (€) |
-|----|-------------|---------|-----------|-----------|----------|
-| **WP1 — Specification** | `spec/README.md` index + consolidated `0x0000`–`0xFFFF` property registry + reconcile conformance vectors | #48 | — | — | — |
-| **WP2 — Interop & conformance** | Machine-readable ID schema + cross-language validator CLI (Rust/Java/TS drift guard) + expanded golden vectors | #43 | — | — | — |
-| **WP3 — Hardening & safety** | `cargo fuzz` + JS/Java fuzz harnesses; bounds fixes (TS `stringAt`); Miri/sanitizer pass on the C ABI | #37, #38, #39 | — | — | — |
-| **WP4 — Evidence** | Benchmark suite vs JSON/Protobuf SDUI + 120 FPS decode harness + CI-generated SVG/MD charts | #40, #41 | — | — | — |
-| **WP5 — Packaging, a11y, demo** | CI foundation; `@pathland/web` npm + Swift SPM; WCAG/ARIA on the HTML renderer; hosted multi-platform demo | #44, #45, #47, #49, #50 | — | — | — |
-| **PM** | Project management, reporting, communication | — | — | — | — |
-| **TOTAL** | | | | | **€** |
+| WP | Deliverable | Issue | Effort (h) | Cost @€45/h |
+|----|-------------|-------|-----------|-------------|
+| WP1 | `spec/README.md` index + consolidated `0x0000–0xFFFF` property-key registry (derived, cross-checked against all four language surfaces) | #48 | 30 | €1,350 |
+| WP2 | Machine-readable ID schema + cross-language validator CLI (Rust/Java drift guard) + expanded golden conformance vectors (validation only — codegen deferred) | #43 | 80 | €3,600 |
+| WP3 | Coverage-guided fuzz harnesses (Rust/JS/Java), TS `stringAt` bounds fix, one Miri pass on the C ABI | #37, #38 | 70 | €3,150 |
+| WP4 | Benchmark suite: 16-byte vs JSON/Protobuf SDUI (payload size, decode latency, memory) + one CI chart | #40 | 30 | €1,350 |
+| WP5 | CI completion (rust + java jobs), hosted SSR HTML demo (URL + screenshots), evidence pack | #49, #50 | 35 | €1,575 |
+| PM / reporting (10%) | NLnet reporting, MoU tracking | — | 15 | €675 |
+| **Total** | | | **260 h** | **€11,700** |
 
-### WP notes
+## 6. Budget & rates
 
-- **WP1** is curation/consolidation, not new protocol work — the spec already
-  exists (see §4).
-- **WP3** is the "trustworthiness" evidence NGI expects (security, testing, CI).
-- **WP5** folds in **WCAG/accessibility** from the start — it is an explicit NGI
-  deliverable condition, and the >€50k scale-up path requires it anyway.
-- The **CI foundation (#50)** is listed in WP5 but is the **first thing to land**:
-  it unblocks and evidences WP3–WP5.
+- **Cost-recovery**, rate **€45/h**, **260 h**, total ask **€11,700**.
+- NLnet may adjust ineligible costs; the final amount is settled in the MoU.
+- No other funding sources at present.
 
-## 6. Prior-art comparison
+## 7. Evidence layer (the demo is proof, not the product)
 
-| Existing approach | Why Pathland differs |
-|-------------------|----------------------|
-| Airbnb/Lyft/Spotify **server-driven UI** | Proprietary, per-app JSON schemas; no open wire format, no native-element mapping, no embedded/browser unification |
-| **Flutter / React Native / Compose Multiplatform** | Frameworks that compile/couple UI to one runtime; not a language-agnostic *protocol*; no diff-based binary wire format |
-| **Native UI toolkits** (GTK/SwiftUI/WinUI) | Per-platform, closed; no cross-language wire contract |
-| **GraphQL / generic serialization** (JSON/Protobuf) | Schema-driven data transport, not a *UI instruction stream*; full-tree, not diff-based |
+The web path already exists (SSR HTML renderer + the demos' vanilla-JS `app.js`
+client). WP5 makes it visible cheaply: host the existing Quarkus SSR demo at a
+public URL, include 2 screenshots and the WP4 comparison chart. Reviewers can
+click a working multi-renderer demo without the core work being a "black box".
 
-Differentiation: Pathland is a **16-byte command stream** (tree mutations +
-properties), **open-spec**, **process/transport-agnostic**, **native-element**
-renderers, **zero-copy** ring, **reactive zero-delta** emission.
+## 8. Prior-art comparison
 
-## 7. European dimension & ecosystem engagement
+Airbnb, Lyft and Spotify ship proprietary, per-app SDUI JSON schemas — closed,
+not an open standard. Flutter, React Native and Compose Multiplatform are
+frameworks that couple the UI model to one runtime. Native toolkits (GTK,
+SwiftUI, WinUI) are per-platform and closed. Generic serialization (JSON,
+Protobuf) is schema-driven data transport, not a UI instruction stream, and
+re-sends full trees. Pathland is a **16-byte command stream** (tree mutations +
+properties), open-spec, process/transport-agnostic, with native-element renderers
+and zero-copy, diff-based emission — an open standard, not another framework.
+
+## 9. European dimension & ecosystem
 
 - **Digital sovereignty**: an open, Apache-2.0 UI protocol reduces dependence on
-  US-owned UI stacks; "made in Europe" alternative for the Open Internet Stack.
-- **Open standards / interoperability**: the spec + conformance vectors let any
-  EU vendor implement renderers/DSLs; relevant to W3C WebUI-type standardization
-  and the Open Internet Stack "independent and cross-platform development
-  framework" area.
+  US-owned UI stacks — a "made in Europe" alternative for the Open Internet
+  Stack's *independent and cross-platform development framework* area.
+- **Open standards / interoperability**: spec + conformance vectors let any EU
+  vendor implement renderers/DSLs; relevant to W3C/WebUI-type standardization.
 - **Efficiency/frugality**: 16-byte opcodes + zero-delta emission cut bandwidth
-  and device/embedded power vs. JSON SDUI.
-- **Engagement plan** (fill in): which projects/standards bodies to reach
-  (e.g., LVGL, W3C/WebUI, FOSDEM/IETF/W3C meetings), which EU SDUI/vendor
-  ecosystems to pilot with, and how the hosted demo attracts adopters.
+  and embedded power vs JSON SDUI.
+- **Engagement**: reach out to adjacent open projects (LVGL for the embedded
+  renderer, W3C WebUI) and present at FOSDEM/IETF/W3C-style venues; publish the
+  validator as a reusable tool for any SDUI adopter.
 
-## 8. Budget & rates
+## 10. Timeline
 
-- Cost-recovery basis; explicit hourly rates and a task/effort breakdown (see
-  WP table).
-- Indicate past/present funding and other sources (form requirement).
-- Add the detailed budget as an attachment to the NLnet form.
+| Milestone | Date |
+|-----------|------|
+| Submit proposal | Sept 3, 2026 (calls open) |
+| Deadline | Nov 3, 2026, 12:00 CET |
+| Decision / MoU | ~Dec 2026 |
+| Project | Jan–Jun 2027 (6 months, 10 h/week) |
+| Deliverables + final report | Jun 2027 |
 
-## 9. Deliverables & acceptance
+## 11. Deliverables & acceptance
 
-All software FOSS (Apache-2.0), all scientific/open outcomes open access.
+All software FOSS (Apache-2.0); all open outcomes open access. Deliverables are
+WCAG-compliant where they include web surfaces.
 
-- [ ] `spec/README.md` index + consolidated property registry (WP1)
-- [ ] Schema/validator CLI + expanded golden vectors, CI-gated (WP2)
-- [ ] Fuzz harnesses (Rust/TS/Java) + Miri/sanitizer clean C ABI (WP3)
-- [ ] Benchmark suite + CI-generated charts (WP4)
-- [ ] CI green on all three jobs (WP5)
-- [ ] `@pathland/web` npm + Swift SPM scaffold (WP5)
-- [ ] WCAG-compliant HTML renderer (WP5)
-- [ ] Hosted multi-platform demo URL (WP5)
+- [ ] `spec/README.md` + consolidated property registry (WP1)
+- [ ] Schema + validator CLI + expanded conformance vectors, CI-gated (WP2)
+- [ ] Fuzz harnesses (Rust/JS/Java) + C ABI Miri pass (WP3)
+- [ ] Benchmark suite + comparison chart (WP4)
+- [ ] CI green (rust + java), hosted demo URL, screenshots (WP5)
+- [ ] NLnet final report + MoU deliverables (PM)
 
-## 10. Eligibility
+## 12. Two-page narrative (copy-ready for the NLnet form)
 
-- Applying entity: **company / legal entity** (TBD).
-- NLnet's general policy accepts companies of any size and type; **re-verify the
-  exact eligibility page of the specific Open Internet Stack fund** when the
-  Sept 3 call opens (post-NGI Zero rules may differ).
-- EU / Horizon-associated country: eligible (priority for EU inhabitants).
+**Proposal name:** Pathland — an implementable open UI-protocol standard.
 
-## 11. Timeline
+**What it is.** Pathland is an open, Apache-2.0 protocol for declarative,
+retained-mode UI that is language- and platform-agnostic. It describes *what* a
+UI is — VStack, HStack, Text, spacing, padding, alignment — as a stream of fixed
+**16-byte opcodes**, never *where*. Emission is diff-based and reactive: only the
+nodes that changed emit, an unchanged tree emits zero opcodes, and renderers are
+pure functions of the stream that map onto native elements (GTK4, DOM/HTML,
+LVGL-planned). The engine is transport- and process-agnostic, running from
+embedded dual-core to in-browser WASM to distributed server-driven backends.
+The spec already exists (split across `spec/OPCODE`, `PRIMITIVES`, `MODIFIERS`,
+`EVENTS`, `CONFORMANCE`, plus the `DSL` authoring surface) and is enforced by
+golden byte vectors.
 
-- **Now (Aug 31):** land #50 CI; draft `spec/README.md` + registry; benchmarks.
-- **Sept 3:** NLnet calls reopen — submit proposal.
-- **Nov 3 (noon CEST):** deadline.
-- Budget effort sized against 1–3 month delivery (first-time proposals are
-  typically €5k–€50k).
+**What we will build.** This project turns the working proof-of-concept into an
+**implementable open standard**: (1) a spec index and consolidated
+property-key registry; (2) a machine-readable ID schema and cross-language
+validator so the four language surfaces cannot drift; (3) coverage-guided fuzzing
+and a Miri pass proving the decoders and the C ABI are robust against malformed
+input; (4) a benchmark suite quantifying the 16-byte-vs-JSON/Protobuf claim; and
+(5) CI plus a hosted SSR HTML demo as live evidence. A solo maintainer delivers
+this in six months at 260 hours (cost-recovery, €11,700).
 
-## 12. Open questions / checklist
+**Why it matters.** An open UI *protocol* — rather than another UI *framework* —
+lets any EU vendor build renderers and DSLs against one spec, reducing lock-in to
+US-owned stacks and supporting the Open Internet Stack's cross-platform
+development goal. The 16-byte, zero-delta wire format is an efficiency answer to
+bloated JSON SDUI. Prior art (Airbnb/Lyft/Spotify SDUI, Flutter, React Native)
+is closed or runtime-coupled; nothing provides an open, diff-based binary
+instruction stream across embedded, browser, desktop, and server.
 
-- [ ] Confirm applying entity (company name, VAT, country).
-- [ ] Confirm proposal name + 2-page narrative.
-- [ ] Fill WP effort/rates; total budget.
-- [ ] Prior-art paragraphs tightened to 3–5 sentences.
-- [ ] Pick the NLnet fund/call topic when it opens.
-- [ ] GenAI disclosure policy read + completed in the form.
+**European dimension.** Made in Denmark; Apache-2.0; engagement with LVGL, W3C
+WebUI, and EU open-source venues; the validator and conformance suite become a
+reusable tool for any SDUI adopter.
+
+## 13. Open items (to confirm before submission)
+
+- [ ] Re-verify the specific fund's eligibility page when the Sept 3 call opens
+  (post-NGI rules may differ; NLnet's general policy accepts companies of any
+  size).
+- [ ] Confirm GenAI-disclosure preference (none used in this document's drafting
+  beyond tool-assisted editing).
+- [ ] Finalize the NLnet form fields: call topic, exact wording, attachments
+  (budget table, screenshots, repo link).
