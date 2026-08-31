@@ -87,10 +87,10 @@ layer is cheap proof, not the product.
 | WP | Deliverable | Issue | Effort (h) | Cost @€45/h |
 |----|-------------|-------|-----------|-------------|
 | WP1 | `spec/README.md` index + consolidated `0x0000–0xFFFF` property-key registry (derived, cross-checked against all four language surfaces) | #48 | 30 | €1,350 |
-| WP2 | Machine-readable ID schema + cross-language validator CLI (Rust/Java drift guard) + expanded golden conformance vectors (validation only — codegen deferred) | #43 | 80 | €3,600 |
+| WP2 | Machine-readable ID schema + cross-language validator CLI (Rust/Java drift guard) + expanded golden conformance vectors (validation only — codegen deferred) | #43 | 70 | €3,150 |
 | WP3 | Coverage-guided fuzz harnesses (Rust/JS/Java), TS `stringAt` bounds fix, one Miri pass on the C ABI | #37, #38 | 70 | €3,150 |
 | WP4 | Benchmark suite: 16-byte vs JSON/Protobuf SDUI (payload size, decode latency, memory) + one CI chart | #40 | 30 | €1,350 |
-| WP5 | CI completion (rust + java jobs), hosted SSR HTML demo (URL + screenshots), evidence pack | #49, #50 | 35 | €1,575 |
+| WP5 | CI completion (rust + java jobs), **WCAG/ARIA compliance on the SSR HTML renderer**, hosted SSR HTML demo (URL + screenshots), evidence pack | #44, #49, #50 | 45 | €2,025 |
 | PM / reporting (10%) | NLnet reporting, MoU tracking | — | 15 | €675 |
 | **Total** | | | **260 h** | **€11,700** |
 
@@ -150,6 +150,7 @@ WCAG-compliant where they include web surfaces.
 - [ ] Schema + validator CLI + expanded conformance vectors, CI-gated (WP2)
 - [ ] Fuzz harnesses (Rust/JS/Java) + C ABI Miri pass (WP3)
 - [ ] Benchmark suite + comparison chart (WP4)
+- [ ] **WCAG/ARIA compliance on the SSR HTML renderer** (WP5)
 - [ ] CI green (rust + java), hosted demo URL, screenshots (WP5)
 - [ ] NLnet final report + MoU deliverables (PM)
 
@@ -175,7 +176,8 @@ property-key registry; (2) a machine-readable ID schema and cross-language
 validator so the four language surfaces cannot drift; (3) coverage-guided fuzzing
 and a Miri pass proving the decoders and the C ABI are robust against malformed
 input; (4) a benchmark suite quantifying the 16-byte-vs-JSON/Protobuf claim; and
-(5) CI plus a hosted SSR HTML demo as live evidence. A solo maintainer delivers
+(5) CI, **WCAG/ARIA compliance on the HTML renderer**, and a hosted SSR HTML
+demo as live evidence. A solo maintainer delivers
 this in six months at 260 hours (cost-recovery, €11,700).
 
 **Why it matters.** An open UI *protocol* — rather than another UI *framework* —
