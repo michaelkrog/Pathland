@@ -19,7 +19,7 @@ wherever possible.
 Every primitive maps to a protocol component type (`TREE::CREATE_NODE`), the
 modifiers that shape it ([MODIFIERS.md](./MODIFIERS.md)), and the core events it
 can produce ([EVENTS.md](./EVENTS.md)). This file is **implementation-ready**: a
-renderer (GTK, HTML/SSR, Angular/ngui, or a new backend) can be written from
+renderer (GTK, HTML/SSR, or a new backend) can be written from
 these tables alone. The wire encoding rules live in
 [OPCODE.md](./OPCODE.md); this file does not repeat them.
 
@@ -47,7 +47,7 @@ Mapping Range](#definitive-opcode-mapping-range)):
 
 > **Implementation status** is tracked per implementing project (a `status.md`
 > in each protocol crate/library — `pathland-core`, `pathland-render-gtk`,
-> `pathland-render-html`, the Java libraries, the Angular renderer), **not** in
+> `pathland-render-html`, the Java libraries), **not** in
 > this specification. This document defines the protocol contract only.
 
 > **Enum-valued properties** (marked `ENUM` in the tables below) are carried on
@@ -63,8 +63,7 @@ Mapping Range](#definitive-opcode-mapping-range)):
   and lay those elements out with their native layout engine. A renderer MAY
   retain its rendered-output tree for drawing, hit-testing, and event routing —
   this is a cache of its own output, not application state.
-- **Native elements everywhere**: VStack → GTK box / CSS flex column / ngui
-  `ui-vstack`; Text → GTK label / `<span>` / ngui `ui-text`; semantic controls →
+- **Native elements everywhere**: VStack → GTK box / CSS flex column; Text → GTK label / `<span>`; semantic controls →
   native OS controls in Native Token Mode (below). Never a generic canvas unless
   a platform has no native equivalent.
 
@@ -240,7 +239,7 @@ and renders.
   code), `TRUNCATION_MODE` (0x000D, enum code), plus all text-formatting and
   appearance modifiers from [MODIFIERS.md](./MODIFIERS.md).
 - **Events**: none by default; any listener via `EVENT_LISTENERS`.
-- **Renderer mapping**: GTK `GtkLabel`; HTML `<span>`/`<p>`; ngui `ui-text`.
+- **Renderer mapping**: GTK `GtkLabel`; HTML `<span>`/`<p>`.
   Font handling is client-owned (the renderer resolves `FONT_FAMILY` /
   `FONT_*` to its native text system).
 
@@ -253,8 +252,7 @@ A static image or icon asset. Asset loading is client-owned.
 - **Properties**: `IMAGE_SOURCE`, `CONTENT_MODE` (0x001C, enum `Fit`=0 /
   `Fill`=1), size modifiers, `OPACITY`, `CLIPS_TO_BOUNDS`.
 - **Events**: none by default.
-- **Renderer mapping**: GTK `GtkPicture`/`GtkImage`; HTML `<img>`; ngui
-  `ui-image`.
+- **Renderer mapping**: GTK `GtkPicture`/`GtkImage`; HTML `<img>`.
 - **Note (SwiftUI `AsyncImage`)**: remote/async loading is **not a separate
   primitive** — it is `IMAGE` with `IMAGE_SOURCE` set to an absolute URL; the
   renderer loads asynchronously and re-issues `SET_PROPERTY(IMAGE_SOURCE)` if
@@ -279,8 +277,7 @@ A static image or icon asset. Asset loading is client-owned.
   parameter list.
 - **Events**: none by default.
 - **Renderer mapping**: GTK `GtkDrawingArea`/colored box (expands); HTML `<div>`
-  with `background-color` (`flex:1;align-self:stretch` — greedy); ngui
-  `ui-color`. The renderer paints the pixel fill.
+  with `background-color` (`flex:1;align-self:stretch` — greedy). The renderer paints the pixel fill.
 - **Note**: `Color` is also a **property value** (`COLOR`,
   `BACKGROUND_COLOR`, `BORDER_COLOR`, `TINT`) — the node exists for when a
   color is a first-class view (backgrounds, fills, spacers).
@@ -297,7 +294,7 @@ the renderer owns the actual drawing.
   size = `WIDTH`/`HEIGHT`.
 - **Events**: none by default.
 - **Renderer mapping**: GTK/HTML/CSS drawing (CSS `border-radius`, `clip-path`,
-  or inline SVG for `Path`); ngui shape primitives. `Path` is the documented
+  or inline SVG for `Path`). `Path` is the documented
   case where a renderer paints directly (no native element equivalent).
 
 ### Divider — `DIVIDER` 0x05
@@ -326,7 +323,7 @@ Determinate progress or an activity indicator.
   the renderer animates a native activity indicator.
 - **Events**: none.
 - **Renderer mapping**: GTK `GtkProgressBar`/`GtkSpinner`; HTML
-  `<progress>`/`<div class="spinner">`; ngui progress.
+  `<progress>`/`<div class="spinner">`.
 
 ### Gauge — `GAUGE` 0x08
 
@@ -343,8 +340,7 @@ A value shown against a scale (SwiftUI `Gauge`).
 Layout primitives arrange children. They carry `SPACING` (0x0001),
 `ALIGNMENT` (0x0002), and `CONTENT_MARGINS` (0x0005), plus layout modifiers from
 [MODIFIERS.md](./MODIFIERS.md#1-layout). Renderers map them to their native flex
-box / grid primitives (GTK `GtkBox`/`GtkGrid`, CSS flex/grid, ngui
-`ui-vstack`/`ui-hstack`/`ui-grid`/…).
+box / grid primitives (GTK `GtkBox`/`GtkGrid`, CSS flex/grid).
 
 ### VStack — `VSTACK` 0x10
 
@@ -359,21 +355,21 @@ Horizontal flex stack. Same properties as `VStack`.
 
 Depth-overlapping layer stack; child index = draw order (later = on top).
 **Properties**: `ALIGNMENT`. Renderer: GTK `GtkOverlay`; HTML absolutely
-positioned children; ngui `ui-zstack`.
+positioned children.
 
 ### Grid — `GRID` 0x13
 
 Static 2D matrix grid, eagerly rendered with aligned rows & columns. Children
 are cells, row-major in insertion order. **Properties**: `ALIGNMENT`, `SPACING`,
 `WIDTH`/`HEIGHT` (cell-axis count; `FILL` = auto-fit). Renderer: GTK `GtkGrid`;
-HTML CSS grid; ngui `ui-grid`.
+HTML CSS grid.
 
 ### ScrollView — `SCROLLVIEW` 0x14
 
 Scrollable content container. **Events**: with the `SCROLL` (bit 8) listener the
 renderer reports the scroll offset via `EVENT::SCROLL`; with `WHEEL` (bit 9) it
 reports deltas via `EVENT::WHEEL` (both draft — see [EVENTS.md](./EVENTS.md)).
-Renderer: GTK `GtkScrolledWindow`; HTML overflow container; ngui scroll view.
+Renderer: GTK `GtkScrolledWindow`; HTML overflow container.
 
 ### LazyVGrid — `LAZY_VGRID` 0x15
 
@@ -432,7 +428,7 @@ An action trigger control.
   (`POINTER_DOWN` then `POINTER_UP` on the same target). Without `ACTION_ID` /
   `BINDING_ID` / `EVENT_LISTENERS`, a renderer MUST drop the interaction (Event
   Guards).
-- **Renderer mapping**: GTK `GtkButton`; HTML `<button>`; ngui `ui-button`.
+- **Renderer mapping**: GTK `GtkButton`; HTML `<button>`.
   Button styles are renderer/token-owned.
 - **Note (SwiftUI `Link`)**: SwiftUI's `Link` is `BUTTON` with an associated
   URL; the app handles the tap and opens the URL. No separate primitive.
@@ -452,7 +448,7 @@ Single-line text input; `SecureField` is the same component with `IS_SECURE`.
 - **Events** (see [EVENTS.md](./EVENTS.md)): `TEXT_CHANGED` (0x07) on every
   edit; `FOCUS_CHANGED` (0x08), `EDITING_CHANGED` (0x09), `SUBMIT` (0x0A) —
   draft. All gated by `BINDING_ID` or the matching `EVENT_LISTENERS` bits.
-- **Renderer mapping**: GTK `GtkEntry`; HTML `<input type="text">`; ngui input.
+- **Renderer mapping**: GTK `GtkEntry`; HTML `<input type="text">`.
   A secure field MUST mask characters and MUST NOT echo the value.
 
 ### TextEditor — `TEXT_EDITOR` 0x22
@@ -466,7 +462,7 @@ Multi-line text editing area.
 - **Events**: same as `TextField` — `TEXT_CHANGED` (0x07), `FOCUS_CHANGED`
   (0x08), `EDITING_CHANGED` (0x09), `SUBMIT` (0x0A) — gated by `BINDING_ID` /
   `EVENT_LISTENERS`.
-- **Renderer mapping**: GTK `GtkTextView`; HTML `<textarea>`; ngui textarea.
+- **Renderer mapping**: GTK `GtkTextView`; HTML `<textarea>`.
 
 ### Toggle — `TOGGLE` 0x24
 
@@ -491,7 +487,7 @@ not a separate component:
   by `BINDING_ID`. The app writes it into `SELECTED`; the engine re-emits the
   `SELECTED` property.
 - **Renderer mapping**: GTK `GtkSwitch`/`GtkCheckButton`; HTML checkbox / styled
-  switch / toggle button; ngui `ui-toggle`/`ui-checkbox`.
+  switch / toggle button.
 
 ### Slider — `SLIDER` 0x25
 
@@ -513,7 +509,7 @@ A continuous or stepped numeric range control.
   with a native drag gesture that reports `VALUE_CHANGED`.
 - **Events:** `VALUE_CHANGED` (0x06, `A=targetId, B=value (f32)`) — gated by
   `BINDING_ID`.
-- **Renderer mapping**: GTK `GtkScale`; HTML `<input type="range">`; ngui slider.
+- **Renderer mapping**: GTK `GtkScale`; HTML `<input type="range">`.
 
 ### Stepper — `STEPPER` 0x26
 
@@ -533,7 +529,7 @@ A date & time selection modal/popover control.
 - **Events**: `DATE_CHANGED` (draft 0x0D, `A=targetId, B=days (I32),
   C=millis of day (U32)`) — inline, gated by `BINDING_ID`.
 - **Renderer mapping**: GTK `GtkCalendar`/`GtkSpinButton`; HTML `<input
-  type="date">`/`<input type="time">`; ngui date picker.
+  type="date">`/`<input type="time">`.
 
 ### Picker — `PICKER` 0x28
 
@@ -548,7 +544,7 @@ A selection control rendered as a segment, dropdown menu, or wheel.
 - **Events**: `VALUE_CHANGED` with `B` = the new selected child index — gated
   by `BINDING_ID`.
 - **Renderer mapping**: GTK `GtkComboBoxText`/`GtkDropDown`; HTML `<select>` /
-  segmented buttons; ngui picker.
+  segmented buttons.
 
 ### Menu — `MENU` 0x29
 
@@ -586,7 +582,7 @@ to **native OS menu item slots** rather than standard canvas/layout nodes.
 - **Events**: `VALUE_CHANGED` with `B` = the chosen action item index — gated
   by `BINDING_ID` (0x2017).
 - **Renderer mapping**: GTK `GtkMenuButton`/`GtkPopoverMenu`; HTML `<div
-  role="menu">`; ngui menu.
+  role="menu">`.
 
 ### ColorPicker — `COLOR_PICKER` 0x2A
 
@@ -598,7 +594,7 @@ A native system color picker control.
   f32 bit pattern** of `0xAARRGGBB` (the app reinterprets it) — gated by
   `BINDING_ID`.
 - **Renderer mapping**: native color panel / `GtkColorButton`; HTML `<input
-  type="color">`; ngui color picker.
+  type="color">`.
 
 ---
 

@@ -79,14 +79,13 @@ crates/pathland-render-gtk/ # RENDERER — host reader (RenderTree) + maps opcod
                           #   native GTK widgets incrementally; the only crate that touches
                           #   GTK/glib/pango. Exposes pathland_gtk_run for Java (JNA) hosts.
 crates/pathland-render-html/ # RENDERER — maps opcode frames onto declarative HTML (flex
-                          #   stacks, spans, buttons) as a pure function of the stream; the
-                          #   server-side/remote-projection target (Goal #15).
-# ── Browser renderer (Angular) ─────────────────────────────────────────────
-lib/angular/               # RENDERER — an Angular 21 app that maps opcode frames onto the
-                          #   @apaq/ngui design system (ui-vstack/ui-text/ui-button/… views +
-                          #   [padding]/[color]/[font]/… modifiers). Connects to /ws, decodes
-                          #   PLPL frames (core/decoder.ts), renders via pathland/ngui/node.
-                          #   The server replays the mount frame on WS connect (SessionApp).
+#   stacks, spans, buttons) as a pure function of the stream; the
+                           #   server-side/remote-projection target (Goal #15).
+# ── Web client (SSR HTML + app.js) ─────────────────────────────────────────
+lib/java/*-demo/src/main/resources/**/app.js   # WEB CLIENT — a small vanilla-JS hydration
+                           #   client: hydrates the SSR HTML by data-pathland-id, decodes
+                           #   self-contained PLPL batches, applies opcode deltas in place,
+                           #   sends raw-input events over /ws. No framework.
 # ── Retained-UI projection (host/driver surface) ──────────────────────────
 crates/pathland-view-native/ # NATIVE C-ABI shim + NativeHost: flat world over a zero-copy
                           #   shared-memory ring, for Swift/Java/C#/other native hosts
@@ -133,9 +132,6 @@ lib/java/
 - Run the Spring Boot demo (SSR + WebSocket deltas):
   `cd lib/java/pathland-spring-boot-demo && mvn package && java -jar target/pathland-spring-boot-demo-0.1.0.jar`.
   Needs JDK 25 and Spring Boot ≥ 3.5.
-- Run the Angular ngui renderer (browser, against either demo on :8080):
-  `cd lib/angular && npm install && npx ng serve` → http://localhost:4200 (proxies `/ws` → :8080).
-  Both demos replay the mount frame on WS connect (`SessionApp`), so this client needs no SSR.
 
 ### Native C-ABI shim (`pathland-view-native` + `pathland-core-capi`)
 
@@ -298,7 +294,7 @@ carry the authoritative ID allocations.
 > `lib/rust/crates/pathland-render-gtk/status.md`,
 > `lib/rust/crates/pathland-render-html/status.md`,
 > `lib/java/pathland-view/status.md`, `lib/java/pathland-render-html/status.md`,
-> `lib/angular/status.md`, and the other Rust crates' `status.md` files.
+> and the other Rust crates' `status.md` files.
 
 ### Opcode Format
 

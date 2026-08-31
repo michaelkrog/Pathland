@@ -28,9 +28,8 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
 
 ## Not implemented / gaps
 
-- The browser experience depends on the Angular renderer and the demos'
-  `app.js`, which are synced separately (see `lib/angular` and the demo
-  `src/main/resources`).
+- The browser experience depends on the demos' `app.js` hydration client
+  (shipped in each demo's `src/main/resources`).
 
 ## Verified by
 

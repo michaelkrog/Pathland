@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main, 'docs/**', 'feature/**', 'fix/**', 'spec/**']
+  pull_request:
+
+jobs:
+  rust:
+    name: Rust (workspace + C ABI + no_std/wasm)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The workspace includes pathland-render-gtk (GTK4), so the runner needs
+      # the GTK4 system libraries before `cargo test` can link them.
+      - name: Install GTK4 system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-4-dev \
+            libglib2.0-dev \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf-2.0-dev \
+            libgraphene-1.0-dev
+
+      - name: Install Rust (stable + wasm32 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: lib/rust -> target
+
+      - name: Test workspace
+        working-directory: lib/rust
+        run: cargo test
+
+      - name: Build the C ABI (cdylib, used by Java FFM / native hosts)
+        working-directory: lib/rust
+        run: cargo build -p pathland-core-capi
+
+      - name: no_std / wasm32 direction guard
+        working-directory: lib/rust
+        run: ./check-wasm.sh
+
+  java:
+    name: Java (Maven reactor, JDK 25)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # JDK 25 is required (maven.compiler.release=25; ScopedValue JEP 506).
+      # Temurin 25 has shipped; if setup-java's manifest lags, swap in a direct
+      # Adoptium 25 tarball download for this step.
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+
+      - name: Test reactor (demo modules excluded to keep CI fast)
+        working-directory: lib/java
+        run: mvn -q -B test -pl '!pathland-quarkus-demo,!pathland-spring-boot-demo'
