@@ -4,6 +4,8 @@
 >
 > **Status: proof of concept.** Not production software — the wire format and APIs may change before 1.0.
 
+[![CI](https://github.com/michaelkrog/Pathland/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelkrog/Pathland/actions/workflows/ci.yml)
+
 ## Overview
 
 Pathland is a **protocol-first** UI framework for **retained-mode UI** with
@@ -93,6 +95,13 @@ The fixed **16-byte opcode ring buffer** is what makes Pathland
 memory (or a byte stream), so the exact same engine and wire format serve five
 distinct execution modes.
 
+> **Implementation status:** the **native desktop** (c) and **distributed
+> WebSocket** (d) paths — plus the Angular web renderer — are implemented today.
+> The **embedded** (a), **in-browser WASM** (b), and **microfrontend** (e) modes,
+> the planned **gRPC** transport, and the SwiftUI/AppKit/WinUI renderers are
+> **roadmap targets** enabled by the architecture (see the `*(planned)*` crates
+> in the [Rust workspace](#rust-workspace)).
+
 ### a) Embedded Dual-Core (In-Process)
 
 Core 0 runs application logic and sensor handling; Core 1 decodes opcodes and
@@ -157,6 +166,7 @@ unified UI — with no per-microservice client code.
 - [Core Modifiers](./spec/MODIFIERS.md) — the core modifiers (protocol `STYLE` properties), with property IDs and status
 - [Core Events](./spec/EVENTS.md) — the core events (raw inputs), with event command IDs and listener bits
 - [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations
+- [DSL Authoring Contract](./spec/DSL.md) — the SwiftUI-shaped authoring surface (what an application developer writes); informative — the wire specs above are normative
 
 ## Rust Workspace
 
@@ -232,6 +242,9 @@ The libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 5
 ```bash
 cd lib/rust && cargo test
 cd lib/java && mvn test
+
+# no_std / wasm32 direction guard (requires: rustup target add wasm32-unknown-unknown)
+cd lib/rust && ./check-wasm.sh
 ```
 
 ### Run the GTK desktop demo (native, zero-copy shared ring)
@@ -285,6 +298,18 @@ See the GitHub issues (#12, #13, #15, #16, #18):
 
 Pathland follows **Semantic Versioning** (Major.Minor.Patch). The wire protocol
 version is 1 (see [OPCODE.md](./spec/OPCODE.md)).
+
+## Contributing
+
+Pathland is open to contributors. Please read:
+
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — how to build, test, and make changes
+- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — the Contributor Covenant
+- [SECURITY.md](./SECURITY.md) — how to report a vulnerability (do **not** open a public issue)
+
+Issues are grouped into milestones `1 · Hardening & Memory Safety` through
+`5 · Packaging & Grant Readiness`, labelled by epic (`hardening`,
+`benchmarking`, `tooling`, `a11y-seo`, `packaging`).
 
 ## License
 
