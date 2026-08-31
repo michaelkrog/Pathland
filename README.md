@@ -22,6 +22,17 @@ On desktop the engine runs **natively**: other languages drive it through the
 flat **native C ABI** (`pathland-view-native`) over a zero-copy shared ring and render
 through the shared GTK renderer (`pathland-render-gtk`).
 
+The **16-byte opcode engine is transport- and process-agnostic by design**. The
+ring buffer is a plain region of shared linear memory, so the engine runs
+wherever the producer and consumer can exchange bytes — no assumptions about
+where the application lives. The same engine spans **embedded systems**
+(FreeRTOS dual-core queues passing opcode slices between cores), **pure
+in-browser client-side apps** (a WASM Web Worker producing into a
+`SharedArrayBuffer` that the main-thread DOM renderer consumes), and
+**server-driven enterprise architectures** (Java/C# backends emitting opcode
+frames over WebSocket or gRPC). Transport and process boundaries are details of
+delivery, never of the protocol.
+
 **The engine does not compute layout and does not emit rects.** It describes
 *what* the UI is, never *where* it is. Emission is **diff-based and reactive**:
 change detection is fine-grained and signal-based — a signal bound to a node's
@@ -80,6 +91,55 @@ The opcodes are carried from the engine to the renderer by a transport (a
 zero-copy shared-memory ring on desktop/native, a serialized network batch for
 remote/browser); transport is an implementation detail, not a fourth element.
 
+## Execution & Deployment Models
+
+The fixed **16-byte opcode ring buffer** is what makes Pathland
+*process-agnostic*: the producer and consumer only need to share a region of
+memory (or a byte stream), so the exact same engine and wire format serve five
+distinct execution modes.
+
+### a) Embedded Dual-Core (In-Process)
+
+Core 0 runs application logic and sensor handling; Core 1 decodes opcodes and
+renders **LVGL** over a **zero-copy SRAM ring buffer** (e.g. ESP32). The `no_std`
+protocol core (`pathland-core`) emits into shared SRAM; the second core drains
+the ring and drives LVGL widgets. No heap, no serialization — just a 16-byte
+opcode stream across cores, passed through a FreeRTOS queue or a direct
+SRAM producer/consumer pair.
+
+### b) In-Browser Pure Client (Zero Main-Thread Lock)
+
+Application logic runs in a **Web Worker compiled to WASM**. It emits opcodes
+into a **`SharedArrayBuffer`** that the main thread's DOM renderer consumes
+directly — bypassing Virtual DOM diffing entirely, because the renderer applies
+only the delta opcodes to the native DOM. Since the worker never blocks the main
+thread and the renderer is a pure function of the stream, this path targets
+better sustained frame rates than single-threaded JS frameworks for large,
+reactive trees.
+
+### c) Native Desktop (IPC / Shared Memory)
+
+Native apps drive the engine through the flat **C ABI** (`pathland-view-native`)
+or **Java FFM** over a **zero-copy shared ring** into GTK4 / native widgets
+(`pathland-render-gtk`). This is the current desktop path — producer and
+renderer live in the same process and share the ring directly.
+
+### d) Distributed Network (Server-Driven UI)
+
+Backends (**Java Spring / Quarkus, C#**) emit self-contained opcode frames over
+**WebSocket** (implemented) and, planned, **gRPC** directly to **Web
+(HTML / Angular)** or mobile renderers. Frames are self-contained `PLPL`
+batches, so each message is independent — no shared memory and no session state
+in the renderer.
+
+### e) Microfrontend Composition (Server-Side Merging)
+
+The retained-tree model also opens the door to **true microfrontends without the
+JavaScript-bundle hassle**: the subtrees of different services can be merged
+into **one UI tree server-side** and relayed to the renderer as a single opcode
+stream, so teams can ship UI with their own backend and any renderer receives a
+unified UI — with no per-microservice client code.
+
 ## Core Principles
 
 - **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs
@@ -118,6 +178,12 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 | `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
 | `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |
 | `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |
+| `pathland-web-worker` *(planned)* | Opcode engine / Renderer | WASM logic Worker + `SharedArrayBuffer` DOM driver: application logic emits opcodes in a Web Worker; the main-thread DOM renderer consumes them zero-copy (in-browser pure-client mode) |
+| `pathland-esp32` *(planned)* | Renderer | Dual-core HAL driver for microcontrollers: Core 0 → Core 1 opcode slices over an SRAM ring, mapped onto LVGL widgets (embedded dual-core mode) |
+
+`pathland-web-worker` and `pathland-esp32` are roadmap targets; the existing
+`no_std`/WASM-capable core (`pathland-core`) and the ring C ABI
+(`pathland-core-capi`) are the building blocks they are planned on.
 
 ## Java Libraries
 
