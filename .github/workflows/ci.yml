@@ -68,6 +68,10 @@ jobs:
         run: mvn -q -B test -pl '!pathland-quarkus-demo,!pathland-spring-boot-demo'
 
   angular:
+    # Temporarily disabled: the @apaq/ngui dependency fails to build in CI
+    # with a permission issue. Re-enable (remove the `if: false`) once the
+    # ngui install is fixed; the job definition below is kept intact.
+    if: false
     name: Angular renderer (build + tests)
     runs-on: ubuntu-latest
     steps:
