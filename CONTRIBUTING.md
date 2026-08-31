@@ -21,8 +21,8 @@ Found a vulnerability? **Do not open a public issue** — report it privately pe
   `pathland-view-native`, `pathland-render-gtk-demo`.
 - `lib/java/` — the Maven reactor: `pathland-view` (`com.pathland.view`),
   `pathland-view-processor`, `pathland-render-html`, `pathland-state-redis`,
-  `pathland-demo-views`, and the Quarkus/Spring demos.
-- `lib/angular/` — the Angular (ngui) browser renderer.
+  `pathland-demo-views`, and the Quarkus/Spring demos (which also ship the
+  vanilla-JS `app.js` web client).
 - `spec/` — the protocol contract: `OPCODE.md` (primary), `PRIMITIVES.md`,
   `MODIFIERS.md`, `EVENTS.md`, `CONFORMANCE.md` (golden vectors), `DSL.md`
   (authoring surface).
@@ -34,7 +34,6 @@ Implementation status per project lives in each crate/module's `status.md`.
 - **Rust**: stable toolchain (`rustup`); `wasm32-unknown-unknown` target for the
   `no_std` direction guard.
 - **Java**: JDK 25+ (Maven `release=25`; `ScopedValue` JEP 506 is final in 25).
-- **Angular**: Node 20+ and npm.
 - **GTK4** (Linux) for `pathland-render-gtk`.
 
 ## Build & test
@@ -52,9 +51,6 @@ cd lib/rust && cargo build -p pathland-core-capi
 # Java reactor (the core libraries; the Quarkus/Spring demos are excluded from
 # CI but buildable with: cd lib/java && mvn -q install)
 cd lib/java && mvn -q -B test -pl '!pathland-quarkus-demo,!pathland-spring-boot-demo'
-
-# Angular renderer
-cd lib/angular && npm ci && npx ng build && npx ng test
 ```
 
 CI runs exactly these commands (`.github/workflows/ci.yml`).
@@ -88,9 +84,8 @@ CI runs exactly these commands (`.github/workflows/ci.yml`).
   `version` field (currently 1) per `spec/OPCODE.md`.
 - New components/properties: allocate IDs in the specs + `constants.rs`
   (`lib/rust/crates/pathland-core/src/constants.rs`), then mirror across
-  `lib/java/…/Components.java`/`Properties.java` and
-  `lib/angular/src/app/pathland/core/protocol.ts`, and update each renderer +
-  its `status.md`.
+  `lib/java/…/Components.java`/`Properties.java` (and the demos' `app.js`
+  constants), and update each renderer + its `status.md`.
 
 ## Non-negotiable principles
 

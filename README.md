@@ -45,7 +45,7 @@ actually changed emit opcodes and an unchanged tree emits zero opcodes.
 
 **Proof of concept.** Pathland is a working reference implementation for
 validating the protocol, not production software. The 16-byte opcode engine,
-the Rust and Java DSLs, the GTK4 / HTML / Angular renderers, and the
+the Rust and Java DSLs, the GTK4 / HTML renderers, and the
 SSR + WebSocket demos are all functional (tests green), but the wire format
 (version 1) and every API are subject to change before a 1.0.
 
@@ -96,11 +96,12 @@ memory (or a byte stream), so the exact same engine and wire format serve five
 distinct execution modes.
 
 > **Implementation status:** the **native desktop** (c) and **distributed
-> WebSocket** (d) paths — plus the Angular web renderer — are implemented today.
-> The **embedded** (a), **in-browser WASM** (b), and **microfrontend** (e) modes,
-> the planned **gRPC** transport, and the SwiftUI/AppKit/WinUI renderers are
-> **roadmap targets** enabled by the architecture (see the `*(planned)*` crates
-> in the [Rust workspace](#rust-workspace)).
+> WebSocket** (d) paths — including the SSR HTML web client (`app.js`) — are
+> implemented today. The **embedded** (a), **in-browser WASM** (b), and
+> **microfrontend** (e) modes, the planned **gRPC** transport, and the
+> SwiftUI/AppKit/WinUI renderers are **roadmap targets** enabled by the
+> architecture (see the `*(planned)*` crates in the
+> [Rust workspace](#rust-workspace)).
 
 ### a) Embedded Dual-Core (In-Process)
 
@@ -131,8 +132,8 @@ renderer live in the same process and share the ring directly.
 ### d) Distributed Network (Server-Driven UI)
 
 Backends (**Java Spring / Quarkus, C#**) emit self-contained opcode frames over
-**WebSocket** (implemented) and, planned, **gRPC** directly to **Web
-(HTML / Angular)** or mobile renderers. Frames are self-contained `PLPL`
+**WebSocket** (implemented) and, planned, **gRPC** directly to **Web (HTML)** or
+mobile renderers. Frames are self-contained `PLPL`
 batches, so each message is independent — no shared memory and no session state
 in the renderer.
 
@@ -253,16 +254,13 @@ cd lib/rust && ./check-wasm.sh
 cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-render-gtk-demo
 ```
 
-## Angular Renderer (@apaq/ngui)
+## Web Client (SSR HTML + app.js)
 
-The browser also has a declarative renderer: an **Angular application** (under
-[`lib/angular/`](./lib/angular/)) that maps the opcode stream onto the
-**[@apaq/ngui](https://github.com/Apaq/ngui)** design system — `ui-vstack`/
-`ui-hstack`/`ui-text`/`ui-button`/… views and `[padding]`/`[color]`/`[font]`/…
-modifiers — instead of hand-written `app.js` DOM patches. It connects to the
-Pathland `/ws` socket (the server replays the full mount frame on connect, so no
-SSR pre-step is needed), decodes `PLPL` frames, and renders ngui views. See
-[`lib/angular/README.md`](./lib/angular/README.md).
+The browser client is the **SSR HTML renderer** (`pathland-render-html`, and its
+Java counterpart `com.pathland.render.html`), hydrated by a small vanilla-JS
+client — `app.js`, shipped in both demos. It hydrates the server-rendered DOM by
+`data-pathland-id`, decodes each self-contained `PLPL` batch, applies opcode
+deltas in place, and sends raw-input events back over the `/ws` socket.
 
 ## Components & Properties
 

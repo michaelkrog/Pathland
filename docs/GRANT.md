@@ -40,7 +40,7 @@ Pathland describes **WHAT** the UI is — structure + constraint properties
 (VStack, HStack, Text, spacing, padding, alignment) — as a stream of **fixed
 16-byte opcodes** in a ring buffer, and never **WHERE** (no layout, no rects).
 Renderers are **pure functions of the stream**, so the same opcode stream maps
-onto native widgets on every platform (GTK4, DOM/HTML, Angular, LVGL-planned).
+onto native widgets on every platform (GTK4, DOM/HTML, LVGL-planned).
 
 The engine is **transport- and process-agnostic**: the producer and consumer
 only need to exchange bytes, so it runs identically across:
@@ -94,7 +94,7 @@ whole (reframed issue #48).
 | **WP2 — Interop & conformance** | Machine-readable ID schema + cross-language validator CLI (Rust/Java/TS drift guard) + expanded golden vectors | #43 | — | — | — |
 | **WP3 — Hardening & safety** | `cargo fuzz` + JS/Java fuzz harnesses; bounds fixes (TS `stringAt`); Miri/sanitizer pass on the C ABI | #37, #38, #39 | — | — | — |
 | **WP4 — Evidence** | Benchmark suite vs JSON/Protobuf SDUI + 120 FPS decode harness + CI-generated SVG/MD charts | #40, #41 | — | — | — |
-| **WP5 — Packaging, a11y, demo** | CI foundation; `@pathland/web` npm + Swift SPM; WCAG/ARIA on HTML+Angular renderers; hosted multi-platform demo | #44, #45, #47, #49, #50 | — | — | — |
+| **WP5 — Packaging, a11y, demo** | CI foundation; `@pathland/web` npm + Swift SPM; WCAG/ARIA on the HTML renderer; hosted multi-platform demo | #44, #45, #47, #49, #50 | — | — | — |
 | **PM** | Project management, reporting, communication | — | — | — | — |
 | **TOTAL** | | | | | **€** |
 
@@ -152,7 +152,7 @@ All software FOSS (Apache-2.0), all scientific/open outcomes open access.
 - [ ] Benchmark suite + CI-generated charts (WP4)
 - [ ] CI green on all three jobs (WP5)
 - [ ] `@pathland/web` npm + Swift SPM scaffold (WP5)
-- [ ] WCAG-compliant HTML + Angular renderers (WP5)
+- [ ] WCAG-compliant HTML renderer (WP5)
 - [ ] Hosted multi-platform demo URL (WP5)
 
 ## 10. Eligibility

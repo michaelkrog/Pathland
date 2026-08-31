@@ -33,8 +33,8 @@ The following are in scope for this policy:
 - `lib/rust/crates/pathland-core-capi` — the `unsafe extern "C"` ring ABI
   (`libpathland_core`): pointer-argument handling, zero-copy reads, event drain.
 - `lib/java/pathland-view` `transport` — `FrameCodec` (PLPL encode/decode).
-- `lib/angular/src/app/pathland/core` — `decoder.ts`/`event-encoder.ts` (PLPL
-  Web binary decode).
+- The demos' vanilla-JS `app.js` web client (PLPL batch decode + hydration in
+  `lib/java/*-demo/src/main/resources`).
 
 Out of scope: dependencies (report those to their respective projects),
 development-only tooling, and the demo application code.

@@ -1,8 +1,0 @@
-/* NgUI design tokens */
-@import '@apaq/ngui/dist/css/ngui.css';
-
-html,
-body {
-  margin: 0;
-  padding: 0;
-}
