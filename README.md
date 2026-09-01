@@ -41,6 +41,31 @@ change detection is fine-grained and signal-based — a signal bound to a node's
 text or a property re-emits only that node's deltas, so only the things that
 actually changed emit opcodes and an unchanged tree emits zero opcodes.
 
+## Enterprise positioning — replace the BFF + Rich Frontend paradigm
+
+For server-driven web teams, Pathland is positioned as a replacement for the
+**whole BFF + Rich Frontend stack** — and for libraries like **HTMX** that patch
+around it. Today's enterprise stack pays for a JSON API tier (a BFF), a
+client-side state model, a SPA framework, and a build pipeline, all to render UI
+the server already owns. Pathland removes that layer: the backend **is** the
+application. It declares the entire UI in its own language (Java, Rust, C#, …),
+emits **binary deltas** over WebSocket, and the client is a thin hydration layer
+that applies them and reports raw input back — no BFF contract to maintain, no
+client state model, no SPA framework, no separate frontend team.
+
+- **Server-driven, like HTMX — but a protocol, not a script tag.** The web
+  client is a small vanilla-JS hydrator that decodes self-contained `PLPL`
+  batches and applies opcode deltas in place; everything else lives in the
+  backend, where enterprise teams can test, observe, and secure it.
+- **Native elements everywhere.** The same opcode stream drives GTK4 widgets on
+  desktop, DOM elements in the browser, and SSR HTML — one view definition, any
+  renderer, any language.
+- **Binary and diff-based.** Fixed 16-byte opcodes, zero emission for an
+  unchanged tree, self-contained frames over the wire.
+- **Enterprise-ready by design** (see Project Status): Java 17+ across the whole
+  stack, a single Rust HTML renderer reused by every language, WebSocket
+  resilience, metrics/health, security hardening, and WCAG 2.1 AA.
+
 ## Project Status
 
 **Proof of concept.** Pathland is a working reference implementation for
