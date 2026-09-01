@@ -34,7 +34,7 @@ public class TailwindCssController {
                 + "text-[18px] font-[700] rounded-[8px] blur-[3px] opacity-[0.5] hidden";
     }
 
-    @GetMapping(value = "/tailwind.css", produces = MediaType.TEXT_CSS_VALUE)
+    @GetMapping(value = "/tailwind.css", produces = "text/css")
     public ResponseEntity<String> css() {
         return ResponseEntity.ok().contentType(MediaType.valueOf("text/css")).body(css);
     }
