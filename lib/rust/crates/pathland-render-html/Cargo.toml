@@ -8,6 +8,9 @@ repository = "https://github.com/michaelkrog/Pathland"
 categories = ["rendering", "web-programming"]
 keywords = ["ui", "protocol", "opcode", "html", "ssr"]
 
+[lib]
+crate-type = ["rlib", "cdylib"]
+
 [dependencies]
 pathland-core = { path = "../pathland-core" }
 pathland-core-transport = { path = "../pathland-core-transport" }

@@ -20,6 +20,8 @@ use pathland_core::{
     Opcode, border_edges, category, component_type, property_id, style, tree, value_type,
 };
 
+mod capi;
+
 /// A decoded node in the retained description.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Node {
