@@ -7,12 +7,13 @@
 //! Java binds this via JNA (`com.pathland.render.html` shim); Swift/.NET bind
 //! the same ABI.
 
-use std::ffi::{CString, c_char};
+use std::ffi::{CStr, CString, c_char};
 use std::os::raw::c_uchar;
 
 use pathland_core_transport::decode_frame;
 
 use crate::HtmlRenderer;
+use crate::tailwind;
 
 fn render_bytes(batch: *const c_uchar, len: u32, root: u32, fragment: bool) -> *const c_char {
     if batch.is_null() {
@@ -59,7 +60,7 @@ pub unsafe extern "C" fn pathland_html_render_fragment(
 }
 
 /// Release a string returned by [`pathland_html_render`] /
-/// [`pathland_html_render_fragment`]. No-op on NULL.
+/// [`pathland_html_render_fragment`] / [`pathland_tailwind_compile`]. No-op on NULL.
 ///
 /// # Safety
 /// `ptr` must be a pointer previously returned by this module (or NULL).
@@ -68,6 +69,43 @@ pub unsafe extern "C" fn pathland_html_free(ptr: *const c_char) {
     if !ptr.is_null() {
         drop(CString::from_raw(ptr as *mut c_char));
     }
+}
+
+/// Compile the Tailwind CSS bundle at application start. `default_css` and
+/// `override_css` are NUL-terminated CSS strings (the override may be empty);
+/// `classes` is the space-separated class safelist. Returns a NUL-terminated
+/// C string: the compiled CSS on success, or a `PATHLAND_TAILWIND_ERROR: …`
+/// message on failure (caller releases with `pathland_html_free`).
+///
+/// # Safety
+/// All three pointers must be readable NUL-terminated strings (or NULL → "").
+#[no_mangle]
+pub unsafe extern "C" fn pathland_tailwind_compile(
+    default_css: *const c_char,
+    override_css: *const c_char,
+    classes: *const c_char,
+) -> *mut c_char {
+    let read = |ptr: *const c_char| {
+        if ptr.is_null() {
+            String::new()
+        } else {
+            unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned()
+        }
+    };
+    let default_raw = read(default_css);
+    let default = if default_raw.is_empty() {
+        tailwind::DEFAULT_THEME_CSS.to_string()
+    } else {
+        default_raw
+    };
+    let override_css = read(override_css);
+    let classes = read(classes);
+    let result = tailwind::compile(&default, &override_css, &classes);
+    let output = match result {
+        Ok(css) => css,
+        Err(err) => format!("PATHLAND_TAILWIND_ERROR: {err}"),
+    };
+    CString::new(output).map(CString::into_raw).unwrap_or(std::ptr::null_mut())
 }
 
 #[cfg(test)]
@@ -107,5 +145,16 @@ mod tests {
     fn capi_rejects_a_truncated_batch() {
         let ptr = unsafe { pathland_html_render([0u8, 1, 2].as_ptr(), 3, 1) };
         assert!(ptr.is_null());
+    }
+
+    #[test]
+    fn capi_tailwind_compile_reports_unavailability() {
+        // Without the tailwind-embed binary (or a tailwindcss on PATH) the compile
+        // must return a clear error string, not crash.
+        let ptr = unsafe { pathland_tailwind_compile(std::ptr::null(), std::ptr::null(), std::ptr::null()) };
+        assert!(!ptr.is_null());
+        let msg = unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned();
+        assert!(msg.starts_with("PATHLAND_TAILWIND_ERROR"), "got: {msg}");
+        unsafe { pathland_html_free(ptr) };
     }
 }

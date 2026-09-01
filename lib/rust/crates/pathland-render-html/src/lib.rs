@@ -21,6 +21,7 @@ use pathland_core::{
 };
 
 mod capi;
+mod tailwind;
 mod tw;
 
 /// A decoded node in the retained description.

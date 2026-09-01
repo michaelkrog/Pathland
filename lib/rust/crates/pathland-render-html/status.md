@@ -48,10 +48,18 @@ Statelessness). Protocol contract: `spec/`.
   phases) for the `@source inline(...)` compiler input — generated from the same
   table used by emission, so emission and safelist cannot drift. Wired into the
   compiler in Phase 3.
-- **Tailwind v4 integration (Phase 3)**: embedded per-platform standalone binary
-  (MIT, bundled per the pinned license, feature-gated), default `@theme` + Inter
-  config, developer override, compile-at-startup (`pathland_tailwind_compile`),
-  serve compiled CSS.
+- **Tailwind v4 integration (Phase 3, landed)**: `tailwind.rs` provides the
+  bundled default `@theme` config (Inter, OFL) + `assemble_input(default,
+  override, classes)` (pure, tested) + `compile(...)` that spawns the compiler
+  and returns the CSS. The compiler is the **per-platform standalone binary,
+  feature-gated (`tailwind-embed`)**: build.rs embeds it via `include_bytes!`
+  (clear panic if missing); `scripts/fetch-tailwind.mjs` fetches it into
+  `vendor/<target-triple>/`. With the feature off, `compile` falls back to a
+  `tailwindcss` on PATH or returns a clear error. C ABI
+  `pathland_tailwind_compile(default, override, classes) -> char*` returns the
+  compiled CSS (or a `PATHLAND_TAILWIND_ERROR: …` message). `THIRD_PARTY_NOTICES`
+  covers Tailwind (MIT) + Inter (OFL). The real-binary compile is exercised in
+  the P2a test pass (fetch + run); the machinery + assembly are unit-tested.
 - **C ABI cdylib** (`pathland_html_render` / `_render_fragment` /
   `_tailwind_compile` / `_free`) for cross-language hosts (Java JNA shim).
 
