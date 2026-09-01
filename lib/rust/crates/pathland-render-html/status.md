@@ -53,13 +53,21 @@ Statelessness). Protocol contract: `spec/`.
   override, classes)` (pure, tested) + `compile(...)` that spawns the compiler
   and returns the CSS. The compiler is the **per-platform standalone binary,
   feature-gated (`tailwind-embed`)**: build.rs embeds it via `include_bytes!`
-  (clear panic if missing); `scripts/fetch-tailwind.mjs` fetches it into
+  (clear panic if missing); `scripts/fetch-tailwind.mjs` fetches the real
+  `tailwindcss` v4.x standalone binary (per-platform, offline-capable) into
   `vendor/<target-triple>/`. With the feature off, `compile` falls back to a
   `tailwindcss` on PATH or returns a clear error. C ABI
   `pathland_tailwind_compile(default, override, classes) -> char*` returns the
   compiled CSS (or a `PATHLAND_TAILWIND_ERROR: …` message). `THIRD_PARTY_NOTICES`
-  covers Tailwind (MIT) + Inter (OFL). The real-binary compile is exercised in
-  the P2a test pass (fetch + run); the machinery + assembly are unit-tested.
+  covers Tailwind (MIT) + Inter (OFL).
+  - **Robustness**: `compile()` detects "exited 0 but no output file" and
+    "empty output" and returns a clear error; `extract_embedded()` always
+    rewrites the cached binary (never reuses a stale/placeholder file); temp
+    in/out filenames are unique per call (no parallel-compile collision).
+  - **Verified end-to-end**: with `tailwind-embed` enabled and the real binary
+    embedded, the Spring fat jar's `/tailwind.css` returns compiled Tailwind
+    v4.3.3 CSS (`.flex`, `.flex-col`, `.gap`, …) with no `java.library.path` —
+    the jar is self-contained.
 - **C ABI cdylib** (`pathland_html_render` / `_render_fragment` /
   `_tailwind_compile` / `_free`) for cross-language hosts (Java JNA shim).
 

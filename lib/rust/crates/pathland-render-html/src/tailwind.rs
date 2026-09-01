@@ -46,9 +46,16 @@ pub fn compile(default_css: &str, override_css: &str, classes: &str) -> Result<S
     let input = assemble_input(default_css, override_css, classes);
     let binary = resolve_binary()?;
 
+    // Unique temp names per call: std::process::id() alone collides when two
+    // compiles run concurrently (tests/parallel hosts), corrupting each other's
+    // in/out files.
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos())
+        .unwrap_or(0);
     let dir = std::env::temp_dir();
-    let in_path = dir.join(format!("pathland-tw-in-{}.css", std::process::id()));
-    let out_path = dir.join(format!("pathland-tw-out-{}.css", std::process::id()));
+    let in_path = dir.join(format!("pathland-tw-in-{}-{nonce}.css", std::process::id()));
+    let out_path = dir.join(format!("pathland-tw-out-{}-{nonce}.css", std::process::id()));
     let mut file = std::fs::File::create(&in_path).map_err(|e| format!("write input: {e}"))?;
     file.write_all(input.as_bytes()).map_err(|e| format!("write input: {e}"))?;
     drop(file);
@@ -69,8 +76,17 @@ pub fn compile(default_css: &str, override_css: &str, classes: &str) -> Result<S
         let _ = std::fs::remove_file(&out_path);
         return Err(format!("tailwindcss failed: {}", err.trim()));
     }
+    // The compiler may have exited 0 without producing output (e.g. a placeholder/
+    // mismatched binary). Surface that clearly instead of a cryptic read error.
+    if !out_path.is_file() {
+        return Err("tailwindcss exited successfully but produced no output file "
+            .to_string());
+    }
     let css = std::fs::read_to_string(&out_path).map_err(|e| format!("read output: {e}"))?;
     let _ = std::fs::remove_file(&out_path);
+    if css.trim().is_empty() {
+        return Err("tailwindcss produced an empty output file".to_string());
+    }
     Ok(css)
 }
 
@@ -106,19 +122,18 @@ fn extract_embedded() -> Result<PathBuf, String> {
     {
         use std::os::unix::fs::PermissionsExt;
         let path = cache.join("tailwindcss");
-        if !path.is_file() {
-            std::fs::write(&path, BIN).map_err(|e| format!("extract binary: {e}"))?;
-            std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
-                .map_err(|e| format!("chmod binary: {e}"))?;
-        }
+        // Always rewrite: a stale/partial/placeholder file from a previous build
+        // (e.g. a test placeholder, or an interrupted fetch) must not be reused,
+        // since it would run and silently produce no output.
+        std::fs::write(&path, BIN).map_err(|e| format!("extract binary: {e}"))?;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+            .map_err(|e| format!("chmod binary: {e}"))?;
         Ok(path)
     }
     #[cfg(windows)]
     {
         let path = cache.join("tailwindcss.exe");
-        if !path.is_file() {
-            std::fs::write(&path, BIN).map_err(|e| format!("extract binary: {e}"))?;
-        }
+        std::fs::write(&path, BIN).map_err(|e| format!("extract binary: {e}"))?;
         Ok(path)
     }
 }
@@ -144,5 +159,25 @@ mod tests {
     fn assemble_input_omits_empty_safelist() {
         let input = assemble_input(DEFAULT_THEME_CSS, "", "");
         assert!(!input.contains("@source inline"));
+    }
+
+    #[cfg(feature = "tailwind-embed")]
+    #[test]
+    fn embedded_binary_compiles_real_css() {
+        // The embedded standalone binary must actually turn the safelist into CSS.
+        let css = compile(DEFAULT_THEME_CSS, "", "flex flex-col gap-[12px] p-[8px]").expect("compile");
+        assert!(css.contains(".flex"), "flex utility present: {}", css);
+        assert!(css.contains(".flex-col"), "flex-col utility present");
+        assert!(css.contains("gap"), "gap utility present");
+    }
+
+    #[cfg(not(feature = "tailwind-embed"))]
+    #[test]
+    fn without_embed_reports_binary_unavailable() {
+        // Without the embedded binary and no tailwindcss on PATH, compile must
+        // return a clear error (not a cryptic read failure).
+        let err = compile(DEFAULT_THEME_CSS, "", "flex").unwrap_err();
+        assert!(err.contains("tailwindcss binary unavailable") || err.contains("produced no output"),
+            "clear error: {err}");
     }
 }

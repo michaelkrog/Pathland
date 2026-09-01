@@ -149,11 +149,15 @@ mod tests {
 
     #[test]
     fn capi_tailwind_compile_reports_unavailability() {
-        // Without the tailwind-embed binary (or a tailwindcss on PATH) the compile
-        // must return a clear error string, not crash.
+        // With the tailwind-embed feature the embedded binary compiles real CSS;
+        // without it (and no tailwindcss on PATH) compile must return a clear
+        // error string, not crash.
         let ptr = unsafe { pathland_tailwind_compile(std::ptr::null(), std::ptr::null(), std::ptr::null()) };
         assert!(!ptr.is_null());
         let msg = unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned();
+        #[cfg(feature = "tailwind-embed")]
+        assert!(!msg.starts_with("PATHLAND_TAILWIND_ERROR"), "compiled css: {msg}");
+        #[cfg(not(feature = "tailwind-embed"))]
         assert!(msg.starts_with("PATHLAND_TAILWIND_ERROR"), "got: {msg}");
         unsafe { pathland_html_free(ptr) };
     }
