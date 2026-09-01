@@ -1,0 +1,57 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M1EM6ZX6FXD7T6477K4V45X6",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-01T13:58:35.730953Z",
+  "branch": "feature/inline-arbitrary-tailwind",
+  "checkpoints_count": 11,
+  "save_step_count": 2,
+  "files_touched": [
+    "lib/rust/crates/pathland-render-html/src/lib.rs",
+    "lib/rust/crates/pathland-render-html/src/tailwind.rs",
+    "lib/rust/crates/pathland-render-html/src/tw.rs"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "17808dafef60",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 71486203,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 873847040,
+    "output_tokens": 1760708,
+    "api_call_count": 2301
+  },
+  "session_metrics": {
+    "turn_count": 219
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-01T13:58:34.238849Z",
+    "agent_lines": 155,
+    "agent_removed": 249,
+    "human_added": 21,
+    "human_modified": 51,
+    "human_removed": 0,
+    "total_committed": 227,
+    "total_lines_changed": 531,
+    "agent_percentage": 76.08286252354048,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 206,
+      "agent_lines_removed": 249
+    }
+  ]
+}
