@@ -127,7 +127,6 @@ final class SessionApp {
                     + "pathland-render-html jar.</p></body></html>";
         }
         return renderer.render(sink.frame(), rootId)
-                .replace("</head>", "<link rel=\"stylesheet\" href=\"/tailwind.css\"></head>")
                 .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
 

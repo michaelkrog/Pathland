@@ -12,28 +12,34 @@ Java renderer is removed. Protocol contract: `spec/`.
 - **Stateless JNA shim**: `HtmlRenderer.instance()` links the Rust cdylib;
   `render(frame, root)` / `renderFragment(frame, root)` /
   `renderFullSnapshot(frame, root)` render a self-contained snapshot frame to
-  HTML in one pass (no retained tree, no `applyFrame`); `compileTailwind(overrideCss)`
-  returns the compiled Tailwind CSS via `pathland_tailwind_compile` (the class
-  safelist is owned internally by the Rust renderer — no `classes` parameter);
-  `pathland_html_free` releases native strings. Lazy-loaded; skipped (test
-  assumption) when the dylib is absent from `java.library.path`.
-- **Full Rust renderer surface** (canonical): all spec components render with
-  Tailwind utility classes (structural + decorative), ARIA/event attributes,
-  `IS_SECURE` → password, `TOGGLE_STYLE` variants, `DATE_PICKER_MODE`, and
-  literal colors inline (Option A).
+  HTML in one pass (no retained tree, no `applyFrame`); `pathland_html_free`
+  releases native strings. Lazy-loaded; skipped (test assumption) when the dylib
+  is absent from `java.library.path`.
+- **Full Rust renderer surface** (canonical): all spec components render inline
+  (structural + decorative CSS in a single `style` attribute), ARIA/event
+  attributes, `IS_SECURE` → password, `TOGGLE_STYLE` variants,
+  `DATE_PICKER_MODE`, and literal colors inline. The renderer injects its own
+  built-in `<style>` block (preflight reset + design tokens + `.pathland-*`
+  component defaults) into every document — no external CSS, no `/tailwind.css`.
 - **Demos use the shim**: `SessionApp` no longer calls `applyFrame`; SSR renders
   the mount frame through `HtmlRenderer.render(sink.frame(), rootId)`. The
   renderer is compiled once at startup.
 
+## Removed (September 2026)
+
+- `compileTailwind(overrideCss)` and the `pathland_tailwind_compile` binding are
+  **deleted** — the renderer is inline-only now and needs no compiler. The demo
+  `/tailwind.css` endpoints (`TailwindCssController` / `TailwindCssResource`)
+  and the `<link rel="stylesheet" href="/tailwind.css">` in both `SessionApp`
+  files are removed.
+
 ## Not implemented / gaps
 
-- The Tailwind class safelist is owned internally by the Rust renderer
-  (`tw::safelist()`); it is a complete static set (compiled once at startup) of
-  the finite protocol-enum-derived classes, and arbitrary-number (dp) styling
-  renders inline — so the compiled `/tailwind.css` is small and static. The demo
-  `/tailwind.css` endpoint calls `compileTailwind("")` and gets this CSS.
+- The Inter webfont is referenced by the `--pl-font-sans` token but not yet
+  bundled (documented follow-up; falls back to `system-ui`).
 
 ## Verified by
 
 `mvn test -pl pathland-render-html` — JNA shim tests (skip when the Rust dylib
-is absent); part of the 44-test non-demo reactor run on JDK 17.
+is absent); part of the non-demo reactor run on JDK 17.
+

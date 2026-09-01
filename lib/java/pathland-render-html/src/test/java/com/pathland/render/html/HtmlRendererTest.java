@@ -58,7 +58,7 @@ class HtmlRendererTest {
         String html = renderer.render(frame, 1);
 
         assertTrue(html.contains("<!DOCTYPE html>"));
-        assertTrue(html.contains("class=\"flex flex-col\""));
+        assertTrue(html.contains("flex-direction:column"), "stack rendered inline flex");
         assertTrue(html.contains("<span data-pathland-id=\"2\">Hello Pathland</span>"));
         assertTrue(html.contains("<button data-pathland-id=\"3\""), "button keeps its node id");
         assertTrue(html.contains(">Increment</button>"));
