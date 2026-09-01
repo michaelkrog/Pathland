@@ -28,10 +28,11 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
 
 ## Not implemented / gaps
 
-- The browser experience depends on the demos' `app.js` hydration client
-  (shipped in each demo's `src/main/resources`).
+- The browser experience depends on the `@pathland/dom-renderer` client
+  (`lib/typescript`, built to `dist/pathland-dom-renderer.js` and copied into
+  each demo's `src/main/resources`).
 
 ## Verified by
 
-`mvn test -pl pathland-demo-views` (needs JDK 25) — `CounterViewTest`,
+`mvn test -pl pathland-demo-views` (JDK 17+) — `CounterViewTest`,
 `KitchenSinkViewTest` (mount + persistence + input routing).

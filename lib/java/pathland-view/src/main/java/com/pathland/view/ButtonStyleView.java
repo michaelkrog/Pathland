@@ -4,9 +4,9 @@ import com.pathland.view.emit.PathlandNode;
 
 
 /**
- * A view scoped to a {@link ButtonStyle} via a ScopedValue: the style is bound only
- * for this subtree's render, so buttons below inherit it without threading a parameter
- * through every {@link View#render} call.
+ * A view scoped to a {@link ButtonStyle} via a thread-local environment value: the style is
+ * bound only for this subtree's render, so buttons below inherit it without threading a
+ * parameter through every {@link View#render} call.
  */
 final class ButtonStyleView implements View {
 
@@ -20,10 +20,16 @@ final class ButtonStyleView implements View {
 
     @Override
     public PathlandNode render(Environment env) {
+        ButtonStyle previous = Environment.BUTTON_STYLE.get();
+        Environment.BUTTON_STYLE.set(style);
         try {
-            return ScopedValue.where(Environment.BUTTON_STYLE, style).call(() -> content.render(env));
-        } catch (Exception e) {
-            throw new IllegalStateException("buttonStyle scoped render failed", e);
+            return content.render(env);
+        } finally {
+            if (previous == null) {
+                Environment.BUTTON_STYLE.remove();
+            } else {
+                Environment.BUTTON_STYLE.set(previous);
+            }
         }
     }
 }

@@ -348,6 +348,7 @@ element.
 |---------|-------|---|---|---|-------------|
 | `RESET` | `0x01` | 0 | 0 | 0 | Host must clear all rendered output |
 | `ENVIRONMENT` | `0x02` | viewportWidth (f32) | viewportHeight (f32) | 0 | Viewport size in logical points (host → guest) |
+| `RESYNC` | `0x03` | 0 | 0 | 0 | The host (renderer) requests a **full snapshot** of the current tree (host → guest). The guest answers with a single full-snapshot batch (the same TREE + STYLE stream as a mount). Used for reconnect/gap recovery and no-JS refresh. |
 
 ---
 

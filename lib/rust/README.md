@@ -32,7 +32,7 @@ crates/
 The reusable Java libraries live in `../java/` (Maven reactor, `org.pathland`):
 
 - `pathland-view` — SwiftUI-like view DSL + Angular-style signals/computed/effects,
-  fine-grained opcode emitter, wire codec, FFM ring interop (`com.pathland.view`)
+  fine-grained opcode emitter, wire codec, JNA ring interop (`com.pathland.view`)
 - `pathland-render-html` — pure-function HTML renderer (SSR) over the opcode stream
 - `pathland-state-redis` — Redis-backed `StateStore` (Lettuce)
 - `pathland-quarkus-demo` — Quarkus SSR + WebSocket demo consuming the libraries
@@ -69,7 +69,7 @@ Requires GTK4 (`brew install gtk4` on macOS).
 ## Run the Java libraries (build + test)
 
 The Java libraries build against `libpathland_core` when the native ring path is
-used (desktop/FFM). Build and test the whole reactor:
+used (desktop/JNA). Build and test the whole reactor:
 
 ```bash
 PATH="$HOME/.cargo/bin:$PATH" cargo build -p pathland-core-capi
@@ -77,7 +77,7 @@ cd ../java && mvn -q install
 ```
 
 The `pathland-view` core (views, signals, emitter, codec, HTML renderer) needs no
-native library and runs on the JVM alone; only the FFM ring sink loads
+native library and runs on the JVM alone; only the JNA ring sink loads
 `libpathland_core`.
 
 

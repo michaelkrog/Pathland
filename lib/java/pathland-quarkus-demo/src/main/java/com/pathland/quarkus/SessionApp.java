@@ -14,8 +14,6 @@ import com.pathland.view.transport.Event;
 import com.pathland.view.transport.FrameCodec;
 import io.quarkus.websockets.next.WebSocketConnection;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -34,7 +32,6 @@ final class SessionApp {
     private final PersistentState state;
     private final KitchenSinkView root;
 
-    private final HtmlRenderer html = new HtmlRenderer();
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
@@ -42,9 +39,6 @@ final class SessionApp {
     private final Map<Integer, Consumer<Float>> valueInputs;
     private final Map<Integer, DateInput> dateInputs;
     private final int rootId;
-
-    /** Frames emitted before the connection attaches, replayed to it on connect. */
-    private final List<Frame> pending = new ArrayList<>();
 
     private volatile WebSocketConnection connection;
 
@@ -54,19 +48,15 @@ final class SessionApp {
 
         // Every completed frame is applied to the session's HTML renderer (for SSR) and,
         // when connected, sent as a delta to THIS session's single client. No broadcast.
+        // The mount frame (emitted in the constructor, before the connection attaches) is
+        // NOT sent — the client already has the whole UI from the HTML.
         this.sink = new FrameOpcodeSink() {
             @Override
             public void endFrame() {
                 super.endFrame();
                 Frame frame = frame();
                 if (!frame.opcodes().isEmpty()) {
-                    html.applyFrame(frame);
-                    WebSocketConnection conn = connection;
-                    if (conn == null || !conn.isOpen()) {
-                        pending.add(frame);
-                    } else {
-                        send(frame);
-                    }
+                    send(frame);
                 }
             }
         };
@@ -84,10 +74,11 @@ final class SessionApp {
     /** Wire the live connection AFTER mount (the initial frame was already SSR'd). */
     void connect(WebSocketConnection connection) {
         this.connection = connection;
-        for (Frame frame : pending) {
-            send(frame);
-        }
-        pending.clear();
+    }
+
+    /** Re-send the current tree as a full snapshot (META::RESYNC). */
+    void resync() {
+        emitter.renderFull();
     }
 
     /** Send a delta frame to this session's single client (no broadcast). */
@@ -139,8 +130,15 @@ final class SessionApp {
 
     /** The session's current SSR HTML (with the client script injected). */
     String renderHtml() {
-        return html.render(rootId)
-                .replace("</body>", "<script src=\"/app.js\" defer></script></body>");
+        HtmlRenderer renderer = HtmlRenderer.tryInstance();
+        if (renderer == null) {
+            return "<!DOCTYPE html><html><body><h1>Pathland renderer unavailable</h1>"
+                    + "<p>Build the Rust crate so libpathland_render_html is embedded in the "
+                    + "pathland-render-html jar.</p></body></html>";
+        }
+        return renderer.render(sink.frame(), rootId)
+                .replace("</head>", "<link rel=\"stylesheet\" href=\"/tailwind.css\"></head>")
+                .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
 
     /** Tear down: close the persistent state, unsubscribe the emitter, drop the connection. */

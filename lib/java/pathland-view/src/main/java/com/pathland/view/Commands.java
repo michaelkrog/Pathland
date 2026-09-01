@@ -43,11 +43,13 @@ public final class Commands {
     }
 
     /** META commands. */
-    public static final class Meta {
-        public static final int RESET = 0x01;
-        public static final int ENVIRONMENT = 0x02;
-        private Meta() {}
-    }
+public static final class Meta {
+            public static final int RESET = 0x01;
+            public static final int ENVIRONMENT = 0x02;
+            /** The host (renderer) requests a full snapshot of the current tree (host → guest). */
+            public static final int RESYNC = 0x03;
+            private Meta() {}
+        }
 
     /** Flag bits shared across categories. */
     public static final class Flags {

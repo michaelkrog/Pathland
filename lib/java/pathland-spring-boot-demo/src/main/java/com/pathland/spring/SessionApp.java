@@ -15,8 +15,6 @@ import com.pathland.view.transport.FrameCodec;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -30,7 +28,6 @@ final class SessionApp {
     private final PersistentState state;
     private final KitchenSinkView root;
 
-    private final HtmlRenderer html = new HtmlRenderer();
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
@@ -38,9 +35,6 @@ final class SessionApp {
     private final Map<Integer, Consumer<Float>> valueInputs;
     private final Map<Integer, DateInput> dateInputs;
     private final int rootId;
-
-    /** Frames emitted before the connection attaches, replayed to it on connect. */
-    private final List<Frame> pending = new ArrayList<>();
 
     private volatile WebSocketSession session;
 
@@ -54,13 +48,10 @@ final class SessionApp {
                 super.endFrame();
                 Frame frame = frame();
                 if (!frame.opcodes().isEmpty()) {
-                    html.applyFrame(frame);
-                    WebSocketSession s = session;
-                    if (s == null || !s.isOpen()) {
-                        pending.add(frame);
-                    } else {
-                        send(frame);
-                    }
+                    // The mount frame (emitted in the constructor, before the session
+                    // attaches) is NOT sent — the client already has the whole UI from
+                    // the HTML. Only deltas + resync snapshots go out.
+                    send(frame);
                 }
             }
         };
@@ -77,10 +68,11 @@ final class SessionApp {
 
     void connect(WebSocketSession session) {
         this.session = session;
-        for (Frame frame : pending) {
-            send(frame);
-        }
-        pending.clear();
+    }
+
+    /** Re-send the current tree as a full snapshot (META::RESYNC). */
+    void resync() {
+        emitter.renderFull();
     }
 
     private void send(Frame frame) {
@@ -128,8 +120,15 @@ final class SessionApp {
     }
 
     String renderHtml() {
-        return html.render(rootId)
-                .replace("</body>", "<script src=\"/app.js\" defer></script></body>");
+        HtmlRenderer renderer = HtmlRenderer.tryInstance();
+        if (renderer == null) {
+            return "<!DOCTYPE html><html><body><h1>Pathland renderer unavailable</h1>"
+                    + "<p>Build the Rust crate so libpathland_render_html is embedded in the "
+                    + "pathland-render-html jar.</p></body></html>";
+        }
+        return renderer.render(sink.frame(), rootId)
+                .replace("</head>", "<link rel=\"stylesheet\" href=\"/tailwind.css\"></head>")
+                .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
 
     void close() {

@@ -409,7 +409,7 @@ anchors. Transforms do not affect layout.
 | `accessibilityRole` | `.accessibilityRole(_:)` | `.modifier(AccessibilityRole.of(int))` | `ROLE` 0x2001 |
 | `accessibilityState` | `.accessibilityState(_:)` | `.modifier(AccessibilityState.of(int))` | `STATE` 0x2002 |
 | `modifier` (custom) | `.modifier(_:)` | `.modifier(ViewModifier)` | composes core modifiers |
-| `buttonStyle` | `.buttonStyle(_:)` | `.modifier(ButtonStyleMod.of(ButtonStyle))` | environment-scoped (ScopedValue) |
+| `buttonStyle` | `.buttonStyle(_:)` | `.modifier(ButtonStyleMod.of(ButtonStyle))` | environment-scoped (thread-local) |
 | `focusable` | `.focusable(_:)` | (via the `PointerEvents` modifier) | **no property** — declares `FOCUS` listener bit 5; observe `FOCUS_CHANGED` |
 | raw listeners | `.pointerEvents(mask)` / `.pointer_events(mask)` | `.modifier(PointerEvents.of(int))` | `EVENT_LISTENERS` 0x2005 (u32 bitmask, bits per EVENTS.md) |
 
@@ -494,7 +494,7 @@ A conformant DSL follows these conventions:
    `Color(...)` in a tree is a layout-greedy fill.
 6. **Environment scoping**: styles and state that must reach a whole subtree
    (`ButtonStyle`, the session's persisted state) are injected via the
-   environment (Java: `ScopedValue`), never threaded through constructors.
+   environment (Java: thread-local), never threaded through constructors.
 7. **Reactivity discipline**: `body()` is evaluated once; a signal read during
    mount records a dependency; a later write re-emits only the bound node.
    Never mutate signals during mount.

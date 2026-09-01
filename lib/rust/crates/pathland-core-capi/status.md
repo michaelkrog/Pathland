@@ -2,7 +2,7 @@
 
 **Last updated:** August 28, 2026
 
-The **minimal ring C ABI** (`libpathland_core`) used by the Java DSL via FFM.
+The **minimal ring C ABI** (`libpathland_core`) used by the Java DSL via JNA.
 Protocol contract: `spec/OPCODE.md`.
 
 ## Implemented

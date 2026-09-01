@@ -50,7 +50,7 @@ onto native widgets on every platform (GTK4, DOM/HTML, LVGL-planned).
 The engine is **transport- and process-agnostic**: the producer and consumer
 only need to exchange bytes, so it runs identically across embedded dual-core,
 pure in-browser (WASM worker → `SharedArrayBuffer`), native desktop (C ABI /
-Java FFM over a zero-copy shared ring), and distributed server-driven modes.
+JNA over a zero-copy shared ring), and distributed server-driven modes.
 
 **Emission is diff-based and reactive**: a signal bound to a node re-emits only
 that node's deltas; an unchanged tree emits **zero** opcodes. That is what makes
@@ -102,8 +102,8 @@ layer is cheap proof, not the product.
 
 ## 7. Evidence layer (the demo is proof, not the product)
 
-The web path already exists (SSR HTML renderer + the demos' vanilla-JS `app.js`
-client). WP5 makes it visible cheaply: host the existing Quarkus SSR demo at a
+The web path already exists (SSR HTML renderer + the DOM renderer client
+`@pathland/dom-renderer`, `lib/typescript/`). WP5 makes it visible cheaply: host the existing Quarkus SSR demo at a
 public URL, include 2 screenshots and the WP4 comparison chart. Reviewers can
 click a working multi-renderer demo without the core work being a "black box".
 

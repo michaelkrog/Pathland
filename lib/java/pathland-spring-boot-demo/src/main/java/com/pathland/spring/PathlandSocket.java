@@ -1,5 +1,6 @@
 package com.pathland.spring;
 
+import com.pathland.view.transport.FrameCodec;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketMessage;
@@ -38,7 +39,12 @@ public class PathlandSocket extends AbstractWebSocketHandler {
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) {
         if (message instanceof BinaryMessage binary) {
-            service.dispatch(sessionId(session), toByteArray(binary.getPayload()));
+            byte[] bytes = toByteArray(binary.getPayload());
+            if (FrameCodec.isResync(bytes)) {
+                service.resync(sessionId(session));
+            } else {
+                service.dispatch(sessionId(session), bytes);
+            }
         }
     }
 

@@ -9,7 +9,10 @@ publish = false
 
 [lib]
 name = "pathland_core"
-crate-type = ["cdylib", "rlib"]
+# cdylib only: the C ABI facade is consumed by foreign hosts (Java via JNA) as
+# libpathland_core.dylib, never as a Rust rlib. Emitting an rlib here collided
+# with pathland-core's own libpathland_core.rlib output filename.
+crate-type = ["cdylib"]
 
 [dependencies]
 # Aliased (`plcore`) so the cdylib's own lib name `pathland_core` does not

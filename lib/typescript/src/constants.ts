@@ -1,0 +1,284 @@
+// Protocol constants. Mirror spec/OPCODE.md (header/commands/properties),
+// spec/PRIMITIVES.md (components), and spec/EVENTS.md (events).
+
+// Batch header
+export const MAGIC = 0x504c504c; // "PLPL"
+export const VERSION = 1;
+export const HEADER_SIZE = 16;
+export const OPCODE_SIZE = 16;
+export const FLAG_HOST_TO_GUEST = 0x0001;
+
+// Categories
+export const CAT_TREE = 0x01;
+export const CAT_STYLE = 0x02;
+export const CAT_EVENT = 0x03;
+export const CAT_META = 0x04;
+
+// TREE commands
+export const CMD_CREATE_NODE = 0x01;
+export const CMD_DELETE_NODE = 0x02;
+export const CMD_INSERT_CHILD = 0x03;
+export const CMD_REMOVE_CHILD = 0x04;
+export const CMD_MOVE_CHILD = 0x05;
+
+// STYLE commands
+export const CMD_SET_PROPERTY = 0x01;
+export const CMD_SET_DESIGN_TOKEN = 0x02;
+export const CMD_SET_TEXT = 0x03;
+export const CMD_SET_DATE = 0x04;
+
+// META commands
+export const CMD_RESET = 0x01;
+export const CMD_ENVIRONMENT = 0x02;
+export const CMD_RESYNC = 0x03;
+
+// EVENT commands (host -> guest)
+export const CMD_POINTER_DOWN = 0x01;
+export const CMD_POINTER_MOVE = 0x02;
+export const CMD_POINTER_UP = 0x03;
+export const CMD_KEY_DOWN = 0x04;
+export const CMD_KEY_UP = 0x05;
+export const CMD_VALUE_CHANGED = 0x06;
+export const CMD_TEXT_CHANGED = 0x07;
+export const CMD_FOCUS_CHANGED = 0x08;
+export const CMD_EDITING_CHANGED = 0x09;
+export const CMD_SUBMIT = 0x0a;
+export const CMD_SCROLL = 0x0b;
+export const CMD_WHEEL = 0x0c;
+export const CMD_DATE_CHANGED = 0x0d;
+
+// EVENT flags
+export const FLAG_POINTER_SECONDARY = 0x0001;
+export const FLAG_HOVER_ENTER = 0x0001;
+export const FLAG_HOVER_LEAVE = 0x0002;
+export const FLAG_KEY_REPEAT = 0x0002;
+
+// EVENT_LISTENERS bits (spec/EVENTS.md)
+export const LISTEN_POINTER_DOWN = 1 << 0;
+export const LISTEN_POINTER_MOVE = 1 << 1;
+export const LISTEN_POINTER_UP = 1 << 2;
+export const LISTEN_KEY_DOWN = 1 << 3;
+export const LISTEN_KEY_UP = 1 << 4;
+export const LISTEN_FOCUS = 1 << 5;
+export const LISTEN_EDITING = 1 << 6;
+export const LISTEN_SUBMIT = 1 << 7;
+export const LISTEN_SCROLL = 1 << 8;
+export const LISTEN_WHEEL = 1 << 9;
+
+// Value types (spec/OPCODE.md)
+export const VAL_U8 = 0x01;
+export const VAL_U32 = 0x02;
+export const VAL_I32 = 0x03;
+export const VAL_F32 = 0x04;
+export const VAL_STRING = 0x05;
+export const VAL_ENUM = 0x06;
+export const VAL_COLOR = 0x07;
+export const VAL_DESIGN_TOKEN = 0x08;
+
+// Property IDs (spec/MODIFIERS.md, mirror Properties.java)
+export const PROP_SPACING = 0x0001;
+export const PROP_ALIGNMENT = 0x0002;
+export const PROP_CONTENT_MARGINS = 0x0005;
+export const PROP_SHAPE_KIND = 0x0006;
+export const PROP_TEXT = 0x000a;
+export const PROP_LINE_LIMIT = 0x000b;
+export const PROP_TEXT_ALIGNMENT = 0x000c;
+export const PROP_TRUNCATION_MODE = 0x000d;
+export const PROP_OFFSET_X = 0x000e;
+export const PROP_OFFSET_Y = 0x000f;
+export const PROP_POSITION_X = 0x0010;
+export const PROP_POSITION_Y = 0x0011;
+export const PROP_MIN_WIDTH = 0x0012;
+export const PROP_IDEAL_WIDTH = 0x0013;
+export const PROP_MAX_WIDTH = 0x0014;
+export const PROP_MIN_HEIGHT = 0x0015;
+export const PROP_IDEAL_HEIGHT = 0x0016;
+export const PROP_MAX_HEIGHT = 0x0017;
+export const PROP_FIXED_SIZE_HORIZONTAL = 0x0018;
+export const PROP_FIXED_SIZE_VERTICAL = 0x0019;
+export const PROP_LAYOUT_PRIORITY = 0x001a;
+export const PROP_ASPECT_RATIO = 0x001b;
+export const PROP_CONTENT_MODE = 0x001c;
+export const PROP_MINIMUM_SCALE_FACTOR = 0x001d;
+export const PROP_BACKGROUND_COLOR = 0x1001;
+export const PROP_IMAGE_SOURCE = 0x1002;
+export const PROP_BORDER_WIDTH = 0x1003;
+export const PROP_BORDER_COLOR = 0x1004;
+export const PROP_BORDER_RADIUS = 0x1005;
+export const PROP_FONT_SIZE = 0x1007;
+export const PROP_FONT_WEIGHT = 0x1008;
+export const PROP_FONT_FAMILY = 0x1009;
+export const PROP_COLOR = 0x100a;
+export const PROP_WIDTH = 0x100b;
+export const PROP_HEIGHT = 0x100c;
+export const PROP_OPACITY = 0x100d;
+export const PROP_VISIBLE = 0x100e;
+export const PROP_Z_INDEX = 0x100f;
+export const PROP_CLIPS_TO_BOUNDS = 0x1010;
+export const PROP_PADDING = 0x1011;
+export const PROP_PADDING_TOP = 0x1012;
+export const PROP_PADDING_RIGHT = 0x1013;
+export const PROP_PADDING_BOTTOM = 0x1014;
+export const PROP_PADDING_LEFT = 0x1015;
+export const PROP_BORDER_EDGES = 0x1016;
+export const PROP_FONT_STYLE = 0x1017;
+export const PROP_FONT_DESIGN = 0x1018;
+export const PROP_FONT_WIDTH = 0x1019;
+export const PROP_KERNING = 0x101a;
+export const PROP_TRACKING = 0x101b;
+export const PROP_BASELINE_OFFSET = 0x101c;
+export const PROP_LINE_SPACING = 0x101d;
+export const PROP_TEXT_CASE = 0x101e;
+export const PROP_UNDERLINE = 0x101f;
+export const PROP_STRIKETHROUGH = 0x1020;
+export const PROP_SHADOW_COLOR = 0x1021;
+export const PROP_SHADOW_RADIUS = 0x1022;
+export const PROP_SHADOW_X = 0x1023;
+export const PROP_SHADOW_Y = 0x1024;
+export const PROP_BLUR_RADIUS = 0x1025;
+export const PROP_SATURATION = 0x1026;
+export const PROP_CONTRAST = 0x1027;
+export const PROP_BRIGHTNESS = 0x1028;
+export const PROP_GRAYSCALE = 0x1029;
+export const PROP_HUE_ROTATION = 0x102a;
+export const PROP_COLOR_MULTIPLY = 0x102b;
+export const PROP_COLOR_INVERT = 0x102c;
+export const PROP_ROTATION_DEGREES = 0x102d;
+export const PROP_SCALE = 0x102e;
+export const PROP_ALLOWS_HIT_TESTING = 0x102f;
+export const PROP_TINT = 0x1030;
+export const PROP_ROLE = 0x2001;
+export const PROP_STATE = 0x2002;
+export const PROP_ENABLED = 0x2003;
+export const PROP_SELECTED = 0x2004;
+export const PROP_EVENT_LISTENERS = 0x2005;
+export const PROP_VALUE = 0x2006;
+export const PROP_MIN_VALUE = 0x2007;
+export const PROP_MAX_VALUE = 0x2008;
+export const PROP_STEP_VALUE = 0x2009;
+export const PROP_LABEL = 0x200a;
+export const PROP_PROMPT = 0x200b;
+export const PROP_CONTROL_SIZE = 0x200c;
+export const PROP_IS_SECURE = 0x200d;
+export const PROP_PROGRESS = 0x200e;
+export const PROP_IS_INDETERMINATE = 0x200f;
+export const PROP_SELECTION = 0x2010;
+export const PROP_COLOR_VALUE = 0x2012;
+export const PROP_DATE_PICKER_MODE = 0x2013;
+export const PROP_PICKER_STYLE = 0x2014;
+export const PROP_ACTION_ID = 0x2016;
+export const PROP_BINDING_ID = 0x2017;
+export const PROP_TOGGLE_STYLE = 0x2018;
+
+// Width/height hints (WIDTH/HEIGHT values)
+export const WIDTH_FILL = -1;
+export const WIDTH_HUG = -2;
+
+// Alignment enum (protocol ENUM values)
+export const ALIGN_LEADING = 0;
+export const ALIGN_CENTER = 1;
+export const ALIGN_TRAILING = 2;
+export const ALIGN_FILL = 3;
+
+// SHAPE_KIND
+export const SHAPE_CIRCLE = 0;
+export const SHAPE_RECTANGLE = 1;
+export const SHAPE_ROUNDED_RECTANGLE = 2;
+export const SHAPE_CAPSULE = 3;
+export const SHAPE_ELLIPSE = 4;
+export const SHAPE_PATH = 5;
+
+// TEXT_ALIGNMENT / TRUNCATION_MODE / CONTENT_MODE / FONT_STYLE / FONT_DESIGN / TEXT_CASE
+export const TEXT_ALIGN_LEADING = 0;
+export const TEXT_ALIGN_CENTER = 1;
+export const TEXT_ALIGN_TRAILING = 2;
+export const TRUNCATION_HEAD = 0;
+export const TRUNCATION_MIDDLE = 1;
+export const TRUNCATION_TAIL = 2;
+export const CONTENT_MODE_FIT = 0;
+export const CONTENT_MODE_FILL = 1;
+export const FONT_STYLE_NORMAL = 0;
+export const FONT_STYLE_ITALIC = 1;
+export const FONT_DESIGN_DEFAULT = 0;
+export const FONT_DESIGN_SERIF = 1;
+export const FONT_DESIGN_ROUNDED = 2;
+export const FONT_DESIGN_MONOSPACED = 3;
+export const TEXT_CASE_NONE = 0;
+export const TEXT_CASE_UPPERCASE = 1;
+export const TEXT_CASE_LOWERCASE = 2;
+
+// CONTROL_SIZE / DATE_PICKER_MODE / PICKER_STYLE / TOGGLE_STYLE
+export const CONTROL_SIZE_SMALL = 0;
+export const CONTROL_SIZE_REGULAR = 1;
+export const CONTROL_SIZE_LARGE = 2;
+export const DATE_PICKER_MODE_DATE = 0;
+export const DATE_PICKER_MODE_TIME = 1;
+export const DATE_PICKER_MODE_DATE_AND_TIME = 2;
+export const PICKER_STYLE_MENU = 0;
+export const PICKER_STYLE_SEGMENTED = 1;
+export const PICKER_STYLE_WHEEL = 2;
+export const PICKER_STYLE_RADIO_GROUP = 3;
+export const TOGGLE_STYLE_SWITCH = 0;
+export const TOGGLE_STYLE_CHECKBOX = 1;
+export const TOGGLE_STYLE_BUTTON = 2;
+
+// ROLE (accessibility, spec/OPCODE.md semantic properties)
+export const ROLE_NONE = 0;
+export const ROLE_BUTTON = 1;
+export const ROLE_LINK = 2;
+export const ROLE_HEADER = 3;
+export const ROLE_TEXT = 4;
+export const ROLE_IMAGE = 5;
+export const ROLE_TEXT_FIELD = 6;
+export const ROLE_SLIDER = 7;
+export const ROLE_TOGGLE = 8;
+export const ROLE_CHECKBOX = 9;
+export const ROLE_RADIO_BUTTON = 10;
+export const ROLE_STEPPER = 11;
+export const ROLE_TAB = 12;
+export const ROLE_TAB_BAR = 13;
+export const ROLE_LIST = 14;
+export const ROLE_GRID = 15;
+export const ROLE_SCROLL_VIEW = 16;
+export const ROLE_ADJUSTABLE = 17;
+export const ROLE_SUMMARY = 18;
+export const ROLE_MENU = 19;
+
+// STATE (control/interaction state, spec/OPCODE.md semantic properties)
+export const STATE_NORMAL = 0;
+export const STATE_DISABLED = 1;
+export const STATE_FOCUSED = 2;
+export const STATE_PRESSED = 3;
+export const STATE_SELECTED = 4;
+export const STATE_EXPANDED = 5;
+export const STATE_BUSY = 6;
+
+// Components (spec/PRIMITIVES.md)
+export const COMPONENT_TEXT = 0x01;
+export const COMPONENT_IMAGE = 0x02;
+export const COMPONENT_COLOR = 0x03;
+export const COMPONENT_SHAPE = 0x04;
+export const COMPONENT_DIVIDER = 0x05;
+export const COMPONENT_SPACER = 0x06;
+export const COMPONENT_PROGRESS_VIEW = 0x07;
+export const COMPONENT_GAUGE = 0x08;
+export const COMPONENT_VSTACK = 0x10;
+export const COMPONENT_HSTACK = 0x11;
+export const COMPONENT_ZSTACK = 0x12;
+export const COMPONENT_GRID = 0x13;
+export const COMPONENT_SCROLLVIEW = 0x14;
+export const COMPONENT_LAZY_VGRID = 0x15;
+export const COMPONENT_LAZY_HGRID = 0x16;
+export const COMPONENT_LAZY_VSTACK = 0x1b;
+export const COMPONENT_LAZY_HSTACK = 0x1c;
+export const COMPONENT_BUTTON = 0x20;
+export const COMPONENT_TEXT_FIELD = 0x21;
+export const COMPONENT_TEXT_EDITOR = 0x22;
+export const COMPONENT_TOGGLE = 0x24;
+export const COMPONENT_SLIDER = 0x25;
+export const COMPONENT_STEPPER = 0x26;
+export const COMPONENT_DATE_PICKER = 0x27;
+export const COMPONENT_PICKER = 0x28;
+export const COMPONENT_MENU = 0x29;
+export const COMPONENT_COLOR_PICKER = 0x2a;
+export const COMPONENT_COMMENT = 0x7f;

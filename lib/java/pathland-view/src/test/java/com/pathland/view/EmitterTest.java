@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Full pipeline: view tree -> emitter -> opcodes -> codec -> HTML-ready frame. */
@@ -222,6 +223,39 @@ class EmitterTest {
         byte[] wire = FrameCodec.encodeEvents(events);
         List<Event> decoded = FrameCodec.decodeEvents(wire);
         assertEquals(events, decoded, "full event catalog round-trips byte-exactly");
+    }
+
+    @Test
+    void resyncCodecDetectsTheRequest() {
+        byte[] wire = FrameCodec.encodeResync();
+        assertTrue(FrameCodec.isResync(wire), "META::RESYNC batch is detected");
+
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        new Emitter(sink).mount(VStack.of(Text.of("Hi")), Environment.DEFAULT);
+        assertFalse(FrameCodec.isResync(FrameCodec.encodeFrame(sink.frame())),
+                "a normal frame is not a resync request");
+    }
+
+    @Test
+    void emitterRenderFullEmitsACompleteSnapshot() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        emitter.mount(VStack.of(Text.of("Hello"), Button.of("Go", () -> { })), Environment.DEFAULT);
+
+        long structural = sink.frame().opcodes().stream()
+                .filter(op -> op.category() == Categories.TREE)
+                .count();
+
+        emitter.renderFull();
+        Frame snapshot = sink.frame();
+        long treeOps = snapshot.opcodes().stream()
+                .filter(op -> op.category() == Categories.TREE)
+                .count();
+        assertEquals(structural, treeOps, "renderFull re-emits the complete structural tree");
+        assertTrue(snapshot.opcodes().stream()
+                        .anyMatch(op -> op.category() == Categories.STYLE
+                                && op.command() == Commands.Style.SET_TEXT),
+                "renderFull re-emits text");
     }
 
     @Test

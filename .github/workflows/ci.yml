@@ -39,7 +39,7 @@ jobs:
         working-directory: lib/rust
         run: cargo test
 
-      - name: Build the C ABI (cdylib, used by Java FFM / native hosts)
+      - name: Build the C ABI (cdylib, used by the Java JNA ring interop / native hosts)
         working-directory: lib/rust
         run: cargo build -p pathland-core-capi
 
@@ -47,22 +47,95 @@ jobs:
         working-directory: lib/rust
         run: ./check-wasm.sh
 
+      # The Java HTML renderer shim needs the Rust renderer cdylib built WITH the
+      # tailwind-embed feature (so the jar carries both the renderer and the Tailwind
+      # compiler). Build it here and hand it to the java job via an artifact.
+      - name: Set up Node 22 (to fetch the Tailwind standalone binary)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Cache the Tailwind standalone binary
+        uses: actions/cache@v4
+        with:
+          path: lib/rust/crates/pathland-render-html/vendor
+          key: tailwind-${{ runner.os }}-${{ runner.arch }}-v4.3.3
+
+      - name: Fetch the Tailwind standalone binary (cached; no-op on hit)
+        working-directory: lib/rust/crates/pathland-render-html
+        env:
+          TARGET: x86_64-unknown-linux-gnu
+          TAILWIND_SHA256: dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
+        run: node scripts/fetch-tailwind.mjs
+
+      - name: Build the HTML renderer with the embedded Tailwind compiler
+        working-directory: lib/rust
+        run: cargo build -p pathland-render-html --features tailwind-embed
+
+      - name: Upload the renderer dylib for the java job
+        uses: actions/upload-artifact@v4
+        with:
+          name: pathland-render-html-native
+          path: lib/rust/target/debug/libpathland_render_html.so
+          retention-days: 1
+
   java:
-    name: Java (Maven reactor, JDK 25)
+    name: Java (Maven reactor, JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
+    needs: [rust]
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['17', '21', '25']
     steps:
       - uses: actions/checkout@v4
 
-      # JDK 25 is required (maven.compiler.release=25; ScopedValue JEP 506).
-      # Temurin 25 has shipped; if setup-java's manifest lags, swap in a direct
-      # Adoptium 25 tarball download for this step.
-      - name: Set up JDK 25
+      # Whole-stack floor is Java 17 (maven.compiler.release=17; JNA native binding,
+      # thread-local environment); the matrix proves every LTS from 17.
+      - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: ${{ matrix.java }}
           cache: maven
+
+      # The renderer jar embeds the Rust cdylib (built by the rust job with
+      # tailwind-embed). Restore it into the debug dir the jar-embed step copies.
+      - name: Download the Rust renderer dylib
+        uses: actions/download-artifact@v4
+        with:
+          name: pathland-render-html-native
+          path: lib/rust/target/debug
 
       - name: Test reactor (demo modules excluded to keep CI fast)
         working-directory: lib/java
         run: mvn -q -B test -pl '!pathland-quarkus-demo,!pathland-spring-boot-demo'
+
+  web-client:
+    name: Web client (TypeScript DOM renderer)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: lib/typescript/package-lock.json
+
+      - name: Install, typecheck, test, build
+        working-directory: lib/typescript
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          npm run build
+
+      # The demos serve the committed bundle from their static resource dirs;
+      # copying the freshly built one must not change the working tree.
+      - name: Verify the committed bundle matches the source (no drift)
+        working-directory: lib/typescript
+        run: |
+          npm run copy-to-demos
+          git diff --exit-code -- lib/java/pathland-quarkus-demo/src/main/resources lib/java/pathland-spring-boot-demo/src/main/resources

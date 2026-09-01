@@ -1,25 +1,22 @@
 package com.pathland.view.ffm;
 
 import com.pathland.view.emit.Opcode;
-
-import java.lang.foreign.Arena;
-import java.lang.foreign.FunctionDescriptor;
-import java.lang.foreign.Linker;
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.SymbolLookup;
-import java.lang.foreign.ValueLayout;
-import java.lang.invoke.MethodHandle;
-import java.util.NoSuchElementException;
+import com.sun.jna.Library;
+import com.sun.jna.Memory;
+import com.sun.jna.Native;
+import com.sun.jna.Pointer;
 
 /**
- * Java Foreign Function &amp; Memory binding to the Rust {@code libpathland_core}
- * cdylib — the SPSC ring buffer + 16-byte opcode engine.
+ * JNA binding to the Rust {@code libpathland_core} cdylib — the SPSC ring buffer +
+ * 16-byte opcode engine.
  *
  * <p>This is the desktop/embedded zero-copy path. Opcodes are written into a reused
- * native {@link MemorySegment} (no per-op heap allocation) and pushed into the shared
- * ring with zero JNI overhead. The library is loaded <em>lazily</em> on first use:
- * server apps (Spring Boot / Quarkus) that only emit self-contained frames never touch
- * it.
+ * native buffer (no per-op heap allocation) and pushed into the shared ring. The library
+ * is loaded <em>lazily</em> on first use: server apps (Spring Boot / Quarkus) that only
+ * emit self-contained frames never touch it.
+ *
+ * <p>JNA keeps the whole Java stack on every LTS from Java 17 (the FFM API is only final
+ * from Java 22, and its incubator variant is per-version unstable).
  *
  * <p>C ABI (see {@code lib/rust/crates/pathland-core-capi}):
  * <pre>
@@ -44,6 +41,21 @@ public final class PathlandCore {
         }
     }
 
+    /** The C ABI surface, mapped by JNA onto the Rust cdylib. */
+    private interface NativePathlandCore extends Library {
+        Pointer pathland_core_create();
+        void pathland_core_destroy(Pointer handle);
+        boolean pathland_ring_buffer_push(Pointer handle, Pointer opcode);
+        int pathland_core_arena_alloc(Pointer handle, Pointer bytes, int len);
+        void pathland_core_begin_frame(Pointer handle);
+        void pathland_core_end_frame(Pointer handle);
+        int pathland_core_frame_count(Pointer handle);
+        Pointer pathland_core_ring_ptr(Pointer handle);
+        long pathland_core_ring_len(Pointer handle);
+        int pathland_core_drain_events(Pointer handle, Pointer out, int max);
+        boolean pathland_core_send_event(Pointer handle, Pointer opcode);
+    }
+
     private static final class Holder {
         static final PathlandCore INSTANCE = new PathlandCore();
     }
@@ -53,22 +65,10 @@ public final class PathlandCore {
         return Holder.INSTANCE;
     }
 
-    private final Arena arena = Arena.ofAuto();
-    private final Linker linker = Linker.nativeLinker();
-    private final MethodHandle createH;
-    private final MethodHandle destroyH;
-    private final MethodHandle pushH;
-    private final MethodHandle arenaAllocH;
-    private final MethodHandle beginFrameH;
-    private final MethodHandle endFrameH;
-    private final MethodHandle frameCountH;
-    private final MethodHandle ringPtrH;
-    private final MethodHandle ringLenH;
-    private final MethodHandle drainEventsH;
-    private final MethodHandle sendEventH;
+    private final NativePathlandCore nativeCore;
 
     /** Reused 16-byte opcode buffer (zero per-op heap allocations). */
-    private final MemorySegment opcodeBuf = arena.allocate(Opcode.SIZE);
+    private final Memory opcodeBuf = new Memory(Opcode.SIZE);
 
     private PathlandCore() {
         try {
@@ -78,37 +78,12 @@ public final class PathlandCore {
                         "libpathland_core not found on java.library.path; "
                                 + "set the system property pathland.core.lib to its full path", null);
             }
-            SymbolLookup lookup = SymbolLookup.libraryLookup(java.nio.file.Path.of(libraryPath), arena);
-            createH = linker.downcallHandle(find(lookup, "pathland_core_create"),
-                    FunctionDescriptor.of(ValueLayout.ADDRESS));
-            destroyH = linker.downcallHandle(find(lookup, "pathland_core_destroy"),
-                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
-            pushH = linker.downcallHandle(find(lookup, "pathland_ring_buffer_push"),
-                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
-            arenaAllocH = linker.downcallHandle(find(lookup, "pathland_core_arena_alloc"),
-                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            beginFrameH = linker.downcallHandle(find(lookup, "pathland_core_begin_frame"),
-                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
-            endFrameH = linker.downcallHandle(find(lookup, "pathland_core_end_frame"),
-                    FunctionDescriptor.ofVoid(ValueLayout.ADDRESS));
-            frameCountH = linker.downcallHandle(find(lookup, "pathland_core_frame_count"),
-                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS));
-            ringPtrH = linker.downcallHandle(find(lookup, "pathland_core_ring_ptr"),
-                    FunctionDescriptor.of(ValueLayout.ADDRESS, ValueLayout.ADDRESS));
-            ringLenH = linker.downcallHandle(find(lookup, "pathland_core_ring_len"),
-                    FunctionDescriptor.of(ValueLayout.JAVA_LONG, ValueLayout.ADDRESS));
-            drainEventsH = linker.downcallHandle(find(lookup, "pathland_core_drain_events"),
-                    FunctionDescriptor.of(ValueLayout.JAVA_INT, ValueLayout.ADDRESS, ValueLayout.ADDRESS, ValueLayout.JAVA_INT));
-            sendEventH = linker.downcallHandle(find(lookup, "pathland_core_send_event"),
-                    FunctionDescriptor.of(ValueLayout.JAVA_BOOLEAN, ValueLayout.ADDRESS, ValueLayout.ADDRESS));
+            nativeCore = Native.load(libraryPath, NativePathlandCore.class);
+        } catch (NativeUnavailableException e) {
+            throw e;
         } catch (Throwable t) {
             throw new NativeUnavailableException("failed to link libpathland_core", t);
         }
-    }
-
-    private static MemorySegment find(SymbolLookup lookup, String name) {
-        return lookup.find(name)
-                .orElseThrow(() -> new NoSuchElementException("missing native symbol: " + name));
     }
 
     /**
@@ -149,70 +124,62 @@ public final class PathlandCore {
     // --- ring host lifetime ---
 
     /** Create a ring host over a fresh shared ring. */
-    public MemorySegment create() {
-        return (MemorySegment) invoke(createH);
+    public Pointer create() {
+        return nativeCore.pathland_core_create();
     }
 
     /** Destroy a ring host. */
-    public void destroy(MemorySegment handle) {
-        invoke(destroyH, handle);
+    public void destroy(Pointer handle) {
+        nativeCore.pathland_core_destroy(handle);
     }
 
     // --- guest → host ring ---
 
     /** Push one 16-byte opcode into the shared ring. Returns false when full. */
-    public boolean push(MemorySegment handle, byte[] opcode) {
-        opcodeBuf.copyFrom(MemorySegment.ofArray(opcode));
-        return (boolean) invoke(pushH, handle, opcodeBuf);
+    public boolean push(Pointer handle, byte[] opcode) {
+        opcodeBuf.write(0, opcode, 0, Opcode.SIZE);
+        return nativeCore.pathland_ring_buffer_push(handle, opcodeBuf);
     }
 
     /** Allocate bytes into the bump arena, returning the absolute offset (or {@code u32::MAX}). */
-    public int arenaAlloc(MemorySegment handle, byte[] bytes) {
-        MemorySegment buf = arena.allocate(bytes.length);
-        buf.copyFrom(MemorySegment.ofArray(bytes));
-        return (int) invoke(arenaAllocH, handle, buf, bytes.length);
+    public int arenaAlloc(Pointer handle, byte[] bytes) {
+        Memory buf = new Memory(bytes.length);
+        buf.write(0, bytes, 0, bytes.length);
+        return nativeCore.pathland_core_arena_alloc(handle, buf, bytes.length);
     }
 
-    public void beginFrame(MemorySegment handle) {
-        invoke(beginFrameH, handle);
+    public void beginFrame(Pointer handle) {
+        nativeCore.pathland_core_begin_frame(handle);
     }
 
-    public void endFrame(MemorySegment handle) {
-        invoke(endFrameH, handle);
+    public void endFrame(Pointer handle) {
+        nativeCore.pathland_core_end_frame(handle);
     }
 
-    public int frameCount(MemorySegment handle) {
-        return (int) invoke(frameCountH, handle);
+    public int frameCount(Pointer handle) {
+        return nativeCore.pathland_core_frame_count(handle);
     }
 
     /** Pointer to the shared linear memory (header | ring | arena) for zero-copy reads. */
-    public MemorySegment ringPtr(MemorySegment handle) {
-        return (MemorySegment) invoke(ringPtrH, handle);
+    public Pointer ringPtr(Pointer handle) {
+        return nativeCore.pathland_core_ring_ptr(handle);
     }
 
     /** Byte length of the shared linear memory. */
-    public long ringLen(MemorySegment handle) {
-        return (long) invoke(ringLenH, handle);
+    public long ringLen(Pointer handle) {
+        return nativeCore.pathland_core_ring_len(handle);
     }
 
     // --- events (host → guest) ---
 
     /** Drain pending EVENT opcodes into {@code out}; returns the number written. */
-    public int drainEvents(MemorySegment handle, MemorySegment out, int max) {
-        return (int) invoke(drainEventsH, handle, out, max);
+    public int drainEvents(Pointer handle, Pointer out, int max) {
+        return nativeCore.pathland_core_drain_events(handle, out, max);
     }
 
     /** Push one 16-byte EVENT opcode into the host → guest event ring. */
-    public boolean sendEvent(MemorySegment handle, byte[] opcode) {
-        opcodeBuf.copyFrom(MemorySegment.ofArray(opcode));
-        return (boolean) invoke(sendEventH, handle, opcodeBuf);
-    }
-
-    private static Object invoke(MethodHandle handle, Object... args) {
-        try {
-            return handle.invokeWithArguments(args);
-        } catch (Throwable t) {
-            throw new NativeUnavailableException("native call failed: " + handle, t);
-        }
+    public boolean sendEvent(Pointer handle, byte[] opcode) {
+        opcodeBuf.write(0, opcode, 0, Opcode.SIZE);
+        return nativeCore.pathland_core_send_event(handle, opcodeBuf);
     }
 }

@@ -186,6 +186,19 @@ All multi-byte fields little-endian. `A`/`B`/`C` may carry `f32` bit patterns.
 - `41 00 00 00` B = keyCode = 0x41 (`'A'`, low u16)
 - `01 00 00 00` C = modifiers = 0x01 (low u8)
 
+### 13. META:RESYNC
+
+```
+04 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
+
+- `04` category = META
+- `03` command = RESYNC (host → guest: request a full snapshot)
+- `00 00` flags = 0
+- `00 00 00 00` A = 0
+- `00 00 00 00` B = 0
+- `00 00 00 00` C = 0
+
 ---
 
 ## Directions
@@ -223,7 +236,7 @@ A network batch serializes opcodes + an arena delta (see
 [OPCODE.md](./OPCODE.md#transport)). A conforming batch encoder/decoder MUST
 reproduce the following bytes exactly.
 
-### 13. NETWORK:BATCH (frameCount=1, one CREATE_NODE, arena delta = "Hi")
+### 14. NETWORK:BATCH (frameCount=1, one CREATE_NODE, arena delta = "Hi")
 
 The single opcode is `TREE:CREATE_NODE (id=1, VSTACK)` from vector 1. The arena
 delta is the self-describing entry for `"Hi"`: `[02 00 00 00][48 69]`.
@@ -243,7 +256,7 @@ delta is the self-describing entry for `"Hi"`: `[02 00 00 00][48 69]`.
 - `06 00 00 00` = arenaDeltaLen = 6
 - `02 00 00 00 48 69` = arena entry `[len=2]["Hi"]`
 
-### 14. NETWORK:BATCH (frameCount=2, empty opcode list, empty arena delta)
+### 15. NETWORK:BATCH (frameCount=2, empty opcode list, empty arena delta)
 
 ```
 4C 50 4C 50 01 00 00 00 02 00 00 00 00 00 00 00
@@ -255,4 +268,23 @@ delta is the self-describing entry for `"Hi"`: `[02 00 00 00][48 69]`.
 - `00 00` = flags
 - `02 00 00 00` = frameCount = 2
 - `00 00 00 00` = opcodeCount = 0
+- `00 00 00 00` = arenaDeltaLen = 0
+
+### 16. NETWORK:BATCH (META:RESYNC request, host → guest)
+
+The single opcode is `META:RESYNC` (vector 13). The batch carries the
+`HOST_TO_GUEST` direction flag and an empty arena delta.
+
+```
+4C 50 4C 50 01 00 01 00 00 00 00 00 01 00 00 00
+04 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+00 00 00 00
+```
+
+- `4C 50 4C 50` = magic `PLPL` (u32 `0x504C504C`, little-endian)
+- `01 00` = version 1
+- `01 00` = flags = `HOST_TO_GUEST` (0x0001)
+- `00 00 00 00` = frameCount = 0
+- `01 00 00 00` = opcodeCount = 1
+- `04 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00` = the META:RESYNC opcode (16 bytes)
 - `00 00 00 00` = arenaDeltaLen = 0

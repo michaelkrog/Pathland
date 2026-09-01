@@ -15,11 +15,12 @@
 
     <name>Pathland Render HTML</name>
     <description>
-        Reusable, framework-agnostic HTML renderer (com.pathland.render.html): a pure
-        function of the Pathland opcode stream that maps retained nodes onto declarative
-        HTML (flex stacks, spans, buttons) with stable data-pathland-id attributes for
-        hydration. The server-side/remote-projection target, usable from Spring Boot,
-        Quarkus, or any Java server.
+        The Java binding to the Rust HTML renderer (com.pathland.render.html): a
+        thin JNA shim over libpathland_render_html (pathland_html_render /
+        _render_fragment / _tailwind_compile / _free). Stateless: each call renders
+        a full snapshot frame to HTML in one pass. The server-side/remote-projection
+        target, usable from Spring Boot, Quarkus, or any Java server. The single
+        renderer is the Rust crate reused by every language.
     </description>
 
     <dependencies>
@@ -29,9 +30,69 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Point the test JVM at the Rust renderer cdylib; absent the
+                         dylib, the shim tests are skipped via an assumption. -->
+                    <argLine>-Djava.library.path=${project.basedir}/../../rust/target/debug</argLine>
+                </configuration>
+            </plugin>
+
+            <!-- Embed the Rust renderer dylib in the jar so it travels with the
+                 artifact (JNA extracts it at runtime — no java.library.path needed).
+                 Copies the host-platform build into META-INF/native/. Fails loudly
+                 when the dylib is missing (the CI rust job builds it with the
+                 tailwind-embed feature; locally run cargo build first). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>embed-native-renderer</id>
+                        <phase>process-resources</phase>
+                        <configuration>
+                            <target>
+                                <!-- Determine the platform library extension. -->
+                                <condition property="pathland.native.ext" value=".dylib">
+                                    <os family="mac" />
+                                </condition>
+                                <condition property="pathland.native.ext" value=".dll">
+                                    <os family="windows" />
+                                </condition>
+                                <condition property="pathland.native.ext" value=".so">
+                                    <os family="unix" />
+                                </condition>
+                                <property name="pathland.native.ext" value="" />
+
+                                <property name="native.src" value="${project.basedir}/../../rust/target/debug/libpathland_render_html${pathland.native.ext}" />
+                                <available file="${native.src}" property="native.present" />
+                                <fail unless="native.present"
+                                      message="libpathland_render_html dylib not found at ${native.src}. The renderer jar must embed the Rust cdylib: build it first (CI rust job: cargo build -p pathland-render-html --features tailwind-embed; locally: cargo build -p pathland-render-html --features tailwind-embed in lib/rust)." />
+                                <mkdir dir="${project.build.outputDirectory}/META-INF/native" />
+                                <copy file="${native.src}"
+                                      tofile="${project.build.outputDirectory}/META-INF/native/libpathland_render_html${pathland.native.ext}" />
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
