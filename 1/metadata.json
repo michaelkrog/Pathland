@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M1E8ZEJMN0TW23X6GQE9PMG3",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-01T10:42:14.583712Z",
+  "branch": "feature/enterprise-sre",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "ce927d582026",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 60830170,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 742720512,
+    "output_tokens": 1639846,
+    "api_call_count": 2019
+  },
+  "session_metrics": {
+    "turn_count": 195
+  }
+}
