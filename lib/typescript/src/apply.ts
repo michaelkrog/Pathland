@@ -1,39 +1,51 @@
 // Delta application: decode each opcode and apply it to the DOM via the
 // retained `id → Node` registry. STYLE deltas mutate the hydrated element in
-// place; TREE deltas build the element shell and insert/remove/move it.
+// place; TREE deltas build the element shell and insert/remove/move it; META
+// deltas reset/environment.
 
 import {
+  CAT_META,
   CAT_STYLE,
   CAT_TREE,
   CMD_CREATE_NODE,
   CMD_DELETE_NODE,
+  CMD_ENVIRONMENT,
   CMD_INSERT_CHILD,
   CMD_MOVE_CHILD,
   CMD_REMOVE_CHILD,
+  CMD_RESET,
   CMD_SET_DATE,
+  CMD_SET_DESIGN_TOKEN,
   CMD_SET_PROPERTY,
   CMD_SET_TEXT,
+  PROP_BINDING_ID,
   PROP_COLOR_VALUE,
   PROP_ENABLED,
+  PROP_FONT_FAMILY,
+  PROP_IMAGE_SOURCE,
   PROP_LABEL,
   PROP_PROMPT,
   PROP_SELECTED,
   PROP_SELECTION,
+  PROP_TEXT,
   PROP_VALUE,
   VAL_STRING,
 } from "./constants";
 import type { Batch, Opcode } from "./plpl";
 import { readString } from "./plpl";
 import { childrenContainer, createElement } from "./elements";
-import { applyEnabled, applyStyleProperty } from "./classes";
-import { argbToHex, daysToIso, f32FromBits } from "./format";
+import { applyEnabled, applyProperty } from "./classes";
+import { createTokenSink, applyDesignToken, type DesignTokenSink } from "./tokens";
+import { argbToHex, daysToIso, f32FromBits, millisToTime } from "./format";
 
 /** The retained `node id → DOM Node` registry the renderer works against. */
 export interface DomRenderer {
   byId: Map<number, Node>;
+  /** Optional design-token sink (defaults to document-root CSS variables). */
+  tokenSink?: DesignTokenSink;
 }
 
-/** Apply every opcode in a batch to the DOM (TREE structure + STYLE deltas). */
+/** Apply every opcode in a batch to the DOM (TREE structure + STYLE/META deltas). */
 export function applyBatch(batch: Batch, renderer: DomRenderer): void {
   for (const op of batch.opcodes) {
     switch (op.category) {
@@ -43,9 +55,29 @@ export function applyBatch(batch: Batch, renderer: DomRenderer): void {
       case CAT_STYLE:
         applyStyle(op, batch.strings, renderer);
         break;
+      case CAT_META:
+        applyMeta(op, renderer);
+        break;
       default:
         break;
     }
+  }
+}
+
+function applyMeta(op: Opcode, r: DomRenderer): void {
+  switch (op.command) {
+    case CMD_RESET: {
+      for (const el of Array.from(r.byId.values())) {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      }
+      r.byId.clear();
+      break;
+    }
+    case CMD_ENVIRONMENT:
+    default:
+      break;
   }
 }
 
@@ -120,6 +152,10 @@ function insertAt(container: Node, child: Node, index: number): void {
 }
 
 function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
+  if (op.command === CMD_SET_DESIGN_TOKEN) {
+    applyDesignToken(op, strings, r.tokenSink ?? createTokenSink());
+    return;
+  }
   const node = r.byId.get(op.a);
   if (!node || node.nodeType !== Node.ELEMENT_NODE) {
     return;
@@ -130,9 +166,19 @@ function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
       setNodeText(el, readString(strings, op.b));
       break;
     case CMD_SET_DATE: {
-      const input = el.matches("input[type=date]") ? el : el.querySelector("input[type=date]");
-      if (input instanceof HTMLInputElement) {
-        input.value = daysToIso(op.b);
+      const input = el.matches("input[type=date],input[type=time],input[type=datetime-local]")
+        ? (el as HTMLInputElement)
+        : el.querySelector<HTMLInputElement>("input[type=date],input[type=time],input[type=datetime-local]");
+      if (input) {
+        if (input.type === "time") {
+          input.value = millisToTime(op.c);
+        } else if (input.type === "datetime-local") {
+          const date = daysToIso(op.b);
+          const time = millisToTime(op.c);
+          input.value = date ? `${date}T${time}` : time;
+        } else {
+          input.value = daysToIso(op.b);
+        }
       }
       break;
     }
@@ -142,7 +188,7 @@ function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
       if (valueType === VAL_STRING) {
         applyStringProperty(el, propId, readString(strings, op.c));
       } else {
-        applyNumericProperty(el, propId, op.c);
+        applyNumericProperty(el, propId, valueType, op.c);
       }
       break;
     }
@@ -153,7 +199,7 @@ function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
 
 /** Set a node's text, honoring text fields/editors and label spans (SSR structure). */
 export function setNodeText(el: HTMLElement, text: string): void {
-  const input = el.querySelector("input[type=text]");
+  const input = el.querySelector("input[type=text],input[type=password]");
   if (input instanceof HTMLInputElement) {
     input.value = text;
     return;
@@ -173,10 +219,13 @@ export function setNodeText(el: HTMLElement, text: string): void {
 
 function applyStringProperty(el: HTMLElement, propId: number, text: string): void {
   switch (propId) {
+    case PROP_TEXT:
     case PROP_LABEL: {
       const span = el.querySelector(".pathland-label");
       if (span) {
         span.textContent = text;
+      } else {
+        setNodeText(el, text);
       }
       break;
     }
@@ -187,50 +236,81 @@ function applyStringProperty(el: HTMLElement, propId: number, text: string): voi
       }
       break;
     }
+    case PROP_IMAGE_SOURCE: {
+      const img = el.matches("img") ? el : el.querySelector("img");
+      if (img instanceof HTMLImageElement) {
+        img.src = text;
+      }
+      break;
+    }
+    case PROP_FONT_FAMILY: {
+      el.style.fontFamily = text;
+      break;
+    }
     default:
       break;
   }
 }
 
-function applyNumericProperty(el: HTMLElement, propId: number, bits: number): void {
+function applyNumericProperty(el: HTMLElement, propId: number, valueType: number, bits: number): void {
   switch (propId) {
     case PROP_SELECTED: {
-      const input = el.querySelector("input[type=checkbox]");
-      if (input instanceof HTMLInputElement) {
-        input.checked = (bits & 0xff) !== 0;
+      const input = el.querySelector<HTMLInputElement>("input[type=checkbox]");
+      if (input) {
+        const on = (valueType === 0x01 ? bits & 0xff : bits) !== 0;
+        input.checked = on;
+        if (input.getAttribute("role") === "checkbox" || input.getAttribute("role") === "switch") {
+          input.setAttribute("aria-pressed", on ? "true" : "false");
+        }
       }
       break;
     }
     case PROP_VALUE: {
-      const range = el.querySelector("input[type=range]");
-      if (range instanceof HTMLInputElement) {
+      const range = el.querySelector<HTMLInputElement>("input[type=range]");
+      if (range) {
         range.value = String(f32FromBits(bits));
       }
       const stepText = el.querySelector(".pathland-stepper span");
       if (stepText) {
         stepText.textContent = String(Math.round(f32FromBits(bits) * 100) / 100);
       }
+      const gauge = el.querySelector<HTMLElement>(".pathland-gauge > div");
+      if (gauge) {
+        const max = Number(el.querySelector<HTMLElement>(".pathland-gauge")?.dataset.max ?? 1);
+        const min = Number(el.querySelector<HTMLElement>(".pathland-gauge")?.dataset.min ?? 0);
+        const span = max - min;
+        const pct = span <= 0 ? 0 : ((f32FromBits(bits) - min) / span) * 100;
+        gauge.style.width = pct + "%";
+      }
       break;
     }
     case PROP_SELECTION: {
-      const select = el.matches("select") ? el : el.querySelector("select");
-      if (select instanceof HTMLSelectElement) {
+      const select = el.matches("select")
+        ? (el as HTMLSelectElement)
+        : el.querySelector<HTMLSelectElement>("select");
+      if (select) {
         select.value = String(bits);
       }
       break;
     }
     case PROP_COLOR_VALUE: {
-      const input = el.matches("input[type=color]") ? el : el.querySelector("input[type=color]");
+      const input = el.matches("input[type=color]")
+        ? el
+        : el.querySelector<HTMLInputElement>("input[type=color]");
       if (input instanceof HTMLInputElement) {
         input.value = argbToHex(bits);
       }
+      break;
+    }
+    case PROP_BINDING_ID: {
+      el.dataset.bindingId = String(bits >>> 0);
       break;
     }
     case PROP_ENABLED:
       applyEnabled(el, bits);
       break;
     default:
-      applyStyleProperty(el, propId, bits);
+      applyProperty(el, propId, valueType, bits);
       break;
   }
 }

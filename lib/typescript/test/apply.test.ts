@@ -2,17 +2,25 @@ import { describe, expect, it } from "vitest";
 import { applyBatch, setNodeText, type DomRenderer } from "../src/apply";
 import { parseBatch } from "../src/plpl";
 import {
+  CAT_META,
   CAT_STYLE,
   CAT_TREE,
   CMD_CREATE_NODE,
   CMD_INSERT_CHILD,
   CMD_MOVE_CHILD,
+  CMD_RESET,
+  CMD_SET_DATE,
+  CMD_SET_DESIGN_TOKEN,
+  CMD_SET_PROPERTY,
   CMD_SET_TEXT,
   COMPONENT_BUTTON,
   COMPONENT_TEXT,
   COMPONENT_VSTACK,
+  PROP_IMAGE_SOURCE,
   PROP_SELECTED,
+  PROP_TEXT,
   PROP_VALUE,
+  VAL_STRING,
 } from "../src/constants";
 import { buildBatch, stringEntry } from "./plpl.test";
 
@@ -152,5 +160,63 @@ describe("setNodeText", () => {
     slider.append(input, span);
     setNodeText(slider, "50%");
     expect(span.textContent).toBe("50%");
+  });
+});
+
+describe("applyBatch · META + design tokens + string props", () => {
+  it("META::RESET clears the DOM and the registry", () => {
+    const root = document.createElement("div");
+    const span = document.createElement("span");
+    span.setAttribute("data-pathland-id", "1");
+    root.appendChild(span);
+    const r = renderer();
+    r.byId.set(1, span);
+    applyBatch(parseBatch(buildBatch([[CAT_META, CMD_RESET, 0, 0, 0, 0]])), r);
+    expect(root.childNodes).toHaveLength(0);
+    expect(r.byId.size).toBe(0);
+  });
+
+  it("SET_DESIGN_TOKEN applies a CSS variable via the default token sink", () => {
+    // A = token-path string offset (0), B low byte = valueType COLOR (0x07), C = 0xAARRGGBB.
+    const batch = parseBatch(
+      buildBatch([[CAT_STYLE, CMD_SET_DESIGN_TOKEN, 0, 0, 0x07, 0xff0000ff]], stringEntry("color.primary")),
+    );
+    applyBatch(batch, renderer());
+    expect(document.documentElement.style.getPropertyValue("--color-primary")).toBe("rgba(0,0,255,1.000)");
+  });
+
+  it("applies IMAGE_SOURCE to an img", () => {
+    const img = document.createElement("img");
+    const r = renderer();
+    r.byId.set(8, img);
+    applyBatch(
+      parseBatch(
+        buildBatch([[CAT_STYLE, CMD_SET_PROPERTY, 0, 8, (VAL_STRING << 16) | PROP_IMAGE_SOURCE, 0]], stringEntry("/logo.png")),
+      ),
+      r,
+    );
+    expect(img.getAttribute("src")).toBe("/logo.png");
+  });
+
+  it("applies the TEXT property like SET_TEXT", () => {
+    const span = document.createElement("span");
+    const r = renderer();
+    r.byId.set(9, span);
+    applyBatch(
+      parseBatch(
+        buildBatch([[CAT_STYLE, CMD_SET_PROPERTY, 0, 9, (VAL_STRING << 16) | PROP_TEXT, 0]], stringEntry("hello")),
+      ),
+      r,
+    );
+    expect(span.textContent).toBe("hello");
+  });
+
+  it("SET_DATE on a time input writes millis-of-day as HH:MM", () => {
+    const input = document.createElement("input");
+    input.type = "time";
+    const r = renderer();
+    r.byId.set(10, input);
+    applyBatch(parseBatch(buildBatch([[CAT_STYLE, CMD_SET_DATE, 0, 10, 0, 3600000]])), r);
+    expect(input.value).toBe("01:00");
   });
 });

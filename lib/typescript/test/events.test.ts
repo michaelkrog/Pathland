@@ -1,55 +1,98 @@
 import { describe, expect, it } from "vitest";
 import {
   encodeDateChanged,
+  encodeEditingChanged,
+  encodeFocusChanged,
+  encodeKeyDown,
+  encodeKeyUp,
+  encodePointerDown,
+  encodePointerMove,
   encodePointerUp,
+  encodeScroll,
+  encodeSubmit,
   encodeTextChanged,
   encodeValueBits,
   encodeValueChanged,
+  encodeWheel,
 } from "../src/events";
 import {
   CAT_EVENT,
   CMD_DATE_CHANGED,
+  CMD_EDITING_CHANGED,
+  CMD_FOCUS_CHANGED,
+  CMD_KEY_DOWN,
+  CMD_KEY_UP,
+  CMD_POINTER_DOWN,
   CMD_POINTER_UP,
+  CMD_SCROLL,
+  CMD_SUBMIT,
   CMD_TEXT_CHANGED,
   CMD_VALUE_CHANGED,
+  CMD_WHEEL,
   HEADER_SIZE,
   MAGIC,
   VERSION,
 } from "../src/constants";
 import { parseBatch, readString } from "../src/plpl";
 
+function eventOf(bytes: Uint8Array): { category: number; command: number; flags: number; a: number; b: number; c: number } {
+  return parseBatch(bytes).opcodes[0]!;
+}
+
 describe("event encoders", () => {
-  it("encodePointerUp: header + single EVENT opcode, guest->host", () => {
-    const bytes = encodePointerUp(42);
+  it("encodePointerUp: header + single EVENT opcode, guest->host, x/y in B/C", () => {
+    const bytes = encodePointerUp(42, 12.5, 33.25);
     expect(bytes.length).toBe(HEADER_SIZE + 16 + 4);
     const view = new DataView(bytes.buffer);
     expect(view.getUint32(0, true)).toBe(MAGIC);
     expect(view.getUint16(4, true)).toBe(VERSION);
     expect(view.getUint16(6, true)).toBe(0); // guest -> host
-    expect(view.getUint32(8, true)).toBe(0); // frameCount
     expect(view.getUint32(12, true)).toBe(1); // opcodeCount
-    expect(view.getUint8(HEADER_SIZE)).toBe(CAT_EVENT);
-    expect(view.getUint8(HEADER_SIZE + 1)).toBe(CMD_POINTER_UP);
-    expect(view.getUint32(HEADER_SIZE + 4, true)).toBe(42);
+    const op = eventOf(bytes);
+    expect(op.category).toBe(CAT_EVENT);
+    expect(op.command).toBe(CMD_POINTER_UP);
+    expect(op.a).toBe(42);
+    expect(op.flags).toBe(0);
+    expect(new Float32Array(new Uint32Array([op.b]).buffer)[0]).toBe(12.5);
+    expect(new Float32Array(new Uint32Array([op.c]).buffer)[0]).toBe(33.25);
+  });
+
+  it("encodePointerDown carries the secondary flag", () => {
+    const op = eventOf(encodePointerDown(7, 0, 0, 0x0001));
+    expect(op.command).toBe(CMD_POINTER_DOWN);
+    expect(op.flags).toBe(0x0001);
+  });
+
+  it("encodePointerMove carries hover enter/leave flags", () => {
+    expect(eventOf(encodePointerMove(7, 0, 0, 0x0001)).flags).toBe(0x0001);
+    expect(eventOf(encodePointerMove(7, 0, 0, 0x0002)).flags).toBe(0x0002);
+  });
+
+  it("encodeKeyDown packs keyCode + modifiers + repeat flag", () => {
+    const op = eventOf(encodeKeyDown(5, 0x41, 0x01, true)); // 'A', Shift, repeat
+    expect(op.command).toBe(CMD_KEY_DOWN);
+    expect(op.b).toBe(0x41);
+    expect(op.c).toBe(0x01);
+    expect(op.flags).toBe(0x0002);
+    expect(eventOf(encodeKeyUp(5, 0x41, 0x01)).command).toBe(CMD_KEY_UP);
   });
 
   it("encodeValueChanged packs the f32 value into B", () => {
-    const view = new DataView(encodeValueChanged(7, 0.5).buffer);
-    expect(view.getUint8(HEADER_SIZE + 1)).toBe(CMD_VALUE_CHANGED);
-    const bits = view.getUint32(HEADER_SIZE + 8, true);
-    expect(new Float32Array(new Uint32Array([bits]).buffer)[0]).toBe(0.5);
+    const op = eventOf(encodeValueChanged(7, 0.5));
+    expect(op.command).toBe(CMD_VALUE_CHANGED);
+    expect(new Float32Array(new Uint32Array([op.b]).buffer)[0]).toBe(0.5);
   });
 
   it("encodeValueBits passes raw bits through B", () => {
-    const view = new DataView(encodeValueBits(3, 0xff000000 | 0xabcdef).buffer);
-    expect(view.getUint32(HEADER_SIZE + 8, true)).toBe(0xffabcdef);
+    const op = eventOf(encodeValueBits(3, 0xff000000 | 0xabcdef));
+    expect(op.b).toBe(0xffabcdef);
   });
 
   it("encodeDateChanged packs days + millis into B/C", () => {
-    const view = new DataView(encodeDateChanged(9, 20000, 3600000).buffer);
-    expect(view.getUint8(HEADER_SIZE + 1)).toBe(CMD_DATE_CHANGED);
-    expect(view.getUint32(HEADER_SIZE + 8, true)).toBe(20000);
-    expect(view.getUint32(HEADER_SIZE + 12, true)).toBe(3600000);
+    const op = eventOf(encodeDateChanged(9, 20000, 3600000));
+    expect(op.command).toBe(CMD_DATE_CHANGED);
+    expect(op.b).toBe(20000);
+    expect(op.c).toBe(3600000);
   });
 
   it("encodeTextChanged rides text in the string section (round-trips)", () => {
@@ -58,5 +101,23 @@ describe("event encoders", () => {
     expect(batch.opcodes[0]?.command).toBe(CMD_TEXT_CHANGED);
     expect(batch.opcodes[0]?.a).toBe(11);
     expect(readString(batch.strings, batch.opcodes[0]!.b)).toBe("hello");
+  });
+
+  it("focus / editing / submit carry their 0/1 payload", () => {
+    expect(eventOf(encodeFocusChanged(4, true)).command).toBe(CMD_FOCUS_CHANGED);
+    expect(eventOf(encodeFocusChanged(4, true)).b).toBe(1);
+    expect(eventOf(encodeEditingChanged(4, false)).command).toBe(CMD_EDITING_CHANGED);
+    expect(eventOf(encodeEditingChanged(4, false)).b).toBe(0);
+    expect(eventOf(encodeSubmit(4)).command).toBe(CMD_SUBMIT);
+  });
+
+  it("scroll / wheel pack f32 offsets into B/C", () => {
+    const scroll = eventOf(encodeScroll(2, 100, 250));
+    expect(scroll.command).toBe(CMD_SCROLL);
+    expect(new Float32Array(new Uint32Array([scroll.b]).buffer)[0]).toBe(100);
+    expect(new Float32Array(new Uint32Array([scroll.c]).buffer)[0]).toBe(250);
+    const wheel = eventOf(encodeWheel(2, -3, 9));
+    expect(wheel.command).toBe(CMD_WHEEL);
+    expect(new Float32Array(new Uint32Array([wheel.b]).buffer)[0]).toBe(-3);
   });
 });

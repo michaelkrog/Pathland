@@ -5,11 +5,14 @@ hydration client (zero runtime dependencies) that:
 
 - **Hydrates** the server-rendered DOM by `data-pathland-id`.
 - **Decodes** self-contained `PLPL` opcode batches (bounds-checked) and applies
-  them in place: `STYLE` deltas (`SET_TEXT` / `SET_DATE` / `SET_PROPERTY`) and
-  **`TREE` deltas** (create/delete/insert/remove/move — runtime structural
-  updates without a full reload).
-- **Reports raw inputs** back over WebSocket as `EVENT` batches (pointer up,
-  value/text/date changed), guest → host (flags `0x0000`).
+  them in place: **`STYLE` deltas** (the full property catalog — layout, text,
+  styling, effects, semantic/control variants, plus `SET_DESIGN_TOKEN` →
+  CSS variables) and **`TREE` deltas** (create/delete/insert/remove/move —
+  runtime structural updates without a full reload).
+- **Reports raw inputs** back over WebSocket as `EVENT` batches — the full event
+  catalog (pointer down/move/up, key down/up, value/text/date changed, focus/
+  editing, submit, scroll, wheel) — guest → host (flags `0x0000`), gated by the
+  SSR `EVENT_LISTENERS` mask.
 - **Negotiates** the protocol version (mismatch → reload) and **reconnects**
   with exponential backoff.
 

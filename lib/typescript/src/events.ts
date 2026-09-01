@@ -4,9 +4,18 @@
 import {
   CAT_EVENT,
   CMD_DATE_CHANGED,
+  CMD_EDITING_CHANGED,
+  CMD_FOCUS_CHANGED,
+  CMD_KEY_DOWN,
+  CMD_KEY_UP,
+  CMD_POINTER_DOWN,
+  CMD_POINTER_MOVE,
   CMD_POINTER_UP,
+  CMD_SCROLL,
+  CMD_SUBMIT,
   CMD_TEXT_CHANGED,
   CMD_VALUE_CHANGED,
+  CMD_WHEEL,
   HEADER_SIZE,
   MAGIC,
   OPCODE_SIZE,
@@ -14,27 +23,54 @@ import {
 } from "./constants";
 import { bitsFromF32 } from "./format";
 
-function eventBatch(command: number, a: number, b: number, c: number): Uint8Array {
+function eventBatch(command: number, a: number, b: number, c: number, opcodeFlags = 0): Uint8Array {
   const out = new Uint8Array(HEADER_SIZE + OPCODE_SIZE + 4);
   const view = new DataView(out.buffer);
   view.setUint32(0, MAGIC, true);
   view.setUint16(4, VERSION, true);
-  view.setUint16(6, 0, true); // flags = guest -> host
+  view.setUint16(6, 0, true); // batch flags = guest -> host
   view.setUint32(8, 0, true); // frameCount
   view.setUint32(12, 1, true); // opcodeCount
   const pos = HEADER_SIZE;
   view.setUint8(pos, CAT_EVENT);
   view.setUint8(pos + 1, command);
+  view.setUint16(pos + 2, opcodeFlags, true);
   view.setUint32(pos + 4, a, true);
   view.setUint32(pos + 8, b, true);
   view.setUint32(pos + 12, c, true);
   return out;
 }
 
-/** A button tap: POINTER_UP on the target node. */
-export function encodePointerUp(target: number): Uint8Array {
-  return eventBatch(CMD_POINTER_UP, target, 0, 0);
+// --- pointer ---
+
+/** A button press: POINTER_DOWN at viewport-relative x/y (f32). */
+export function encodePointerDown(target: number, x: number, y: number, flags = 0): Uint8Array {
+  return eventBatch(CMD_POINTER_DOWN, target, bitsFromF32(x), bitsFromF32(y), flags);
 }
+
+/** A pointer move / hover enter-leave at viewport-relative x/y. */
+export function encodePointerMove(target: number, x: number, y: number, flags: number): Uint8Array {
+  return eventBatch(CMD_POINTER_MOVE, target, bitsFromF32(x), bitsFromF32(y), flags);
+}
+
+/** A button release: POINTER_UP at viewport-relative x/y. */
+export function encodePointerUp(target: number, x: number, y: number, flags = 0): Uint8Array {
+  return eventBatch(CMD_POINTER_UP, target, bitsFromF32(x), bitsFromF32(y), flags);
+}
+
+// --- keyboard ---
+
+/** KEY_DOWN (A=target, B=keyCode u16 low, C=modifiers u8 low, flag KEY_REPEAT). */
+export function encodeKeyDown(target: number, keyCode: number, modifiers: number, repeat = false): Uint8Array {
+  return eventBatch(CMD_KEY_DOWN, target, keyCode & 0xffff, modifiers & 0xff, repeat ? 0x0002 : 0);
+}
+
+/** KEY_UP (A=target, B=keyCode u16 low, C=modifiers u8 low). */
+export function encodeKeyUp(target: number, keyCode: number, modifiers: number): Uint8Array {
+  return eventBatch(CMD_KEY_UP, target, keyCode & 0xffff, modifiers & 0xff);
+}
+
+// --- value / text / date ---
 
 /** A VALUE_CHANGED EVENT with the value as f32 bits (toggle 0/1, slider, select index, stepper). */
 export function encodeValueChanged(target: number, value: number): Uint8Array {
@@ -73,4 +109,31 @@ export function encodeTextChanged(target: number, text: string): Uint8Array {
   view.setUint32(stringsAt + 4, bytes.length, true);
   out.set(bytes, stringsAt + 8);
   return out;
+}
+
+// --- focus / editing / submit / scroll / wheel ---
+
+/** FOCUS_CHANGED (A=target, B=focused 0/1). */
+export function encodeFocusChanged(target: number, focused: boolean): Uint8Array {
+  return eventBatch(CMD_FOCUS_CHANGED, target, focused ? 1 : 0, 0);
+}
+
+/** EDITING_CHANGED (A=target, B=editing 0/1). */
+export function encodeEditingChanged(target: number, editing: boolean): Uint8Array {
+  return eventBatch(CMD_EDITING_CHANGED, target, editing ? 1 : 0, 0);
+}
+
+/** SUBMIT (A=target). */
+export function encodeSubmit(target: number): Uint8Array {
+  return eventBatch(CMD_SUBMIT, target, 0, 0);
+}
+
+/** SCROLL (A=target, B=offsetX f32, C=offsetY f32). */
+export function encodeScroll(target: number, offsetX: number, offsetY: number): Uint8Array {
+  return eventBatch(CMD_SCROLL, target, bitsFromF32(offsetX), bitsFromF32(offsetY));
+}
+
+/** WHEEL (A=target, B=deltaX f32, C=deltaY f32). */
+export function encodeWheel(target: number, deltaX: number, deltaY: number): Uint8Array {
+  return eventBatch(CMD_WHEEL, target, bitsFromF32(deltaX), bitsFromF32(deltaY));
 }

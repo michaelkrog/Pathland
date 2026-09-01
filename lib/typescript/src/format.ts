@@ -30,6 +30,14 @@ export function daysToIso(days: number): string {
   return new Date(Date.UTC(1970, 0, days)).toISOString().slice(0, 10);
 }
 
+/** Millis-of-day → `HH:MM` (e.g. 3_600_000 → "01:00"). */
+export function millisToTime(millis: number): string {
+  if (millis === 0) {
+    return "";
+  }
+  return new Date(millis).toISOString().slice(11, 16);
+}
+
 /** Format a float Rust-style ({@code 6.0 → "6"}, {@code 0.5 → "0.5"}). */
 export function fmtFloat(value: number): string {
   return Number.isInteger(value) && Math.abs(value) < 2 ** 31 ? String(Math.round(value)) : String(value);
