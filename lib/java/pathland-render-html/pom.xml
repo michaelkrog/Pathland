@@ -15,11 +15,12 @@
 
     <name>Pathland Render HTML</name>
     <description>
-        Reusable, framework-agnostic HTML renderer (com.pathland.render.html): a pure
-        function of the Pathland opcode stream that maps retained nodes onto declarative
-        HTML (flex stacks, spans, buttons) with stable data-pathland-id attributes for
-        hydration. The server-side/remote-projection target, usable from Spring Boot,
-        Quarkus, or any Java server.
+        The Java binding to the Rust HTML renderer (com.pathland.render.html): a
+        thin JNA shim over libpathland_render_html (pathland_html_render /
+        _render_fragment / _tailwind_compile / _free). Stateless: each call renders
+        a full snapshot frame to HTML in one pass. The server-side/remote-projection
+        target, usable from Spring Boot, Quarkus, or any Java server. The single
+        renderer is the Rust crate reused by every language.
     </description>
 
     <dependencies>
@@ -29,9 +30,27 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <!-- Point the test JVM at the Rust renderer cdylib; absent the
+                         dylib, the shim tests are skipped via an assumption. -->
+                    <argLine>-Djava.library.path=${project.basedir}/../../rust/target/debug</argLine>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
 </project>

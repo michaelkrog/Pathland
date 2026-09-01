@@ -1,33 +1,36 @@
 # pathland-render-html (Java) — implementation status
 
-**Last updated:** August 29, 2026
+**Last updated:** September 1, 2026
 
-The **pure-function SSR HTML renderer** (`com.pathland.render.html`). Protocol
-contract: `spec/`.
+The **Java binding to the Rust HTML renderer** (`com.pathland.render.html`) — a
+thin **JNA shim** over `libpathland_render_html`. There is a **single renderer**
+(the Rust crate), reused by every language; the former hand-written retained
+Java renderer is removed. Protocol contract: `spec/`.
 
 ## Implemented
 
-- Applies `Frame` deltas to a retained node map and renders HTML fragments /
-  documents (`applyFrame`, `render`, `renderFragment`).
-- **Components rendered**: `VSTACK`/`HSTACK`/`LAZY_VSTACK`/`LAZY_HSTACK`
-  (flex stacks), `GRID`/`LAZY_VGRID`/`LAZY_HGRID` (CSS grid), `SCROLLVIEW`
-  (overflow), `TEXT`, `BUTTON`, `COLOR` (layout-greedy fill), `SHAPE`
-  (Rectangle/Circle/RoundedRectangle via `SHAPE_KIND`), `TOGGLE`
-  (switch/checkbox via `TOGGLE_STYLE`), `SPACER`, `SLIDER`, `STEPPER`,
-  `TEXT_FIELD`, `TEXT_EDITOR` (textarea), `PROGRESS_VIEW` (`<progress>` /
-  spinner), `GAUGE`, `DIVIDER` (`<hr>`), `PICKER` (`<select>`),
-  `MENU`, `COLOR_PICKER` (`<input type="color">`), `DATE_PICKER`
-  (`<input type="date">`; `STYLE::SET_DATE` applied). Unknown components render
-  their children.
-- Border/padding/background/opacity styling from properties (`decorStyle`);
-  hidden (`VISIBLE=0`) nodes are skipped.
-- Controls carry host-wiring attributes: stepper exposes `data-min/max/step`.
+- **Stateless JNA shim**: `HtmlRenderer.instance()` links the Rust cdylib;
+  `render(frame, root)` / `renderFragment(frame, root)` /
+  `renderFullSnapshot(frame, root)` render a self-contained snapshot frame to
+  HTML in one pass (no retained tree, no `applyFrame`); `compileTailwind(override, classes)`
+  returns the compiled Tailwind CSS via `pathland_tailwind_compile`; `pathland_html_free`
+  releases native strings. Lazy-loaded; skipped (test assumption) when the dylib
+  is absent from `java.library.path`.
+- **Full Rust renderer surface** (canonical): all spec components render with
+  Tailwind utility classes (structural + decorative), ARIA/event attributes,
+  `IS_SECURE` → password, `TOGGLE_STYLE` variants, `DATE_PICKER_MODE`, and
+  literal colors inline (Option A).
+- **Demos use the shim**: `SessionApp` no longer calls `applyFrame`; SSR renders
+  the mount frame through `HtmlRenderer.render(sink.frame(), rootId)`. The
+  renderer is compiled once at startup.
 
 ## Not implemented / gaps
 
-- No `IMAGE`, no `STYLE::SET_DESIGN_TOKEN` handling; the property set applied
-  to CSS is a subset of the Rust `pathland-render-html` (the fuller reference).
+- The demo `/tailwind.css` endpoint currently hardcodes a small safelist (the
+  authoritative safelist lives in the Rust renderer's `tw::safelist()`); a
+  Rust→Java bridge carrying it is a follow-up (grant WP2 conformance).
 
 ## Verified by
 
-`mvn test -pl pathland-render-html` — HTML renderer tests.
+`mvn test -pl pathland-render-html` — JNA shim tests (skip when the Rust dylib
+is absent); part of the 44-test non-demo reactor run on JDK 17.

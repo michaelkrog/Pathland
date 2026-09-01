@@ -32,7 +32,7 @@ final class SessionApp {
     private final PersistentState state;
     private final KitchenSinkView root;
 
-    private final HtmlRenderer html = new HtmlRenderer();
+    private final HtmlRenderer html = HtmlRenderer.instance();
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
@@ -50,14 +50,13 @@ final class SessionApp {
         // Every completed frame is applied to the session's HTML renderer (for SSR) and,
         // when connected, sent as a delta to THIS session's single client. No broadcast.
         // The mount frame (emitted in the constructor, before the connection attaches) is
-        // applied for SSR but NOT sent — the client already has the whole UI from the HTML.
+        // NOT sent — the client already has the whole UI from the HTML.
         this.sink = new FrameOpcodeSink() {
             @Override
             public void endFrame() {
                 super.endFrame();
                 Frame frame = frame();
                 if (!frame.opcodes().isEmpty()) {
-                    html.applyFrame(frame);
                     send(frame);
                 }
             }
@@ -132,7 +131,8 @@ final class SessionApp {
 
     /** The session's current SSR HTML (with the client script injected). */
     String renderHtml() {
-        return html.render(rootId)
+        return html.render(sink.frame(), rootId)
+                .replace("</head>", "<link rel=\"stylesheet\" href=\"/tailwind.css\"></head>")
                 .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
 

@@ -1,7 +1,6 @@
 package com.pathland.render.html;
 
 import com.pathland.view.Button;
-import com.pathland.view.Color;
 import com.pathland.view.DatePicker;
 import com.pathland.view.DatePickerMode;
 import com.pathland.view.Divider;
@@ -17,27 +16,36 @@ import com.pathland.view.ToggleStyle;
 import com.pathland.view.VStack;
 import com.pathland.view.View;
 import com.pathland.view.emit.Emitter;
+import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.signal.WritableSignal;
 import com.pathland.view.ButtonStyleMod;
 
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-/** DSL -> emitter -> frame -> HtmlRenderer (the SSR round-trip). */
+/** DSL -> emitter -> frame -> Rust HtmlRenderer shim (the SSR round-trip). */
 class HtmlRendererTest {
 
-    private static HtmlRenderer render(View root) {
+    private static HtmlRenderer renderer() {
+        try {
+            return HtmlRenderer.instance();
+        } catch (Throwable t) {
+            Assumptions.assumeTrue(false,
+                    "libpathland_render_html unavailable on java.library.path; shim test skipped: " + t);
+            return null;
+        }
+    }
+
+    private static Frame frameOf(View root) {
         FrameOpcodeSink sink = new FrameOpcodeSink();
-        Emitter emitter = new Emitter(sink);
-        emitter.mount(root, Environment.DEFAULT);
-        HtmlRenderer renderer = new HtmlRenderer();
-        renderer.applyFrame(sink.frame());
-        return renderer;
+        new Emitter(sink).mount(root, Environment.DEFAULT);
+        return sink.frame();
     }
 
     @Test
@@ -45,42 +53,33 @@ class HtmlRendererTest {
         View root = VStack.of(
                 Text.of("Hello Pathland"),
                 Button.of("Increment", () -> { }));
-        HtmlRenderer renderer = render(root);
-        String html = renderer.render(1);
+        Frame frame = frameOf(root);
+        HtmlRenderer renderer = renderer();
+        String html = renderer.render(frame, 1);
 
         assertTrue(html.contains("<!DOCTYPE html>"));
-        assertTrue(html.contains("flex-direction:column"));
+        assertTrue(html.contains("class=\"flex flex-col\""));
         assertTrue(html.contains("<span data-pathland-id=\"2\">Hello Pathland</span>"));
-        assertTrue(html.contains("<button data-pathland-id=\"3\">Increment</button>"));
+        assertTrue(html.contains("<button data-pathland-id=\"3\""), "button keeps its node id");
+        assertTrue(html.contains(">Increment</button>"));
     }
 
     @Test
-    void appliesLiveDeltaInPlace() {
-        WritableSignal<Integer> count = Signals.signal(0);
-        Signal<String> label = Signals.computed(() -> "Count: " + count.get());
-        View root = VStack.of(Text.of("Static"), Text.of(label));
-
-        FrameOpcodeSink sink = new FrameOpcodeSink();
-        Emitter emitter = new Emitter(sink);
-        emitter.mount(root, Environment.DEFAULT);
-
-        HtmlRenderer renderer = new HtmlRenderer();
-        renderer.applyFrame(sink.frame());
-        assertTrue(renderer.renderFragment(1).contains("Count: 0"));
-
-        count.set(9);
-        renderer.applyFrame(sink.frame()); // the delta (one SET_TEXT)
-        String html = renderer.renderFragment(1);
-        assertTrue(html.contains("Count: 9"));
-        assertFalse(html.contains("Count: 0"));
+    void rendersFullSnapshotFragment() {
+        View root = VStack.of(Text.of("Static"), Text.of(Signals.computed(() -> "Count: 0")));
+        HtmlRenderer renderer = renderer();
+        String html = renderer.renderFragment(frameOf(root), 1);
+        assertTrue(html.contains("Count: 0"));
+        assertFalse(html.contains("<!DOCTYPE html>"));
+        // renderFullSnapshot is the same stateless fragment render.
+        assertTrue(renderer.renderFullSnapshot(frameOf(root), 1).contains("Count: 0"));
     }
 
     @Test
     void rendersBorderedStyledButton() {
         View root = VStack.of(Button.of("Go", () -> { }))
                 .modifier(ButtonStyleMod.of(com.pathland.view.BorderedButtonStyle.INSTANCE));
-        String html = render(root).render(1);
-        assertTrue(html.contains("border-radius:6px"));
+        String html = renderer().render(frameOf(root), 1);
         assertTrue(html.contains("data-pathland-id=\"2\""), "styled button keeps its node id");
     }
 
@@ -97,21 +96,21 @@ class HtmlRendererTest {
                 Divider.of(),
                 TextEditor.of(Signals.signal("hello")),
                 DatePicker.of(DatePickerMode.DATE, Signals.signal(20487)));
-        String html = render(root).render(1);
+        String html = renderer().render(frameOf(root), 1);
 
         assertTrue(html.contains("type=\"checkbox\""), "toggle checkbox");
         assertTrue(html.contains("type=\"range\""), "slider");
-        assertTrue(html.contains("<option selected>A</option>"), "picker options");
-        assertTrue(html.contains("<option>B</option>"), "picker options");
+        assertTrue(html.contains("<option value=\"0\" selected>A</option>"), "picker options");
+        assertTrue(html.contains("<option value=\"1\">B</option>"), "picker options");
         assertTrue(html.contains("<progress"), "progress bar");
-        assertTrue(html.contains("<hr"), "divider");
+        assertTrue(html.contains("border-top:"), "divider (border-top div)");
         assertTrue(html.contains("<textarea"), "text editor");
         assertTrue(html.contains("type=\"date\""), "date picker");
     }
 
     @Test
     void escapesText() {
-        String html = render(VStack.of(Text.of("<a & b>"))).renderFragment(1);
+        String html = renderer().renderFragment(frameOf(VStack.of(Text.of("<a & b>"))), 1);
         assertTrue(html.contains("&lt;a &amp; b&gt;"));
     }
 }

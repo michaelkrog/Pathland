@@ -28,7 +28,7 @@ final class SessionApp {
     private final PersistentState state;
     private final KitchenSinkView root;
 
-    private final HtmlRenderer html = new HtmlRenderer();
+    private final HtmlRenderer html = HtmlRenderer.instance();
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
@@ -49,10 +49,9 @@ final class SessionApp {
                 super.endFrame();
                 Frame frame = frame();
                 if (!frame.opcodes().isEmpty()) {
-                    html.applyFrame(frame);
                     // The mount frame (emitted in the constructor, before the session
-                    // attaches) is applied for SSR but NOT sent — the client already has
-                    // the whole UI from the HTML. Only deltas + resync snapshots go out.
+                    // attaches) is NOT sent — the client already has the whole UI from
+                    // the HTML. Only deltas + resync snapshots go out.
                     send(frame);
                 }
             }
@@ -122,7 +121,8 @@ final class SessionApp {
     }
 
     String renderHtml() {
-        return html.render(rootId)
+        return html.render(sink.frame(), rootId)
+                .replace("</head>", "<link rel=\"stylesheet\" href=\"/tailwind.css\"></head>")
                 .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
 
