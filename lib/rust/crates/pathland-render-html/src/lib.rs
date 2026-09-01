@@ -17,9 +17,8 @@
 use std::collections::BTreeMap;
 
 use pathland_core::{
-    Frame, Opcode, border_edges, category, component_type, property_id, style, tree, value_type,
+    Opcode, border_edges, category, component_type, property_id, style, tree, value_type,
 };
-use pathland_core_transport::frame_from_slices;
 
 /// A decoded node in the retained description.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -350,111 +349,119 @@ fn aria_attrs(node: &Node) -> String {
     attrs
 }
 
-/// Applies opcode frames to a retained node map and renders it as HTML.
-#[derive(Debug, Default)]
-pub struct HtmlRenderer {
-    nodes: BTreeMap<u32, Node>,
+/// Decode a self-contained snapshot batch (opcodes + string section) into a
+/// **transient** `id → Node` map. The map lives only for the duration of one
+/// render call — the renderer retains nothing between calls.
+fn decode(opcodes: &[Opcode], strings: &[u8]) -> BTreeMap<u32, Node> {
+    let mut nodes = BTreeMap::new();
+    for op in opcodes {
+        match op.category() {
+            category::TREE => apply_tree(&mut nodes, op.command(), *op),
+            category::STYLE => apply_style(&mut nodes, op.command(), *op, strings),
+            _ => {}
+        }
+    }
+    nodes
 }
 
+/// Read a `[u32 len][utf8]` entry from the batch's string section at a relative offset.
+fn strings_str(strings: &[u8], offset: u32) -> Option<String> {
+    let offset = offset as usize;
+    if offset + 4 > strings.len() {
+        return None;
+    }
+    let len = u32::from_le_bytes(strings[offset..offset + 4].try_into().ok()?) as usize;
+    let start = offset + 4;
+    if start + len > strings.len() {
+        return None;
+    }
+    std::str::from_utf8(&strings[start..start + len]).ok().map(str::to_owned)
+}
+
+fn apply_tree(nodes: &mut BTreeMap<u32, Node>, command: u8, op: Opcode) {
+    match command {
+        tree::CREATE_NODE => {
+            let id = op.a();
+            let component = op.b() as u16;
+            nodes.insert(id, Node::new(component));
+        }
+        tree::DELETE_NODE => {
+            nodes.remove(&op.a());
+        }
+        tree::INSERT_CHILD => {
+            let (parent, child) = (op.a(), op.b());
+            if let Some(node) = nodes.get_mut(&parent) {
+                node.children.push(child);
+            }
+        }
+        tree::REMOVE_CHILD => {
+            let (parent, child) = (op.a(), op.b());
+            if let Some(node) = nodes.get_mut(&parent) {
+                node.children.retain(|&c| c != child);
+            }
+        }
+        tree::MOVE_CHILD => {
+            let (parent, child, index) = (op.a(), op.b(), op.c());
+            if let Some(node) = nodes.get_mut(&parent) {
+                node.children.retain(|&c| c != child);
+                let index = (index as usize).min(node.children.len());
+                node.children.insert(index, child);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn apply_style(nodes: &mut BTreeMap<u32, Node>, command: u8, op: Opcode, strings: &[u8]) {
+    match command {
+        style::SET_TEXT => {
+            if let Some(text) = strings_str(strings, op.b()) {
+                if let Some(node) = nodes.get_mut(&op.a()) {
+                    node.text = Some(text);
+                }
+            }
+        }
+        style::SET_PROPERTY => {
+            let property = (op.b() & 0xFFFF) as u16;
+            if let Some(node) = nodes.get_mut(&op.a()) {
+                let vt = (op.b() >> 16) as u8;
+                if vt == value_type::STRING {
+                    if let Some(text) = strings_str(strings, op.c()) {
+                        node.strings.insert(property, text);
+                    }
+                } else {
+                    node.properties.insert(property, op.c());
+                }
+            }
+        }
+        style::SET_DATE => {
+            if let Some(node) = nodes.get_mut(&op.a()) {
+                // B = days since epoch (I32), C = millis of day (U32).
+                node.date = Some((op.b() as i32, op.c()));
+            }
+        }
+        _ => {}
+    }
+}
+
+/// A **stateless, streaming** HTML renderer. Each render call decodes a
+/// self-contained snapshot batch into a transient map, walks it once, and
+/// streams HTML text out — zero state retained across calls. A pure function
+/// of the opcode stream (Renderer Statelessness).
+#[derive(Debug, Default, Clone, Copy)]
+pub struct HtmlRenderer;
+
 impl HtmlRenderer {
-    /// Create an empty renderer.
+    /// Create a renderer (stateless; the same value serves every render).
     #[must_use]
     pub fn new() -> Self {
-        Self::default()
-    }
-
-    /// Apply a transport `Frame` (a self-contained opcode frame + string
-    /// section), mutating the retained description. The frame may come from
-    /// [`frame_from_slices`] (in-process), a network decoder, or a ring.
-    pub fn apply_frame(&mut self, frame: &Frame) {
-        for op in frame.opcodes() {
-            match op.category() {
-                category::TREE => self.apply_tree(op.command(), op),
-                category::STYLE => self.apply_style(op.command(), op, frame),
-                _ => {}
-            }
-        }
-    }
-
-    /// Apply a frame from raw opcodes + a string section, building an in-memory
-    /// [`Frame`] (via the in-process transport seam) and delegating to
-    /// [`Self::apply_frame`].
-    pub fn apply(&mut self, opcodes: &[Opcode], strings: &[u8]) {
-        let mut slots = Vec::with_capacity(opcodes.len() * Opcode::SIZE);
-        let frame = frame_from_slices(&mut slots, strings, opcodes);
-        self.apply_frame(&frame);
-    }
-
-    fn apply_tree(&mut self, command: u8, op: Opcode) {
-        match command {
-            tree::CREATE_NODE => {
-                let id = op.a();
-                let component = op.b() as u16;
-                self.nodes.insert(id, Node::new(component));
-            }
-            tree::DELETE_NODE => {
-                self.nodes.remove(&op.a());
-            }
-            tree::INSERT_CHILD => {
-                let (parent, child) = (op.a(), op.b());
-                if let Some(node) = self.nodes.get_mut(&parent) {
-                    node.children.push(child);
-                }
-            }
-            tree::REMOVE_CHILD => {
-                let (parent, child) = (op.a(), op.b());
-                if let Some(node) = self.nodes.get_mut(&parent) {
-                    node.children.retain(|&c| c != child);
-                }
-            }
-            tree::MOVE_CHILD => {
-                let (parent, child, index) = (op.a(), op.b(), op.c());
-                if let Some(node) = self.nodes.get_mut(&parent) {
-                    node.children.retain(|&c| c != child);
-                    let index = (index as usize).min(node.children.len());
-                    node.children.insert(index, child);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    fn apply_style(&mut self, command: u8, op: Opcode, frame: &Frame) {
-        match command {
-            style::SET_TEXT => {
-                if let Some(text) = frame.arena_str(op.b()).ok() {
-                    if let Some(node) = self.nodes.get_mut(&op.a()) {
-                        node.text = Some(text.to_string());
-                    }
-                }
-            }
-            style::SET_PROPERTY => {
-                let property = (op.b() & 0xFFFF) as u16;
-                if let Some(node) = self.nodes.get_mut(&op.a()) {
-                    let vt = (op.b() >> 16) as u8;
-                    if vt == value_type::STRING {
-                        if let Some(text) = frame.arena_str(op.c()).ok() {
-                            node.strings.insert(property, text.to_string());
-                        }
-                    } else {
-                        node.properties.insert(property, op.c());
-                    }
-                }
-            }
-            style::SET_DATE => {
-                if let Some(node) = self.nodes.get_mut(&op.a()) {
-                    // B = days since epoch (I32), C = millis of day (U32).
-                    node.date = Some((op.b() as i32, op.c()));
-                }
-            }
-            _ => {}
-        }
+        Self
     }
 
     /// Render the subtree rooted at `root` as a full HTML document.
     #[must_use]
-    pub fn render(&self, root: u32) -> String {
-        let body = self.render_node(root);
+    pub fn render_document(&self, opcodes: &[Opcode], strings: &[u8], root: u32) -> String {
+        let body = self.render_fragment(opcodes, strings, root);
         format!(
             "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n\
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
@@ -483,18 +490,20 @@ impl HtmlRenderer {
 
     /// Render the subtree rooted at `root` as an HTML fragment (no `<html>`).
     #[must_use]
-    pub fn render_fragment(&self, root: u32) -> String {
-        self.render_node(root)
+    pub fn render_fragment(&self, opcodes: &[Opcode], strings: &[u8], root: u32) -> String {
+        let nodes = decode(opcodes, strings);
+        render_node(&nodes, root)
     }
+}
 
-    fn render_node(&self, id: u32) -> String {
-        let Some(node) = self.nodes.get(&id) else {
+    fn render_node(nodes: &BTreeMap<u32, Node>, id: u32) -> String {
+        let Some(node) = nodes.get(&id) else {
             return String::new();
         };
         let children: String = node
             .children
             .iter()
-            .map(|&child| self.render_node(child))
+            .map(|&child| render_node(nodes, child))
             .collect();
         let data_id = format!(" data-pathland-id=\"{id}\"");
         let css = format!("{}{}", node.style_css(), node.border_style());
@@ -503,13 +512,13 @@ impl HtmlRenderer {
         let aria = aria_attrs(node);
 
         match node.component {
-            component_type::VSTACK => self.wrap_stack(id, "column", node, &children, &css, &event, &aria),
-            component_type::HSTACK => self.wrap_stack(id, "row", node, &children, &css, &event, &aria),
+            component_type::VSTACK => wrap_stack(id, "column", node, &children, &css, &event, &aria),
+            component_type::HSTACK => wrap_stack(id, "row", node, &children, &css, &event, &aria),
             component_type::LAZY_VSTACK => {
-                self.wrap_stack(id, "column", node, &children, &css, &event, &aria)
+                wrap_stack(id, "column", node, &children, &css, &event, &aria)
             }
             component_type::LAZY_HSTACK => {
-                self.wrap_stack(id, "row", node, &children, &css, &event, &aria)
+                wrap_stack(id, "row", node, &children, &css, &event, &aria)
             }
             component_type::TEXT => {
                 let text = escape(node.text.as_deref().unwrap_or_default());
@@ -707,7 +716,7 @@ impl HtmlRenderer {
                     .children
                     .iter()
                     .map(|&child| {
-                        let child_html = self.render_node(child);
+                        let child_html = render_node(nodes, child);
                         if child_html.is_empty() {
                             String::new()
                         } else {
@@ -760,8 +769,7 @@ impl HtmlRenderer {
                     .iter()
                     .enumerate()
                     .map(|(i, &child)| {
-                        let label = self
-                            .nodes
+                        let label = nodes
                             .get(&child)
                             .and_then(|n| n.text.clone())
                             .unwrap_or_default();
@@ -793,7 +801,6 @@ impl HtmlRenderer {
     }
 
     fn wrap_stack(
-        &self,
         id: u32,
         direction: &str,
         node: &Node,
@@ -816,7 +823,6 @@ impl HtmlRenderer {
             margins,
         )
     }
-}
 
 /// A `style="…"` attribute for a non-empty CSS fragment.
 fn style_attr(css: &str) -> String {
@@ -855,10 +861,9 @@ mod tests {
         strings.extend_from_slice(b"Hello");
         opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 2, 0, 0));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
+        let renderer = HtmlRenderer::new();
 
-        let html = renderer.render(1);
+        let html = renderer.render_document(&opcodes, &strings, 1);
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("flex-direction:column"));
         assert!(html.contains("<span data-pathland-id=\"2\">Hello</span>"));
@@ -913,9 +918,8 @@ mod tests {
             border_edges::ALL,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
 
         assert!(html.contains("border-top:2px solid rgba(255,0,0,1)"));
         assert!(html.contains("border-left:2px solid rgba(255,0,0,1)"));
@@ -957,9 +961,8 @@ mod tests {
             1,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
 
         assert!(html.contains("<input type=\"checkbox\" role=\"switch\" checked>"));
         assert!(html.contains("<span class=\"pathland-text\">Enabled</span>"));
@@ -999,9 +1002,8 @@ mod tests {
             0,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
 
         assert!(html.contains("<input type=\"checkbox\">"));
         assert!(!html.contains("<input type=\"checkbox\" role=\"switch\""));
@@ -1042,9 +1044,8 @@ mod tests {
             1,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
 
         assert!(html.contains("<button") && html.contains("type=\"button\""));
         assert!(html.contains("aria-pressed=\"true\""));
@@ -1094,9 +1095,8 @@ mod tests {
             0.5f32.to_bits(),
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
 
         assert!(html.contains(
             "<input type=\"range\" min=\"0\" max=\"1\" step=\"any\" value=\"0.5\">"
@@ -1145,9 +1145,8 @@ mod tests {
             16, // relative offset of the prompt entry
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
 
         assert!(html.contains("class=\"pathland-textfield\""));
         assert!(html.contains("<span class=\"pathland-label\">Name:</span>"));
@@ -1158,9 +1157,10 @@ mod tests {
 
     #[test]
     fn applies_network_decoded_frame() {
-        // A frame that came off the wire (encoded then decoded by the transport
-        // crate) must render identically to an in-process frame.
-        use pathland_core_transport::{BatchDecoder, encode_frame};
+        // The renderer consumes a self-contained opcode + string section directly
+        // (the transport layer's encode/decode round-trip is covered by the
+        // transport crate's own tests).
+        use pathland_core_transport::encode_frame;
 
         let mut opcodes = Vec::new();
         let mut strings = Vec::new();
@@ -1177,12 +1177,10 @@ mod tests {
         opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 1, 0, 0));
 
         let bytes = encode_frame(&opcodes, &strings);
-        let mut decoder = BatchDecoder::new();
-        let batch = decoder.decode(&bytes).unwrap();
+        assert!(bytes.len() > 16);
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply_frame(batch.as_frame());
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
         assert!(html.contains("<span data-pathland-id=\"1\">Hello</span>"));
     }
 
@@ -1213,9 +1211,8 @@ mod tests {
             0,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
         assert!(html.contains("<img data-pathland-id=\"1\" src=\"assets/logo.png\">"));
     }
 
@@ -1236,9 +1233,8 @@ mod tests {
         opcodes.push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, 2, component_type::TEXT as u32, 0));
         opcodes.push(Opcode::new(category::TREE, tree::INSERT_CHILD, 0, 1, 2, 0));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &[], 1);
         assert!(html.contains("display:grid"));
         assert!(html.contains("grid-template-columns:repeat(2,1fr)"));
     }
@@ -1253,12 +1249,11 @@ mod tests {
         opcodes.push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, 4, component_type::TEXT as u32, 0));
         opcodes.push(Opcode::new(category::TREE, tree::INSERT_CHILD, 0, 3, 4, 0));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        let scroll = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let scroll = renderer.render_document(&opcodes, &[], 1);
         assert!(scroll.contains("overflow:auto"));
         assert!(scroll.contains("<span data-pathland-id=\"2\"></span>"));
-        let zstack = renderer.render(3);
+        let zstack = renderer.render_document(&opcodes, &[], 3);
         assert!(zstack.contains("position:relative"));
         assert!(zstack.contains("position:absolute;inset:0"));
     }
@@ -1287,10 +1282,9 @@ mod tests {
             1,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        assert!(renderer.render(1).contains("<progress"));
-        assert!(renderer.render(2).contains("pathland-spinner"));
+        let renderer = HtmlRenderer::new();
+        assert!(renderer.render_document(&opcodes, &[], 1).contains("<progress"));
+        assert!(renderer.render_document(&opcodes, &[], 2).contains("pathland-spinner"));
     }
 
     #[test]
@@ -1300,9 +1294,8 @@ mod tests {
         // days=19723 → 2024-01-01; millis of day = 0.
         opcodes.push(Opcode::new(category::STYLE, style::SET_DATE, 0, 1, 19_723, 0));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &[], 1);
         assert!(html.contains("<input data-pathland-id=\"1\" type=\"date\" value=\"2024-01-01\">"));
     }
 
@@ -1327,9 +1320,8 @@ mod tests {
             0,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
         assert!(html.contains("<select"));
         assert!(html.contains("<option value=\"0\" selected>Red</option>"));
     }
@@ -1358,10 +1350,9 @@ mod tests {
             0xFF00_00FF,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        assert!(renderer.render(1).contains("<input data-pathland-id=\"1\" type=\"color\" value=\"#0000ff\">"));
-        assert!(renderer.render(2).contains("background-color:rgba(0,0,255,1)"));
+        let renderer = HtmlRenderer::new();
+        assert!(renderer.render_document(&opcodes, &[], 1).contains("<input data-pathland-id=\"1\" type=\"color\" value=\"#0000ff\">"));
+        assert!(renderer.render_document(&opcodes, &[], 2).contains("background-color:rgba(0,0,255,1)"));
     }
 
     #[test]
@@ -1375,9 +1366,8 @@ mod tests {
         strings.extend_from_slice(b"A");
         opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 2, 0, 0));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &strings);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &strings, 1);
         assert!(html.contains("<button data-pathland-id=\"1\"><span data-pathland-id=\"2\">A</span></button>"));
     }
 
@@ -1412,9 +1402,8 @@ mod tests {
             0,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &[], 1);
         assert!(html.contains("data-event-listeners=\"5\""));
         assert!(html.contains("data-action-id=\"42\""));
         assert!(html.contains(" disabled"));
@@ -1435,9 +1424,8 @@ mod tests {
             0.0f32.to_bits(), // Leading
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &[], 1);
         assert!(html.contains("align-items:flex-start"));
     }
 
@@ -1456,9 +1444,8 @@ mod tests {
             1,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &[], 1);
         assert!(html.contains("<input type=\"password\""));
     }
 
@@ -1493,9 +1480,8 @@ mod tests {
             0,
         ));
 
-        let mut renderer = HtmlRenderer::new();
-        renderer.apply(&opcodes, &[]);
-        let html = renderer.render(1);
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&opcodes, &[], 1);
         assert!(html.contains("color:rgba(17,34,51,1)"));
         assert!(html.contains("font-size:18px"));
         assert!(html.contains("display:none"));

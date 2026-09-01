@@ -1,12 +1,18 @@
 # pathland-render-html (Rust) — implementation status
 
-**Last updated:** August 28, 2026
+**Last updated:** September 1, 2026
 
-The **server-side / remote-projection HTML renderer**: a pure function of the
-opcode stream producing declarative HTML. Protocol contract: `spec/`.
+The **server-side / remote-projection HTML renderer**: a **stateless, streaming**
+pure function of the opcode stream producing declarative HTML. Each render call
+decodes a self-contained snapshot batch into a **transient** map, walks it once,
+and emits HTML text out — no retained tree, zero cross-call state (Renderer
+Statelessness). Protocol contract: `spec/`.
 
 ## Implemented
 
+- **Stateless streaming API**: `HtmlRenderer::render_document(opcodes, strings, root)`
+  / `render_fragment(...)` build a transient decode map per call and stream HTML;
+  the retained `apply`/`apply_frame`/`render` model is removed.
 - **All spec components render**: `TEXT`, `IMAGE`, `COLOR` (layout-greedy:
   `flex:1;align-self:stretch`), `SHAPE` (CSS/SVG by `SHAPE_KIND`), `DIVIDER`, `SPACER`, `PROGRESS_VIEW`/`GAUGE`, `VSTACK`/
   `HSTACK`/`LAZY_VSTACK`/`LAZY_HSTACK` (flex), `ZSTACK` (overlay), `GRID`/
@@ -25,6 +31,16 @@ opcode stream producing declarative HTML. Protocol contract: `spec/`.
 - **Event surfacing**: `data-event-listeners` / `data-action-id` /
   `data-binding-id` attributes.
 - `STYLE::SET_DATE` handled (days + millis-of-day → date/time).
+
+## In progress (P2a)
+
+- **Tailwind-class emission** (replacing inline `style` for structural/layout;
+  literal hex colors stay inline per Option A) + safelist derivation.
+- **Tailwind v4 integration**: embedded per-platform standalone binary (MIT,
+  bundled per the pinned license), default `@theme` + Inter config, developer
+  override, compile-at-startup (`pathland_tailwind_compile`), serve compiled CSS.
+- **C ABI cdylib** (`pathland_html_render` / `_render_fragment` /
+  `_tailwind_compile` / `_free`) for cross-language hosts (Java JNA shim).
 
 ## Not implemented / gaps
 
