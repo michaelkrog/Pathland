@@ -117,10 +117,23 @@ class HtmlRendererTest {
     @Test
     void embeddedNativeLibraryIsExtractedAndLoads() {
         // The renderer dylib is embedded in the jar (META-INF/native/) and extracted
-        // via JNA. Assert the resource is on the classpath and that instance() links it.
-        assertTrue(HtmlRenderer.class.getResourceAsStream("/META-INF/native/libpathland_render_html.dylib") != null,
-                "renderer dylib is embedded in the jar resources");
+        // via JNA. Assert the resource is on the classpath (platform extension) and
+        // that instance() links it.
+        String lib = "/META-INF/native/libpathland_render_html" + platformExtension();
+        assertTrue(HtmlRenderer.class.getResourceAsStream(lib) != null,
+                "renderer dylib is embedded in the jar resources: " + lib);
         assertTrue(HtmlRenderer.isAvailable(), "native renderer links (embedded extraction)");
         assertTrue(HtmlRenderer.tryInstance() != null, "tryInstance resolves the renderer");
+    }
+
+    private static String platformExtension() {
+        String os = System.getProperty("os.name", "").toLowerCase(java.util.Locale.ROOT);
+        if (os.contains("mac")) {
+            return ".dylib";
+        }
+        if (os.contains("win")) {
+            return ".dll";
+        }
+        return ".so";
     }
 }
