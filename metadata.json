@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M1E1S9E05SW2M04ST7DE3EM6",
+  "strategy": "manual-commit",
+  "branch": "feature/enterprise-sre",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "lib/java/pathland-quarkus-demo/src/main/resources/META-INF/resources/pathland-dom-renderer.js",
+    "lib/java/pathland-spring-boot-demo/src/main/resources/static/pathland-dom-renderer.js",
+    "lib/typescript/README.md",
+    "lib/typescript/src/apply.ts",
+    "lib/typescript/src/classes.ts",
+    "lib/typescript/src/constants.ts",
+    "lib/typescript/src/events.ts",
+    "lib/typescript/src/format.ts",
+    "lib/typescript/src/index.ts",
+    "lib/typescript/src/tokens.ts",
+    "lib/typescript/status.md",
+    "lib/typescript/test/apply.test.ts",
+    "lib/typescript/test/classes.test.ts",
+    "lib/typescript/test/events.test.ts",
+    "lib/typescript/test/tokens.test.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
