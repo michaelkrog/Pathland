@@ -6,19 +6,19 @@ import com.pathland.view.ValueTypes;
 import com.pathland.view.emit.Opcode;
 import com.pathland.view.emit.OpcodeSink;
 import com.pathland.view.emit.ValueEncoder;
+import com.sun.jna.Pointer;
 
-import java.lang.foreign.MemorySegment;
 import java.nio.charset.StandardCharsets;
 
 /**
  * An {@link OpcodeSink} that writes opcodes zero-copy into the Rust SPSC ring via
- * FFM. Strings are allocated into the shared bump arena (absolute offsets). This is the
+ * JNA. Strings are allocated into the shared bump arena (absolute offsets). This is the
  * desktop/embedded path; the frame path uses {@code FrameOpcodeSink} instead.
  */
 public final class RingOpcodeSink implements OpcodeSink, AutoCloseable {
 
     private final PathlandCore core;
-    private final MemorySegment handle;
+    private final Pointer handle;
 
     public RingOpcodeSink() {
         this(PathlandCore.instance());
@@ -30,7 +30,7 @@ public final class RingOpcodeSink implements OpcodeSink, AutoCloseable {
     }
 
     /** The opaque native handle (for direct ring access). */
-    public MemorySegment handle() {
+    public Pointer handle() {
         return handle;
     }
 

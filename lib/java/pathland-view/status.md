@@ -2,10 +2,10 @@
 
 **Last updated:** August 30, 2026
 
-The hand-written, framework-agnostic Java 25+ DSL (`com.pathland.view`):
+The hand-written, framework-agnostic Java 17+ DSL (`com.pathland.view`):
 SwiftUI-style views, Angular-style signals, fine-grained emitter, `PLPL` wire
-codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
-`spec/`.
+codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
+`spec/`. Runs on every LTS from Java 17.
 
 ## Implemented
 
@@ -37,7 +37,7 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
   `ProgressView`, `Gauge`, `Divider`, `Grid`, `ScrollView`, `LazyVStack`,
   `LazyHStack`, `LazyVGrid`, `LazyHGrid`, `Picker`, `Menu`, `ColorPicker`,
   `DatePicker`; `body()` composition; `ButtonStyle`/`ViewModifier`/`Environment`
-  (ScopedValue).
+  (thread-local environment, Java 17+).
 - **Component IDs**: synced to the spec's grouped ranges (`Components.java`:
   `TEXT 0x01`, `IMAGE 0x02`, `COLOR 0x03`, `SHAPE 0x04`, `DIVIDER 0x05`,
   `SPACER 0x06`, `PROGRESS_VIEW 0x07`, `GAUGE 0x08`, `VSTACK 0x10`,
@@ -89,7 +89,7 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 - **Wire codec** (`transport`): `FrameCodec` — self-contained `PLPL` frames
   both directions, `encodeEvents`/`decodeEvents` (host→guest events with
   `TEXT_CHANGED` string-section offsets).
-- **FFM ring interop** (`ffm`): lazy `libpathland_core` binding, zero JNI.
+- **JNA ring interop** (`ffm`): lazy `libpathland_core` binding, zero JNI.
 - **State** (`state`): `StateStore`/`PersistentState`/`State`, auto-wired by
   `pathland-view-processor`.
 
@@ -102,4 +102,6 @@ codec, lazy FFM ring interop, and cross-platform `State`. Protocol contract:
 
 ## Verified by
 
-`mvn test` (needs JDK 25) — emitter, codec round-trips, signals, state.
+`mvn test` (JDK 17+) — emitter, codec round-trips, signals, state; the JNA ring
+test runs when `libpathland_core` is on `java.library.path`. CI proves every LTS
+from 17 (Temurin 17/21/25).

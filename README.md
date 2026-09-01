@@ -150,7 +150,7 @@ reactive trees.
 ### c) Native Desktop (IPC / Shared Memory)
 
 Native apps drive the engine through the flat **C ABI** (`pathland-view-native`)
-or **Java FFM** over a **zero-copy shared ring** into GTK4 / native widgets
+or **Java JNA** over a **zero-copy shared ring** into GTK4 / native widgets
 (`pathland-render-gtk`). This is the current desktop path — producer and
 renderer live in the same process and share the ring directly.
 
@@ -219,11 +219,11 @@ The implementation is under [`lib/rust/`](./lib/rust/):
 ## Java Libraries
 
 The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/java/)
-(Maven reactor, `org.pathland`, Java 25+):
+(Maven reactor, `org.pathland`, Java 17+ — every LTS from 17):
 
 | Module | Package | Responsibility |
 |--------|---------|----------------|
-| `pathland-view` | `com.pathland.view` | Declarative view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy FFM ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |
+| `pathland-view` | `com.pathland.view` | Declarative view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy JNA ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |
 | `pathland-view-processor` | `com.pathland.processor` | JSR 269 annotation processor: generates `<View>_StateBinder` for `State` fields (auto-keyed by field name) |
 | `pathland-render-html` | `com.pathland.render.html` | Pure-function HTML renderer over the opcode stream (SSR) with `data-pathland-id` hydration |
 | `pathland-state-redis` | `com.pathland.state.redis` | Redis-backed `StateStore` over Lettuce (Spring/Quarkus/desktop) |
@@ -233,16 +233,16 @@ The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/j
 
 The same `com.pathland.view` DSL (and `State` fields) runs unchanged on a Spring Boot
 app, a Quarkus app, or a desktop app; a desktop host pushes opcodes into the Rust ring via
-FFM (`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.
+JNA (`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.
 
 ### Build & run the Java libraries
 
 ```bash
-# Rust ring C ABI (only needed for the desktop FFM path)
+# Rust ring C ABI (only needed for the desktop JNA path)
 cd lib/rust && cargo build -p pathland-core-capi
 
-# Build + test the whole Java reactor (needs JDK 25: maven.compiler.release=25)
-export JAVA_HOME=<jdk-25-home>
+# Build + test the whole Java reactor (runs on every LTS from Java 17)
+export JAVA_HOME=<jdk-home-17-or-later>
 cd lib/java && mvn -q install
 
 # Run the Quarkus SSR + WebSocket demo in dev mode (hot reload)
@@ -259,9 +259,9 @@ mvn -q package
 java -jar target/pathland-spring-boot-demo-0.1.0.jar   # http://localhost:8080
 ```
 
-The libraries require **Java 25+** (`ScopedValue` is final only in JDK 25, JEP 506),
-**Quarkus ≥ 3.18** (dev mode's class-file reader must understand Java 25), and
-**Spring Boot ≥ 3.5** (Java 25 support).
+The libraries run on **every LTS from Java 17** (the environment is thread-local and
+native interop is JNA, so nothing needs a preview/25-only JDK), with
+**Quarkus ≥ 3.18** and **Spring Boot ≥ 3.5**.
 
 ### Run tests
 

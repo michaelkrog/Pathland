@@ -50,7 +50,7 @@ onto native widgets on every platform (GTK4, DOM/HTML, LVGL-planned).
 The engine is **transport- and process-agnostic**: the producer and consumer
 only need to exchange bytes, so it runs identically across embedded dual-core,
 pure in-browser (WASM worker → `SharedArrayBuffer`), native desktop (C ABI /
-Java FFM over a zero-copy shared ring), and distributed server-driven modes.
+JNA over a zero-copy shared ring), and distributed server-driven modes.
 
 **Emission is diff-based and reactive**: a signal bound to a node re-emits only
 that node's deltas; an unchanged tree emits **zero** opcodes. That is what makes

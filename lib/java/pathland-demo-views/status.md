@@ -33,5 +33,5 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
 
 ## Verified by
 
-`mvn test -pl pathland-demo-views` (needs JDK 25) — `CounterViewTest`,
+`mvn test -pl pathland-demo-views` (JDK 17+) — `CounterViewTest`,
 `KitchenSinkViewTest` (mount + persistence + input routing).

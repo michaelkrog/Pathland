@@ -39,7 +39,7 @@ jobs:
         working-directory: lib/rust
         run: cargo test
 
-      - name: Build the C ABI (cdylib, used by Java FFM / native hosts)
+      - name: Build the C ABI (cdylib, used by the Java JNA ring interop / native hosts)
         working-directory: lib/rust
         run: cargo build -p pathland-core-capi
 
@@ -48,19 +48,22 @@ jobs:
         run: ./check-wasm.sh
 
   java:
-    name: Java (Maven reactor, JDK 25)
+    name: Java (Maven reactor, JDK ${{ matrix.java }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        java: ['17', '21', '25']
     steps:
       - uses: actions/checkout@v4
 
-      # JDK 25 is required (maven.compiler.release=25; ScopedValue JEP 506).
-      # Temurin 25 has shipped; if setup-java's manifest lags, swap in a direct
-      # Adoptium 25 tarball download for this step.
-      - name: Set up JDK 25
+      # Whole-stack floor is Java 17 (maven.compiler.release=17; JNA native binding,
+      # thread-local environment); the matrix proves every LTS from 17.
+      - name: Set up JDK ${{ matrix.java }}
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '25'
+          java-version: ${{ matrix.java }}
           cache: maven
 
       - name: Test reactor (demo modules excluded to keep CI fast)

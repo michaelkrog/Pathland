@@ -18,8 +18,9 @@
         Framework-agnostic Pathland UI toolkit: SwiftUI-like view DSL (com.pathland.view),
         Angular-style signals/computed/effects (com.pathland.view.signal), a fine-grained
         opcode emitter (com.pathland.view.emit), the wire codec (com.pathland.view.transport),
-        lazy FFM ring interop (com.pathland.view.native), and cross-platform state
-        (com.pathland.view.state). Zero runtime dependencies — JDK only.
+        lazy JNA ring interop (com.pathland.view.ffm), and cross-platform state
+        (com.pathland.view.state). Runs on every LTS from Java 17; JNA is the only
+        runtime dependency.
     </description>
 
     <dependencies>
@@ -27,6 +28,10 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>net.java.dev.jna</groupId>
+            <artifactId>jna</artifactId>
         </dependency>
     </dependencies>
 
@@ -36,9 +41,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <configuration>
-                    <!-- Point the test JVM at the Rust cdylib for the FFM ring test.
+                    <!-- Point the test JVM at the Rust cdylib for the JNA ring test.
                          Absent the dylib, that test is skipped via an assumption. -->
-                    <argLine>--enable-native-access=ALL-UNNAMED -Djava.library.path=${project.basedir}/../../rust/target/debug</argLine>
+                    <argLine>-Djava.library.path=${project.basedir}/../../rust/target/debug</argLine>
                 </configuration>
             </plugin>
         </plugins>

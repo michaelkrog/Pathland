@@ -13,7 +13,7 @@ This document provides essential context for AI agents (or human contributors) w
 > alignment — as a fixed **16-byte opcode ring buffer** into shared linear
 > memory, consumed by host renderers. View components and modifiers are written
 > in Rust with a SwiftUI-like API, and in Java with the hand-written
-> **`com.pathland.view` DSL** (reusable library, Java 25+); both drive the engine
+> **`com.pathland.view` DSL** (reusable library, Java 17+); both drive the engine
 > through the flat **native C ABI** (`pathland-view-native`) over a zero-copy shared
 > ring on desktop.
 
@@ -93,7 +93,7 @@ crates/pathland-view-native/ # NATIVE C-ABI shim + NativeHost: flat world over a
 crates/pathland-core-capi/ # MINIMAL RING C ABI — the SPSC ring + 16-byte opcode engine as
                           #   libpathland_core: create/destroy, pathland_ring_buffer_push,
                           #   arena alloc, frame boundaries, zero-copy read, event drain/send.
-                          #   Consumed by the Java DSL via FFM (com.pathland.view.ffm).
+                          #   Consumed by the Java DSL via JNA (com.pathland.view.ffm).
 # ── Demo ───────────────────────────────────────────────────────────────────
 crates/pathland-render-gtk-demo/ # Rust GTK4 demo: authors the DSL, emits into the ring, renders
                           #   through pathland-render-gtk. Uses NO GTK APIs directly.
@@ -101,16 +101,16 @@ crates/pathland-render-gtk-demo/ # Rust GTK4 demo: authors the DSL, emits into t
 
 ### Java libraries (`lib/java/`, framework-agnostic)
 
-The reusable Java library set (`org.pathland`, Maven reactor, Java 25+) — the same
+The reusable Java library set (`org.pathland`, Maven reactor, Java 17+) — the same
 hand-written DSL serves Spring Boot, Quarkus, and desktop apps:
 
 ```
 lib/java/
   pathland-view/        # com.pathland.view — SwiftUI-like DSL (View/VStack/Text/Button/
-                        #   ButtonStyle via ScopedValue), Angular-style signals/computed/
-                        #   effects (com.pathland.view.signal), fine-grained emitter with
-                        #   node-level binding effects (com.pathland.view.emit), wire codec
-                        #   (com.pathland.view.transport), lazy FFM ring interop
+                        #   ButtonStyle via a thread-local Environment), Angular-style
+                        #   signals/computed/effects (com.pathland.view.signal), fine-grained
+                        #   emitter with node-level binding effects (com.pathland.view.emit),
+                        #   wire codec (com.pathland.view.transport), lazy JNA ring interop
                         #   (com.pathland.view.ffm), cross-platform state
                         #   (com.pathland.view.state: StateStore/PersistentState/State)
   pathland-view-processor/ # JSR 269 annotation processor: generates <View>_StateBinder
@@ -128,10 +128,10 @@ lib/java/
 - Run the GTK demo (native, zero-copy shared ring): `cd lib/rust && cargo run -p pathland-render-gtk-demo`.
 - Run the Quarkus demo (SSR + WebSocket deltas, dev mode):
   `cd lib/java/pathland-quarkus-demo && mvn quarkus:dev` (or `mvn package && java -jar target/quarkus-app/quarkus-run.jar`).
-  Needs JDK 25 (ScopedValue is final in 25, JEP 506) and Quarkus ≥ 3.18.
+  Needs JDK 17+ (the whole stack runs on every LTS from 17) and Quarkus ≥ 3.18.
 - Run the Spring Boot demo (SSR + WebSocket deltas):
   `cd lib/java/pathland-spring-boot-demo && mvn package && java -jar target/pathland-spring-boot-demo-0.1.0.jar`.
-  Needs JDK 25 and Spring Boot ≥ 3.5.
+  Needs JDK 17+ (the whole stack runs on every LTS from 17) and Spring Boot ≥ 3.5.
 
 ### Native C-ABI shim (`pathland-view-native` + `pathland-core-capi`)
 
@@ -145,8 +145,8 @@ no per-component wrappers — and consumes opcodes zero-copy.
 Java DSL: `pathland_core_create`/`destroy`, `pathland_ring_buffer_push` (one
 raw 16-byte opcode), `pathland_core_arena_alloc`, frame boundaries, zero-copy
 `ring_ptr`/`ring_len`, and event drain/send. The Java DSL
-(`com.pathland.view.ffm`) binds it with **Java FFM** (`Arena`/`MemorySegment`,
-lazily loaded, zero JNI) and owns the retained tree + diff emission itself.
+(`com.pathland.view.ffm`) binds it with **JNA** (lazily loaded, zero JNI) and
+owns the retained tree + diff emission itself.
 
 ### GTK4 Renderer (`pathland-render-gtk`)
 
@@ -176,7 +176,7 @@ not be parsed as GTK options).
 
 ### Native Java DSL (`com.pathland.view`, in `lib/java/pathland-view`)
 
-The **hand-written, zero-dependency Java 25+ DSL** (no codegen). It is the
+The **hand-written, zero-dependency Java 17+ DSL** (no codegen). It is the
 SwiftUI-like authoring surface shared by desktop, Spring Boot, and Quarkus
 apps. Components and modifiers:
 
@@ -195,7 +195,7 @@ apps. Components and modifiers:
   `visible`, …) chain on any view. No standalone width/height — use the
   compound `frame(width, height, alignment)` modifier. Typed enums
   (`Alignment`/`TextAlignment`/`FontWeight`/`Truncation`), not raw ints.
-- **Environment scoping via `ScopedValue`** (Java 25+): `.buttonStyle(ButtonStyle)`
+- **Environment scoping via a `ThreadLocal`** (Java 17+): `.buttonStyle(ButtonStyle)`
   injects a style down the whole child tree; `ButtonStyle.makeBody(Configuration)`
   with built-in `PlainButtonStyle` / `BorderedButtonStyle`. Custom wrappers via
   `ViewModifier.body(View)`. The `Environment` also carries the session's
@@ -218,7 +218,7 @@ apps. Components and modifiers:
   assigns stable ids, and registers a **node-level binding effect** per reactive
   text/property — a signal change re-emits only that node's `SET_TEXT` /
   `SET_PROPERTY` (unchanged signals emit zero opcodes). Sinks: `FrameOpcodeSink`
-  (self-contained frames for SSR/WebSocket) and `RingOpcodeSink` (FFM into
+  (self-contained frames for SSR/WebSocket) and `RingOpcodeSink` (JNA into
   `libpathland_core`). The wire codec (`com.pathland.view.transport`) mirrors
   `pathland_core_transport` (`PLPL` batch format, self-contained frames + events).
 
@@ -432,7 +432,7 @@ implementing project.
 
 ## Project Status
 
-**Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), **reactive signals** (`pathland-core::signal` — writable `Signal` values bound to node text/properties, so a signal change re-emits only the bound nodes, reachable from Java via the `pathland_native_signal_*` / `node_bind_*` C ABI), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust demos that render through it without touching GTK directly, the **native Java library set** — `com.pathland.view` (open `View` interface + SwiftUI-like DSL, **Angular-parity signals/computed/effects** with synchronous flush, fine-grained emitter with **node-level binding effects**, `PLPL` wire codec, lazy **FFM ring interop** into `libpathland_core`, cross-platform `StateStore` + **`State`/`PersistentState`** auto-wired by the `pathland-view-processor` annotation processor), `com.pathland.render.html` (pure-function SSR HTML renderer), `com.pathland.state.redis` (Lettuce `RedisStateStore`) — and the **Quarkus** (`pathland-quarkus-demo`) **and Spring Boot** (`pathland-spring-boot-demo`) **SSR + WebSocket demos**, both consuming the same shared views (`pathland-demo-views`) with per-session `State` fields (Redis/in-memory). **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property) and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Generic input routing** — the emitter returns tap-action / text-input / value-input registries (`RenderResult`), so the host forwards raw `EVENT` batches straight into the bound `State` signals and never reaches into a view's internals. **Tests green across the workspace.**
+**Complete**: 16-byte opcode engine (`pathland-core`), SwiftUI-style view DSL with decoupled chainable modifiers (`pathland-view`), declarative diff-based reactive emission (`pathland-core`), **reactive signals** (`pathland-core::signal` — writable `Signal` values bound to node text/properties, so a signal change re-emits only the bound nodes, reachable from Java via the `pathland_native_signal_*` / `node_bind_*` C ABI), host reader to a native-element description (`pathland-render-gtk`), opcode transport with network-batch encode/decode + time/size batching policy (`pathland-core-transport`), golden conformance vectors (incl. raw-input EVENT and network-batch bytes), typed raw-input event encode/decode, `no_std` builds, zero-alloc steady-state emission, the **bidirectional event ring** (host → guest EVENT opcodes in shared memory, drained by the host via a generic `pathland_native_drain_events` C ABI — the renderer only writes + wakes), the **GTK4 renderer** (`pathland-render-gtk`) with Rust demos that render through it without touching GTK directly, the **native Java library set** — `com.pathland.view` (open `View` interface + SwiftUI-like DSL, **Angular-parity signals/computed/effects** with synchronous flush, fine-grained emitter with **node-level binding effects**, `PLPL` wire codec, lazy **JNA ring interop** into `libpathland_core`, cross-platform `StateStore` + **`State`/`PersistentState`** auto-wired by the `pathland-view-processor` annotation processor), `com.pathland.render.html` (pure-function SSR HTML renderer), `com.pathland.state.redis` (Lettuce `RedisStateStore`) — and the **Quarkus** (`pathland-quarkus-demo`) **and Spring Boot** (`pathland-spring-boot-demo`) **SSR + WebSocket demos**, both consuming the same shared views (`pathland-demo-views`) with per-session `State` fields (Redis/in-memory). **`EVENT_LISTENERS`** (any element emits raw events via a u32 bitmask property) and **`onTapGesture`** (Rust + Java DSL modifier + app-side `TapRecognizer` over the raw pointer events). **Generic input routing** — the emitter returns tap-action / text-input / value-input registries (`RenderResult`), so the host forwards raw `EVENT` batches straight into the bound `State` signals and never reaches into a view's internals. **Tests green across the workspace.**
 
 **In progress**: —
 

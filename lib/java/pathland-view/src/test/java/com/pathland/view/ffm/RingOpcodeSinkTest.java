@@ -12,15 +12,12 @@ import com.pathland.view.emit.Opcode;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
-import java.lang.foreign.MemorySegment;
-import java.lang.foreign.ValueLayout;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Proves the desktop/embedded path: the Java DSL pushes raw 16-byte opcodes into the
- * Rust SPSC ring via FFM (zero JNI, zero-copy). Skipped when {@code libpathland_core}
+ * Rust SPSC ring via JNA (zero JNI, zero-copy). Skipped when {@code libpathland_core}
  * is not on {@code java.library.path}.
  */
 class RingOpcodeSinkTest {
@@ -36,7 +33,7 @@ class RingOpcodeSinkTest {
             core = PathlandCore.instance();
         } catch (Throwable t) {
             Assumptions.assumeTrue(false,
-                    "libpathland_core unavailable on java.library.path; FFM ring test skipped: " + t);
+                    "libpathland_core unavailable on java.library.path; JNA ring test skipped: " + t);
             return;
         }
 
@@ -47,8 +44,7 @@ class RingOpcodeSinkTest {
                     Environment.DEFAULT);
 
             long len = core.ringLen(sink.handle());
-            MemorySegment ring = core.ringPtr(sink.handle()).reinterpret(len);
-            byte[] buf = ring.toArray(ValueLayout.JAVA_BYTE);
+            byte[] buf = core.ringPtr(sink.handle()).getByteArray(0, (int) len);
             assertTrue(buf.length >= 64, "full linear memory buffer (header + rings + arena)");
 
             int ringOff = readIntLE(buf, OFF_RING_OFFSET);

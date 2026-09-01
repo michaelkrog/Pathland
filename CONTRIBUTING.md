@@ -33,7 +33,7 @@ Implementation status per project lives in each crate/module's `status.md`.
 
 - **Rust**: stable toolchain (`rustup`); `wasm32-unknown-unknown` target for the
   `no_std` direction guard.
-- **Java**: JDK 25+ (Maven `release=25`; `ScopedValue` JEP 506 is final in 25).
+- **Java**: JDK 17+ (Maven `release=17`; the whole stack runs on every LTS from 17).
 - **GTK4** (Linux) for `pathland-render-gtk`.
 
 ## Build & test
@@ -45,7 +45,7 @@ cd lib/rust && cargo test
 # no_std / wasm32 direction guard (requires: rustup target add wasm32-unknown-unknown)
 cd lib/rust && ./check-wasm.sh
 
-# C ABI (cdylib) used by Java FFM / native hosts
+# C ABI (cdylib) used by Java JNA / native hosts
 cd lib/rust && cargo build -p pathland-core-capi
 
 # Java reactor (the core libraries; the Quarkus/Spring demos are excluded from

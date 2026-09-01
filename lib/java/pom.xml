@@ -13,8 +13,9 @@
     <description>
         Framework-agnostic Java libraries for the Pathland UI protocol: a SwiftUI-like
         view DSL with Angular-style signals/computed/effects, a fine-grained opcode
-        emitter, the wire codec, FFM ring interop, a reusable HTML renderer, and
+        emitter, the wire codec, JNA ring interop, a reusable HTML renderer, and
         cross-platform state stores. Usable from Spring Boot, Quarkus, or desktop apps.
+        Runs on every LTS from Java 17.
     </description>
 
     <modules>
@@ -29,9 +30,10 @@
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <!-- ScopedValue (JEP 506) is final only in Java 25; FFM (JEP 454) is final in 22.
-             Quarkus >= 3.18 bundles ASM that reads Java 25 class files, so dev mode works. -->
-        <maven.compiler.release>25</maven.compiler.release>
+        <!-- Whole-stack floor: every LTS from Java 17. ScopedValue was replaced with a
+             thread-local environment and the FFM ring interop with JNA to achieve this. -->
+        <maven.compiler.release>17</maven.compiler.release>
+        <jna.version>5.14.0</jna.version>
         <quarkus.version>3.39.1</quarkus.version>
         <spring-boot.version>3.5.16</spring-boot.version>
         <junit.version>5.10.2</junit.version>
@@ -45,6 +47,11 @@
                 <artifactId>junit-jupiter</artifactId>
                 <version>${junit.version}</version>
                 <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>net.java.dev.jna</groupId>
+                <artifactId>jna</artifactId>
+                <version>${jna.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.lettuce</groupId>
