@@ -12,10 +12,11 @@ Java renderer is removed. Protocol contract: `spec/`.
 - **Stateless JNA shim**: `HtmlRenderer.instance()` links the Rust cdylib;
   `render(frame, root)` / `renderFragment(frame, root)` /
   `renderFullSnapshot(frame, root)` render a self-contained snapshot frame to
-  HTML in one pass (no retained tree, no `applyFrame`); `compileTailwind(override, classes)`
-  returns the compiled Tailwind CSS via `pathland_tailwind_compile`; `pathland_html_free`
-  releases native strings. Lazy-loaded; skipped (test assumption) when the dylib
-  is absent from `java.library.path`.
+  HTML in one pass (no retained tree, no `applyFrame`); `compileTailwind(overrideCss)`
+  returns the compiled Tailwind CSS via `pathland_tailwind_compile` (the class
+  safelist is owned internally by the Rust renderer — no `classes` parameter);
+  `pathland_html_free` releases native strings. Lazy-loaded; skipped (test
+  assumption) when the dylib is absent from `java.library.path`.
 - **Full Rust renderer surface** (canonical): all spec components render with
   Tailwind utility classes (structural + decorative), ARIA/event attributes,
   `IS_SECURE` → password, `TOGGLE_STYLE` variants, `DATE_PICKER_MODE`, and
@@ -26,9 +27,11 @@ Java renderer is removed. Protocol contract: `spec/`.
 
 ## Not implemented / gaps
 
-- The demo `/tailwind.css` endpoint currently hardcodes a small safelist (the
-  authoritative safelist lives in the Rust renderer's `tw::safelist()`); a
-  Rust→Java bridge carrying it is a follow-up (grant WP2 conformance).
+- The Tailwind class safelist is owned internally by the Rust renderer
+  (`tw::safelist()`); it is a complete static set (compiled once at startup) of
+  the finite protocol-enum-derived classes, and arbitrary-number (dp) styling
+  renders inline — so the compiled `/tailwind.css` is small and static. The demo
+  `/tailwind.css` endpoint calls `compileTailwind("")` and gets this CSS.
 
 ## Verified by
 
