@@ -30,6 +30,7 @@ export const CMD_SET_DATE = 0x04;
 // META commands
 export const CMD_RESET = 0x01;
 export const CMD_ENVIRONMENT = 0x02;
+export const CMD_RESYNC = 0x03;
 
 // EVENT commands (host -> guest)
 export const CMD_POINTER_DOWN = 0x01;

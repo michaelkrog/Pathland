@@ -15,8 +15,6 @@ import com.pathland.view.transport.FrameCodec;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.WebSocketSession;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -39,9 +37,6 @@ final class SessionApp {
     private final Map<Integer, DateInput> dateInputs;
     private final int rootId;
 
-    /** Frames emitted before the connection attaches, replayed to it on connect. */
-    private final List<Frame> pending = new ArrayList<>();
-
     private volatile WebSocketSession session;
 
     SessionApp(String sessionId, StateStore store) {
@@ -55,12 +50,10 @@ final class SessionApp {
                 Frame frame = frame();
                 if (!frame.opcodes().isEmpty()) {
                     html.applyFrame(frame);
-                    WebSocketSession s = session;
-                    if (s == null || !s.isOpen()) {
-                        pending.add(frame);
-                    } else {
-                        send(frame);
-                    }
+                    // The mount frame (emitted in the constructor, before the session
+                    // attaches) is applied for SSR but NOT sent — the client already has
+                    // the whole UI from the HTML. Only deltas + resync snapshots go out.
+                    send(frame);
                 }
             }
         };
@@ -77,10 +70,11 @@ final class SessionApp {
 
     void connect(WebSocketSession session) {
         this.session = session;
-        for (Frame frame : pending) {
-            send(frame);
-        }
-        pending.clear();
+    }
+
+    /** Re-send the current tree as a full snapshot (META::RESYNC). */
+    void resync() {
+        emitter.renderFull();
     }
 
     private void send(Frame frame) {

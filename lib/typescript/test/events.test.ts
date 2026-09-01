@@ -8,6 +8,7 @@ import {
   encodePointerDown,
   encodePointerMove,
   encodePointerUp,
+  encodeResync,
   encodeScroll,
   encodeSubmit,
   encodeTextChanged,
@@ -119,5 +120,21 @@ describe("event encoders", () => {
     const wheel = eventOf(encodeWheel(2, -3, 9));
     expect(wheel.command).toBe(CMD_WHEEL);
     expect(new Float32Array(new Uint32Array([wheel.b]).buffer)[0]).toBe(-3);
+  });
+
+  it("encodeResync is a host->guest META::RESYNC batch", () => {
+    const bytes = encodeResync();
+    expect(bytes.length).toBe(HEADER_SIZE + 16 + 4);
+    const view = new DataView(bytes.buffer);
+    expect(view.getUint32(0, true)).toBe(MAGIC);
+    expect(view.getUint16(4, true)).toBe(VERSION);
+    expect(view.getUint16(6, true)).toBe(0x0001); // HOST_TO_GUEST
+    expect(view.getUint32(12, true)).toBe(1); // opcodeCount
+    const batch = parseBatch(bytes);
+    expect(batch.opcodes[0]?.category).toBe(0x04); // META
+    expect(batch.opcodes[0]?.command).toBe(0x03); // RESYNC
+    expect(batch.opcodes[0]?.a).toBe(0);
+    expect(batch.opcodes[0]?.b).toBe(0);
+    expect(batch.opcodes[0]?.c).toBe(0);
   });
 });

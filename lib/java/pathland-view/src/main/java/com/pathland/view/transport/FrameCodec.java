@@ -52,6 +52,26 @@ public final class FrameCodec {
         return new Frame(parsed.opcodes(), parsed.strings());
     }
 
+    /** Encode a `META::RESYNC` request batch (host → guest): ask the guest for a full snapshot. */
+    public static byte[] encodeResync() {
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        writeHeader(out, HOST_TO_GUEST, 0, 1);
+        writeBytes(out, new Opcode(Categories.META, Commands.Meta.RESYNC, 0, 0, 0, 0).toBytes());
+        writeIntLE(out, 0); // empty string section
+        return out.toByteArray();
+    }
+
+    /** True when the batch is a `META::RESYNC` request (host → guest). */
+    public static boolean isResync(byte[] bytes) {
+        Parsed parsed = parse(bytes);
+        for (Opcode op : parsed.opcodes()) {
+            if (op.category() == Categories.META && op.command() == Commands.Meta.RESYNC) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Encode host → guest events as a batch (binary EVENT opcodes + string section). */
     public static byte[] encodeEvents(List<Event> events) {
         List<Opcode> opcodes = new ArrayList<>(events.size());

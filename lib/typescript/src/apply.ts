@@ -84,11 +84,17 @@ function applyMeta(op: Opcode, r: DomRenderer): void {
 function applyTree(op: Opcode, r: DomRenderer): void {
   switch (op.command) {
     case CMD_CREATE_NODE: {
-      const el = createElement(op.b);
-      if (el.nodeType === Node.ELEMENT_NODE) {
-        (el as HTMLElement).setAttribute("data-pathland-id", String(op.a));
+      // Hydration-aware: an id already present in the registry is the SSR-hydrated
+      // element — reuse it (a resync/full snapshot replays CREATE for every node
+      // without clobbering the visible DOM). Only create a fresh shell when absent.
+      let el = r.byId.get(op.a);
+      if (!el) {
+        el = createElement(op.b);
+        if (el.nodeType === Node.ELEMENT_NODE) {
+          (el as HTMLElement).setAttribute("data-pathland-id", String(op.a));
+        }
+        r.byId.set(op.a, el);
       }
-      r.byId.set(op.a, el);
       break;
     }
     case CMD_DELETE_NODE: {
@@ -104,7 +110,9 @@ function applyTree(op: Opcode, r: DomRenderer): void {
       const child = r.byId.get(op.b);
       if (parent && child) {
         const container = childrenContainer(parent);
-        if (container) {
+        // Hydration/idempotent-replay guard: skip when the child is already there
+        // (the SSR DOM already holds the initial tree; a resync replays it).
+        if (container && !container.contains(child)) {
           insertAt(container, child, op.c);
         }
       }

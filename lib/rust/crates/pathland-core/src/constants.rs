@@ -91,6 +91,9 @@ pub mod meta {
     pub const RESET: u8 = 0x01;
     /// `A=viewportWidth (f32), B=viewportHeight (f32)` (host → guest)
     pub const ENVIRONMENT: u8 = 0x02;
+    /// The host (renderer) requests a full snapshot of the current tree
+    /// (host → guest). `A/B/C = 0`. Used for reconnect/gap recovery.
+    pub const RESYNC: u8 = 0x03;
 }
 
 /// Flag bits used across categories.

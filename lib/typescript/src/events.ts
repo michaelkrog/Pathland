@@ -3,6 +3,7 @@
 
 import {
   CAT_EVENT,
+  CAT_META,
   CMD_DATE_CHANGED,
   CMD_EDITING_CHANGED,
   CMD_FOCUS_CHANGED,
@@ -11,6 +12,7 @@ import {
   CMD_POINTER_DOWN,
   CMD_POINTER_MOVE,
   CMD_POINTER_UP,
+  CMD_RESYNC,
   CMD_SCROLL,
   CMD_SUBMIT,
   CMD_TEXT_CHANGED,
@@ -38,6 +40,24 @@ function eventBatch(command: number, a: number, b: number, c: number, opcodeFlag
   view.setUint32(pos + 4, a, true);
   view.setUint32(pos + 8, b, true);
   view.setUint32(pos + 12, c, true);
+  return out;
+}
+
+/** A META::RESYNC request (host → guest): ask the server for a full snapshot of the current tree. */
+export function encodeResync(): Uint8Array {
+  const out = new Uint8Array(HEADER_SIZE + OPCODE_SIZE + 4);
+  const view = new DataView(out.buffer);
+  view.setUint32(0, MAGIC, true);
+  view.setUint16(4, VERSION, true);
+  view.setUint16(6, 0x0001, true); // batch flags = HOST_TO_GUEST
+  view.setUint32(8, 0, true); // frameCount
+  view.setUint32(12, 1, true); // opcodeCount
+  const pos = HEADER_SIZE;
+  view.setUint8(pos, CAT_META);
+  view.setUint8(pos + 1, CMD_RESYNC);
+  view.setUint32(pos + 4, 0, true);
+  view.setUint32(pos + 8, 0, true);
+  view.setUint32(pos + 12, 0, true);
   return out;
 }
 

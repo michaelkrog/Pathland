@@ -56,6 +56,9 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
   `TEXT_CHANGED`, `FOCUS_CHANGED`, `EDITING_CHANGED`, `SUBMIT`, `SCROLL`,
   `WHEEL`, `DATE_CHANGED`; listener bits `0..9` declared
   (`Commands.Listeners`). `FrameCodec.decodeEvents` decodes all of them.
+- **Resync**: `Commands.Meta.RESYNC`, `FrameCodec.encodeResync`/`isResync`
+  (host → guest `META::RESYNC` request), and `Emitter.renderFull()` (re-emit the
+  complete retained tree as one snapshot frame — no re-mount).
 - **Modifiers** (modifier values applied via `.modifier(...)`/`.modifiers(...)`,
   chainable on any view): `Padding`, `ForegroundStyle(Color)` (no `.color()`),
   `Background(Color)`, `Tint`, `Opacity`, `FontSize`, `FontWeightMod`, `Border`

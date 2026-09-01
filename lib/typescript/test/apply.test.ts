@@ -220,3 +220,64 @@ describe("applyBatch · META + design tokens + string props", () => {
     expect(input.value).toBe("01:00");
   });
 });
+
+describe("applyBatch · hydration reconciliation (no-replay-on-connect)", () => {
+  it("reconciles a full snapshot against the SSR-hydrated DOM without clobbering or duplicating", () => {
+    // Simulate SSR: a visible stack with a text child, hydrated into byId.
+    const root = document.createElement("div");
+    const stack = document.createElement("div");
+    stack.setAttribute("data-pathland-id", "1");
+    const span = document.createElement("span");
+    span.setAttribute("data-pathland-id", "2");
+    stack.appendChild(span);
+    root.appendChild(stack);
+    document.body.appendChild(root);
+
+    const r = renderer();
+    r.byId.set(1, stack);
+    r.byId.set(2, span);
+
+    // The full mount frame the server used to replay over WS (TREE + STYLE).
+    const batch = parseBatch(
+      buildBatch(
+        [
+          [CAT_TREE, CMD_CREATE_NODE, 0, 1, COMPONENT_VSTACK],
+          [CAT_TREE, CMD_CREATE_NODE, 0, 2, COMPONENT_TEXT],
+          [CAT_TREE, CMD_INSERT_CHILD, 0, 1, 2],
+          [CAT_STYLE, CMD_SET_TEXT, 0, 2, 0],
+        ],
+        stringEntry("Hello"),
+      ),
+    );
+    applyBatch(batch, r);
+
+    // No duplicates: the hydrated stack still has exactly one element child.
+    expect(stack.children).toHaveLength(1);
+    // The visible hydrated element (not a detached clone) got the text.
+    expect(span.textContent).toBe("Hello");
+    // byId still points at the visible elements.
+    expect(r.byId.get(1)).toBe(stack);
+    expect(r.byId.get(2)).toBe(span);
+
+    document.body.removeChild(root);
+  });
+
+  it("still inserts genuinely new runtime children", () => {
+    const stack = document.createElement("div");
+    stack.setAttribute("data-pathland-id", "1");
+    document.body.appendChild(stack);
+    const r = renderer();
+    r.byId.set(1, stack);
+
+    const batch = parseBatch(
+      buildBatch([
+        [CAT_TREE, CMD_CREATE_NODE, 0, 7, COMPONENT_BUTTON],
+        [CAT_TREE, CMD_INSERT_CHILD, 0, 1, 7],
+      ]),
+    );
+    applyBatch(batch, r);
+    expect(stack.children).toHaveLength(1);
+    expect(r.byId.get(7)?.textContent).toBe("");
+    document.body.removeChild(stack);
+  });
+});

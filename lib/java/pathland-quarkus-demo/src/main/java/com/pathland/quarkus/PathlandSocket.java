@@ -1,5 +1,6 @@
 package com.pathland.quarkus;
 
+import com.pathland.view.transport.FrameCodec;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ClientProxy;
 import io.quarkus.websockets.next.OnBinaryMessage;
@@ -48,7 +49,11 @@ public class PathlandSocket {
 
     @OnBinaryMessage
     void onBinary(byte[] message) {
-        app.dispatch(sessionId(), message);
+        if (FrameCodec.isResync(message)) {
+            app.resync(sessionId());
+        } else {
+            app.dispatch(sessionId(), message);
+        }
     }
 
     /** The per-connection session id: the {@code session} cookie, or a fresh id memoized once. */

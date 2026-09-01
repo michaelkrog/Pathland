@@ -14,8 +14,6 @@ import com.pathland.view.transport.Event;
 import com.pathland.view.transport.FrameCodec;
 import io.quarkus.websockets.next.WebSocketConnection;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -43,9 +41,6 @@ final class SessionApp {
     private final Map<Integer, DateInput> dateInputs;
     private final int rootId;
 
-    /** Frames emitted before the connection attaches, replayed to it on connect. */
-    private final List<Frame> pending = new ArrayList<>();
-
     private volatile WebSocketConnection connection;
 
     SessionApp(String sessionId, StateStore store) {
@@ -54,6 +49,8 @@ final class SessionApp {
 
         // Every completed frame is applied to the session's HTML renderer (for SSR) and,
         // when connected, sent as a delta to THIS session's single client. No broadcast.
+        // The mount frame (emitted in the constructor, before the connection attaches) is
+        // applied for SSR but NOT sent — the client already has the whole UI from the HTML.
         this.sink = new FrameOpcodeSink() {
             @Override
             public void endFrame() {
@@ -61,12 +58,7 @@ final class SessionApp {
                 Frame frame = frame();
                 if (!frame.opcodes().isEmpty()) {
                     html.applyFrame(frame);
-                    WebSocketConnection conn = connection;
-                    if (conn == null || !conn.isOpen()) {
-                        pending.add(frame);
-                    } else {
-                        send(frame);
-                    }
+                    send(frame);
                 }
             }
         };
@@ -84,10 +76,11 @@ final class SessionApp {
     /** Wire the live connection AFTER mount (the initial frame was already SSR'd). */
     void connect(WebSocketConnection connection) {
         this.connection = connection;
-        for (Frame frame : pending) {
-            send(frame);
-        }
-        pending.clear();
+    }
+
+    /** Re-send the current tree as a full snapshot (META::RESYNC). */
+    void resync() {
+        emitter.renderFull();
     }
 
     /** Send a delta frame to this session's single client (no broadcast). */

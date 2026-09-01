@@ -8,6 +8,7 @@ import {
   OPCODE_SIZE,
   VERSION,
 } from "../src/constants";
+import { parseBatch } from "../src/plpl";
 import type { DomRenderer } from "../src/apply";
 
 /** Minimal fake WebSocket for transport tests (happy-dom has no WebSocket global). */
@@ -101,6 +102,27 @@ describe("Transport", () => {
     FakeSocket.instances[0]!.close();
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(FakeSocket.instances.length).toBeGreaterThanOrEqual(2);
+    transport.stop();
+  });
+
+  it("requests a resync (META::RESYNC) on reconnect but not on first connect", async () => {
+    const transport = new Transport({
+      url: "ws://host/ws",
+      renderer: { byId: new Map() },
+      createSocket: fakeFactory,
+    });
+    transport.start();
+    FakeSocket.instances[0]!.emitOpen();
+    expect(FakeSocket.instances[0]!.sent).toHaveLength(0); // no resync on first connect
+
+    FakeSocket.instances[0]!.close();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    const reconnected = FakeSocket.instances[FakeSocket.instances.length - 1]!;
+    reconnected.emitOpen();
+    expect(reconnected.sent).toHaveLength(1);
+    const op = parseBatch(reconnected.sent[0]!).opcodes[0]!;
+    expect(op.category).toBe(0x04); // META
+    expect(op.command).toBe(0x03); // RESYNC
     transport.stop();
   });
 

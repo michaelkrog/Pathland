@@ -50,6 +50,12 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
 - **`EVENT_LISTENERS` gating**: `src/index.ts` reads the SSR `data-event-listeners`
   mask (mirroring the Rust renderer's event attrs) and emits an event only when
   the node opted into it; absent attribute = permissive (no gating info).
+- **Hydration-aware TREE reconciliation** (`src/apply.ts`): `CREATE_NODE` reuses an
+  existing hydrated element (id already in the registry) and `INSERT_CHILD` skips
+  when the child is already in the parent's container — so a resync'd full
+  snapshot reconciles against the SSR DOM without clobbering or duplicating.
+- **`META::RESYNC`** (`encodeResync`): the client requests a full snapshot after
+  **reconnect** (never on first connect — the UI is already the SSR HTML).
 - **Transport** (`src/transport.ts`): WebSocket connect, protocol-version
   negotiation (mismatch → reload), exponential-backoff reconnect, defensive
   per-batch try/catch.
@@ -62,9 +68,9 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
 
 ## Not implemented / gaps
 
-- **Session-resync + `frameCount` gap detection** on reconnect (P3): the
-  `Transport.onBatch` hook is the seam; the client does not yet request a full
-  snapshot or sequence batches.
+- **`frameCount` gap detection** (P3): the client now resyncs on EVERY reconnect via
+  `META::RESYNC`; P3's `frameCount` sequencing lets it resync only when a gap is
+  actually detected.
 - **Canonical keyCode table**: `KEY_DOWN`/`KEY_UP` use the DOM `event.keyCode`
   convention; the renderer-shared canonical set lives in the conformance
   vectors (grant WP2) — cross-check on landing.

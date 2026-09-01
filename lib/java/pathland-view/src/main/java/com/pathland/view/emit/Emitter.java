@@ -35,6 +35,7 @@ public final class Emitter {
     private int nextId = 1;
     private int rootId;
     private boolean mounted;
+    private PathlandNode tree;
 
     public Emitter(OpcodeSink sink) {
         this.sink = Objects.requireNonNull(sink, "sink");
@@ -48,6 +49,7 @@ public final class Emitter {
         mounted = true;
 
         PathlandNode tree = root.render(env);
+        this.tree = tree;
         nextId = 1;
         assignIds(tree);
         tapActions.clear();
@@ -74,6 +76,20 @@ public final class Emitter {
     /** The root node id (0 until mounted). */
     public int rootId() {
         return rootId;
+    }
+
+    /**
+     * Re-emit the complete retained tree as one full-snapshot frame (TREE + STYLE).
+     * Used for {@code META::RESYNC} (reconnect/gap recovery) and no-JS refresh. Does
+     * not re-mount or re-wire state — it replays the current tree through the sink.
+     */
+    public void renderFull() {
+        if (!mounted) {
+            throw new IllegalStateException("Emitter not mounted");
+        }
+        sink.beginFrame();
+        emitNode(tree);
+        sink.endFrame();
     }
 
     /** Stop all registered binding effects (e.g. when tearing down the tree). */

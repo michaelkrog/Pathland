@@ -86,8 +86,11 @@ lib/typescript/                        # DOM RENDERER — @pathland/dom-renderer
                            #   vanilla-TypeScript hydration client (no runtime deps):
                            #   hydrates the SSR HTML by data-pathland-id, decodes
                            #   self-contained PLPL batches, applies STYLE + TREE deltas
-                           #   in place, sends raw-input events over /ws. Built to
-                           #   dist/pathland-dom-renderer.js and copied into both demos.
+                           #   in place, sends raw-input events over /ws. The server
+                           #   NEVER replays the full tree on connect (the client already
+                           #   has it from the HTML); a full snapshot is sent only on an
+                           #   explicit META::RESYNC (client requests it after reconnect).
+                           #   Built to dist/pathland-dom-renderer.js and copied into both demos.
 # ── Retained-UI projection (host/driver surface) ──────────────────────────
 crates/pathland-view-native/ # NATIVE C-ABI shim + NativeHost: flat world over a zero-copy
                           #   shared-memory ring, for Swift/Java/C#/other native hosts

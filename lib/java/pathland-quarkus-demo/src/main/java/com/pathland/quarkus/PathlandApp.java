@@ -89,6 +89,16 @@ public class PathlandApp {
         });
     }
 
+    /** Handle a META::RESYNC request: re-send the session's current tree as a snapshot. */
+    public void resync(String sessionId) {
+        actor.execute(() -> {
+            SessionApp app = sessions.get(sessionId);
+            if (app != null) {
+                app.resync();
+            }
+        });
+    }
+
     /** Close and remove a session. */
     public void close(String sessionId) {
         actor.execute(() -> {

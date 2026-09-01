@@ -1,7 +1,7 @@
 //! Batch wire format: encode/decode opcodes + arena delta into network batches.
 
 use alloc::vec::Vec;
-use pathland_core::{Event, Frame, Opcode, category, event};
+use pathland_core::{Event, Frame, Opcode, category, event, meta};
 
 use crate::{BATCH_MAGIC, BATCH_VERSION};
 
@@ -349,6 +349,18 @@ pub fn encode_frame(opcodes: &[Opcode], strings: &[u8]) -> Vec<u8> {
     encode_batch(0, crate::direction::GUEST_TO_HOST, opcodes, strings)
 }
 
+/// Encode a `META::RESYNC` request batch (host → guest): the host (renderer)
+/// asks the guest (application) to re-send the full tree as a snapshot.
+/// `A/B/C` are all zero; the guest answers with a full-snapshot batch.
+pub fn encode_resync() -> Vec<u8> {
+    encode_batch(
+        0,
+        crate::direction::HOST_TO_GUEST,
+        &[Opcode::new(category::META, meta::RESYNC, 0, 0, 0, 0)],
+        &[],
+    )
+}
+
 /// Decode a self-contained frame batch, returning `(opcodes, strings)`.
 ///
 /// Stateless: unlike [`BatchDecoder`], no arena mirror is maintained, because
@@ -365,12 +377,28 @@ pub fn decode_frame(bytes: &[u8]) -> Result<(Vec<Opcode>, Vec<u8>), BatchError> 
     Ok((opcodes, parsed.arena_delta.to_vec()))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use pathland_core::{category, meta, Opcode};
+#[test]
+    fn encode_resync_is_a_host_to_guest_meta_batch() {
+        let bytes = encode_resync();
+        let parsed = parse(&bytes).unwrap();
+        let count = parsed.opcodes.len() / Opcode::SIZE;
+        assert_eq!(count, 1);
+        let op = Opcode::from_bytes(parsed.opcodes[0..Opcode::SIZE].try_into().unwrap());
+        assert_eq!(op.category(), category::META);
+        assert_eq!(op.command(), meta::RESYNC);
+        assert_eq!(op.a(), 0);
+        assert_eq!(op.b(), 0);
+        assert_eq!(op.c(), 0);
+        assert_eq!(parsed.flags, crate::direction::HOST_TO_GUEST);
+        assert_eq!(parsed.arena_delta.len(), 0);
+    }
 
-    fn sample_opcodes() -> Vec<Opcode> {
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use pathland_core::{category, meta, Opcode};
+
+        fn sample_opcodes() -> Vec<Opcode> {
         vec![
             Opcode::new(category::TREE, 0x01, 0, 1, 0x0010, 0),
             Opcode::new(category::STYLE, 0x03, 0, 1, 0, 0),

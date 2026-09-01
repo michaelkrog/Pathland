@@ -6,6 +6,7 @@
 import type { Batch } from "./plpl";
 import { ProtocolError, parseBatch } from "./plpl";
 import { applyBatch, type DomRenderer } from "./apply";
+import { encodeResync } from "./events";
 import { VERSION } from "./constants";
 
 export type TransportStatus = "connecting" | "open" | "reconnecting";
@@ -72,8 +73,15 @@ export class Transport {
     this.ws = ws;
     ws.binaryType = "arraybuffer";
     ws.onopen = () => {
+      // A reconnect means the client missed deltas while disconnected: request a
+      // full snapshot (META::RESYNC). The first connect never does — the client
+      // already has the whole UI from the SSR HTML.
+      const reconnected = this.attempt > 0;
       this.attempt = 0;
       this.options.onStatus?.("open");
+      if (reconnected) {
+        this.send(encodeResync());
+      }
     };
     ws.onmessage = (event) => this.handleMessage(event.data);
     ws.onerror = () => {
