@@ -23,15 +23,11 @@ public class TailwindCssResource {
                     + "libpathland_render_html is embedded in the pathland-render-html jar. */";
             return;
         }
-        String compiled = renderer.compileTailwind("", safelist());
+        // The class safelist is owned internally by the Rust renderer.
+        String compiled = renderer.compileTailwind("");
         this.css = compiled.startsWith("PATHLAND_TAILWIND_ERROR:")
                 ? "/* Tailwind unavailable: " + compiled.substring("PATHLAND_TAILWIND_ERROR:".length()) + " */"
                 : compiled;
-    }
-
-    private static String safelist() {
-        return "flex flex-col flex-row gap-[12px] p-[8px] w-full w-fit h-full h-fit items-center items-start items-end "
-                + "text-[18px] font-[700] rounded-[8px] blur-[3px] opacity-[0.5] hidden";
     }
 
     @GET

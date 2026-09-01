@@ -26,19 +26,11 @@ public class TailwindCssController {
                     + "libpathland_render_html is embedded in the pathland-render-html jar. */";
             return;
         }
-        String compiled = renderer.compileTailwind("", safelist());
+        // The class safelist is owned internally by the Rust renderer.
+        String compiled = renderer.compileTailwind("");
         this.css = compiled.startsWith("PATHLAND_TAILWIND_ERROR:")
                 ? "/* Tailwind unavailable: " + compiled.substring("PATHLAND_TAILWIND_ERROR:".length()) + " */"
                 : compiled;
-    }
-
-    /** The full structural + decorative class safelist the renderer can emit. */
-    private static String safelist() {
-        // Deliberately mirrors lib/rust crates/pathland-render-html/src/tw.rs.
-        // The demo renders the kitchensink; the Renderer's safelist would be
-        // exposed once a Rust -> Java bridge carries it. For now list the common set.
-        return "flex flex-col flex-row gap-[12px] p-[8px] w-full w-fit h-full h-fit items-center items-start items-end "
-                + "text-[18px] font-[700] rounded-[8px] blur-[3px] opacity-[0.5] hidden";
     }
 
     @GetMapping(value = "/tailwind.css", produces = "text/css")

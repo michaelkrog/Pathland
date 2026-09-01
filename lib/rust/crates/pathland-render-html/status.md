@@ -34,20 +34,25 @@ Statelessness). Protocol contract: `spec/`.
 
 ## In progress (P2a)
 
-- **Tailwind emission — structural (Phase 1, landed)** and **decorative/
-  typography (Phase 2, landed)**: stacks/grids/padding/size/z-index/opacity/
-  visibility/position (Phase 1) plus text size/weight/align, line-clamp/truncate,
-  text-case, underline/strikethrough, italic/font-design, border-radius,
-  blur/saturate/contrast/brightness/grayscale/hue-rotate/invert, rotate/scale/
-  translate, overflow-hidden, pointer-events-none (Phase 2) all emit Tailwind
-  utility classes. **Literal colors and string font-family stay inline** (Option A:
-  color, background, border width/color/edges, shadows are color-dependent and
-  remain renderer-owned inline).
-- **Safelist derivation (`src/tw.rs`)**: `tw::safelist()` lists the exact classes
-  the renderer can emit (named utilities + arbitrary-value ranges for both
-  phases) for the `@source inline(...)` compiler input — generated from the same
-  table used by emission, so emission and safelist cannot drift. Wired into the
-  compiler in Phase 3.
+- **Tailwind class emission — finite enum surface only**: stacks/grids/alignment,
+  text alignment/case, truncate/underline/strikethrough/italic/font-design/
+  invert/pointer-events/overflow, `hidden`, `absolute/relative/inset-0`, the
+  `WIDTH`/`HEIGHT` FILL/HUG sentinels (`w-full`/`w-fit`/`h-full`/`h-fit`), and
+  `grid-cols-N` (naturally bounded). These are all **protocol-enum-derived or
+  fixed** values.
+- **Arbitrary-number (dp/point) styling renders inline**: spacing, padding,
+  margins, size, offset/position, rotation, scale, filters, opacity, z-index,
+  border-radius, shadow — emitted as inline `style` (e.g. `gap:12px`,
+  `padding:8px`, `rotate(90deg)`), because Tailwind can only statically safelist
+  finite classes and dp values are unbounded. **1 dp = 1 CSS px** (renderer
+  interpretation; SwiftUI-style points).
+- **Static, complete safelist (`tw::safelist()`)** derived only from what the
+  protocol can emit as enum/finite classes — compiled once at startup, never
+  changes, small (~50–80 rules). Arbitrary dp values contribute no class/CSS.
+- **`compileTailwind` owns the safelist internally**: `pathland_tailwind_compile`
+  (and Java `compileTailwind`) take `(default_css, override_css)` — the `classes`
+  parameter was dropped. The renderer assembles its own safelist. No host
+  re-derives/replicates it.
 - **Tailwind v4 integration (Phase 3, landed)**: `tailwind.rs` provides the
   bundled default `@theme` config (Inter, OFL) + `assemble_input(default,
   override, classes)` (pure, tested) + `compile(...)` that spawns the compiler
@@ -57,7 +62,7 @@ Statelessness). Protocol contract: `spec/`.
   `tailwindcss` v4.x standalone binary (per-platform, offline-capable) into
   `vendor/<target-triple>/`. With the feature off, `compile` falls back to a
   `tailwindcss` on PATH or returns a clear error. C ABI
-  `pathland_tailwind_compile(default, override, classes) -> char*` returns the
+  `pathland_tailwind_compile(default, override) -> char*` returns the
   compiled CSS (or a `PATHLAND_TAILWIND_ERROR: …` message). `THIRD_PARTY_NOTICES`
   covers Tailwind (MIT) + Inter (OFL).
   - **Robustness**: `compile()` detects "exited 0 but no output file" and
@@ -66,8 +71,7 @@ Statelessness). Protocol contract: `spec/`.
     in/out filenames are unique per call (no parallel-compile collision).
   - **Verified end-to-end**: with `tailwind-embed` enabled and the real binary
     embedded, the Spring fat jar's `/tailwind.css` returns compiled Tailwind
-    v4.3.3 CSS (`.flex`, `.flex-col`, `.gap`, …) with no `java.library.path` —
-    the jar is self-contained.
+    v4.3.3 CSS with no `java.library.path` — the jar is self-contained.
 - **C ABI cdylib** (`pathland_html_render` / `_render_fragment` /
   `_tailwind_compile` / `_free`) for cross-language hosts (Java JNA shim).
 

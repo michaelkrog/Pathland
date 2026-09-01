@@ -40,10 +40,12 @@ pub fn assemble_input(default_css: &str, override_css: &str, classes: &str) -> S
 }
 
 /// Compile the CSS bundle. `default_css` is [`DEFAULT_THEME_CSS`] unless the
-/// host overrides it; `override_css` is the developer's v4 CSS; `classes` is
-/// the space-separated class safelist (renderer-derived + developer content).
-pub fn compile(default_css: &str, override_css: &str, classes: &str) -> Result<String, String> {
-    let input = assemble_input(default_css, override_css, classes);
+/// host overrides it; `override_css` is the developer's v4 CSS. The class
+/// safelist is owned internally by the renderer (`crate::tw::safelist()`) — the
+/// finite, protocol-enum-derived set — and merged into the compile input here.
+pub fn compile(default_css: &str, override_css: &str) -> Result<String, String> {
+    let classes = crate::tw::safelist();
+    let input = assemble_input(default_css, override_css, &classes);
     let binary = resolve_binary()?;
 
     // Unique temp names per call: std::process::id() alone collides when two
@@ -165,7 +167,7 @@ mod tests {
     #[test]
     fn embedded_binary_compiles_real_css() {
         // The embedded standalone binary must actually turn the safelist into CSS.
-        let css = compile(DEFAULT_THEME_CSS, "", "flex flex-col gap-[12px] p-[8px]").expect("compile");
+        let css = compile(DEFAULT_THEME_CSS, "").expect("compile");
         assert!(css.contains(".flex"), "flex utility present: {}", css);
         assert!(css.contains(".flex-col"), "flex-col utility present");
         assert!(css.contains("gap"), "gap utility present");
@@ -176,7 +178,7 @@ mod tests {
     fn without_embed_reports_binary_unavailable() {
         // Without the embedded binary and no tailwindcss on PATH, compile must
         // return a clear error (not a cryptic read failure).
-        let err = compile(DEFAULT_THEME_CSS, "", "flex").unwrap_err();
+        let err = compile(DEFAULT_THEME_CSS, "").unwrap_err();
         assert!(err.contains("tailwindcss binary unavailable") || err.contains("produced no output"),
             "clear error: {err}");
     }

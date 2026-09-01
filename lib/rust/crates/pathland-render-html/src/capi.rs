@@ -72,18 +72,17 @@ pub unsafe extern "C" fn pathland_html_free(ptr: *const c_char) {
 }
 
 /// Compile the Tailwind CSS bundle at application start. `default_css` and
-/// `override_css` are NUL-terminated CSS strings (the override may be empty);
-/// `classes` is the space-separated class safelist. Returns a NUL-terminated
+/// `override_css` are NUL-terminated CSS strings (the override may be empty).
+/// The class safelist is owned internally by the renderer. Returns a NUL-terminated
 /// C string: the compiled CSS on success, or a `PATHLAND_TAILWIND_ERROR: …`
 /// message on failure (caller releases with `pathland_html_free`).
 ///
 /// # Safety
-/// All three pointers must be readable NUL-terminated strings (or NULL → "").
+/// Both pointers must be readable NUL-terminated strings (or NULL → "").
 #[no_mangle]
 pub unsafe extern "C" fn pathland_tailwind_compile(
     default_css: *const c_char,
     override_css: *const c_char,
-    classes: *const c_char,
 ) -> *mut c_char {
     let read = |ptr: *const c_char| {
         if ptr.is_null() {
@@ -99,8 +98,7 @@ pub unsafe extern "C" fn pathland_tailwind_compile(
         default_raw
     };
     let override_css = read(override_css);
-    let classes = read(classes);
-    let result = tailwind::compile(&default, &override_css, &classes);
+    let result = tailwind::compile(&default, &override_css);
     let output = match result {
         Ok(css) => css,
         Err(err) => format!("PATHLAND_TAILWIND_ERROR: {err}"),
@@ -152,7 +150,7 @@ mod tests {
         // With the tailwind-embed feature the embedded binary compiles real CSS;
         // without it (and no tailwindcss on PATH) compile must return a clear
         // error string, not crash.
-        let ptr = unsafe { pathland_tailwind_compile(std::ptr::null(), std::ptr::null(), std::ptr::null()) };
+        let ptr = unsafe { pathland_tailwind_compile(std::ptr::null(), std::ptr::null()) };
         assert!(!ptr.is_null());
         let msg = unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned();
         #[cfg(feature = "tailwind-embed")]
