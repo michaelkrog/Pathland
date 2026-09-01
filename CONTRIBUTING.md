@@ -21,8 +21,8 @@ Found a vulnerability? **Do not open a public issue** — report it privately pe
   `pathland-view-native`, `pathland-render-gtk-demo`.
 - `lib/java/` — the Maven reactor: `pathland-view` (`com.pathland.view`),
   `pathland-view-processor`, `pathland-render-html`, `pathland-state-redis`,
-  `pathland-demo-views`, and the Quarkus/Spring demos (which also ship the
-  vanilla-JS `app.js` web client).
+  `pathland-demo-views`, the Quarkus/Spring demos, and the TypeScript DOM
+  renderer (`lib/typescript`).
 - `spec/` — the protocol contract: `OPCODE.md` (primary), `PRIMITIVES.md`,
   `MODIFIERS.md`, `EVENTS.md`, `CONFORMANCE.md` (golden vectors), `DSL.md`
   (authoring surface).
@@ -84,8 +84,8 @@ CI runs exactly these commands (`.github/workflows/ci.yml`).
   `version` field (currently 1) per `spec/OPCODE.md`.
 - New components/properties: allocate IDs in the specs + `constants.rs`
   (`lib/rust/crates/pathland-core/src/constants.rs`), then mirror across
-  `lib/java/…/Components.java`/`Properties.java` (and the demos' `app.js`
-  constants), and update each renderer + its `status.md`.
+  `lib/java/…/Components.java`/`Properties.java` and `lib/typescript/src/constants.ts`,
+  and update each renderer + its `status.md`.
 
 ## Non-negotiable principles
 

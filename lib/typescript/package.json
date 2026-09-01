@@ -1,0 +1,20 @@
+{
+  "name": "@pathland/dom-renderer",
+  "version": "0.1.0",
+  "description": "The Pathland DOM renderer: hydrates SSR HTML, applies PLPL opcode deltas (STYLE + TREE) in place, and reports raw inputs back over WebSocket. Vanilla TypeScript, zero runtime dependencies.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "npm run typecheck && esbuild src/index.ts --bundle --minify --format=iife --outfile=dist/pathland-dom-renderer.js",
+    "test": "vitest run",
+    "copy-to-demos": "node scripts/copy-to-demos.mjs",
+    "build:all": "npm run build && npm run copy-to-demos"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.2",
+    "happy-dom": "^15.11.7",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  }
+}

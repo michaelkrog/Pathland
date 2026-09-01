@@ -140,7 +140,7 @@ final class SessionApp {
     /** The session's current SSR HTML (with the client script injected). */
     String renderHtml() {
         return html.render(rootId)
-                .replace("</body>", "<script src=\"/app.js\" defer></script></body>");
+                .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
 
     /** Tear down: close the persistent state, unsubscribe the emitter, drop the connection. */

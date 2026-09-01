@@ -121,7 +121,7 @@ memory (or a byte stream), so the exact same engine and wire format serve five
 distinct execution modes.
 
 > **Implementation status:** the **native desktop** (c) and **distributed
-> WebSocket** (d) paths — including the SSR HTML web client (`app.js`) — are
+> WebSocket** (d) paths — including the SSR HTML web client (the DOM renderer) — are
 > implemented today. The **embedded** (a), **in-browser WASM** (b), and
 > **microfrontend** (e) modes, the planned **gRPC** transport, and the
 > SwiftUI/AppKit/WinUI renderers are **roadmap targets** enabled by the
@@ -279,13 +279,18 @@ cd lib/rust && ./check-wasm.sh
 cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-render-gtk-demo
 ```
 
-## Web Client (SSR HTML + app.js)
+## Web Client (the DOM renderer — `lib/typescript`)
 
 The browser client is the **SSR HTML renderer** (`pathland-render-html`, and its
-Java counterpart `com.pathland.render.html`), hydrated by a small vanilla-JS
-client — `app.js`, shipped in both demos. It hydrates the server-rendered DOM by
-`data-pathland-id`, decodes each self-contained `PLPL` batch, applies opcode
-deltas in place, and sends raw-input events back over the `/ws` socket.
+Java counterpart `com.pathland.render.html`), hydrated by the **Pathland DOM
+renderer** — `@pathland/dom-renderer` (TypeScript, `lib/typescript/`, no runtime
+deps). Built as `dist/pathland-dom-renderer.js` and copied into both demos'
+static resources, it hydrates the server-rendered DOM by `data-pathland-id`,
+decodes each self-contained `PLPL` batch (bounds-checked), applies `STYLE`
+deltas **and `TREE` structural deltas** in place, and sends raw-input events
+back over the `/ws` socket. Styling is server-owned (Tailwind classes in the
+SSR HTML); runtime style deltas are applied by the DOM renderer as inline style
+and design tokens as CSS variables.
 
 ## Components & Properties
 

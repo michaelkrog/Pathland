@@ -81,11 +81,13 @@ crates/pathland-render-gtk/ # RENDERER — host reader (RenderTree) + maps opcod
 crates/pathland-render-html/ # RENDERER — maps opcode frames onto declarative HTML (flex
 #   stacks, spans, buttons) as a pure function of the stream; the
                            #   server-side/remote-projection target (Goal #15).
-# ── Web client (SSR HTML + app.js) ─────────────────────────────────────────
-lib/java/*-demo/src/main/resources/**/app.js   # WEB CLIENT — a small vanilla-JS hydration
-                           #   client: hydrates the SSR HTML by data-pathland-id, decodes
-                           #   self-contained PLPL batches, applies opcode deltas in place,
-                           #   sends raw-input events over /ws. No framework.
+# ── Web client (DOM renderer, lib/typescript) ──────────────────────────────
+lib/typescript/                        # DOM RENDERER — @pathland/dom-renderer: a small
+                           #   vanilla-TypeScript hydration client (no runtime deps):
+                           #   hydrates the SSR HTML by data-pathland-id, decodes
+                           #   self-contained PLPL batches, applies STYLE + TREE deltas
+                           #   in place, sends raw-input events over /ws. Built to
+                           #   dist/pathland-dom-renderer.js and copied into both demos.
 # ── Retained-UI projection (host/driver surface) ──────────────────────────
 crates/pathland-view-native/ # NATIVE C-ABI shim + NativeHost: flat world over a zero-copy
                           #   shared-memory ring, for Swift/Java/C#/other native hosts

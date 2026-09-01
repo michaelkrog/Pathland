@@ -129,7 +129,7 @@ final class SessionApp {
 
     String renderHtml() {
         return html.render(rootId)
-                .replace("</body>", "<script src=\"/app.js\" defer></script></body>");
+                .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
 
     void close() {
