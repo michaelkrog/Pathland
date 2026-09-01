@@ -34,11 +34,25 @@ Statelessness). Protocol contract: `spec/`.
 
 ## In progress (P2a)
 
-- **Tailwind-class emission** (replacing inline `style` for structural/layout;
-  literal hex colors stay inline per Option A) + safelist derivation.
-- **Tailwind v4 integration**: embedded per-platform standalone binary (MIT,
-  bundled per the pinned license), default `@theme` + Inter config, developer
-  override, compile-at-startup (`pathland_tailwind_compile`), serve compiled CSS.
+- **Tailwind structural emission (Phase 1 — landed)**: stacks → `flex flex-col`/
+  `flex flex-row` + `gap-[Npx]` + `items-*`; padding/content-margins →
+  `p-[Npx]`/per-edge; width/height → `w-[Npx]`/`w-full`/`w-fit`; spacer →
+  `flex-1`; scrollview → `overflow-auto`; grid → `grid grid-cols-N`; z-index →
+  `z-[N]`; opacity → `opacity-[N]`; `VISIBLE=0` → `hidden`; position/offset →
+  `absolute` + `left-[Npx]`/`top-[Npx]`; zstack → `relative w-full h-full` +
+  `absolute inset-0` children. Literal hex colors stay inline (Option A).
+  Decorative/typography props (color, background, fonts, borders, shadows,
+  effects, text layout) remain inline (Phase 2).
+- **Safelist derivation (`src/tw.rs`)**: `tw::safelist()` lists the exact
+  structural classes the renderer can emit (named utilities + arbitrary-value
+  ranges) for the `@source inline(...)` compiler input; the class set is
+  generated from the same table used by emission, so emission and safelist
+  cannot drift. Runtime-collected arbitrary values complement it once the
+  compiler is wired.
+- **Tailwind v4 integration (Phase 3)**: embedded per-platform standalone binary
+  (MIT, bundled per the pinned license, feature-gated), default `@theme` + Inter
+  config, developer override, compile-at-startup (`pathland_tailwind_compile`),
+  serve compiled CSS.
 - **C ABI cdylib** (`pathland_html_render` / `_render_fragment` /
   `_tailwind_compile` / `_free`) for cross-language hosts (Java JNA shim).
 

@@ -21,6 +21,7 @@ use pathland_core::{
 };
 
 mod capi;
+mod tw;
 
 /// A decoded node in the retained description.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -193,6 +194,61 @@ impl Node {
         }
 
         css
+    }
+
+    /// Structural Tailwind classes for this node (Phase 1): padding/size/z-index/
+    /// opacity/visibility/position. Decorative props (color, background, fonts,
+    /// borders, effects, text layout) stay inline in Phase 1 via [`Self::style_css`].
+    fn style_classes(&self) -> String {
+        let padding = self
+            .properties
+            .get(&property_id::PADDING)
+            .map(|bits| f32::from_bits(*bits));
+        let edges: Vec<(u16, f32)> = [
+            (0, property_id::PADDING_TOP),
+            (1, property_id::PADDING_RIGHT),
+            (2, property_id::PADDING_BOTTOM),
+            (3, property_id::PADDING_LEFT),
+        ]
+        .into_iter()
+        .filter_map(|(idx, prop)| {
+            self.properties
+                .get(&prop)
+                .map(|bits| (idx, f32::from_bits(*bits)))
+        })
+        .collect();
+        let margins = self.content_margins();
+        let width = self.properties.get(&property_id::WIDTH).map(|b| f32::from_bits(*b));
+        let height = self.properties.get(&property_id::HEIGHT).map(|b| f32::from_bits(*b));
+        let z_index = self
+            .properties
+            .get(&property_id::Z_INDEX)
+            .map(|bits| f32::from_bits(*bits) as i32);
+        let opacity = self
+            .properties
+            .get(&property_id::OPACITY)
+            .map(|bits| f32::from_bits(*bits));
+        let visible = self
+            .properties
+            .get(&property_id::VISIBLE)
+            .map(|bits| *bits != 0)
+            .unwrap_or(true);
+        let position = if let (Some(x), Some(y)) = (
+            self.properties.get(&property_id::POSITION_X).map(|b| f32::from_bits(*b)),
+            self.properties.get(&property_id::POSITION_Y).map(|b| f32::from_bits(*b)),
+        ) {
+            Some((x, y))
+        } else {
+            None
+        };
+
+        let mut parts = vec![
+            tw::padding_classes(padding, &edges, margins),
+            tw::size_classes(width, height),
+            tw::structural_classes(z_index, opacity, visible, position),
+        ];
+        parts.retain(|s| !s.is_empty());
+        parts.join(" ")
     }
 
     /// Border CSS, decoded from `BORDER_WIDTH`/`BORDER_COLOR`/`BORDER_RADIUS`/
@@ -510,21 +566,23 @@ impl HtmlRenderer {
         let data_id = format!(" data-pathland-id=\"{id}\"");
         let css = format!("{}{}", node.style_css(), node.border_style());
         let style = style_attr(&css);
+        let classes = node.style_classes();
+        let class = class_attr(&classes);
         let event = event_attrs(node);
         let aria = aria_attrs(node);
 
         match node.component {
-            component_type::VSTACK => wrap_stack(id, "column", node, &children, &css, &event, &aria),
-            component_type::HSTACK => wrap_stack(id, "row", node, &children, &css, &event, &aria),
+            component_type::VSTACK => wrap_stack(id, "column", node, &children, &css, &classes, &event, &aria),
+            component_type::HSTACK => wrap_stack(id, "row", node, &children, &css, &classes, &event, &aria),
             component_type::LAZY_VSTACK => {
-                wrap_stack(id, "column", node, &children, &css, &event, &aria)
+                wrap_stack(id, "column", node, &children, &css, &classes, &event, &aria)
             }
             component_type::LAZY_HSTACK => {
-                wrap_stack(id, "row", node, &children, &css, &event, &aria)
+                wrap_stack(id, "row", node, &children, &css, &classes, &event, &aria)
             }
             component_type::TEXT => {
                 let text = escape(node.text.as_deref().unwrap_or_default());
-                format!("<span{data_id}{event}{aria}{style}>{text}</span>")
+                format!("<span{data_id}{event}{aria}{class}{style}>{text}</span>")
             }
             component_type::BUTTON => {
                 // Composite Override Mode: children present → custom body.
@@ -533,7 +591,7 @@ impl HtmlRenderer {
                 } else {
                     children
                 };
-                format!("<button{data_id}{event}{aria}{style}>{body}</button>")
+                format!("<button{data_id}{event}{aria}{class}{style}>{body}</button>")
             }
             component_type::TOGGLE => {
                 let toggle_style = node.f32_property(property_id::TOGGLE_STYLE, 0.0).round() as u8;
@@ -546,24 +604,24 @@ impl HtmlRenderer {
                 } else {
                     format!("<div class=\"pathland-custom-body\">{children}</div>")
                 };
+                let toggle_class = class_attr(&format!("pathland-toggle {classes}"));
                 match toggle_style {
                     1 => format!(
-                        "<label{data_id}{event}{aria} class=\"pathland-toggle\"{style}><input type=\"checkbox\"{checked}>{body}</label>"
+                        "<label{data_id}{event}{aria}{toggle_class}{style}><input type=\"checkbox\"{checked}>{body}</label>"
                     ),
                     2 => {
                         let pressed = if node.checked() { "true" } else { "false" };
                         format!(
-                            "<button{data_id}{event}{aria} type=\"button\" aria-pressed=\"{pressed}\"{style}>{body}</button>"
+                            "<button{data_id}{event}{aria}{class} type=\"button\" aria-pressed=\"{pressed}\"{style}>{body}</button>"
                         )
                     }
                     _ => format!(
-                        "<label{data_id}{event}{aria} class=\"pathland-toggle\"{style}><input type=\"checkbox\" role=\"switch\"{checked}>{body}</label>"
+                        "<label{data_id}{event}{aria}{toggle_class}{style}><input type=\"checkbox\" role=\"switch\"{checked}>{body}</label>"
                     ),
                 }
             }
             component_type::SPACER => {
-                let css = format!("flex:1;{css}");
-                format!("<div{data_id}{event}{aria} style=\"{css}\"></div>")
+                format!("<div{data_id}{event}{aria} class=\"flex-1\"{style}></div>")
             }
             component_type::SLIDER => {
                 let min = node.f32_property(property_id::MIN_VALUE, 0.0);
@@ -577,8 +635,9 @@ impl HtmlRenderer {
                 } else {
                     format!("<div class=\"pathland-custom-body\">{children}</div>")
                 };
+                let slider_class = class_attr(&format!("pathland-slider {classes}"));
                 format!(
-                    "<label{data_id}{event}{aria} class=\"pathland-slider\"{style}><input type=\"range\" min=\"{min}\" max=\"{max}\" step=\"any\" value=\"{value}\">{body}</label>"
+                    "<label{data_id}{event}{aria}{slider_class}{style}><input type=\"range\" min=\"{min}\" max=\"{max}\" step=\"any\" value=\"{value}\">{body}</label>"
                 )
             }
             component_type::TEXT_FIELD => {
@@ -600,13 +659,14 @@ impl HtmlRenderer {
                 } else {
                     "text"
                 };
+                let textfield_class = class_attr(&format!("pathland-textfield {classes}"));
                 format!(
-                    "<label{data_id}{event}{aria} class=\"pathland-textfield\"{style}><span class=\"pathland-label\">{label}</span><input type=\"{input_type}\" value=\"{value}\" placeholder=\"{prompt}\"></label>"
+                    "<label{data_id}{event}{aria}{textfield_class}{style}><span class=\"pathland-label\">{label}</span><input type=\"{input_type}\" value=\"{value}\" placeholder=\"{prompt}\"></label>"
                 )
             }
             component_type::TEXT_EDITOR => {
                 let value = escape(node.text.as_deref().unwrap_or_default());
-                format!("<textarea{data_id}{event}{aria} rows=\"4\"{style}>{value}</textarea>")
+                format!("<textarea{data_id}{event}{aria}{class} rows=\"4\"{style}>{value}</textarea>")
             }
             component_type::IMAGE => {
                 let src = escape(
@@ -615,14 +675,14 @@ impl HtmlRenderer {
                         .map(String::as_str)
                         .unwrap_or_default(),
                 );
-                format!("<img{data_id}{event}{aria} src=\"{src}\"{style}>")
+                format!("<img{data_id}{event}{aria}{class} src=\"{src}\"{style}>")
             }
             component_type::COLOR => {
                 let color = node.u32_property(property_id::COLOR, 0xFF00_0000);
                 // Layout-greedy (SwiftUI Color): expands to the available space
                 // unless a size modifier constrains it.
                 format!(
-                    "<div{data_id}{event}{aria} style=\"flex:1 1 auto;align-self:stretch;background-color:{};{css}\">{children}</div>",
+                    "<div{data_id}{event}{aria}{class} style=\"flex:1 1 auto;align-self:stretch;background-color:{};{css}\">{children}</div>",
                     rgba(color)
                 )
             }
@@ -641,7 +701,7 @@ impl HtmlRenderer {
                     0 | 4 => "border-radius:50%;",
                     2 => {
                         let r = node.f32_property(property_id::BORDER_RADIUS, 8.0);
-                        return format!("<div{data_id}{event}{aria} style=\"{base}border-radius:{r}px;\"></div>");
+                        return format!("<div{data_id}{event}{aria}{class} style=\"{base}border-radius:{r}px;\"></div>");
                     }
                     3 => "border-radius:9999px;",
                     5 => {
@@ -652,7 +712,7 @@ impl HtmlRenderer {
                     }
                     _ => "",
                 };
-                format!("<div{data_id}{event}{aria} style=\"{base}{shape_css}\"></div>")
+                format!("<div{data_id}{event}{aria}{class} style=\"{base}{shape_css}\"></div>")
             }
             component_type::DIVIDER => {
                 let width = node.f32_property(property_id::BORDER_WIDTH, 1.0);
@@ -663,19 +723,20 @@ impl HtmlRenderer {
                     .map(rgba)
                     .unwrap_or_else(|| "rgba(0,0,0,0.2)".to_string());
                 format!(
-                    "<div{data_id}{event}{aria} style=\"height:0;border-top:{width}px solid {color};\"></div>"
+                    "<div{data_id}{event}{aria}{class} style=\"height:0;border-top:{width}px solid {color};\"></div>"
                 )
             }
             component_type::PROGRESS_VIEW => {
                 let indeterminate = node.f32_property(property_id::IS_INDETERMINATE, 0.0) != 0.0
                     || node.f32_property(property_id::PROGRESS, -1.0) < 0.0;
-                if indeterminate {
-                    format!("<div{data_id} class=\"pathland-spinner\"{style}></div>")
+if indeterminate {
+                    let spinner_class = class_attr(&format!("pathland-spinner {classes}"));
+                    format!("<div{data_id}{spinner_class}{style}></div>")
                 } else {
                     let value = node.f32_property(property_id::PROGRESS, 0.0);
                     let max = node.f32_property(property_id::MAX_VALUE, 1.0);
                     format!(
-                        "<progress{data_id}{event}{aria} value=\"{value}\" max=\"{max}\"{style}></progress>"
+                        "<progress{data_id}{event}{aria}{class} value=\"{value}\" max=\"{max}\"{style}></progress>"
                     )
                 }
             }
@@ -688,30 +749,20 @@ impl HtmlRenderer {
                 } else {
                     0.0
                 };
+                let gauge_class = class_attr(&format!("pathland-gauge {classes}"));
                 format!(
-                    "<div{data_id}{event}{aria} class=\"pathland-gauge\"{style}><div style=\"width:{pct}%\"></div></div>"
+                    "<div{data_id}{event}{aria}{gauge_class}{style}><div style=\"width:{pct}%\"></div></div>"
                 )
             }
             component_type::GRID | component_type::LAZY_VGRID | component_type::LAZY_HGRID => {
                 let cols = grid_columns(node);
-                let gap = node
-                    .spacing()
-                    .map(|s| format!("gap:{s}px;"))
-                    .unwrap_or_default();
-                let template = cols
-                    .map(|n| format!("grid-template-columns:repeat({n},1fr);"))
-                    .unwrap_or_default();
-                let flow = if node.component == component_type::LAZY_HGRID {
-                    "grid-auto-flow:column;grid-auto-columns:1fr;"
-                } else {
-                    ""
-                };
-                format!(
-                    "<div{data_id}{event}{aria} style=\"display:grid;{template}{flow}{gap}{css}\">{children}</div>"
-                )
+                let grid = tw::grid_classes(cols, node.spacing(), node.component == component_type::LAZY_HGRID);
+                let class = class_attr(&grid);
+                format!("<div{data_id}{event}{aria}{class}{style}>{children}</div>")
             }
             component_type::SCROLLVIEW => {
-                format!("<div{data_id}{event}{aria} style=\"overflow:auto;{css}\">{children}</div>")
+                let class = class_attr(&format!("overflow-auto {classes}"));
+                format!("<div{data_id}{event}{aria}{class}{style}>{children}</div>")
             }
             component_type::ZSTACK => {
                 let inner: String = node
@@ -722,13 +773,12 @@ impl HtmlRenderer {
                         if child_html.is_empty() {
                             String::new()
                         } else {
-                            format!("<div style=\"position:absolute;inset:0\">{child_html}</div>")
+                            format!("<div class=\"absolute inset-0\">{child_html}</div>")
                         }
                     })
                     .collect();
-                format!(
-                    "<div{data_id}{event}{aria} style=\"position:relative;width:100%;height:100%;{css}\">{inner}</div>"
-                )
+                let class = class_attr(&format!("relative w-full h-full {classes}"));
+                format!("<div{data_id}{event}{aria}{class}{style}>{inner}</div>")
             }
             component_type::STEPPER => {
                 let min = node.f32_property(property_id::MIN_VALUE, 0.0);
@@ -736,7 +786,7 @@ impl HtmlRenderer {
                 let value = node.f32_property(property_id::VALUE, min);
                 let step = node.f32_property(property_id::STEP_VALUE, 1.0);
                 format!(
-                    "<input{data_id}{event}{aria} type=\"number\" min=\"{min}\" max=\"{max}\" step=\"{step}\" value=\"{value}\"{style}>"
+                    "<input{data_id}{event}{aria}{class} type=\"number\" min=\"{min}\" max=\"{max}\" step=\"{step}\" value=\"{value}\"{style}>"
                 )
             }
             component_type::DATE_PICKER => {
@@ -762,7 +812,7 @@ impl HtmlRenderer {
                     },
                     None => ("date", String::new()),
                 };
-                format!("<input{data_id}{event}{aria} type=\"{t}\" value=\"{value}\"{style}>")
+                format!("<input{data_id}{event}{aria}{class} type=\"{t}\" value=\"{value}\"{style}>")
             }
             component_type::PICKER => {
                 let selected = node.u32_property(property_id::SELECTION, 0);
@@ -779,12 +829,12 @@ impl HtmlRenderer {
                         format!("<option value=\"{i}\"{sel}>{}</option>", escape(&label))
                     })
                     .collect();
-                format!("<select{data_id}{event}{aria}{style}>{options}</select>")
+                format!("<select{data_id}{event}{aria}{class}{style}>{options}</select>")
             }
             component_type::MENU => {
                 let label = escape(node.text.as_deref().unwrap_or_default());
                 format!(
-                    "<div{data_id}{event}{aria} role=\"menu\"{style}><button type=\"button\">{label}</button>{children}</div>"
+                    "<div{data_id}{event}{aria}{class} role=\"menu\"{style}><button type=\"button\">{label}</button>{children}</div>"
                 )
             }
             component_type::COLOR_PICKER => {
@@ -795,7 +845,7 @@ impl HtmlRenderer {
                     (color >> 8) & 0xFF,
                     color & 0xFF
                 );
-                format!("<input{data_id}{event}{aria} type=\"color\" value=\"{hex}\"{style}>")
+                format!("<input{data_id}{event}{aria}{class} type=\"color\" value=\"{hex}\"{style}>")
             }
             component_type::COMMENT => String::new(),
             _ => String::new(),
@@ -808,21 +858,20 @@ impl HtmlRenderer {
         node: &Node,
         children: &str,
         css: &str,
+        _classes: &str,
         event: &str,
         aria: &str,
     ) -> String {
-        let gap = node
-            .spacing()
-            .map(|s| format!("gap:{s}px;"))
-            .unwrap_or_default();
-        let margins = node
-            .content_margins()
-            .map(|m| format!("padding:{m}px;"))
-            .unwrap_or_default();
+        let gap = node.spacing();
+        let alignment = node
+            .properties
+            .get(&property_id::ALIGNMENT)
+            .map(|bits| f32::from_bits(*bits) as u8)
+            .unwrap_or(3);
+        let stack = tw::stack_classes(direction, alignment, gap);
+        let class = class_attr(&stack);
         format!(
-            "<div data-pathland-id=\"{id}\"{event}{aria} style=\"display:flex;flex-direction:{direction};{gap}{}{}{css}\">{children}</div>",
-            node.alignment_css(),
-            margins,
+            "<div data-pathland-id=\"{id}\"{event}{aria}{class} style=\"{css}\">{children}</div>",
         )
     }
 
@@ -832,6 +881,16 @@ fn style_attr(css: &str) -> String {
         String::new()
     } else {
         format!(" style=\"{css}\"")
+    }
+}
+
+/// A `class="…"` attribute for a non-empty Tailwind class list.
+fn class_attr(classes: &str) -> String {
+    let classes = classes.trim();
+    if classes.is_empty() {
+        String::new()
+    } else {
+        format!(" class=\"{classes}\"")
     }
 }
 
@@ -867,7 +926,7 @@ mod tests {
 
         let html = renderer.render_document(&opcodes, &strings, 1);
         assert!(html.contains("<!DOCTYPE html>"));
-        assert!(html.contains("flex-direction:column"));
+        assert!(html.contains("class=\"flex flex-col\""));
         assert!(html.contains("<span data-pathland-id=\"2\">Hello</span>"));
         assert!(html.contains("data-pathland-id=\"1\""));
     }
@@ -1237,8 +1296,7 @@ mod tests {
 
         let renderer = HtmlRenderer::new();
         let html = renderer.render_document(&opcodes, &[], 1);
-        assert!(html.contains("display:grid"));
-        assert!(html.contains("grid-template-columns:repeat(2,1fr)"));
+        assert!(html.contains("class=\"grid grid-cols-2\""));
     }
 
     #[test]
@@ -1253,11 +1311,11 @@ mod tests {
 
         let renderer = HtmlRenderer::new();
         let scroll = renderer.render_document(&opcodes, &[], 1);
-        assert!(scroll.contains("overflow:auto"));
+        assert!(scroll.contains("class=\"overflow-auto\""));
         assert!(scroll.contains("<span data-pathland-id=\"2\"></span>"));
         let zstack = renderer.render_document(&opcodes, &[], 3);
-        assert!(zstack.contains("position:relative"));
-        assert!(zstack.contains("position:absolute;inset:0"));
+        assert!(zstack.contains("class=\"relative w-full h-full\""));
+        assert!(zstack.contains("class=\"absolute inset-0\""));
     }
 
     #[test]
@@ -1428,7 +1486,7 @@ mod tests {
 
         let renderer = HtmlRenderer::new();
         let html = renderer.render_document(&opcodes, &[], 1);
-        assert!(html.contains("align-items:flex-start"));
+        assert!(html.contains("class=\"flex flex-col items-start\""));
     }
 
     #[test]
@@ -1487,5 +1545,74 @@ mod tests {
         assert!(html.contains("color:rgba(17,34,51,1)"));
         assert!(html.contains("font-size:18px"));
         assert!(html.contains("display:none"));
+    }
+
+    #[test]
+    fn safelist_covers_every_structural_class() {
+        let list = tw::safelist();
+        for class in [
+            "flex",
+            "flex-col",
+            "flex-row",
+            "items-start",
+            "items-center",
+            "items-end",
+            "gap-[12px]",
+            "p-[8px]",
+            "pt-[4px]",
+            "w-full",
+            "w-fit",
+            "w-[320px]",
+            "h-[200px]",
+            "flex-1",
+            "grid",
+            "grid-cols-3",
+            "grid-flow-col",
+            "overflow-auto",
+            "absolute",
+            "relative",
+            "inset-0",
+            "hidden",
+            "z-[5]",
+            "opacity-[0.5]",
+            "left-[16px]",
+            "top-[8px]",
+        ] {
+            assert!(list.contains(class), "safelist missing {class}");
+        }
+    }
+
+    #[test]
+    fn renders_stack_with_gap_and_structural_child_classes() {
+        use pathland_core::value_type;
+
+        let mut opcodes = Vec::new();
+        let mut strings = Vec::new();
+        opcodes.push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, 1, component_type::VSTACK as u32, 0));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            ((value_type::F32 as u32) << 16) | property_id::SPACING as u32,
+            12.0f32.to_bits(),
+        ));
+        opcodes.push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, 2, component_type::TEXT as u32, 0));
+        opcodes.push(Opcode::new(category::TREE, tree::INSERT_CHILD, 0, 1, 2, 0));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            2,
+            ((value_type::F32 as u32) << 16) | property_id::PADDING as u32,
+            8.0f32.to_bits(),
+        ));
+        strings.extend_from_slice(&(2u32).to_le_bytes());
+        strings.extend_from_slice(b"Hi");
+        opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 2, 0, 0));
+
+        let html = HtmlRenderer::new().render_document(&opcodes, &strings, 1);
+        assert!(html.contains("class=\"flex flex-col gap-[12px]\""));
+        assert!(html.contains("class=\"p-[8px]\""));
     }
 }
