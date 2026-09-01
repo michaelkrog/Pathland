@@ -644,7 +644,8 @@ impl HtmlRenderer {
                 } else {
                     children
                 };
-                format!("<button{data_id}{event}{aria}{style}>{body}</button>")
+                let button_class = class_attr("pathland-button");
+                format!("<button{data_id}{event}{aria}{button_class}{style}>{body}</button>")
             }
             component_type::TOGGLE => {
                 let toggle_style = node.f32_property(property_id::TOGGLE_STYLE, 0.0).round() as u8;
@@ -1501,7 +1502,8 @@ mod tests {
 
         let renderer = HtmlRenderer::new();
         let html = renderer.render_document(&opcodes, &strings, 1);
-        assert!(html.contains("<button data-pathland-id=\"1\"><span data-pathland-id=\"2\">A</span></button>"));
+        assert!(html.contains("<button data-pathland-id=\"1\" class=\"pathland-button\">"), "button uses the design-system class");
+        assert!(html.contains("<span data-pathland-id=\"2\">A</span>"));
     }
 
     #[test]

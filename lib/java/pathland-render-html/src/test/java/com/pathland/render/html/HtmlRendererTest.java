@@ -61,6 +61,7 @@ class HtmlRendererTest {
         assertTrue(html.contains("flex-direction:column"), "stack rendered inline flex");
         assertTrue(html.contains("<span data-pathland-id=\"2\">Hello Pathland</span>"));
         assertTrue(html.contains("<button data-pathland-id=\"3\""), "button keeps its node id");
+        assertTrue(html.contains("class=\"pathland-button\""), "button uses the design-system class");
         assertTrue(html.contains(">Increment</button>"));
     }
 
