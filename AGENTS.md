@@ -122,6 +122,12 @@ lib/java/
                         #   for State fields (auto-keyed by field name)
   pathland-render-html/ # com.pathland.render.html — JNA shim over the Rust HTML
                         #   renderer (libpathland_render_html): one renderer, every language.
+                        #   The jar embeds the Rust cdylib (META-INF/native/) so it's
+                        #   self-contained. The dylib is built by CI's rust job with the
+                        #   tailwind-embed feature and handed to java via an artifact;
+                        #   locally, `cargo build -p pathland-render-html --features
+                        #   tailwind-embed` must run before `mvn test` (the jar-embed step
+                        #   fails loudly if it's missing).
   pathland-state-redis/ # com.pathland.state.redis — Lettuce RedisStateStore
   pathland-demo-views/  # com.pathland.demo — shared demo views (CounterView/CounterControls/
                         #   NameField) declaring State fields; consumed by both demos
