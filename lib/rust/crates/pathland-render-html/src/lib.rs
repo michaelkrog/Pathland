@@ -89,110 +89,21 @@ impl Node {
         self.properties.get(&prop).copied().unwrap_or(default)
     }
 
-    /// The cross-axis alignment CSS for a stack, from the `ALIGNMENT` enum
-    /// (`Leading`=0, `Center`=1, `Trailing`=2, `Fill`=3; default `Fill`).
-    fn alignment_css(&self) -> String {
-        let idx = self
-            .properties
-            .get(&property_id::ALIGNMENT)
-            .map(|bits| f32::from_bits(*bits) as u8)
-            .unwrap_or(3);
-        let cross = match idx {
-            0 => "flex-start",
-            1 => "center",
-            2 => "flex-end",
-            _ => "stretch",
-        };
-        format!("align-items:{cross};")
-    }
-
-    /// Constraint/style CSS decoded from the node's properties (padding, color,
-    /// fonts, opacity, visibility, size, text alignment/truncation). Empty when
-    /// the node has no such properties.
+    /// Inline CSS that stays renderer-owned in the Tailwind model (Phase 1+2):
+    /// literal colors (Option A) and string font-family. Everything else —
+    /// padding, size, opacity, visibility, z-index, typography, effects,
+    /// transforms — is a Tailwind utility class (see [`Self::style_classes`]).
     fn style_css(&self) -> String {
         let mut css = String::new();
-
-        // Layout modifiers.
-        if let Some(bits) = self.properties.get(&property_id::PADDING) {
-            let v = f32::from_bits(*bits);
-            if v != 0.0 {
-                css.push_str(&format!("padding:{v}px;"));
-            }
-        }
-        for (prop, side) in [
-            (property_id::PADDING_TOP, "top"),
-            (property_id::PADDING_RIGHT, "right"),
-            (property_id::PADDING_BOTTOM, "bottom"),
-            (property_id::PADDING_LEFT, "left"),
-        ] {
-            if let Some(bits) = self.properties.get(&prop) {
-                let v = f32::from_bits(*bits);
-                if v != 0.0 {
-                    css.push_str(&format!("padding-{side}:{v}px;"));
-                }
-            }
-        }
-        if let Some(bits) = self.properties.get(&property_id::WIDTH) {
-            css.push_str(&format!("width:{};", size_css(f32::from_bits(*bits))));
-        }
-        if let Some(bits) = self.properties.get(&property_id::HEIGHT) {
-            css.push_str(&format!("height:{};", size_css(f32::from_bits(*bits))));
-        }
-
-        // Appearance.
         if let Some(bits) = self.properties.get(&property_id::COLOR) {
             css.push_str(&format!("color:{};", rgba(*bits)));
         }
         if let Some(bits) = self.properties.get(&property_id::BACKGROUND_COLOR) {
             css.push_str(&format!("background-color:{};", rgba(*bits)));
         }
-        if let Some(bits) = self.properties.get(&property_id::FONT_SIZE) {
-            let v = f32::from_bits(*bits);
-            if v > 0.0 {
-                css.push_str(&format!("font-size:{v}px;"));
-            }
-        }
-        if let Some(bits) = self.properties.get(&property_id::FONT_WEIGHT) {
-            let v = f32::from_bits(*bits);
-            if v > 0.0 {
-                css.push_str(&format!("font-weight:{v};"));
-            }
-        }
         if let Some(family) = self.strings.get(&property_id::FONT_FAMILY) {
             css.push_str(&format!("font-family:'{}';", family.replace('\'', "\\'")));
         }
-        if let Some(bits) = self.properties.get(&property_id::OPACITY) {
-            let v = f32::from_bits(*bits);
-            if v < 1.0 {
-                css.push_str(&format!("opacity:{v};"));
-            }
-        }
-        if let Some(bits) = self.properties.get(&property_id::VISIBLE) {
-            if *bits == 0 {
-                css.push_str("display:none;");
-            }
-        }
-        if let Some(bits) = self.properties.get(&property_id::Z_INDEX) {
-            css.push_str(&format!("z-index:{};", f32::from_bits(*bits) as i32));
-        }
-
-        // Text layout.
-        if let Some(bits) = self.properties.get(&property_id::LINE_LIMIT) {
-            let n = *bits;
-            if n != 0 {
-                css.push_str(&format!(
-                    "display:-webkit-box;-webkit-line-clamp:{n};-webkit-box-orient:vertical;overflow:hidden;"
-                ));
-            }
-        }
-        if let Some(bits) = self.properties.get(&property_id::TEXT_ALIGNMENT) {
-            let idx = (f32::from_bits(*bits) as u8).min(2) as usize;
-            css.push_str(&format!("text-align:{};", ["left", "center", "right"][idx]));
-        }
-        if self.properties.contains_key(&property_id::TRUNCATION_MODE) {
-            css.push_str("text-overflow:ellipsis;overflow:hidden;");
-        }
-
         css
     }
 
@@ -246,9 +157,51 @@ impl Node {
             tw::padding_classes(padding, &edges, margins),
             tw::size_classes(width, height),
             tw::structural_classes(z_index, opacity, visible, position),
+            tw::decor_classes(&self.decor()),
         ];
         parts.retain(|s| !s.is_empty());
         parts.join(" ")
+    }
+
+    /// The decorative/typography properties of this node for Tailwind class
+    /// emission (Phase 2). Literal-color + string-typed props stay inline.
+    fn decor(&self) -> tw::Decor {
+        let f32p = |prop: u16| self.properties.get(&prop).map(|b| f32::from_bits(*b));
+        let u8p = |prop: u16| f32p(prop).map(|v| v.round() as u8);
+        let flag = |prop: u16, on: u8| f32p(prop).map(|v| v != 0.0) == Some(on != 0);
+        // ALLOWS_HIT_TESTING is inverted: absent means hit testing IS allowed.
+        let allows_hit_testing = match f32p(property_id::ALLOWS_HIT_TESTING) {
+            Some(v) => v != 0.0,
+            None => true,
+        };
+        tw::Decor {
+            font_size: f32p(property_id::FONT_SIZE),
+            font_weight: f32p(property_id::FONT_WEIGHT),
+            italic: flag(property_id::FONT_STYLE, 1),
+            font_design: u8p(property_id::FONT_DESIGN),
+            text_align: u8p(property_id::TEXT_ALIGNMENT),
+            line_limit: self.properties.get(&property_id::LINE_LIMIT).copied(),
+            truncate: self.properties.contains_key(&property_id::TRUNCATION_MODE),
+            text_case: u8p(property_id::TEXT_CASE),
+            underline: flag(property_id::UNDERLINE, 1),
+            strikethrough: flag(property_id::STRIKETHROUGH, 1),
+            clips_to_bounds: flag(property_id::CLIPS_TO_BOUNDS, 1),
+            allows_hit_testing,
+            border_radius: f32p(property_id::BORDER_RADIUS),
+            blur: f32p(property_id::BLUR_RADIUS),
+            saturate: f32p(property_id::SATURATION),
+            contrast: f32p(property_id::CONTRAST),
+            brightness: f32p(property_id::BRIGHTNESS),
+            grayscale: f32p(property_id::GRAYSCALE),
+            hue_rotate: f32p(property_id::HUE_ROTATION),
+            invert: flag(property_id::COLOR_INVERT, 1),
+            rotate: f32p(property_id::ROTATION_DEGREES),
+            scale: f32p(property_id::SCALE),
+            offset: match (f32p(property_id::OFFSET_X), f32p(property_id::OFFSET_Y)) {
+                (Some(x), Some(y)) => Some((x, y)),
+                _ => None,
+            },
+        }
     }
 
     /// Border CSS, decoded from `BORDER_WIDTH`/`BORDER_COLOR`/`BORDER_RADIUS`/
@@ -279,12 +232,6 @@ impl Node {
         ] {
             if edges & flag != 0 {
                 css.push_str(&format!("border-{side}:{width}px solid rgba({r},{g},{b},{a});"));
-            }
-        }
-        if let Some(radius) = self.properties.get(&property_id::BORDER_RADIUS) {
-            let radius = f32::from_bits(*radius);
-            if radius != 0.0 {
-                css.push_str(&format!("border-radius:{radius}px;"));
             }
         }
         css
@@ -923,7 +870,6 @@ mod tests {
         opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 2, 0, 0));
 
         let renderer = HtmlRenderer::new();
-
         let html = renderer.render_document(&opcodes, &strings, 1);
         assert!(html.contains("<!DOCTYPE html>"));
         assert!(html.contains("class=\"flex flex-col\""));
@@ -1543,8 +1489,7 @@ mod tests {
         let renderer = HtmlRenderer::new();
         let html = renderer.render_document(&opcodes, &[], 1);
         assert!(html.contains("color:rgba(17,34,51,1)"));
-        assert!(html.contains("font-size:18px"));
-        assert!(html.contains("display:none"));
+        assert!(html.contains("hidden text-[18px]"));
     }
 
     #[test]
@@ -1614,5 +1559,37 @@ mod tests {
         let html = HtmlRenderer::new().render_document(&opcodes, &strings, 1);
         assert!(html.contains("class=\"flex flex-col gap-[12px]\""));
         assert!(html.contains("class=\"p-[8px]\""));
+    }
+
+    #[test]
+    fn renders_decorative_typography_as_tailwind_classes() {
+        use pathland_core::value_type;
+
+        let mut opcodes = Vec::new();
+        let mut strings = Vec::new();
+        opcodes.push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, 1, component_type::TEXT as u32, 0));
+        for (prop, vt, value) in [
+            (property_id::FONT_SIZE, value_type::F32, 18.0f32.to_bits()),
+            (property_id::FONT_WEIGHT, value_type::F32, 700.0f32.to_bits()),
+            (property_id::TEXT_ALIGNMENT, value_type::F32, 1.0f32.to_bits()),
+            (property_id::BORDER_RADIUS, value_type::F32, 8.0f32.to_bits()),
+            (property_id::BLUR_RADIUS, value_type::F32, 3.0f32.to_bits()),
+            (property_id::ROTATION_DEGREES, value_type::F32, 90.0f32.to_bits()),
+        ] {
+            opcodes.push(Opcode::new(
+                category::STYLE,
+                style::SET_PROPERTY,
+                0,
+                1,
+                ((vt as u32) << 16) | prop as u32,
+                value,
+            ));
+        }
+        strings.extend_from_slice(&(2u32).to_le_bytes());
+        strings.extend_from_slice(b"Hi");
+        opcodes.push(Opcode::new(category::STYLE, style::SET_TEXT, 0, 1, 0, 0));
+
+        let html = HtmlRenderer::new().render_document(&opcodes, &strings, 1);
+        assert!(html.contains("text-[18px] font-[700] text-center rounded-[8px] blur-[3px] rotate-[90deg]"));
     }
 }

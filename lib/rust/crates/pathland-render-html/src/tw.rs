@@ -148,6 +148,148 @@ pub(crate) fn structural_classes(
 
 /// The structural Tailwind classes the renderer can emit — the exact set the
 /// safelist must force in (`@source inline(...)` brace-expansions).
+/// Decorative / typography properties, mapped to Tailwind utility classes
+/// (Phase 2). Literal-color and string-typed properties (color, background,
+/// border width/color, shadows, font family) stay inline in the renderer.
+#[derive(Debug, Default, Clone, Copy)]
+pub(crate) struct Decor {
+    pub font_size: Option<f32>,
+    pub font_weight: Option<f32>,
+    pub italic: bool,
+    pub font_design: Option<u8>,
+    pub text_align: Option<u8>,
+    pub line_limit: Option<u32>,
+    pub truncate: bool,
+    pub text_case: Option<u8>,
+    pub underline: bool,
+    pub strikethrough: bool,
+    pub clips_to_bounds: bool,
+    pub allows_hit_testing: bool,
+    pub border_radius: Option<f32>,
+    pub blur: Option<f32>,
+    pub saturate: Option<f32>,
+    pub contrast: Option<f32>,
+    pub brightness: Option<f32>,
+    pub grayscale: Option<f32>,
+    pub hue_rotate: Option<f32>,
+    pub invert: bool,
+    pub rotate: Option<f32>,
+    pub scale: Option<f32>,
+    pub offset: Option<(f32, f32)>,
+}
+
+pub(crate) fn decor_classes(d: &Decor) -> String {
+    let mut classes: Vec<String> = Vec::new();
+    if let Some(v) = d.font_size {
+        if v > 0.0 {
+            classes.push(format!("text-[{v}px]"));
+        }
+    }
+    if let Some(v) = d.font_weight {
+        if v > 0.0 {
+            classes.push(format!("font-[{v}]"));
+        }
+    }
+    if d.italic {
+        classes.push("italic".to_string());
+    }
+    if let Some(v) = d.font_design {
+        let design = match v {
+            1 => "font-serif",
+            2 => "font-sans",
+            3 => "font-mono",
+            _ => "",
+        };
+        if !design.is_empty() {
+            classes.push(design.to_string());
+        }
+    }
+    if let Some(v) = d.text_align {
+        let align = match v.min(2) {
+            0 => "text-left",
+            1 => "text-center",
+            _ => "text-right",
+        };
+        classes.push(align.to_string());
+    }
+    if let Some(n) = d.line_limit {
+        if n > 0 {
+            classes.push(format!("line-clamp-{n}"));
+        }
+    }
+    if d.truncate {
+        classes.push("truncate".to_string());
+    }
+    if let Some(v) = d.text_case {
+        match v {
+            1 => classes.push("uppercase".to_string()),
+            2 => classes.push("lowercase".to_string()),
+            _ => {}
+        }
+    }
+    if d.underline {
+        classes.push("underline".to_string());
+    }
+    if d.strikethrough {
+        classes.push("line-through".to_string());
+    }
+    if d.clips_to_bounds {
+        classes.push("overflow-hidden".to_string());
+    }
+    if !d.allows_hit_testing {
+        classes.push("pointer-events-none".to_string());
+    }
+    if let Some(v) = d.border_radius {
+        if v != 0.0 {
+            classes.push(format!("rounded-[{v}px]"));
+        }
+    }
+    if let Some(v) = d.blur {
+        classes.push(format!("blur-[{v}px]"));
+    }
+    if let Some(v) = d.saturate {
+        classes.push(format!("saturate-[{v}]"));
+    }
+    if let Some(v) = d.contrast {
+        classes.push(format!("contrast-[{v}]"));
+    }
+    if let Some(v) = d.brightness {
+        classes.push(format!("brightness-[{v}]"));
+    }
+    if let Some(v) = d.grayscale {
+        classes.push(format!("grayscale-[{v}]"));
+    }
+    if let Some(v) = d.hue_rotate {
+        classes.push(format!("hue-rotate-[{v}deg]"));
+    }
+    if d.invert {
+        classes.push("invert".to_string());
+    }
+    if let Some(v) = d.rotate {
+        if v != 0.0 {
+            classes.push(format!("rotate-[{v}deg]"));
+        }
+    }
+    if let Some(v) = d.scale {
+        if v != 1.0 {
+            classes.push(format!("scale-[{v}]"));
+        }
+    }
+    if let Some((x, y)) = d.offset {
+        if x != 0.0 {
+            classes.push(format!("translate-x-[{x}px]"));
+        }
+        if y != 0.0 {
+            classes.push(format!("translate-y-[{y}px]"));
+        }
+    }
+    classes.join(" ")
+}
+
+/// The structural + decorative Tailwind classes the renderer can emit — the
+/// exact set the safelist must force in (`@source inline(...)` brace-expansions).
+/// Wired into the compiler input in Phase 3 (compile-at-startup).
+#[allow(dead_code)]
 pub(crate) fn safelist() -> String {
     let mut classes: Vec<String> = [
         "flex",
@@ -197,6 +339,37 @@ pub(crate) fn safelist() -> String {
     }
     for o in (1..=99).map(|x| x as f32 / 10.0) {
         classes.push(format!("opacity-[{o}]"));
+    }
+    // Decorative / typography (Phase 2).
+    classes.extend(["italic", "text-left", "text-center", "text-right", "truncate",
+        "uppercase", "lowercase", "underline", "line-through", "overflow-hidden",
+        "pointer-events-none", "invert", "font-serif", "font-sans", "font-mono"]
+        .into_iter().map(str::to_owned));
+    for n in 1..=100 {
+        classes.push(format!("text-[{n}px]"));
+        classes.push(format!("rounded-[{n}px]"));
+        classes.push(format!("blur-[{n}px]"));
+    }
+    for n in (100..=900).step_by(100) {
+        classes.push(format!("font-[{n}]"));
+    }
+    for n in 1..=12 {
+        classes.push(format!("line-clamp-{n}"));
+    }
+    for n in (1..=99).map(|x| x as f32 / 10.0) {
+        classes.push(format!("saturate-[{n}]"));
+        classes.push(format!("contrast-[{n}]"));
+        classes.push(format!("brightness-[{n}]"));
+        classes.push(format!("grayscale-[{n}]"));
+        classes.push(format!("scale-[{n}]"));
+    }
+    for n in 1..=360 {
+        classes.push(format!("rotate-[{n}deg]"));
+        classes.push(format!("hue-rotate-[{n}deg]"));
+    }
+    for n in 1..=2048 {
+        classes.push(format!("translate-x-[{n}px]"));
+        classes.push(format!("translate-y-[{n}px]"));
     }
     classes.join(" ")
 }

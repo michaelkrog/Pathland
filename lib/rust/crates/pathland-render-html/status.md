@@ -34,21 +34,20 @@ Statelessness). Protocol contract: `spec/`.
 
 ## In progress (P2a)
 
-- **Tailwind structural emission (Phase 1 — landed)**: stacks → `flex flex-col`/
-  `flex flex-row` + `gap-[Npx]` + `items-*`; padding/content-margins →
-  `p-[Npx]`/per-edge; width/height → `w-[Npx]`/`w-full`/`w-fit`; spacer →
-  `flex-1`; scrollview → `overflow-auto`; grid → `grid grid-cols-N`; z-index →
-  `z-[N]`; opacity → `opacity-[N]`; `VISIBLE=0` → `hidden`; position/offset →
-  `absolute` + `left-[Npx]`/`top-[Npx]`; zstack → `relative w-full h-full` +
-  `absolute inset-0` children. Literal hex colors stay inline (Option A).
-  Decorative/typography props (color, background, fonts, borders, shadows,
-  effects, text layout) remain inline (Phase 2).
-- **Safelist derivation (`src/tw.rs`)**: `tw::safelist()` lists the exact
-  structural classes the renderer can emit (named utilities + arbitrary-value
-  ranges) for the `@source inline(...)` compiler input; the class set is
-  generated from the same table used by emission, so emission and safelist
-  cannot drift. Runtime-collected arbitrary values complement it once the
-  compiler is wired.
+- **Tailwind emission — structural (Phase 1, landed)** and **decorative/
+  typography (Phase 2, landed)**: stacks/grids/padding/size/z-index/opacity/
+  visibility/position (Phase 1) plus text size/weight/align, line-clamp/truncate,
+  text-case, underline/strikethrough, italic/font-design, border-radius,
+  blur/saturate/contrast/brightness/grayscale/hue-rotate/invert, rotate/scale/
+  translate, overflow-hidden, pointer-events-none (Phase 2) all emit Tailwind
+  utility classes. **Literal colors and string font-family stay inline** (Option A:
+  color, background, border width/color/edges, shadows are color-dependent and
+  remain renderer-owned inline).
+- **Safelist derivation (`src/tw.rs`)**: `tw::safelist()` lists the exact classes
+  the renderer can emit (named utilities + arbitrary-value ranges for both
+  phases) for the `@source inline(...)` compiler input — generated from the same
+  table used by emission, so emission and safelist cannot drift. Wired into the
+  compiler in Phase 3.
 - **Tailwind v4 integration (Phase 3)**: embedded per-platform standalone binary
   (MIT, bundled per the pinned license, feature-gated), default `@theme` + Inter
   config, developer override, compile-at-startup (`pathland_tailwind_compile`),
