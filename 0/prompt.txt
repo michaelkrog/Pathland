@@ -1,0 +1,21 @@
+Survey the Pathland repo's web/SSR path in depth (be very thorough) and produce a precise inventory plus a gap list. This is READ-ONLY research; do not modify anything.
+
+Repo root: /Users/michael/Development/michaelkrog/Pathland
+
+Context: Pathland is a binary opcode UI protocol (16-byte opcodes) with an SSR HTML renderer + a vanilla-JS hydration client (app.js) used by Spring Boot and Quarkus demos. The user wants to turn it into a credible replacement for HTMX for enterprise SRE teams (server-driven UI, minimal client JS, WebSocket deltas). I need to know exactly what exists today to build a gap list.
+
+Please inventory and report:
+
+1. **The web client (app.js)**: Find every copy of app.js under lib/java/*/src/main/resources/**. For the main/reference copy, report: what it does (hydration by data-pathland-id, PLPL batch decode, delta application), how it sends raw-input events over the WebSocket, whether it has any reconnection logic / heartbeat / backoff / session-resync, how it handles server disconnect, error handling, and whether it is a self-contained versioned artifact or a demo helper. Quote key function names.
+
+2. **SSR HTML renderers**: 
+   - Java: lib/java/pathland-render-html/src/main/java/com/pathland/render/html/... — list EVERY view component that has an HTML element mapping and the exact element/tag + attributes it emits (e.g. Text->span, Button->button, TextField->input[type=text]?, Toggle->checkbox?, Slider->input[type=range]?, Picker->select?, Spacer->div). Note which components from spec/PRIMITIVES.md have NO mapping yet. Report whether it emits: form semantics (input name=, label for=, form=), ARIA attributes, role attributes.
+   - Rust: lib/rust/crates/pathland-render-html/src/lib.rs — same question, which components map to what HTML elements, and whether the Rust one is used by any runnable demo today.
+
+3. **Demos (transport + sessions)**: In lib/java/pathland-spring-boot-demo and pathland-quarkus-demo: how the WebSocket is set up (path, session handling), how per-session State/PersistentState works, how frames/events are batched (transport batching policy), and whether there is ANY observability/metrics/logging beyond plain logging. Any CSRF / origin / auth checks on the WS? Any heartbeat or reconnect support?
+
+4. **Existing tests**: What test coverage exists for the HTML renderers (golden/round-trip), the app.js client (is there ANY JS test?), and the transport.
+
+5. **Repo conventions**: Where would a reusable JS client and docs naturally live (is there a docs/ dir, a lib/js or similar, a top-level README structure)? List existing docs/*.md files.
+
+Return a structured report with file paths + line numbers for the key items, a component-by-HTML-element mapping table, and a clear "gaps" list organized by: transport resilience, accessibility, form semantics, observability, security, and client artifact/versioning. Do not propose fixes — just inventory what exists and what does not.
