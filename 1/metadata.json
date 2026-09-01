@@ -1,0 +1,34 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M1ET4N80TDZGWFWYMYHE3P6T",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-01T15:42:13.892959Z",
+  "branch": "feature/inline-css-design-system",
+  "checkpoints_count": 1,
+  "save_step_count": 1,
+  "files_touched": [],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "7dd3155ec894",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 77974176,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 936376832,
+    "output_tokens": 1861395,
+    "api_call_count": 2552
+  },
+  "session_metrics": {
+    "turn_count": 237
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
