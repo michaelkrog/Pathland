@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M1E45V91AEB6PG9B0MCADT6P",
+  "session_id": "ses_fb848e5f9ffetGKLY7mJuM8CCR",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-01T09:18:23.793027Z",
+  "branch": "feature/enterprise-sre",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "lib/rust/crates/pathland-core-capi/Cargo.toml"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "da446ea36674",
+  "checkpoint_transcript_start": 1988,
+  "transcript_lines_at_start": 1988,
+  "compact_transcript_start": 1988,
+  "token_usage": {
+    "input_tokens": 1001254,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 1512960,
+    "output_tokens": 3878,
+    "api_call_count": 6
+  },
+  "session_metrics": {
+    "turn_count": 182
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-01T09:18:22.04778Z",
+    "agent_lines": 4,
+    "agent_removed": 1,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 4,
+    "total_lines_changed": 5,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    }
+  ]
+}
