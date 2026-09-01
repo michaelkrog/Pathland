@@ -23,7 +23,7 @@ import java.io.FileOutputStream;
  * <pre>
  * const char* pathland_html_render(const uint8_t* batch, uint32 len, uint32 root);
  * const char* pathland_html_render_fragment(const uint8_t* batch, uint32 len, uint32 root);
- * const char* pathland_tailwind_compile(const char* default_css, const char* override_css, const char* classes);
+ * const char* pathland_tailwind_compile(const char* default_css, const char* override_css);
  * void        pathland_html_free(const char* ptr);
  * </pre>
  */
