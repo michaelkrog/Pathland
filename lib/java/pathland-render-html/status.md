@@ -35,8 +35,11 @@ Java renderer is removed. Protocol contract: `spec/`.
 
 ## Not implemented / gaps
 
-- The Inter webfont is referenced by the `--pl-font-sans` token but not yet
-  bundled (documented follow-up; falls back to `system-ui`).
+- **Inter is loaded from the rsms.me CDN** (Cloudflare) — the Rust renderer emits
+  the preconnect + stylesheet links in the document head; the demo pages render
+  through it, so no Java-side font serving is needed. The font is **not bundled**
+  with the renderer jar; self-hosting a subsetted, OFL-licensed woff2 is a
+  planned follow-up for offline and enterprise deployments.
 
 ## Verified by
 

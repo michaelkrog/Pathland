@@ -64,12 +64,15 @@ single `style` attribute — no external compiler, no class system, no safelist:
 
 - `SHAPE` `Path` renders as an SVG placeholder (no path data wire property).
 - GAUGE/SHAPE visuals are CSS approximations, not pixel-exact.
-- The Inter webfont is referenced by `--pl-font-sans` but **not yet bundled**;
-  the CSS falls back to `system-ui` until the OFL-licensed woff2 is embedded
-  (documented follow-up — see `THIRD_PARTY_NOTICES`).
+- **Inter is loaded from the rsms.me CDN** (Cloudflare, `font-display: swap`,
+  with the InterVariable progressive enhancement for variable-font browsers) —
+  the renderer emits the preconnect + stylesheet links in the document head. It
+  is **not bundled**: self-hosting a subsetted, OFL-licensed woff2 (embedded in
+  the renderer / jar) is a planned follow-up for offline and enterprise
+  deployments (see `THIRD_PARTY_NOTICES`).
 
 ## Verified by
 
-`cargo test -p pathland-render-html` — 27 headless render tests (components,
+`cargo test -p pathland-render-html` — 28 headless render tests (components,
 properties, composite, event attrs, `days_to_date`, network-decoded frames,
-inline-all styling, built-in CSS block contents).
+inline-all styling, built-in CSS block contents, Inter CDN head links).

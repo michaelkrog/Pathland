@@ -596,6 +596,8 @@ impl HtmlRenderer {
             "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n\
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
              <title>Pathland</title>\n\
+             <link rel=\"preconnect\" href=\"https://rsms.me/\">\n\
+             <link rel=\"stylesheet\" href=\"https://rsms.me/inter/inter.css\">\n\
              {}\n</head>\n<body>{body}</body>\n</html>\n",
             css::STYLE
         )
@@ -1638,6 +1640,22 @@ mod tests {
         assert!(css.contains(".pathland-gauge"), "gauge component");
         // Dark mode media query.
         assert!(css.contains("prefers-color-scheme: dark"), "dark mode");
+        // Inter font loading (rsms.me CDN) + variable-font enhancement.
+        assert!(css.contains("font-feature-settings: 'liga' 1, 'calt' 1"), "Chrome ligature fix");
+        assert!(css.contains("font-variation-settings: normal"), "InterVariable enhancement");
+        assert!(css.contains("'InterVariable', 'Inter'"), "variable font preferred when supported");
+    }
+
+    #[test]
+    fn document_head_loads_inter_from_the_rsms_cdn() {
+        let renderer = HtmlRenderer::new();
+        let html = renderer.render_document(&[], &[], 0);
+        assert!(html.contains("<link rel=\"preconnect\" href=\"https://rsms.me/\">"), "preconnect to the font CDN");
+        assert!(html.contains("<link rel=\"stylesheet\" href=\"https://rsms.me/inter/inter.css\">"), "Inter stylesheet link");
+        // The font links must come before the built-in <style> block.
+        let preconnect = html.find("rsms.me/inter/inter.css").unwrap();
+        let style = html.find("<style>").unwrap();
+        assert!(preconnect < style, "Inter CSS loads before the design-system style block");
     }
 
     #[test]

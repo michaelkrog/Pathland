@@ -17,7 +17,7 @@ pub const STYLE: &str = r#"<style>
 /* ===== Preflight reset (vendored from Tailwind CSS, MIT) ===== */
 *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: currentColor; }
 ::before, ::after { --tw-content: ''; }
-html { line-height: 1.5; -webkit-text-size-adjust: 100%; -moz-tab-size: 4; tab-size: 4; font-family: var(--pl-font-sans); }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; -moz-tab-size: 4; tab-size: 4; font-family: var(--pl-font-sans); font-feature-settings: 'liga' 1, 'calt' 1; }
 body { margin: 0; line-height: inherit; }
 hr { height: 0; color: inherit; border-top-width: 1px; }
 abbr:where([title]) { text-decoration: underline dotted; }
@@ -52,7 +52,6 @@ img, svg, video, canvas, audio, iframe, embed, object { display: block; vertical
 img, video { max-width: 100%; height: auto; }
 [hidden] { display: none; }
 
-/* ===== Inter (SIL OFL) ===== */
 /* ===== Design tokens (protocol retheme via SET_DESIGN_TOKEN) ===== */
 :root {
   --pl-color-accent: #2563eb;
@@ -69,6 +68,12 @@ img, video { max-width: 100%; height: auto; }
   --pl-button-bg-hover: #f9fafb;
   --pl-button-text: #111827;
   --pl-button-ring: #d1d5db;
+}
+
+/* InterVariable (variable font, loaded from the rsms.me CDN) for browsers that
+   support it: one file covers every weight. Others fall back to static Inter. */
+@supports (font-variation-settings: normal) {
+  :root { --pl-font-sans: 'InterVariable', 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif; }
 }
 
 /* ===== Buttons ===== */
