@@ -64,7 +64,7 @@ jobs:
       - name: Fetch the Tailwind standalone binary (cached; no-op on hit)
         working-directory: lib/rust/crates/pathland-render-html
         env:
-          TARGET: linux-x64
+          TARGET: x86_64-unknown-linux-gnu
           TAILWIND_SHA256: dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
         run: node scripts/fetch-tailwind.mjs
 
