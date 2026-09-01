@@ -1,9 +1,9 @@
 # Third-party notices
 
-## Tailwind CSS (embedded compiler binary)
+## Tailwind CSS preflight reset
 
-When the `tailwind-embed` feature is enabled, `pathland-render-html` embeds the
-Tailwind CSS compiler binary. Tailwind CSS is distributed under the MIT license:
+The renderer's built-in `<style>` block includes a **preflight reset** vendored
+from Tailwind CSS. Tailwind CSS is distributed under the MIT license:
 
 ```
 MIT License
@@ -31,8 +31,9 @@ SOFTWARE.
 
 ## Inter (default font)
 
-The default `@theme` uses the **Inter** typeface. Inter is distributed under the
-SIL Open Font License 1.1. When a self-hosted Inter webfont is bundled with the
-renderer, the OFL 1.1 license text and the Inter copyright notice must be
-included alongside it. See https://github.com/rsms/inter/blob/master/LICENSE.txt
-for the canonical license text.
+The default `--pl-font-sans` uses the **Inter** typeface. Inter is distributed
+under the SIL Open Font License 1.1. When a self-hosted Inter webfont is bundled
+with the renderer, the OFL 1.1 license text and the Inter copyright notice must
+be included alongside it. See
+https://github.com/rsms/inter/blob/master/LICENSE.txt for the canonical license
+text.
