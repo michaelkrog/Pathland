@@ -48,13 +48,18 @@ single `style` attribute — no external compiler, no class system, no safelist:
   - a **preflight reset** (vendored from Tailwind CSS, MIT — see
     `THIRD_PARTY_NOTICES`),
   - `:root` **design tokens** as CSS custom properties (`--pl-color-accent`,
-    `--pl-color-surface`, `--pl-radius-*`, `--pl-font-sans`, button tokens),
-    named to match the protocol design-token paths so `SET_DESIGN_TOKEN` can
-    retheme the renderer,
+    `--pl-color-surface`, `--pl-color-bg` (document background), `--pl-radius-*`,
+    `--pl-font-sans`, `--pl-input-*` (field bg/text/outline/placeholder/focus),
+    button tokens), named to match the protocol design-token paths so
+    `SET_DESIGN_TOKEN` can retheme the renderer,
   - `.pathland-button` (the prettified-button POC, with `prefers-color-scheme`
     dark mode) and `.pathland-*` component defaults (toggle switch, slider, text
     field/editor, stepper, spinner, gauge, menu) — the interactive/hover/focus/
-    disabled states that can't be expressed inline.
+    disabled states that can't be expressed inline. Text fields use a
+    Tailwind-style **inset outline** (`outline: 1px solid`, `outline-offset: -1px`,
+    focus → `2px`/`-2px` + indigo) instead of a border, with dark-mode tokens;
+    `html` sets `color-scheme: light dark` + the `--pl-color-bg` background so
+    native form controls and the page follow the theme.
 - **`pathland_html_*` cdylib** (`pathland_html_render` / `_render_fragment` /
   `_free`) for cross-language hosts (Java JNA shim). The `_tailwind_compile`
   entry point, `tw.rs`, `tailwind.rs`, `build.rs`, `scripts/fetch-tailwind.mjs`,

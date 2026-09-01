@@ -24,6 +24,10 @@ Java renderer is removed. Protocol contract: `spec/`.
 - **Demos use the shim**: `SessionApp` no longer calls `applyFrame`; SSR renders
   the mount frame through `HtmlRenderer.render(sink.frame(), rootId)`. The
   renderer is compiled once at startup.
+- **Text fields share one component class**: `TEXT_FIELD` inputs and `TEXT_EDITOR`
+  textareas render with `class="pathland-input"` (Tailwind-style inset-outline
+  styling from the Rust renderer's CSS); the copied `@pathland/dom-renderer`
+  bundle mirrors the class so delta-created fields hydrate identically.
 
 ## Removed (September 2026)
 

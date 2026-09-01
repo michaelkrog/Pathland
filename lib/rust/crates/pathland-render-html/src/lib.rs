@@ -717,12 +717,12 @@ impl HtmlRenderer {
                 };
                 let textfield_class = class_attr("pathland-textfield");
                 format!(
-                    "<label{data_id}{event}{aria}{textfield_class}{style}><span class=\"pathland-label\">{label}</span><input type=\"{input_type}\" value=\"{value}\" placeholder=\"{prompt}\"></label>"
+                    "<label{data_id}{event}{aria}{textfield_class}{style}><span class=\"pathland-label\">{label}</span><input class=\"pathland-input\" type=\"{input_type}\" value=\"{value}\" placeholder=\"{prompt}\"></label>"
                 )
             }
             component_type::TEXT_EDITOR => {
                 let value = escape(node.text.as_deref().unwrap_or_default());
-                format!("<textarea{data_id}{event}{aria} rows=\"4\"{style}>{value}</textarea>")
+                format!("<textarea{data_id}{event}{aria} class=\"pathland-input\" rows=\"4\"{style}>{value}</textarea>")
             }
             component_type::IMAGE => {
                 let src = escape(
@@ -1288,7 +1288,7 @@ mod tests {
         assert!(html.contains("class=\"pathland-textfield\""));
         assert!(html.contains("<span class=\"pathland-label\">Name:</span>"));
         assert!(html.contains(
-            "<input type=\"text\" value=\"Bob\" placeholder=\"Enter\">"
+            "<input class=\"pathland-input\" type=\"text\" value=\"Bob\" placeholder=\"Enter\">"
         ));
     }
 
@@ -1583,7 +1583,7 @@ mod tests {
 
         let renderer = HtmlRenderer::new();
         let html = renderer.render_document(&opcodes, &[], 1);
-        assert!(html.contains("<input type=\"password\""));
+        assert!(html.contains("<input class=\"pathland-input\" type=\"password\""));
     }
 
     #[test]
@@ -1644,6 +1644,14 @@ mod tests {
         assert!(css.contains("font-feature-settings: 'liga' 1, 'calt' 1"), "Chrome ligature fix");
         assert!(css.contains("font-variation-settings: normal"), "InterVariable enhancement");
         assert!(css.contains("'InterVariable', 'Inter'"), "variable font preferred when supported");
+        // Document background + input field styling (Tailwind-style inset outline).
+        assert!(css.contains("--pl-color-bg"), "page background token");
+        assert!(css.contains("color-scheme: light dark"), "native form controls follow the theme");
+        assert!(css.contains(".pathland-input"), "input component");
+        assert!(css.contains("--pl-input-outline"), "input outline token");
+        assert!(css.contains("outline: 1px solid var(--pl-input-outline)"), "inset outline instead of border");
+        assert!(css.contains("outline-offset: -1px"), "inset ring");
+        assert!(css.contains("--pl-input-focus"), "input focus token");
     }
 
     #[test]

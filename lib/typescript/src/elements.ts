@@ -84,8 +84,11 @@ export function createElement(component: number): Node {
       el.max = 1;
       return el;
     }
-    case COMPONENT_TEXT_EDITOR:
-      return document.createElement("textarea");
+    case COMPONENT_TEXT_EDITOR: {
+      const el = document.createElement("textarea");
+      el.className = "pathland-input";
+      return el;
+    }
     case COMPONENT_TEXT_FIELD:
       return textFieldShell();
     case COMPONENT_TOGGLE:
@@ -130,6 +133,7 @@ function textFieldShell(): HTMLElement {
   span.className = "pathland-label";
   const input = document.createElement("input");
   input.type = "text";
+  input.className = "pathland-input";
   label.append(span, input);
   return label;
 }

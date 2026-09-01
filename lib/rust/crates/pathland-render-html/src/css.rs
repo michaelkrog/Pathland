@@ -17,7 +17,7 @@ pub const STYLE: &str = r#"<style>
 /* ===== Preflight reset (vendored from Tailwind CSS, MIT) ===== */
 *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: currentColor; }
 ::before, ::after { --tw-content: ''; }
-html { line-height: 1.5; -webkit-text-size-adjust: 100%; -moz-tab-size: 4; tab-size: 4; font-family: var(--pl-font-sans); font-feature-settings: 'liga' 1, 'calt' 1; }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; -moz-tab-size: 4; tab-size: 4; font-family: var(--pl-font-sans); font-feature-settings: 'liga' 1, 'calt' 1; color-scheme: light dark; background-color: var(--pl-color-bg); color: var(--pl-color-text); }
 body { margin: 0; line-height: inherit; }
 hr { height: 0; color: inherit; border-top-width: 1px; }
 abbr:where([title]) { text-decoration: underline dotted; }
@@ -54,6 +54,7 @@ img, video { max-width: 100%; height: auto; }
 
 /* ===== Design tokens (protocol retheme via SET_DESIGN_TOKEN) ===== */
 :root {
+  --pl-color-bg: #ffffff;
   --pl-color-accent: #2563eb;
   --pl-color-surface: #ffffff;
   --pl-color-text: #111827;
@@ -64,6 +65,11 @@ img, video { max-width: 100%; height: auto; }
   --pl-radius-sm: 0.125rem;
   --pl-radius-md: 0.375rem;
   --pl-font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --pl-input-bg: #ffffff;
+  --pl-input-text: #111827;
+  --pl-input-outline: #d1d5db;
+  --pl-input-placeholder: #9ca3af;
+  --pl-input-focus: #4f46e5;
   --pl-button-bg: #ffffff;
   --pl-button-bg-hover: #f9fafb;
   --pl-button-text: #111827;
@@ -92,11 +98,17 @@ img, video { max-width: 100%; height: auto; }
 .pathland-button:disabled { opacity: 0.5; pointer-events: none; }
 @media (prefers-color-scheme: dark) {
   :root {
+    --pl-color-bg: #0f172a;
     --pl-color-accent: #60a5fa;
     --pl-color-surface: #111827;
     --pl-color-text: #f9fafb;
     --pl-color-muted: #9ca3af;
     --pl-color-border: #374151;
+    --pl-input-bg: rgb(255 255 255 / 0.05);
+    --pl-input-text: #ffffff;
+    --pl-input-outline: rgb(255 255 255 / 0.1);
+    --pl-input-placeholder: #6b7280;
+    --pl-input-focus: #6366f1;
     --pl-button-bg: rgb(255 255 255 / 0.1);
     --pl-button-bg-hover: rgb(255 255 255 / 0.2);
     --pl-button-text: #ffffff;
@@ -128,15 +140,27 @@ img, video { max-width: 100%; height: auto; }
 
 /* ===== Text field / editor ===== */
 .pathland-textfield { display: inline-flex; align-items: center; gap: 0.5rem; }
-.pathland-textfield input[type='text'],
-.pathland-textfield input[type='password'],
-.pathland-textfield textarea {
-  font: inherit; padding: 0.375rem 0.625rem; border: 1px solid var(--pl-color-border);
-  border-radius: var(--pl-radius-md); background: var(--pl-color-surface); color: var(--pl-color-text);
-  transition: border-color 120ms, box-shadow 120ms;
+.pathland-textfield .pathland-label { flex: none; }
+.pathland-input {
+  display: block;
+  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
+  border-radius: var(--pl-radius-md);
+  background-color: var(--pl-input-bg);
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  color: var(--pl-input-text);
+  outline: 1px solid var(--pl-input-outline);
+  outline-offset: -1px;
+  transition: outline-color 120ms, box-shadow 120ms;
 }
-.pathland-textfield input:focus-visible,
-.pathland-textfield textarea:focus-visible { outline: 2px solid var(--pl-color-focus-ring); outline-offset: 1px; }
+.pathland-input::placeholder { color: var(--pl-input-placeholder); }
+.pathland-input:focus {
+  outline: 2px solid var(--pl-input-focus);
+  outline-offset: -2px;
+}
 
 /* ===== Stepper ===== */
 .pathland-stepper { display: inline-flex; align-items: center; gap: 0.5rem; }
