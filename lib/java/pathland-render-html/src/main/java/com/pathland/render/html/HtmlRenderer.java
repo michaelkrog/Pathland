@@ -6,6 +6,9 @@ import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.Pointer;
 
+import java.io.IOException;
+import java.io.FileOutputStream;
+
 /**
  * The Java binding to the Rust HTML renderer ({@code libpathland_render_html}) —
  * a thin JNA shim over the flat C ABI. **Stateless and streaming**: each call
@@ -50,34 +53,70 @@ public final class HtmlRenderer {
         return Holder.INSTANCE;
     }
 
+    /**
+     * A renderer if the native library can be linked, or {@code null} when it is
+     * unavailable (not embedded, not on java.library.path). Callers that can degrade
+     * gracefully (e.g. the Tailwind CSS endpoint) should use this instead of
+     * {@link #instance()}, which throws on a missing native library.
+     */
+    public static HtmlRenderer tryInstance() {
+        try {
+            return instance();
+        } catch (NativeUnavailableException e) {
+            return null;
+        }
+    }
+
+    /** True when the native renderer is linkable (embedded or on java.library.path). */
+    public static boolean isAvailable() {
+        return tryInstance() != null;
+    }
+
     private final NativeRenderHtml nativeRenderer;
 
     private HtmlRenderer() {
+        String path = resolveLibraryPath();
+        if (path == null) {
+            throw new NativeUnavailableException(
+                    "libpathland_render_html not found (not embedded in the jar, not on java.library.path, "
+                            + "pathland.render.html.lib not set); build the Rust crate so the dylib is embedded, "
+                            + "or set pathland.render.html.lib", null);
+        }
         try {
-            String path = resolveLibraryPath();
-            if (path == null) {
-                throw new NativeUnavailableException(
-                        "libpathland_render_html not found on java.library.path; "
-                                + "set pathland.render.html.lib or build the Rust crate", null);
-            }
             nativeRenderer = Native.load(path, NativeRenderHtml.class);
-        } catch (NativeUnavailableException e) {
-            throw e;
         } catch (Throwable t) {
-            throw new NativeUnavailableException("failed to link libpathland_render_html", t);
+            throw new NativeUnavailableException("failed to link libpathland_render_html: " + path, t);
         }
     }
 
     /**
-     * Resolve the native library's full path: the {@code pathland.render.html.lib}
-     * system property if set, else {@code libpathland_render_html} (with the platform
-     * extension) searched on {@code java.library.path}.
+     * Resolve the native library's full path, in priority order:
+     * <ol>
+     *   <li>the {@code pathland.render.html.lib} system property (explicit override),</li>
+     *   <li>the dylib **embedded in the jar** at {@code META-INF/native/} — extracted to a
+     *       temp dir via JNA so it always travels with the artifact,</li>
+     *   <li>the local Rust build ({@code ../../rust/target/debug}) for the dev flow,</li>
+     *   <li>{@code java.library.path}.</li>
+     * </ol>
      */
     static String resolveLibraryPath() {
         String override = System.getProperty("pathland.render.html.lib");
         if (override != null) {
             return override;
         }
+        // 2. Embedded in the jar (META-INF/native/...).
+        String embedded = extractEmbedded();
+        if (embedded != null) {
+            return embedded;
+        }
+        // 3. Local Rust debug build (dev flow).
+        String devBuild = new java.io.File(
+                new java.io.File(System.getProperty("user.dir")).getParentFile(), "rust/target/debug").getAbsolutePath();
+        java.io.File devLib = new java.io.File(devBuild, "libpathland_render_html" + platformLibraryExtension());
+        if (devLib.isFile()) {
+            return devLib.getAbsolutePath();
+        }
+        // 4. java.library.path.
         String fileName = "libpathland_render_html" + platformLibraryExtension();
         String libraryPath = System.getProperty("java.library.path");
         if (libraryPath == null) {
@@ -90,6 +129,31 @@ public final class HtmlRenderer {
             }
         }
         return null;
+    }
+
+    /** Extract the jar-embedded dylib to a temp dir; returns its path or null. */
+    private static String extractEmbedded() {
+        String fileName = "libpathland_render_html" + platformLibraryExtension();
+        try (var stream = HtmlRenderer.class.getResourceAsStream("/META-INF/native/" + fileName)) {
+            if (stream == null) {
+                return null;
+            }
+            java.io.File dir = new java.io.File(System.getProperty("java.io.tmpdir"),
+                    "pathland-native-" + HtmlRenderer.class.getSimpleName() + "-" + System.nanoTime());
+            if (!dir.mkdirs()) {
+                return null;
+            }
+            java.io.File out = new java.io.File(dir, fileName);
+            try (var copy = new java.io.FileOutputStream(out)) {
+                stream.transferTo(copy);
+            }
+            if (!out.setExecutable(true, false)) {
+                // non-fatal: some platforms lack POSIX perms
+            }
+            return out.getAbsolutePath();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     private static String platformLibraryExtension() {

@@ -51,6 +51,48 @@
                     <argLine>-Djava.library.path=${project.basedir}/../../rust/target/debug</argLine>
                 </configuration>
             </plugin>
+
+            <!-- Embed the Rust renderer dylib in the jar so it travels with the
+                 artifact (JNA extracts it at runtime — no java.library.path needed).
+                 Copies the host-platform build into META-INF/native/<os>/<arch>/;
+                 skipped when the Rust build is absent so `mvn install` still works
+                 (the renderer then degrades gracefully at runtime). -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>embed-native-renderer</id>
+                        <phase>process-resources</phase>
+                        <configuration>
+                            <target>
+                                <!-- Determine the platform library extension. -->
+                                <condition property="pathland.native.ext" value=".dylib">
+                                    <os family="mac" />
+                                </condition>
+                                <condition property="pathland.native.ext" value=".dll">
+                                    <os family="windows" />
+                                </condition>
+                                <condition property="pathland.native.ext" value=".so">
+                                    <os family="unix" />
+                                </condition>
+                                <property name="pathland.native.ext" value="" />
+
+                                <!-- Copy the freshly built Rust renderer dylib into the jar's
+                                     native resources so JNA can extract it at runtime. Skipped
+                                     (with a warning) when the Rust build is absent. -->
+                                <mkdir dir="${project.build.outputDirectory}/META-INF/native" />
+                                <copy file="${project.basedir}/../../rust/target/debug/libpathland_render_html${pathland.native.ext}"
+                                      tofile="${project.build.outputDirectory}/META-INF/native/libpathland_render_html${pathland.native.ext}"
+                                      failonerror="false" />
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>

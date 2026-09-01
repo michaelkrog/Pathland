@@ -19,7 +19,14 @@ public class TailwindCssController {
     private final String css;
 
     public TailwindCssController() {
-        String compiled = HtmlRenderer.instance().compileTailwind("", safelist());
+        HtmlRenderer renderer = HtmlRenderer.tryInstance();
+        if (renderer == null) {
+            // Degrade gracefully: the app still boots; the page renders unstyled.
+            this.css = "/* Pathland: native renderer unavailable. Build the Rust crate so "
+                    + "libpathland_render_html is embedded in the pathland-render-html jar. */";
+            return;
+        }
+        String compiled = renderer.compileTailwind("", safelist());
         this.css = compiled.startsWith("PATHLAND_TAILWIND_ERROR:")
                 ? "/* Tailwind unavailable: " + compiled.substring("PATHLAND_TAILWIND_ERROR:".length()) + " */"
                 : compiled;

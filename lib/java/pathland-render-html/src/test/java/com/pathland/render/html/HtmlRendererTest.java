@@ -113,4 +113,14 @@ class HtmlRendererTest {
         String html = renderer().renderFragment(frameOf(VStack.of(Text.of("<a & b>"))), 1);
         assertTrue(html.contains("&lt;a &amp; b&gt;"));
     }
+
+    @Test
+    void embeddedNativeLibraryIsExtractedAndLoads() {
+        // The renderer dylib is embedded in the jar (META-INF/native/) and extracted
+        // via JNA. Assert the resource is on the classpath and that instance() links it.
+        assertTrue(HtmlRenderer.class.getResourceAsStream("/META-INF/native/libpathland_render_html.dylib") != null,
+                "renderer dylib is embedded in the jar resources");
+        assertTrue(HtmlRenderer.isAvailable(), "native renderer links (embedded extraction)");
+        assertTrue(HtmlRenderer.tryInstance() != null, "tryInstance resolves the renderer");
+    }
 }

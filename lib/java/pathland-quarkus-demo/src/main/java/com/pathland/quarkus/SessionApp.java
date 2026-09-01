@@ -32,7 +32,6 @@ final class SessionApp {
     private final PersistentState state;
     private final KitchenSinkView root;
 
-    private final HtmlRenderer html = HtmlRenderer.instance();
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
@@ -131,7 +130,13 @@ final class SessionApp {
 
     /** The session's current SSR HTML (with the client script injected). */
     String renderHtml() {
-        return html.render(sink.frame(), rootId)
+        HtmlRenderer renderer = HtmlRenderer.tryInstance();
+        if (renderer == null) {
+            return "<!DOCTYPE html><html><body><h1>Pathland renderer unavailable</h1>"
+                    + "<p>Build the Rust crate so libpathland_render_html is embedded in the "
+                    + "pathland-render-html jar.</p></body></html>";
+        }
+        return renderer.render(sink.frame(), rootId)
                 .replace("</head>", "<link rel=\"stylesheet\" href=\"/tailwind.css\"></head>")
                 .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
