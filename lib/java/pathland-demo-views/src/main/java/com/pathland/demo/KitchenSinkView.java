@@ -32,6 +32,7 @@ public final class KitchenSinkView implements View {
                 new PickerSection(),
                 new ColorSection(),
                 new DateSection(),
+                new ThemeSection(),
                 new LayoutSection(),
                 new TextStylesSection(),
                 new AppearanceSection(),

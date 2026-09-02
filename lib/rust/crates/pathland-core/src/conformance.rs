@@ -115,12 +115,41 @@ pub(crate) const VECTORS: &[(&str, [u8; 16])] = &[
             0x01, 0x00, 0x00, 0x00, // C = modifiers = 0x01
         ],
     ),
+    (
+        "STYLE:SET_DESIGN_TOKEN (path=\"color.primary\" arenaRef=0, valueType=COLOR=0x07, value=0xFF0000FF)",
+        [
+            0x02, 0x02, 0x00, 0x00, // category STYLE, command SET_DESIGN_TOKEN
+            0x00, 0x00, 0x00, 0x00, // A = arenaRef = 0 ("color.primary")
+            0x07, 0x00, 0x00, 0x00, // B = valueType = 0x07 (COLOR)
+            0xFF, 0x00, 0x00, 0xFF, // C = 0xFF0000FF (opaque blue, 0xAARRGGBB)
+        ],
+    ),
+    (
+        "STYLE:SET_PROPERTY (id=1, COLOR=0x100A, valueType=DESIGN_TOKEN=0x08, arenaRef=0)",
+        [
+            0x02, 0x01, 0x00, 0x00, // category STYLE, command SET_PROPERTY
+            0x01, 0x00, 0x00, 0x00, // A = nodeId = 1
+            0x0A, 0x10, 0x08, 0x00, // B = (0x08 << 16) | 0x100A (DESIGN_TOKEN | COLOR)
+            0x00, 0x00, 0x00, 0x00, // C = arenaRef = 0 ("color.primary")
+        ],
+    ),
+    (
+        "STYLE:SET_DESIGN_TOKEN (path=\"font.body.family\" arenaRef=0, valueType=STRING=0x05, valueArenaRef=20)",
+        [
+            0x02, 0x02, 0x00, 0x00, // category STYLE, command SET_DESIGN_TOKEN
+            0x00, 0x00, 0x00, 0x00, // A = arenaRef = 0 ("font.body.family")
+            0x05, 0x00, 0x00, 0x00, // B = valueType = 0x05 (STRING)
+            0x14, 0x00, 0x00, 0x00, // C = arenaRef = 20 ("Inter")
+        ],
+    ),
 ];
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::opcode::Opcode;
+    use alloc::vec;
+    use alloc::vec::Vec;
 
     #[test]
     fn vectors_encode_exactly() {
@@ -186,10 +215,43 @@ mod tests {
             ),
             (0x03, 0x04, 0x0002, 5, 0x41, 0x01, VECTORS[10].1),
             (0x03, 0x05, 0x0000, 5, 0x41, 0x01, VECTORS[11].1),
+            (0x02, 0x02, 0x0000, 0, 0x07, 0xFF00_00FF, VECTORS[12].1),
+            (
+                0x02,
+                0x01,
+                0x0000,
+                1,
+                (0x08u32 << 16) | 0x100A,
+                0,
+                VECTORS[13].1,
+            ),
+            (0x02, 0x02, 0x0000, 0, 0x05, 0x14, VECTORS[14].1),
         ];
         for (cat, cmd, flags, a, b, c, expected) in cases {
             let op = Opcode::new(*cat, *cmd, *flags, *a, *b, *c);
             assert_eq!(op.to_bytes(), *expected);
         }
+    }
+
+    #[test]
+    fn set_design_token_emits_vector_17_exactly() {
+        // A fresh ring puts the "color.primary" arena entry at offset 0, so the
+        // emitted SET_DESIGN_TOKEN opcode must equal the golden bytes (vector 17).
+        use crate::{init_memory, Guest, Host, MemoryLayout};
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        let mut guest = Guest::new(&mut mem, &layout);
+        guest.begin_frame();
+        guest
+            .set_design_token("color.primary", crate::value_type::COLOR, 0xFF00_00FF)
+            .unwrap();
+        guest.end_frame();
+
+        let mut host = Host::new(&mut mem, &layout);
+        let ops: Vec<_> = host.frames()[0].opcodes().collect();
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0].to_bytes(), VECTORS[12].1, "vector 17 byte-exact");
     }
 }

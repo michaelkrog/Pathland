@@ -50,6 +50,8 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   length tokens emitted with `px`, and **`DESIGN_TOKEN` property references**
   resolved to `var(--pl-…)`, with the generative `space.<N>` family resolving
   to `calc(var(--pl-space-base) * N)` (`applyTokenRefProperty` in classes.ts).
+  **`STRING`-valued overrides** (e.g. `font.body.family`) resolve the value
+  string from the batch's string section and emit it single-quoted.
 - **Full event encoders** (`src/events.ts`): `POINTER_DOWN` (x/y + secondary),
   `POINTER_MOVE` (x/y + hover enter/leave), `POINTER_UP` (x/y + secondary),
   `KEY_DOWN`/`KEY_UP` (keyCode + modifiers + repeat), `VALUE_CHANGED` (f32 or

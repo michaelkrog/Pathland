@@ -78,7 +78,8 @@ use pathland_core::property_id;
 
 pub use pathland_core;
 pub use pathland_engine::{
-    assign_ids, collect_tap_handlers, component_type_id, Component, Engine, Gesture, Node,
+    assign_ids, collect_tap_handlers, component_type_id, AdaptiveTheme, Component, Engine, Gesture,
+    Node, Theme,
 };
 
 mod recognizer;

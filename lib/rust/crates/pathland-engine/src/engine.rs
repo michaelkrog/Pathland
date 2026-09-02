@@ -19,7 +19,7 @@
 
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
 use pathland_core::{value_type, value_type_for};
@@ -122,6 +122,67 @@ impl Engine {
         guest: &mut Guest<'_>,
     ) -> Result<u32, pathland_core::RingError> {
         guest.set_design_token(path, value_type, value)
+    }
+
+    /// Emit a batch of global design-token overrides ([`Theme`](crate::Theme))
+    /// as `STYLE::SET_DESIGN_TOKEN` opcodes. `STRING`-valued overrides allocate
+    /// their value into the guest arena first (the wire carries an arena ref).
+    ///
+    /// Overrides are renderer-global: they never re-emit nodes and are not part
+    /// of the diff. Emit once at mount, before the tree.
+    pub fn apply_theme(
+        &mut self,
+        theme: &crate::Theme,
+        guest: &mut Guest<'_>,
+    ) -> Result<(), pathland_core::RingError> {
+        for (path, value) in theme.iter() {
+            self.emit_token_override(path, value, guest)?;
+        }
+        Ok(())
+    }
+
+    /// Emit an adaptive theme ([`AdaptiveTheme`](crate::AdaptiveTheme)): the
+    /// **light** theme's overrides as base tokens, the **dark** theme's with the
+    /// `dark.` scheme prefix (spec/TOKENS.md).
+    pub fn apply_adaptive_theme(
+        &mut self,
+        adaptive: &crate::AdaptiveTheme,
+        guest: &mut Guest<'_>,
+    ) -> Result<(), pathland_core::RingError> {
+        self.apply_theme(&adaptive.light, guest)?;
+        for (path, value) in adaptive.dark.iter() {
+            let dark_path = if path.starts_with("dark.") {
+                path.to_string()
+            } else {
+                alloc::format!("dark.{path}")
+            };
+            self.emit_token_override(&dark_path, value, guest)?;
+        }
+        Ok(())
+    }
+
+    /// Emit one `SET_DESIGN_TOKEN` override, arena-allocating STRING values.
+    fn emit_token_override(
+        &mut self,
+        path: &str,
+        value: &pathland_core::tokens::TokenValue,
+        guest: &mut Guest<'_>,
+    ) -> Result<(), pathland_core::RingError> {
+        use pathland_core::tokens::TokenValue;
+        match value {
+            TokenValue::Str(s) => {
+                let ref_ = guest
+                    .alloc_str(s)
+                    .map_err(|_| pathland_core::RingError::Full)?;
+                guest.set_design_token(path, value.value_type(), ref_)?;
+            }
+            _ => {
+                if let Some(bits) = value.to_bits() {
+                    guest.set_design_token(path, value.value_type(), bits)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     // --- Signals ---

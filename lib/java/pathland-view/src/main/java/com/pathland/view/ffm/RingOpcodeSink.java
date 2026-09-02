@@ -96,6 +96,18 @@ public final class RingOpcodeSink implements OpcodeSink, AutoCloseable {
         push(Categories.STYLE, Commands.Style.SET_DATE, 0, nodeId, days, millisOfDay);
     }
 
+    @Override
+    public void setDesignToken(String path, int valueType, Object value) {
+        int pathRef = core.arenaAlloc(handle, path.getBytes(StandardCharsets.UTF_8));
+        int c;
+        if (valueType == ValueTypes.STRING) {
+            c = core.arenaAlloc(handle, ((String) value).getBytes(StandardCharsets.UTF_8));
+        } else {
+            c = ValueEncoder.encodeBits(valueType, value);
+        }
+        push(Categories.STYLE, Commands.Style.SET_DESIGN_TOKEN, 0, pathRef, valueType, c);
+    }
+
     private void push(int category, int command, int flags, int a, int b, int c) {
         core.push(handle, new Opcode(category, command, flags, a, b, c).toBytes());
     }

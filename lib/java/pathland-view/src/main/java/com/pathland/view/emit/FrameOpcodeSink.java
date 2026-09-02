@@ -102,6 +102,20 @@ public class FrameOpcodeSink implements OpcodeSink {
         push(Categories.STYLE, Commands.Style.SET_DATE, 0, nodeId, days, millisOfDay);
     }
 
+    @Override
+    public void setDesignToken(String path, int valueType, Object value) {
+        int pathOffset = strings.size();
+        writeString(path);
+        int c;
+        if (valueType == ValueTypes.STRING) {
+            c = strings.size();
+            writeString((String) value);
+        } else {
+            c = ValueEncoder.encodeBits(valueType, value);
+        }
+        push(Categories.STYLE, Commands.Style.SET_DESIGN_TOKEN, 0, pathOffset, valueType, c);
+    }
+
     /** Append a length-prefixed string to the string section, returning its offset. */
     public int writeString(String text) {
         int offset = strings.size();

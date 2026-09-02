@@ -24,6 +24,12 @@ diff-based reactive emission into `TREE`/`STYLE` opcodes. Protocol contract:
   zero-alloc with token refs present** (proven by test).
 - **`Engine::set_design_token`** — emits a global `STYLE::SET_DESIGN_TOKEN`
   override (base or `dark.`-prefixed) into the current frame.
+- **Global theme overrides** (`theme.rs`): `Theme` — single-value builders
+  (`color`/`f32`/`u32`/`u8`/`string`) for one scheme; `AdaptiveTheme { light,
+  dark }` composes a light + dark pair. `Engine::apply_theme` (light-only) and
+  `Engine::apply_adaptive_theme` (light as base, dark with the `dark.` prefix;
+  STRING values arena-alloc'd) emit the overrides once at mount — they never
+  re-emit nodes.
 - **Reactive signals** (`signal.rs`): writable signals bound to node
   text/properties; `set_signal` re-emits only the bound nodes
   (`SET_TEXT`/`SET_PROPERTY`).

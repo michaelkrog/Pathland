@@ -41,10 +41,27 @@ Statelessness). Protocol contract: `spec/`.
   - `DESIGN_TOKEN`-typed `SET_PROPERTY` values resolve at render time to
     `var(--pl-…)`, with the generative `space.<N>` family resolving to
     `calc(var(--pl-space-base) * N)` (`Node::token_ref`).
+  - **`STRING`-valued token overrides** (e.g. `font.body.family`): a
+    `SET_DESIGN_TOKEN` with `valueType = STRING` resolves the value string from
+    the batch's string section and emits it single-quoted (escaped) as a
+    `:root` rule (or inside the dark media query).
+  - The override rules render inside their own **`<style data-pathland-tokens>`**
+    element in the document head, **after** the built-in block (so their
+    `:root` variables win the cascade and the browser applies them) — matching
+    the JS DOM client's `style[data-pathland-tokens]` element. No overrides →
+    no extra element.
   - The built-in `:root` tokens use the **canonical spec paths** (`--pl-color-primary`,
     `--pl-color-background`, `--pl-color-text-primary`, `--pl-color-text-secondary`,
     `--pl-color-surface`, `--pl-color-border`) so app overrides retheme the
     renderer.
+  - **Full Tier-1 default coverage**: `--pl-space-base` (light + dark, so the
+    generative `space.<N>` family always resolves), canonical typography
+    (`--pl-font-body-size/weight/family`), the radius scale + `--pl-border-width-thin`,
+    and the **shared control core mapped onto the canonical catalog** —
+    `--pl-control-*`, `--pl-button-*`, `--pl-input-*` (light + dark), with the
+    focus ring mapped to `control.accent` and shadows mapped onto the composite
+    `elevation.low.*` / `elevation.high.*` tokens. `.pathland-*` rules reference
+    the canonical variables, so `SET_DESIGN_TOKEN` overrides retheme components.
 
 ## Design decision (decision A, September 2026): inline-all + built-in design system
 
@@ -84,11 +101,6 @@ single `style` attribute — no external compiler, no class system, no safelist:
   (colors, font size/weight, spacing/padding, corner radius, opacity,
   width/height, border width/color, shadow color). Compound accumulators that
   need concrete numbers (shadow radius/x/y) remain literal-only.
-- **`STRING`-valued token overrides** (e.g. `font.body.family`) are not yet
-  supported on the wire path (deferred).
-- The built-in `:root` **component-level tokens** (`--pl-input-*`, `--pl-button-*`,
-  `--pl-shadow-sm`, `--pl-color-focus-ring`) are still renderer-internal; mapping
-  them onto the canonical `control.*`/`button.*`/`input.*` catalog is a follow-up.
 - `SHAPE` `Path` renders as an SVG placeholder (no path data wire property).
 - GAUGE/SHAPE visuals are CSS approximations, not pixel-exact.
 - **Inter is loaded from the rsms.me CDN** (Cloudflare, `font-display: swap`,

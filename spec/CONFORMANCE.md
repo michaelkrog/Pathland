@@ -342,6 +342,23 @@ The single opcode is vector 18. The arena delta is the self-describing entry for
 - `11 00 00 00` = arenaDeltaLen = 17
 - `0D 00 00 00 63 6F 6C 6F 72 2E 70 72 69 6D 61 72 79` = arena entry `[len=13]["color.primary"]`
 
+### 20. STYLE:SET_DESIGN_TOKEN (path="font.body.family" arenaRef=0, valueType=STRING=0x05, valueArenaRef=20)
+
+A **STRING-valued** token override: the token path lives at arena offset 0
+(`[len=16]["font.body.family"]`, 20 bytes), the value string `"Inter"` at
+offset 20.
+
+```
+02 02 00 00 00 00 00 00 05 00 00 00 14 00 00 00
+```
+
+- `02` category = STYLE
+- `02` command = SET_DESIGN_TOKEN
+- `00 00` flags = 0
+- `00 00 00 00` A = arenaRef = 0 (token path `"font.body.family"`)
+- `05 00 00 00` B = valueType = 0x05 (STRING)
+- `14 00 00 00` C = arenaRef = 20 (value string `"Inter"`)
+
 ---
 
 ## Design-Token Resolution Conformance

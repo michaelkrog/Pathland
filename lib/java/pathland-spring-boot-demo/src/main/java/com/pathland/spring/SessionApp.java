@@ -1,5 +1,6 @@
 package com.pathland.spring;
 
+import com.pathland.demo.DemoTheme;
 import com.pathland.demo.KitchenSinkView;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
@@ -55,7 +56,7 @@ final class SessionApp {
                 }
             }
         };
-        this.emitter = new Emitter(sink);
+        this.emitter = new Emitter(sink, DemoTheme.adaptive());
 
         // Mount wires State fields, then renders and emits the structural frame.
         RenderResult result = emitter.mount(root, new Environment(state));

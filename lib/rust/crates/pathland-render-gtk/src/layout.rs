@@ -159,6 +159,7 @@ mod tests {
             children: Vec::new(),
             properties: props.iter().copied().collect(),
             strings: HashMap::new(),
+            token_refs: Default::default(),
         }
     }
 

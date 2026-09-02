@@ -29,12 +29,13 @@ trees. Protocol contract: `spec/`.
   every color-taking modifier (`foreground_style`, `background`, `border`,
   `tint`); token refs emit as the `DESIGN_TOKEN` value type via
   `Node::token_properties` (spec/TOKENS.md).
+- **`Theme` / `AdaptiveTheme` (global overrides)**: re-exports
+  `pathland_engine::Theme` (single-value builders `color`/`f32`/`string`/… for
+  one scheme) and `AdaptiveTheme { light, dark }`. Emit once at mount via
+  `Engine::apply_theme` (light) / `Engine::apply_adaptive_theme` (light + the
+  `dark.`-prefixed dark theme; STRING values arena-alloc'd).
 
 ## Not implemented / gaps
-
-- No DSL helper for `SET_DESIGN_TOKEN` global overrides / a `Theme` object
-  (the engine exposes `Engine::set_design_token`; a full theme surface is
-  planned).
 
 - No `strings` plumbing for STRING-valued properties — `TextField`'s
   `PROMPT` and `Color`/`Image` sources are stored as placeholder values only;

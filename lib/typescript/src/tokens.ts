@@ -8,7 +8,7 @@
 
 import type { Batch, Opcode } from "./plpl";
 import { readString } from "./plpl";
-import { VAL_COLOR, VAL_F32, VAL_I32, VAL_U8, VAL_U32 } from "./constants";
+import { VAL_COLOR, VAL_F32, VAL_I32, VAL_STRING, VAL_U8, VAL_U32 } from "./constants";
 import { argbToRgba, f32FromBits } from "./format";
 
 const DARK_PREFIX = "dark.";
@@ -68,10 +68,14 @@ export function tokenCssValue(valueType: number, c: number): string {
   }
 }
 
-/** Render a token override value as CSS, appending `px` to F32 length tokens. */
-function tokenCssOverride(path: string, valueType: number, c: number): string {
-  const value = tokenCssValue(valueType, c);
-  return isLengthToken(path) && valueType === VAL_F32 ? value + "px" : value;
+/** Render a token override value as CSS, appending `px` to F32 length tokens.
+ *  `STRING` values (e.g. `font.body.family`) are single-quoted and escaped. */
+function tokenCssOverride(path: string, valueType: number, value: number | string): string {
+  if (typeof value === "string") {
+    return `'${value.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
+  }
+  const v = tokenCssValue(valueType, value);
+  return isLengthToken(path) && valueType === VAL_F32 ? v + "px" : v;
 }
 
 const SPACE_FAMILY = /^space\.(\d+(?:\.\d+)?)$/;
@@ -88,7 +92,7 @@ export function resolveTokenCssRef(path: string): string {
 }
 
 export interface DesignTokenSink {
-  setToken(path: string, valueType: number, c: number): void;
+  setToken(path: string, valueType: number, value: number | string): void;
 }
 
 /**
@@ -123,10 +127,10 @@ export function createTokenSink(): DesignTokenSink {
   }
 
   return {
-    setToken(path, valueType, c) {
+    setToken(path, valueType, value) {
       const name = tokenToCssVar(path);
-      const value = tokenCssOverride(path, valueType, c);
-      (isDarkToken(path) ? dark : base).set(name, value);
+      const cssValue = tokenCssOverride(path, valueType, value);
+      (isDarkToken(path) ? dark : base).set(name, cssValue);
       render();
     },
   };
@@ -134,12 +138,14 @@ export function createTokenSink(): DesignTokenSink {
 
 /**
  * Handle a STYLE `SET_DESIGN_TOKEN` opcode (spec/OPCODE.md design-token system):
- * `A = arenaRef (token path)`, `B = valueType (u8, low byte)`, `C = value`.
+ * `A = arenaRef (token path)`, `B = valueType (u8, low byte)`, `C = value`. For
+ * a `STRING` value type, `C` is an arenaRef to the value string, resolved here.
  */
 export function applyDesignToken(op: Opcode, strings: Uint8Array, sink: DesignTokenSink): void {
   const path = readString(strings, op.a);
   const valueType = op.b & 0xff;
-  sink.setToken(path, valueType, op.c);
+  const value: number | string = valueType === VAL_STRING ? readString(strings, op.c) : op.c;
+  sink.setToken(path, valueType, value);
 }
 
 /** Convenience: apply every SET_DESIGN_TOKEN opcode in a batch. */

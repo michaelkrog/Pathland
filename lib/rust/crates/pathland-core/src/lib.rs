@@ -57,6 +57,7 @@ mod events;
 mod memory;
 mod opcode;
 mod ring;
+pub mod tokens;
 
 pub use arena::ArenaError;
 pub use constants::*;
@@ -312,6 +313,31 @@ impl<'a> Guest<'a> {
             arena_ref,
             u32::from(value_type),
             value,
+        );
+        ring_fn::push(self.slots, self.header, self.mask(), &op)?;
+        Ok(arena_ref)
+    }
+
+    /// Override a design token with a **STRING value** via `STYLE::SET_DESIGN_TOKEN`
+    /// (spec/TOKENS.md): both the token path and the value are arena strings —
+    /// `A` = path ref, `B` = `STRING` value type, `C` = value ref. Returns the
+    /// arena offset of the path.
+    pub fn set_design_token_string(
+        &mut self,
+        path: &str,
+        value: &str,
+    ) -> Result<u32, RingError> {
+        let arena_ref = arena_fn::alloc_str(self.arena, self.header, path)
+            .map_err(|_| RingError::Full)?;
+        let value_ref = arena_fn::alloc_str(self.arena, self.header, value)
+            .map_err(|_| RingError::Full)?;
+        let op = Opcode::new(
+            category::STYLE,
+            crate::style::SET_DESIGN_TOKEN,
+            0,
+            arena_ref,
+            u32::from(crate::value_type::STRING),
+            value_ref,
         );
         ring_fn::push(self.slots, self.header, self.mask(), &op)?;
         Ok(arena_ref)
@@ -645,6 +671,29 @@ mod tests {
         assert_eq!(ops[0].c(), 0xFF_2563EB);
         assert_eq!(frame.arena_str(arena_ref).unwrap(), "color.primary");
         assert_eq!(frame.arena_str(dark_ref).unwrap(), "dark.color.primary");
+    }
+
+    #[test]
+    fn set_design_token_string_round_trips() {
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        let mut guest = Guest::new(&mut mem, &layout);
+        guest.begin_frame();
+        let path_ref = guest.set_design_token_string("font.body.family", "Inter").unwrap();
+        guest.end_frame();
+
+        let mut host = Host::new(&mut mem, &layout);
+        let frame = &host.frames()[0];
+        let ops: Vec<Opcode> = frame.opcodes().collect();
+        assert_eq!(ops.len(), 1);
+        assert_eq!(ops[0].category(), category::STYLE);
+        assert_eq!(ops[0].command(), style::SET_DESIGN_TOKEN);
+        assert_eq!(ops[0].b(), u32::from(value_type::STRING));
+        assert_eq!(frame.arena_str(ops[0].a()).unwrap(), "font.body.family");
+        assert_eq!(frame.arena_str(ops[0].c()).unwrap(), "Inter");
+        assert_eq!(path_ref, ops[0].a());
     }
 
     #[test]

@@ -213,6 +213,22 @@ describe("applyBatch · META + design tokens + string props", () => {
     expect(style?.textContent).toContain(":root{--pl-space-base:4px;}");
   });
 
+  it("SET_DESIGN_TOKEN resolves a STRING-valued override (font.body.family)", () => {
+    // Path "font.body.family" (16 chars → entry 20 B) at offset 0, value
+    // "Inter" at offset 20 — the conformance vector 20 wire shape.
+    const path = stringEntry("font.body.family");
+    const value = stringEntry("Inter");
+    const strings = new Uint8Array(path.length + value.length);
+    strings.set(path, 0);
+    strings.set(value, path.length);
+    const batch = parseBatch(
+      buildBatch([[CAT_STYLE, CMD_SET_DESIGN_TOKEN, 0, 0, VAL_STRING, 20]], strings),
+    );
+    applyBatch(batch, renderer());
+    const style = document.head.querySelector("style[data-pathland-tokens]");
+    expect(style?.textContent).toContain(":root{--pl-font-body-family:'Inter';}");
+  });
+
   it("resolves a DESIGN_TOKEN property reference to var()", () => {
     const span = document.createElement("span");
     const r = renderer();
