@@ -25,6 +25,10 @@ pub struct Node {
     /// Constraint/style properties (propertyId to value) emitted as
     /// `STYLE:SET_PROPERTY`.
     pub properties: BTreeMap<u16, u32>,
+    /// Token-referenced properties (`propertyId → token path`), emitted as
+    /// `STYLE:SET_PROPERTY` with the `DESIGN_TOKEN` value type. A token ref
+    /// overrides the literal `properties` entry for the same id (spec/TOKENS.md).
+    pub token_properties: BTreeMap<u16, String>,
     /// A signal the node's text is bound to (overrides `Component::Text` /
     /// `Component::Button` label when set).
     pub text_binding: Option<SignalId>,
@@ -43,6 +47,7 @@ impl core::fmt::Debug for Node {
             .field("component", &self.component)
             .field("children", &self.children)
             .field("properties", &self.properties)
+            .field("token_properties", &self.token_properties)
             .field("text_binding", &self.text_binding)
             .field("property_bindings", &self.property_bindings)
             .field("gestures", &self.gestures.len())
@@ -58,6 +63,7 @@ impl Node {
             component: component.clone(),
             children: Vec::new(),
             properties: BTreeMap::new(),
+            token_properties: BTreeMap::new(),
             text_binding: None,
             property_bindings: BTreeMap::new(),
             gestures: Vec::new(),

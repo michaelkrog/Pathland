@@ -35,7 +35,7 @@
 //! impl ViewModifier for Card {
 //!     fn apply(&self, node: &mut Node) {
 //!         Padding(16.0).apply(node);
-//!         Background(Color(0xFF_EEEEEE)).apply(node);
+//!         Background(Color::argb(0xFF_EEEEEE)).apply(node);
 //!     }
 //! }
 //!
@@ -343,7 +343,8 @@ pub struct Padding(pub f32);
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct FontSize(pub f32);
 
-/// An sRGB color (`0xAARRGGBB`), with **dual identity** mirroring SwiftUI:
+/// An sRGB color or a **design-token reference**, with dual identity mirroring
+/// SwiftUI:
 ///
 /// - **View** — placing a `Color` in a layout tree draws a solid-color fill
 ///   that is **layout-greedy** (expands to the available space unless a
@@ -351,15 +352,44 @@ pub struct FontSize(pub f32);
 /// - **Data type** — a `Color` value is passed into style-taking modifiers
 ///   (`.foreground_style`, `.background`, `.border`, `.tint`).
 ///
+/// A literal packs sRGB `0xAARRGGBB`; `Color::token("color.primary")` references
+/// a design token the renderer resolves against the active scheme
+/// (spec/TOKENS.md) — emitted as the `DESIGN_TOKEN` value type, never a literal.
+///
 /// There is deliberately **no** `.color()` / `.foregroundColor()` modifier.
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Color(pub u32);
+pub enum Color {
+    /// A literal sRGB color (`0xAARRGGBB`).
+    Literal(u32),
+    /// A reference to a design token path (e.g. `color.primary`, `dark.color.primary`).
+    Token(&'static str),
+}
+
+impl Color {
+    /// A literal color from a packed `0xAARRGGBB` value.
+    pub const fn argb(argb: u32) -> Self {
+        Color::Literal(argb)
+    }
+
+    /// A reference to a design token path (e.g. `color.primary`).
+    pub const fn token(path: &'static str) -> Self {
+        Color::Token(path)
+    }
+}
 
 impl View for Color {
     fn build(&self) -> Node {
-        let mut p = BTreeMap::new();
-        p.insert(property_id::COLOR, self.0);
-        plain_node(Component::Color, Vec::new(), p)
+        let p = BTreeMap::new();
+        let mut node = plain_node(Component::Color, Vec::new(), p);
+        match self {
+            Color::Literal(v) => {
+                node.properties.insert(property_id::COLOR, *v);
+            }
+            Color::Token(path) => {
+                node.token_properties.insert(property_id::COLOR, String::from(*path));
+            }
+        }
+        node
     }
 }
 
@@ -435,19 +465,19 @@ impl ViewModifier for FontSize {
 
 impl ViewModifier for ForegroundStyle {
     fn apply(&self, node: &mut Node) {
-        node.properties.insert(property_id::COLOR, self.0 .0);
+        apply_color(node, property_id::COLOR, self.0);
     }
 }
 
 impl ViewModifier for Background {
     fn apply(&self, node: &mut Node) {
-        node.properties.insert(property_id::BACKGROUND_COLOR, self.0 .0);
+        apply_color(node, property_id::BACKGROUND_COLOR, self.0);
     }
 }
 
 impl ViewModifier for Tint {
     fn apply(&self, node: &mut Node) {
-        node.properties.insert(property_id::TINT, self.0 .0);
+        apply_color(node, property_id::TINT, self.0);
     }
 }
 
@@ -571,7 +601,7 @@ impl ViewModifier for Hidden {
 
 impl ViewModifier for Border {
     fn apply(&self, node: &mut Node) {
-        node.properties.insert(property_id::BORDER_COLOR, self.color.0);
+        apply_color(node, property_id::BORDER_COLOR, self.color);
         node.properties.insert(property_id::BORDER_WIDTH, self.width.to_bits());
     }
 }
@@ -667,6 +697,7 @@ impl View for VStack {
             component: Component::VStack,
             children: self.children.iter().map(|c| c.build()).collect(),
             properties: BTreeMap::new(),
+        token_properties: BTreeMap::new(),
             text_binding: None,
             property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
@@ -711,6 +742,7 @@ impl View for HStack {
             component: Component::HStack,
             children: self.children.iter().map(|c| c.build()).collect(),
             properties: BTreeMap::new(),
+        token_properties: BTreeMap::new(),
             text_binding: None,
             property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
@@ -740,6 +772,7 @@ impl View for Text {
             },
             children: Vec::new(),
             properties: BTreeMap::new(),
+        token_properties: BTreeMap::new(),
             text_binding: None,
             property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
@@ -771,6 +804,7 @@ impl View for Spacer {
             component: Component::Spacer,
             children: Vec::new(),
             properties: BTreeMap::new(),
+        token_properties: BTreeMap::new(),
             text_binding: None,
             property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
@@ -800,6 +834,7 @@ impl View for Button {
             },
             children: Vec::new(),
             properties: BTreeMap::new(),
+        token_properties: BTreeMap::new(),
             text_binding: None,
             property_bindings: BTreeMap::new(),
             gestures: Vec::new(),
@@ -823,9 +858,23 @@ fn plain_node(component: Component, children: Vec<Node>, properties: BTreeMap<u1
         component,
         children,
         properties,
+        token_properties: BTreeMap::new(),
         text_binding: None,
         property_bindings: BTreeMap::new(),
         gestures: Vec::new(),
+    }
+}
+
+/// Apply a color-taking style property: a literal packs as the `COLOR` value
+/// type; a `Color::token(..)` reference rides the `DESIGN_TOKEN` value type.
+fn apply_color(node: &mut Node, prop: u16, color: Color) {
+    match color {
+        Color::Literal(v) => {
+            node.properties.insert(prop, v);
+        }
+        Color::Token(path) => {
+            node.token_properties.insert(prop, String::from(path));
+        }
     }
 }
 
@@ -1205,8 +1254,8 @@ mod tests {
     fn modifiers_chain_and_apply_to_node() {
         let node = Text::new("hi")
             .padding(16.0)
-            .foreground_style(Color(0xFF_0000FF))
-            .background(Color(0xFF_EEEEEE))
+            .foreground_style(Color::argb(0xFF_0000FF))
+            .background(Color::argb(0xFF_EEEEEE))
             .build();
         assert_eq!(
             node.properties.get(&property_id::PADDING),
@@ -1219,6 +1268,44 @@ mod tests {
         assert_eq!(
             node.properties.get(&property_id::BACKGROUND_COLOR),
             Some(&0xFF_EEEEEE)
+        );
+    }
+
+    #[test]
+    fn color_token_refs_ride_design_token_properties() {
+        let node = Text::new("hi")
+            .foreground_style(Color::token("color.primary"))
+            .background(Color::token("dark.color.surface"))
+            .border(Color::token("color.border"), 1.0)
+            .build();
+        assert!(node.properties.get(&property_id::COLOR).is_none(), "no literal");
+        assert_eq!(
+            node.token_properties.get(&property_id::COLOR).map(String::as_str),
+            Some("color.primary")
+        );
+        assert_eq!(
+            node.token_properties
+                .get(&property_id::BACKGROUND_COLOR)
+                .map(String::as_str),
+            Some("dark.color.surface")
+        );
+        assert_eq!(
+            node.token_properties.get(&property_id::BORDER_COLOR).map(String::as_str),
+            Some("color.border")
+        );
+        assert_eq!(
+            node.properties.get(&property_id::BORDER_WIDTH),
+            Some(&1.0f32.to_bits())
+        );
+    }
+
+    #[test]
+    fn color_view_with_token_builds_token_property() {
+        let node = Color::token("color.primary").build();
+        assert_eq!(node.component, Component::Color);
+        assert_eq!(
+            node.token_properties.get(&property_id::COLOR).map(String::as_str),
+            Some("color.primary")
         );
     }
 
@@ -1274,8 +1361,8 @@ mod tests {
         impl ViewModifier for Card {
             fn apply(&self, node: &mut Node) {
                 Padding(16.0).apply(node);
-                Background(Color(0xFF_EEEEEE)).apply(node);
-                ForegroundStyle(Color(0xFF_000000)).apply(node);
+                Background(Color::argb(0xFF_EEEEEE)).apply(node);
+                ForegroundStyle(Color::argb(0xFF_000000)).apply(node);
             }
         }
 

@@ -35,8 +35,12 @@ tracks what this crate implements.
   draft `FocusChanged`, `EditingChanged`, `Submit`, `Scroll`, `Wheel`,
   `DateChanged` (0x08–0x0D) — all encode/decode round-trip.
 - **`Guest::set_date`** helper (`STYLE::SET_DATE`).
+- **`Guest::set_design_token`** helper (`STYLE::SET_DESIGN_TOKEN`): global token
+  override (`path` arena string, `valueType`, `value`), incl. `dark.`-prefixed
+  dark variants (spec/TOKENS.md).
 - **`value_type_for`** matches `spec/MODIFIERS.md`'s canonical mapping
-  (COLOR / U32 / U8 / STRING / F32-enum-code).
+  (COLOR / U32 / U8 / STRING / F32-enum-code); the `DESIGN_TOKEN` value type
+  (`0x08`) is available per-instance on `SET_PROPERTY`.
 - **Listener bits**: 0–9 (`POINTER_*`, `KEY_*`, `FOCUS`, `EDITING`, `SUBMIT`,
   `SCROLL`, `WHEEL`).
 - **Shared linear memory**: 80-byte header, guest→host ring, host→guest event

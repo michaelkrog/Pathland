@@ -42,6 +42,7 @@ fn text_node(text: &str) -> Node {
         component: Component::Text { text: text.into() },
         children: Vec::new(),
         properties: BTreeMap::new(),
+        token_properties: BTreeMap::new(),
         text_binding: None,
         property_bindings: BTreeMap::new(),
         gestures: Vec::new(),
@@ -54,6 +55,7 @@ fn vstack(children: Vec<Node>) -> Node {
         component: Component::VStack,
         children,
         properties: BTreeMap::new(),
+        token_properties: BTreeMap::new(),
         text_binding: None,
         property_bindings: BTreeMap::new(),
         gestures: Vec::new(),
@@ -66,6 +68,7 @@ fn hstack(children: Vec<Node>) -> Node {
         component: Component::HStack,
         children,
         properties: BTreeMap::new(),
+        token_properties: BTreeMap::new(),
         text_binding: None,
         property_bindings: BTreeMap::new(),
         gestures: Vec::new(),
@@ -128,6 +131,70 @@ fn color_property_emits_color_value_type() {
         .unwrap();
     assert_eq!(color_op.b() >> 16, value_type::COLOR as u32);
     assert_eq!(color_op.c(), 0xFF_0000FF);
+}
+
+/// Emit once and read the (property, valueType, token path) of the first
+/// `SET_PROPERTY` opcode, resolving its arena string via the host frame.
+fn emit_and_read_token(engine: &mut Engine, root: &Node) -> (u16, u8, String) {
+    let (mut mem, layout) = with_guest();
+    {
+        let mut guest = Guest::new(&mut mem, &layout);
+        guest.begin_frame();
+        engine.emit(root, &mut guest).unwrap();
+        guest.end_frame();
+    }
+    let mut host = Host::new(&mut mem, &layout);
+    let frames = host.frames();
+    let frame = frames.first().unwrap();
+    for op in frame.opcodes() {
+        if op.category() == category::STYLE && op.command() == style::SET_PROPERTY {
+            let prop = op.b() as u16;
+            let vt = (op.b() >> 16) as u8;
+            let path = frame.arena_str(op.c()).map(str::to_owned).unwrap_or_default();
+            return (prop, vt, path);
+        }
+    }
+    (0, 0, String::new())
+}
+
+#[test]
+fn token_ref_emits_design_token_value_type() {
+    let mut engine = Engine::new();
+    let mut root = text_node("hi");
+    root.token_properties
+        .insert(property_id::COLOR, "color.primary".into());
+    let (prop, vt, path) = emit_and_read_token(&mut engine, &root);
+    assert_eq!(prop, property_id::COLOR);
+    assert_eq!(vt, value_type::DESIGN_TOKEN);
+    assert_eq!(path, "color.primary");
+}
+
+#[test]
+fn unchanged_token_ref_emits_zero_opcodes() {
+    let mut engine = Engine::new();
+    let mut root = built(text_node("hi"));
+    root.token_properties
+        .insert(property_id::COLOR, "color.primary".into());
+    emit_and_collect(&mut engine, &root);
+    let ops = emit_and_collect(&mut engine, &root);
+    assert_eq!(ops.len(), 0, "no arena churn / no re-emission for an unchanged ref");
+}
+
+#[test]
+fn token_ref_change_emits_single_design_token_delta() {
+    let mut engine = Engine::new();
+    let mut root = built(text_node("hi"));
+    root.token_properties
+        .insert(property_id::COLOR, "color.primary".into());
+    emit_and_collect(&mut engine, &root);
+
+    root.token_properties
+        .insert(property_id::COLOR, "color.secondary".into());
+    let ops = emit_and_collect(&mut engine, &root);
+    assert_eq!(ops.len(), 1);
+    assert_eq!(ops[0].command(), style::SET_PROPERTY);
+    assert_eq!(ops[0].b() as u16, property_id::COLOR);
+    assert_eq!(ops[0].b() >> 16, value_type::DESIGN_TOKEN as u32);
 }
 
 #[test]
@@ -283,6 +350,11 @@ fn emit_is_zero_alloc_in_steady_state() {
     let mut root = vstack(vec![text_node("one"), text_node("two")]);
     root.properties.insert(property_id::SPACING, 4.0f32.to_bits());
     root.properties.insert(property_id::PADDING, 8.0f32.to_bits());
+    // Token-ref properties must also be steady-state zero-alloc (no fresh map,
+    // no arena re-alloc on an unchanged ref).
+    root.children[0]
+        .token_properties
+        .insert(property_id::COLOR, "color.primary".into());
     assign_ids(&mut root, &mut 1);
 
     let mut engine = Engine::new();

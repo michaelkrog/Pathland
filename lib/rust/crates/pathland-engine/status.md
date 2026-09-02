@@ -1,6 +1,6 @@
 # pathland-engine — implementation status
 
-**Last updated:** August 28, 2026
+**Last updated:** September 2, 2026
 
 The retained-tree **emitter**: the application's canonical UI tree and the
 diff-based reactive emission into `TREE`/`STYLE` opcodes. Protocol contract:
@@ -9,7 +9,7 @@ diff-based reactive emission into `TREE`/`STYLE` opcodes. Protocol contract:
 ## Implemented
 
 - **Retained tree** (`node.rs`): `Node` (id, component, children, properties,
-  text/property signal bindings, app-side gestures).
+  `token_properties`, text/property signal bindings, app-side gestures).
 - **Components** (`Component` enum): the full spec set — `VStack`, `HStack`,
   `ZStack`, `Text`, `Button`, `Spacer`, `Image`, `Color`, `Shape`, `Divider`,
   `ProgressView`, `Gauge`, `Grid`, `ScrollView`, `LazyVGrid`, `LazyHGrid`,
@@ -18,6 +18,12 @@ diff-based reactive emission into `TREE`/`STYLE` opcodes. Protocol contract:
   `component_type` ids via `component_type_id`.
 - **Diff emitter** (`engine.rs`): create/delete/insert/move deltas,
   property/text deltas, steady-state zero emission.
+- **Design-token property refs**: `Node::token_properties` (property → token
+  path) emit as `SET_PROPERTY` with the `DESIGN_TOKEN` value type; unchanged
+  refs reuse their arena offset across passes — **steady-state emission stays
+  zero-alloc with token refs present** (proven by test).
+- **`Engine::set_design_token`** — emits a global `STYLE::SET_DESIGN_TOKEN`
+  override (base or `dark.`-prefixed) into the current frame.
 - **Reactive signals** (`signal.rs`): writable signals bound to node
   text/properties; `set_signal` re-emits only the bound nodes
   (`SET_TEXT`/`SET_PROPERTY`).
@@ -29,6 +35,7 @@ diff-based reactive emission into `TREE`/`STYLE` opcodes. Protocol contract:
 - Only `Tap` gesture; no computed-signal effects in the engine (Java has them).
 - No `strings` map on `Node` for STRING-valued properties (`LABEL`/`PROMPT`/
   `FONT_FAMILY`/`IMAGE_SOURCE`) — the DSL cannot yet emit them.
+- Signal-bound properties cannot carry token refs (a token ref is a static path).
 
 ## Verified by
 

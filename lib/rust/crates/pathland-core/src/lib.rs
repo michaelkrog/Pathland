@@ -293,6 +293,30 @@ impl<'a> Guest<'a> {
         ring_fn::push(self.slots, self.header, self.mask(), &op)
     }
 
+    /// Override a design token globally via `STYLE::SET_DESIGN_TOKEN`:
+    /// `path` (arena string) → `value` of `value_type`. Applies everywhere the
+    /// renderer resolves tokens (spec/TOKENS.md). A `dark.`-prefixed path
+    /// overrides the dark variant. Returns the arena offset of the path.
+    pub fn set_design_token(
+        &mut self,
+        path: &str,
+        value_type: u8,
+        value: u32,
+    ) -> Result<u32, RingError> {
+        let arena_ref = arena_fn::alloc_str(self.arena, self.header, path)
+            .map_err(|_| RingError::Full)?;
+        let op = Opcode::new(
+            category::STYLE,
+            crate::style::SET_DESIGN_TOKEN,
+            0,
+            arena_ref,
+            u32::from(value_type),
+            value,
+        );
+        ring_fn::push(self.slots, self.header, self.mask(), &op)?;
+        Ok(arena_ref)
+    }
+
     /// Allocate arbitrary bytes into the arena, returning the offset.
     pub fn alloc(&mut self, bytes: &[u8]) -> Result<u32, ArenaError> {
         arena_fn::alloc(self.arena, self.header, bytes)
@@ -593,6 +617,34 @@ mod tests {
         assert_eq!(frame.arena_str(arena_ref).unwrap(), "Hello");
         // Second drain is empty.
         assert!(host.frames().is_empty());
+    }
+
+    #[test]
+    fn set_design_token_round_trips() {
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        let mut guest = Guest::new(&mut mem, &layout);
+        guest.begin_frame();
+        let arena_ref = guest
+            .set_design_token("color.primary", value_type::COLOR, 0xFF_2563EB)
+            .unwrap();
+        let dark_ref = guest
+            .set_design_token("dark.color.primary", value_type::COLOR, 0xFF_60A5FA)
+            .unwrap();
+        guest.end_frame();
+
+        let mut host = Host::new(&mut mem, &layout);
+        let frame = &host.frames()[0];
+        let ops: Vec<Opcode> = frame.opcodes().collect();
+        assert_eq!(ops.len(), 2);
+        assert_eq!(ops[0].category(), category::STYLE);
+        assert_eq!(ops[0].command(), style::SET_DESIGN_TOKEN);
+        assert_eq!(ops[0].b(), u32::from(value_type::COLOR));
+        assert_eq!(ops[0].c(), 0xFF_2563EB);
+        assert_eq!(frame.arena_str(arena_ref).unwrap(), "color.primary");
+        assert_eq!(frame.arena_str(dark_ref).unwrap(), "dark.color.primary");
     }
 
     #[test]
