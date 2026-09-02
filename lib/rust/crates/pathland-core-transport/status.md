@@ -18,7 +18,9 @@ codec (both directions). Protocol contract: `spec/OPCODE.md` (Transport).
   wheel/date-changed). Both directions are fully wired at the codec level.
 - **Batching policy** (`batching.rs`): time/size flush thresholds with arena
   delta tracking.
-- **Conformance vectors 13/14** (`conformance.rs`): golden network-batch bytes.
+- **Conformance vectors 13/14/19** (`conformance.rs`): golden network-batch
+  bytes — incl. **vector 19** (a `DESIGN_TOKEN`-typed `SET_PROPERTY` with the
+  `"color.primary"` arena delta).
 
 ## Not implemented / gaps
 

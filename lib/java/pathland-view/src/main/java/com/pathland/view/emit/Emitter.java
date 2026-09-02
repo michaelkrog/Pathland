@@ -1,6 +1,8 @@
 package com.pathland.view.emit;
 
+import com.pathland.view.Color;
 import com.pathland.view.Environment;
+import com.pathland.view.ThemeData;
 import com.pathland.view.ValueTypes;
 import com.pathland.view.View;
 import com.pathland.view.signal.EffectRef;
@@ -27,6 +29,7 @@ import java.util.function.Consumer;
 public final class Emitter {
 
     private final OpcodeSink sink;
+    private final ThemeData theme;
     private final Map<Integer, Runnable> tapActions = new LinkedHashMap<>();
     private final Map<Integer, Consumer<String>> textInputs = new LinkedHashMap<>();
     private final Map<Integer, Consumer<Float>> valueInputs = new LinkedHashMap<>();
@@ -38,7 +41,20 @@ public final class Emitter {
     private PathlandNode tree;
 
     public Emitter(OpcodeSink sink) {
+        this(sink, null);
+    }
+
+    /**
+     * Create an emitter with a global theme ({@link ThemeData}: a single
+     * {@link Theme} or an {@link AdaptiveTheme} light+dark pair). The theme's
+     * {@code STYLE::SET_DESIGN_TOKEN} overrides are emitted at the start of the
+     * **mount** and **renderFull** (resync) frames, so the SSR document and the
+     * first client frame both carry them. Overrides are renderer-global and
+     * never re-emit nodes; deltas are unaffected.
+     */
+    public Emitter(OpcodeSink sink, ThemeData theme) {
         this.sink = Objects.requireNonNull(sink, "sink");
+        this.theme = theme;
     }
 
     /** Mount the view tree: assign ids, emit the structural frame, register bindings. */
@@ -59,6 +75,7 @@ public final class Emitter {
         collectInputs(tree);
 
         sink.beginFrame();
+        emitTheme();
         emitNode(tree);
         sink.endFrame();
 
@@ -88,8 +105,16 @@ public final class Emitter {
             throw new IllegalStateException("Emitter not mounted");
         }
         sink.beginFrame();
+        emitTheme();
         emitNode(tree);
         sink.endFrame();
+    }
+
+    /** Emit the global theme overrides at the start of a full frame. */
+    private void emitTheme() {
+        if (theme != null) {
+            theme.emitInto(sink);
+        }
     }
 
     /** Stop all registered binding effects (e.g. when tearing down the tree). */
@@ -146,7 +171,9 @@ public final class Emitter {
     }
 
     private void emitProperty(int nodeId, int property, Object value) {
-        int valueType = ValueTypes.forProperty(property);
+        int valueType = value instanceof Color c && c.isToken()
+                ? ValueTypes.DESIGN_TOKEN
+                : ValueTypes.forProperty(property);
         sink.setProperty(nodeId, property, valueType, value);
     }
 

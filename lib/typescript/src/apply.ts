@@ -29,12 +29,13 @@ import {
   PROP_SELECTION,
   PROP_TEXT,
   PROP_VALUE,
+  VAL_DESIGN_TOKEN,
   VAL_STRING,
 } from "./constants";
 import type { Batch, Opcode } from "./plpl";
 import { readString } from "./plpl";
 import { childrenContainer, createElement } from "./elements";
-import { applyEnabled, applyProperty } from "./classes";
+import { applyEnabled, applyProperty, applyTokenRefProperty } from "./classes";
 import { createTokenSink, applyDesignToken, type DesignTokenSink } from "./tokens";
 import { argbToHex, daysToIso, f32FromBits, millisToTime } from "./format";
 
@@ -195,6 +196,8 @@ function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
       const valueType = (op.b >>> 16) & 0xff;
       if (valueType === VAL_STRING) {
         applyStringProperty(el, propId, readString(strings, op.c));
+      } else if (valueType === VAL_DESIGN_TOKEN) {
+        applyTokenRefProperty(el, propId, readString(strings, op.c));
       } else {
         applyNumericProperty(el, propId, valueType, op.c);
       }

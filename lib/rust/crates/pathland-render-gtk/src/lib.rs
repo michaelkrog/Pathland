@@ -23,6 +23,7 @@
 mod capi;
 mod host;
 mod layout;
+mod tokens;
 
 pub use host::{describe, render_tree_from_frame, HostNode, RenderTree};
 
@@ -34,6 +35,7 @@ use gtk::prelude::*;
 use gtk::{
     Align, Box as GtkBox, Button, EventControllerMotion, GestureClick, Label, PropagationPhase,
 };
+use pathland_core::tokens::Scheme;
 use pathland_core::{component_type, listener, property_id, Event, Frame};
 use pathland_core_transport::{DriverTransport, FrameSource, OpcodeBatch, RingTransport, TransportError};
 
@@ -73,6 +75,9 @@ pub struct GtkRenderer {
     composite_boxes: HashMap<u32, gtk::Widget>,
     /// Set once before the first render so buttons can report clicks.
     event_sink: Option<Rc<RefCell<dyn FnMut(Event)>>>,
+    /// A widget's style context captured at first build, used to enrich the
+    /// design-token defaults with GTK-native theme colors (`None` headless).
+    native_ctx: Option<gtk::StyleContext>,
 }
 
 impl Default for GtkRenderer {
@@ -90,12 +95,42 @@ impl GtkRenderer {
             attached_listeners: HashMap::new(),
             composite_boxes: HashMap::new(),
             event_sink: None,
+            native_ctx: None,
         }
     }
 
     /// Set the event sink (called when a native widget reports an input).
     pub fn set_event_sink(&mut self, sink: Rc<RefCell<dyn FnMut(Event)>>) {
         self.event_sink = Some(sink);
+    }
+
+    /// The effective color scheme the renderer resolved from the platform.
+    pub fn scheme(&self) -> Scheme {
+        self.tree.scheme()
+    }
+
+    /// Set the effective color scheme (renderer-derived, never carried by the
+    /// protocol) and re-resolve every design token — native defaults for the
+    /// new scheme are re-enriched from the GTK theme when a widget exists, then
+    /// all token-referencing properties re-resolve and the widget tree re-applies.
+    pub fn set_scheme(&mut self, scheme: Scheme) {
+        self.enrich_native_defaults();
+        self.tree.set_scheme(scheme);
+        self.sync();
+    }
+
+    /// One-time best-effort: replace Tier-1 default tokens the current GTK
+    /// theme can resolve (`@theme_*` named colors) with native colors, using
+    /// the first widget's style context. Headless → concrete fallbacks remain.
+    fn enrich_native_defaults(&mut self) {
+        if let Some(ctx) = self.native_ctx.as_ref() {
+            let scheme = self.tree.scheme();
+            let (base, dark) = tokens::enrich_defaults(
+                &|name| tokens::lookup_color(ctx, name),
+                scheme,
+            );
+            self.tree.set_defaults(base, dark);
+        }
     }
 
     /// Apply one frame of opcode deltas and reconcile the GTK widget tree.
@@ -143,6 +178,10 @@ impl GtkRenderer {
         };
 
         let widget = self.get_or_create(id, &node);
+        // The first get_or_create may have just enriched the token defaults
+        // with GTK theme colors; re-read the node so the values applied now
+        // are the native-resolved ones, not the pre-enrichment fallbacks.
+        let node = self.tree.node(id).cloned().unwrap_or(node);
         self.update(widget, &node);
 
         // Recurse into children (build them first so they exist to attach).
@@ -192,6 +231,12 @@ impl GtkRenderer {
             return w.clone();
         }
         let widget = build_widget(node);
+        // Capture a style context once the first native widget exists so the
+        // design-token defaults can be enriched with GTK theme colors.
+        if self.native_ctx.is_none() {
+            self.native_ctx = Some(widget.style_context());
+            self.enrich_native_defaults();
+        }
         self.widgets.insert(id, widget.clone());
         widget
     }
@@ -1143,6 +1188,21 @@ pub fn run_with_pump<P, F>(
 
         let renderer = Rc::new(RefCell::new(GtkRenderer::new()));
 
+        // Color-scheme detection (spec/TOKENS.md): the renderer derives the
+        // effective scheme from the native GTK variant and re-resolves design
+        // tokens when it changes. Scheme is NEVER carried by the protocol.
+        if let Some(settings) = gtk::Settings::default() {
+            let renderer_for_scheme = renderer.clone();
+            settings.connect_gtk_application_prefer_dark_theme_notify(move |settings| {
+                renderer_for_scheme
+                    .borrow_mut()
+                    .set_scheme(tokens::scheme_from_settings(settings));
+            });
+            renderer
+                .borrow_mut()
+                .set_scheme(tokens::scheme_from_settings(&settings));
+        }
+
         // Native inputs are written as EVENT opcodes into the pump (host → guest);
         // the host is then woken to drain the event ring itself.
         {
@@ -1203,7 +1263,8 @@ where
 mod tests {
     use super::*;
     use pathland_engine::Engine;
-    use pathland_core::{init_memory, Guest, MemoryLayout};
+    use pathland_core::tokens::Scheme;
+    use pathland_core::{init_memory, property_id, value_type, Guest, Host, MemoryLayout};
     use pathland_view::{assign_ids, text, vstack, View, ViewExt};
 
     #[test]
@@ -1233,6 +1294,134 @@ mod tests {
         tree.apply_frame(&frames[0]);
         assert_eq!(tree.nodes.len(), 3);
         assert_eq!(tree.node(1).unwrap().component_type, component_type::VSTACK);
+    }
+
+    #[test]
+    fn design_token_property_ref_resolves_against_concrete_defaults() {
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        let mut root = text("x")
+            .foreground_style(pathland_view::Color::token("color.primary"))
+            .build();
+        assign_ids(&mut root, &mut 1);
+
+        let mut engine = Engine::new();
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            engine.emit(&root, &mut guest).unwrap();
+            guest.end_frame();
+        }
+
+        let mut host = Host::new(&mut mem, &layout);
+        let mut tree = RenderTree::default();
+        tree.apply_frame(&host.frames()[0]);
+        assert_eq!(
+            tree.node(1).unwrap().properties.get(&property_id::COLOR).copied(),
+            Some(0xFF_2563EB),
+            "color.primary concrete light default"
+        );
+    }
+
+    #[test]
+    fn design_token_override_and_scheme_change_re_resolve() {
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+
+        let mut root = text("x")
+            .foreground_style(pathland_view::Color::token("color.primary"))
+            .build();
+        assign_ids(&mut root, &mut 1);
+        let mut engine = Engine::new();
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            engine.emit(&root, &mut guest).unwrap();
+            guest.end_frame();
+        }
+        let mut host = Host::new(&mut mem, &layout);
+        let mut tree = RenderTree::default();
+        tree.apply_frame(&host.frames()[0]);
+
+        // Base override wins (light).
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            guest
+                .set_design_token("color.primary", value_type::COLOR, 0xFF_123456)
+                .unwrap();
+            guest.end_frame();
+            let mut host = Host::new(&mut mem, &layout);
+            tree.apply_frame(&host.frames()[0]);
+        }
+        assert_eq!(
+            tree.node(1).unwrap().properties.get(&property_id::COLOR).copied(),
+            Some(0xFF_123456),
+            "base override wins (light)"
+        );
+
+        // Dark scheme: the base override falls through when the dark layer is empty.
+        tree.set_scheme(Scheme::Dark);
+        assert_eq!(
+            tree.node(1).unwrap().properties.get(&property_id::COLOR).copied(),
+            Some(0xFF_123456),
+            "base override falls through when the dark layer is empty"
+        );
+
+        // A dark.* override wins under the dark scheme.
+        {
+            let mut guest = Guest::new(&mut mem, &layout);
+            guest.begin_frame();
+            guest
+                .set_design_token("dark.color.primary", value_type::COLOR, 0xFF_ABCDEF)
+                .unwrap();
+            guest.end_frame();
+            let mut host = Host::new(&mut mem, &layout);
+            tree.apply_frame(&host.frames()[0]);
+        }
+        assert_eq!(
+            tree.node(1).unwrap().properties.get(&property_id::COLOR).copied(),
+            Some(0xFF_ABCDEF),
+            "dark.* override wins under dark"
+        );
+
+        // Back to light: the base override wins again.
+        tree.set_scheme(Scheme::Light);
+        assert_eq!(
+            tree.node(1).unwrap().properties.get(&property_id::COLOR).copied(),
+            Some(0xFF_123456),
+            "base override wins again under light"
+        );
+    }
+
+    #[test]
+    fn generative_space_ref_resolves_against_base() {
+        let layout = MemoryLayout::default();
+        let mut mem = vec![0u8; layout.total_bytes()];
+        init_memory(&mut mem, &layout);
+        let mut guest = Guest::new(&mut mem, &layout);
+        guest.begin_frame();
+        guest.create_node(1, component_type::VSTACK).unwrap();
+        let path_ref = guest.alloc_str("space.2").unwrap();
+        guest
+            .set_property(1, property_id::SPACING, value_type::DESIGN_TOKEN, path_ref)
+            .unwrap();
+        guest.end_frame();
+
+        let mut host = Host::new(&mut mem, &layout);
+        let mut tree = RenderTree::default();
+        tree.apply_frame(&host.frames()[0]);
+        let bits = tree
+            .node(1)
+            .unwrap()
+            .properties
+            .get(&property_id::SPACING)
+            .copied()
+            .unwrap();
+        assert_eq!(f32::from_bits(bits), 8.0, "space.base (4.0) × 2");
     }
 
     #[test]

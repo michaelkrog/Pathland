@@ -6,6 +6,7 @@
 
 import * as P from "./constants";
 import { argbToHex, argbToRgba, f32FromBits, fmtFloat } from "./format";
+import { resolveTokenCssRef } from "./tokens";
 
 type Handler = (el: HTMLElement, valueType: number, c: number) => void;
 
@@ -498,6 +499,45 @@ function setFilterPart(el: HTMLElement, prefix: string, value: number | string):
   }
   FILTERS.set(el, parts);
   recomposeFilter(el);
+}
+
+// --- DESIGN_TOKEN property references ---
+
+// A property carrying the DESIGN_TOKEN value type (spec/OPCODE.md) resolves to a
+// CSS expression (`var(--pl-…)` / `calc(var(--pl-space-base) * N)`) instead of
+// a literal. Only properties that map to a single CSS value are tokenizable
+// here; compound accumulators that need concrete numbers (e.g. BORDER_WIDTH's
+// px suffix, shadow/transform components) are left literal.
+const TOKEN_HANDLERS: Record<number, (el: HTMLElement, css: string) => void> = {
+  [P.PROP_COLOR]: (el, v) => (el.style.color = v),
+  [P.PROP_BACKGROUND_COLOR]: (el, v) => (el.style.backgroundColor = v),
+  [P.PROP_TINT]: (el, v) => (el.style.accentColor = v),
+  [P.PROP_BORDER_COLOR]: (el, v) => {
+    borderOf(el).color = v;
+    applyBorderEdges(el);
+  },
+  [P.PROP_SHADOW_COLOR]: (el, v) => {
+    shadowOf(el).color = v;
+    recomposeShadow(el);
+  },
+  [P.PROP_FONT_SIZE]: (el, v) => (el.style.fontSize = v),
+  [P.PROP_FONT_FAMILY]: (el, v) => (el.style.fontFamily = v),
+  [P.PROP_FONT_WEIGHT]: (el, v) => (el.style.fontWeight = v),
+  [P.PROP_SPACING]: (el, v) => (el.style.gap = v),
+  [P.PROP_PADDING]: (el, v) => (el.style.padding = v),
+  [P.PROP_PADDING_TOP]: (el, v) => (el.style.paddingTop = v),
+  [P.PROP_PADDING_RIGHT]: (el, v) => (el.style.paddingRight = v),
+  [P.PROP_PADDING_BOTTOM]: (el, v) => (el.style.paddingBottom = v),
+  [P.PROP_PADDING_LEFT]: (el, v) => (el.style.paddingLeft = v),
+  [P.PROP_BORDER_RADIUS]: (el, v) => (el.style.borderRadius = v),
+  [P.PROP_OPACITY]: (el, v) => (el.style.opacity = v),
+  [P.PROP_WIDTH]: (el, v) => (el.style.width = v),
+  [P.PROP_HEIGHT]: (el, v) => (el.style.height = v),
+};
+
+/** Apply a property whose value is a `DESIGN_TOKEN` reference (a token path). */
+export function applyTokenRefProperty(el: HTMLElement, property: number, tokenPath: string): void {
+  TOKEN_HANDLERS[property]?.(el, resolveTokenCssRef(tokenPath));
 }
 
 /** Apply a numeric style/control property to an element via inline style / ARIA / shell reconfiguration. */

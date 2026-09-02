@@ -7,8 +7,10 @@
 //! The engine does not compute layout; this stores only what the renderer needs
 //! to create native elements and let them lay themselves out.
 
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
+use pathland_core::tokens::{resolve as resolve_token, Scheme, TokenTables, TokenValue};
 use pathland_core::{category, component_type, style, tree, value_type, Frame, Opcode};
 
 /// A decoded node in the host's native-element description.
@@ -27,6 +29,14 @@ pub struct HostNode {
     /// by an offset; this map holds the resolved text for `LABEL`, `PROMPT`,
     /// `IMAGE_SOURCE`, `FONT_FAMILY`, … (see `spec/OPCODE.md`).
     pub strings: HashMap<u16, String>,
+    /// `DESIGN_TOKEN`-typed properties (propertyId → token path, spec/TOKENS.md).
+    ///
+    /// The renderer resolves these against the theme and the active color
+    /// scheme at apply time, materializing the concrete value into
+    /// [`Self::properties`] / [`Self::strings`] (see
+    /// [`RenderTree::resolve_tokens`]); the path is kept so it can be
+    /// re-resolved when the scheme changes.
+    pub token_refs: BTreeMap<u16, String>,
 }
 
 impl HostNode {
@@ -65,18 +75,100 @@ impl Default for HostNode {
             children: Vec::new(),
             properties: HashMap::new(),
             strings: HashMap::new(),
+            token_refs: BTreeMap::new(),
         }
     }
 }
 
 /// The host's native-element description of a rendered tree.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RenderTree {
     /// nodeId -> node.
     pub nodes: HashMap<u32, HostNode>,
+    /// Design-token overrides (`STYLE::SET_DESIGN_TOKEN`), base (light) values
+    /// keyed by full path.
+    overrides: BTreeMap<String, TokenValue>,
+    /// `dark.*` overrides keyed by the bare path (the prefix stripped).
+    dark_overrides: BTreeMap<String, TokenValue>,
+    /// Renderer default token values (Tier 1 light + dark, spec/TOKENS.md) —
+    /// concrete platform-appropriate fallbacks, optionally enriched with GTK
+    /// native theme colors (see `crate::tokens::gtk_defaults`).
+    defaults: BTreeMap<String, TokenValue>,
+    dark_defaults: BTreeMap<String, TokenValue>,
+    /// The effective color scheme (renderer-derived, never carried by the
+    /// protocol).
+    scheme: Scheme,
+}
+
+impl Default for RenderTree {
+    fn default() -> Self {
+        let (defaults, dark_defaults) = concrete_default_tables();
+        Self {
+            nodes: HashMap::new(),
+            overrides: BTreeMap::new(),
+            dark_overrides: BTreeMap::new(),
+            defaults,
+            dark_defaults,
+            scheme: Scheme::Light,
+        }
+    }
 }
 
 impl RenderTree {
+    /// Install renderer default token tables (see [`RenderTree::defaults`]).
+    pub fn set_defaults(
+        &mut self,
+        defaults: BTreeMap<String, TokenValue>,
+        dark_defaults: BTreeMap<String, TokenValue>,
+    ) {
+        self.defaults = defaults;
+        self.dark_defaults = dark_defaults;
+        self.resolve_tokens();
+    }
+
+    /// The effective color scheme.
+    pub fn scheme(&self) -> Scheme {
+        self.scheme
+    }
+
+    /// Set the effective color scheme and re-resolve every token-referencing
+    /// property (spec/TOKENS.md resolution contract).
+    pub fn set_scheme(&mut self, scheme: Scheme) {
+        self.scheme = scheme;
+        self.resolve_tokens();
+    }
+
+    /// Re-resolve every `DESIGN_TOKEN`-typed property against the theme, the
+    /// active scheme, and the parent-fallback chain, materializing concrete
+    /// values into [`HostNode::properties`] (numeric) or [`HostNode::strings`]
+    /// (STRING tokens). The paths are kept in [`HostNode::token_refs`] for
+    /// re-resolution on scheme change.
+    pub fn resolve_tokens(&mut self) {
+        let tables = TokenTables {
+            overrides: &self.overrides,
+            dark_overrides: &self.dark_overrides,
+            defaults: &self.defaults,
+            dark_defaults: &self.dark_defaults,
+        };
+        for node in self.nodes.values_mut() {
+            let refs: Vec<(u16, String)> = node.token_refs.iter().map(|(k, v)| (*k, v.clone())).collect();
+            for (prop, path) in refs {
+                if let Some(value) = resolve_token(&path, self.scheme, &tables) {
+                    match value {
+                        TokenValue::Str(s) => {
+                            node.strings.insert(prop, s);
+                        }
+                        _ => {
+                            if let Some(bits) = value.to_bits() {
+                                node.properties.insert(prop, bits);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Apply a frame's opcodes to this tree (a delta).
     pub fn apply_frame(&mut self, frame: &Frame<'_>) {
         for op in frame.opcodes() {
@@ -134,6 +226,13 @@ impl RenderTree {
                             if let Ok(text) = frame.arena_str(op.c()) {
                                 n.strings.insert(prop_id, text.to_string());
                             }
+                        } else if vt == value_type::DESIGN_TOKEN {
+                            // A token reference: keep the path for resolution
+                            // against the theme (spec/TOKENS.md). C is the arena
+                            // offset of the token path.
+                            if let Ok(path) = frame.arena_str(op.c()) {
+                                n.token_refs.insert(prop_id, path.to_string());
+                            }
                         } else {
                             n.properties.insert(prop_id, op.c());
                         }
@@ -145,12 +244,29 @@ impl RenderTree {
                     }
                 }
                 (category::STYLE, style::SET_DESIGN_TOKEN) => {
-                    // Token overrides are handled by the renderer's theme layer.
-                    let _ = op;
+                    // Global override: A = arenaRef (token path), B = valueType,
+                    // C = value (for STRING, an arenaRef to the value string).
+                    if let Ok(path) = frame.arena_str(op.a()) {
+                        let vt = (op.b() & 0xFF) as u8;
+                        let value = if vt == value_type::STRING {
+                            frame
+                                .arena_str(op.c())
+                                .map(|s| TokenValue::Str(s.to_string()))
+                                .unwrap_or(TokenValue::U32(0))
+                        } else {
+                            TokenValue::from_wire(vt, op.c()).unwrap_or(TokenValue::U32(op.c()))
+                        };
+                        if let Some(bare) = path.strip_prefix("dark.") {
+                            self.dark_overrides.insert(bare.to_string(), value);
+                        } else {
+                            self.overrides.insert(path.to_string(), value);
+                        }
+                    }
                 }
                 _ => {}
             }
         }
+        self.resolve_tokens();
     }
 
     /// Look up a node by id.
@@ -169,6 +285,114 @@ pub fn render_tree_from_frame(frame: &Frame<'_>) -> RenderTree {
     let mut tree = RenderTree::default();
     tree.apply_frame(frame);
     tree
+}
+
+/// Concrete Tier-1 design-token defaults (light + dark) — platform-appropriate
+/// fallbacks used headless and as the base the GTK-native enrichment in
+/// `crate::tokens::gtk_defaults` overwrites. Values are renderer-owned; apps
+/// override via `STYLE::SET_DESIGN_TOKEN` (spec/TOKENS.md).
+pub(crate) fn concrete_default_tables() -> (
+    BTreeMap<String, TokenValue>,
+    BTreeMap<String, TokenValue>,
+) {
+    fn m(pairs: &[(&str, TokenValue)]) -> BTreeMap<String, TokenValue> {
+        pairs
+            .iter()
+            .map(|(k, v)| ((*k).to_string(), v.clone()))
+            .collect()
+    }
+    let base = m(&[
+        ("color.background", TokenValue::Color(0xFF_FFFFFF)),
+        ("color.primary", TokenValue::Color(0xFF_2563EB)),
+        ("color.secondary", TokenValue::Color(0xFF_4F46E5)),
+        ("color.surface", TokenValue::Color(0xFF_FFFFFF)),
+        ("color.text.primary", TokenValue::Color(0xFF_111827)),
+        ("color.text.secondary", TokenValue::Color(0xFF_6B7280)),
+        ("color.text.onPrimary", TokenValue::Color(0xFF_FFFFFF)),
+        ("color.border", TokenValue::Color(0xFF_E5E7EB)),
+        ("color.accent", TokenValue::Color(0xFF_2563EB)),
+        ("color.separator", TokenValue::Color(0xFF_E5E7EB)),
+        ("color.success", TokenValue::Color(0xFF_16A34A)),
+        ("color.warning", TokenValue::Color(0xFF_D97706)),
+        ("color.danger", TokenValue::Color(0xFF_DC2626)),
+        ("color.info", TokenValue::Color(0xFF_2563EB)),
+        ("font.body.size", TokenValue::F32(16.0)),
+        ("font.body.weight", TokenValue::F32(400.0)),
+        ("font.body.family", TokenValue::Str("Inter, sans-serif".into())),
+        ("space.base", TokenValue::F32(4.0)),
+        ("radius.xs", TokenValue::F32(2.0)),
+        ("radius.sm", TokenValue::F32(6.0)),
+        ("radius.md", TokenValue::F32(6.0)),
+        ("radius.lg", TokenValue::F32(8.0)),
+        ("radius.xl", TokenValue::F32(12.0)),
+        ("radius.full", TokenValue::F32(9999.0)),
+        ("border.width.thin", TokenValue::F32(1.0)),
+        ("control.background", TokenValue::Color(0xFF_FFFFFF)),
+        ("control.foreground", TokenValue::Color(0xFF_111827)),
+        ("control.border", TokenValue::Color(0xFF_D1D5DB)),
+        ("control.border.width", TokenValue::F32(1.0)),
+        ("control.radius", TokenValue::F32(6.0)),
+        ("control.height", TokenValue::F32(36.0)),
+        ("control.padding.horizontal", TokenValue::F32(12.0)),
+        ("control.padding.vertical", TokenValue::F32(6.0)),
+        ("control.font.size", TokenValue::F32(14.0)),
+        ("control.font.weight", TokenValue::F32(600.0)),
+        ("control.accent", TokenValue::Color(0xFF_2563EB)),
+        ("button.background", TokenValue::Color(0xFF_FFFFFF)),
+        ("button.foreground", TokenValue::Color(0xFF_111827)),
+        ("button.border", TokenValue::Color(0xFF_D1D5DB)),
+        ("button.radius", TokenValue::F32(6.0)),
+        ("button.accent", TokenValue::Color(0xFF_2563EB)),
+        ("input.background", TokenValue::Color(0xFF_FFFFFF)),
+        ("input.foreground", TokenValue::Color(0xFF_111827)),
+        ("input.placeholder", TokenValue::Color(0xFF_9CA3AF)),
+        ("input.border", TokenValue::Color(0xFF_D1D5DB)),
+        ("input.radius", TokenValue::F32(6.0)),
+        ("input.font.size", TokenValue::F32(16.0)),
+    ]);
+    let dark = m(&[
+        ("color.background", TokenValue::Color(0xFF_0F172A)),
+        ("color.primary", TokenValue::Color(0xFF_60A5FA)),
+        ("color.secondary", TokenValue::Color(0xFF_818CF8)),
+        ("color.surface", TokenValue::Color(0xFF_111827)),
+        ("color.text.primary", TokenValue::Color(0xFF_F9FAFB)),
+        ("color.text.secondary", TokenValue::Color(0xFF_9CA3AF)),
+        ("color.text.onPrimary", TokenValue::Color(0xFF_0F172A)),
+        ("color.border", TokenValue::Color(0xFF_374151)),
+        ("color.accent", TokenValue::Color(0xFF_60A5FA)),
+        ("color.separator", TokenValue::Color(0xFF_374151)),
+        ("color.success", TokenValue::Color(0xFF_4ADE80)),
+        ("color.warning", TokenValue::Color(0xFF_FBBF24)),
+        ("color.danger", TokenValue::Color(0xFF_F87171)),
+        ("color.info", TokenValue::Color(0xFF_60A5FA)),
+        ("font.body.size", TokenValue::F32(16.0)),
+        ("font.body.weight", TokenValue::F32(400.0)),
+        ("font.body.family", TokenValue::Str("Inter, sans-serif".into())),
+        ("space.base", TokenValue::F32(4.0)),
+        ("control.background", TokenValue::Color(0xFF_1F2937)),
+        ("control.foreground", TokenValue::Color(0xFF_F9FAFB)),
+        ("control.border", TokenValue::Color(0xFF_374151)),
+        ("control.border.width", TokenValue::F32(1.0)),
+        ("control.radius", TokenValue::F32(6.0)),
+        ("control.height", TokenValue::F32(36.0)),
+        ("control.padding.horizontal", TokenValue::F32(12.0)),
+        ("control.padding.vertical", TokenValue::F32(6.0)),
+        ("control.font.size", TokenValue::F32(14.0)),
+        ("control.font.weight", TokenValue::F32(600.0)),
+        ("control.accent", TokenValue::Color(0xFF_60A5FA)),
+        ("button.background", TokenValue::Color(0xFF_1F2937)),
+        ("button.foreground", TokenValue::Color(0xFF_F9FAFB)),
+        ("button.border", TokenValue::Color(0xFF_374151)),
+        ("button.radius", TokenValue::F32(6.0)),
+        ("button.accent", TokenValue::Color(0xFF_60A5FA)),
+        ("input.background", TokenValue::Color(0xFF_1F2937)),
+        ("input.foreground", TokenValue::Color(0xFF_FFFFFF)),
+        ("input.placeholder", TokenValue::Color(0xFF_6B7280)),
+        ("input.border", TokenValue::Color(0xFF_374151)),
+        ("input.radius", TokenValue::F32(6.0)),
+        ("input.font.size", TokenValue::F32(16.0)),
+    ]);
+    (base, dark)
 }
 
 /// Convert a single opcode into a human-readable line (debugging aid).
@@ -202,6 +426,12 @@ pub fn describe(op: &Opcode) -> String {
         (category::STYLE, style::SET_TEXT) => {
             format!("STYLE:SET_TEXT id={} arenaRef={}", op.a(), op.b())
         }
+        (category::STYLE, style::SET_DESIGN_TOKEN) => format!(
+            "STYLE:SET_DESIGN_TOKEN pathArenaRef={} valueType=0x{:02x} value=0x{:08x}",
+            op.a(),
+            op.b() & 0xFF,
+            op.c()
+        ),
         _ => format!("{:?}", op),
     }
 }

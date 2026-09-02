@@ -19,10 +19,10 @@
 
 use alloc::borrow::ToOwned;
 use alloc::collections::BTreeMap;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use pathland_core::value_type_for;
+use pathland_core::{value_type, value_type_for};
 use pathland_core::Guest;
 
 use crate::node::{component_type_id, Component, Node};
@@ -36,6 +36,10 @@ struct SnapshotNode {
     index: usize,
     text: Option<String>,
     properties: BTreeMap<u16, u32>,
+    /// Last-emitted `DESIGN_TOKEN` refs: property → (token path, arena offset).
+    /// The arena offset is reused across passes so an unchanged ref never
+    /// re-allocates into the bump arena.
+    token_refs: BTreeMap<u16, (String, u32)>,
     /// Generation stamp set on each emit pass; used to detect deleted nodes.
     gen: u64,
 }
@@ -104,6 +108,81 @@ impl Engine {
     /// Number of nodes tracked in the snapshot (diagnostics).
     pub fn tracked_nodes(&self) -> usize {
         self.snapshot.iter().filter(|s| s.is_some()).count()
+    }
+
+    /// Emit a global design-token override (`STYLE::SET_DESIGN_TOKEN`).
+    /// Overrides are renderer-global and apply everywhere the renderer resolves
+    /// tokens; a `dark.`-prefixed path overrides the dark variant
+    /// (spec/TOKENS.md). Returns the arena offset of the token path.
+    pub fn set_design_token(
+        &mut self,
+        path: &str,
+        value_type: u8,
+        value: u32,
+        guest: &mut Guest<'_>,
+    ) -> Result<u32, pathland_core::RingError> {
+        guest.set_design_token(path, value_type, value)
+    }
+
+    /// Emit a batch of global design-token overrides ([`Theme`](crate::Theme))
+    /// as `STYLE::SET_DESIGN_TOKEN` opcodes. `STRING`-valued overrides allocate
+    /// their value into the guest arena first (the wire carries an arena ref).
+    ///
+    /// Overrides are renderer-global: they never re-emit nodes and are not part
+    /// of the diff. Emit once at mount, before the tree.
+    pub fn apply_theme(
+        &mut self,
+        theme: &crate::Theme,
+        guest: &mut Guest<'_>,
+    ) -> Result<(), pathland_core::RingError> {
+        for (path, value) in theme.iter() {
+            self.emit_token_override(path, value, guest)?;
+        }
+        Ok(())
+    }
+
+    /// Emit an adaptive theme ([`AdaptiveTheme`](crate::AdaptiveTheme)): the
+    /// **light** theme's overrides as base tokens, the **dark** theme's with the
+    /// `dark.` scheme prefix (spec/TOKENS.md).
+    pub fn apply_adaptive_theme(
+        &mut self,
+        adaptive: &crate::AdaptiveTheme,
+        guest: &mut Guest<'_>,
+    ) -> Result<(), pathland_core::RingError> {
+        self.apply_theme(&adaptive.light, guest)?;
+        for (path, value) in adaptive.dark.iter() {
+            let dark_path = if path.starts_with("dark.") {
+                path.to_string()
+            } else {
+                alloc::format!("dark.{path}")
+            };
+            self.emit_token_override(&dark_path, value, guest)?;
+        }
+        Ok(())
+    }
+
+    /// Emit one `SET_DESIGN_TOKEN` override, arena-allocating STRING values.
+    fn emit_token_override(
+        &mut self,
+        path: &str,
+        value: &pathland_core::tokens::TokenValue,
+        guest: &mut Guest<'_>,
+    ) -> Result<(), pathland_core::RingError> {
+        use pathland_core::tokens::TokenValue;
+        match value {
+            TokenValue::Str(s) => {
+                let ref_ = guest
+                    .alloc_str(s)
+                    .map_err(|_| pathland_core::RingError::Full)?;
+                guest.set_design_token(path, value.value_type(), ref_)?;
+            }
+            _ => {
+                if let Some(bits) = value.to_bits() {
+                    guest.set_design_token(path, value.value_type(), bits)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     // --- Signals ---
@@ -245,17 +324,32 @@ impl Engine {
             _ => None,
         };
         let props: &BTreeMap<u16, u32> = merged_props.as_ref().unwrap_or(&node.properties);
+        let token_refs = &node.token_properties;
 
         let prev = self.slot_mut(node.id).take();
+        let token_changed = match &prev {
+            Some(p) => p.token_refs.len() != token_refs.len()
+                || p.token_refs
+                    .iter()
+                    .any(|(prop, (old, _))| token_refs.get(prop) != Some(old)),
+            None => !token_refs.is_empty(),
+        };
         let props_changed = match &prev {
-            Some(p) => &p.properties != props,
-            None => !props.is_empty(),
+            Some(p) => &p.properties != props || token_changed,
+            None => !props.is_empty() || !token_refs.is_empty(),
         };
         let text_changed = match &prev {
             Some(p) => p.text.as_deref() != text_borrowed,
             None => text_borrowed.is_some(),
         };
 
+        // Token-ref emission. Built only on mount or when a ref changed, so a
+        // steady-state pass performs no heap allocations (the unchanged refs'
+        // arena offsets are reused from the previous snapshot below).
+        let mut token_emit: Option<BTreeMap<u16, (String, u32)>> = None;
+
+        // Properties in two passes — literals (skipping token-ref'd ids) then
+        // token refs — so the steady-state emit performs no heap allocations.
         match &prev {
             None => {
                 guest.create_node(node.id, component_type)?;
@@ -265,8 +359,23 @@ impl Engine {
                     *out += 1;
                 }
                 for (prop, value) in props {
+                    if token_refs.contains_key(prop) {
+                        continue;
+                    }
                     guest.set_property(node.id, *prop, value_type_for(*prop), *value)?;
                     *out += 1;
+                }
+                if !token_refs.is_empty() {
+                    let mut m = BTreeMap::new();
+                    for (prop, path) in token_refs {
+                        let arena = guest
+                            .alloc_str(path)
+                            .map_err(|_| pathland_core::RingError::Full)?;
+                        guest.set_property(node.id, *prop, value_type::DESIGN_TOKEN, arena)?;
+                        *out += 1;
+                        m.insert(*prop, (path.clone(), arena));
+                    }
+                    token_emit = Some(m);
                 }
                 if let Some(t) = text_borrowed {
                     guest.set_text(node.id, t)?;
@@ -300,22 +409,49 @@ impl Engine {
                     }
                 }
                 for (prop, value) in props {
+                    if token_refs.contains_key(prop) {
+                        continue;
+                    }
                     if p.properties.get(prop) != Some(value) {
                         guest.set_property(node.id, *prop, value_type_for(*prop), *value)?;
                         *out += 1;
                     }
+                }
+                if token_changed {
+                    let mut m = BTreeMap::new();
+                    for (prop, path) in token_refs {
+                        let (arena, changed) = match p.token_refs.get(prop) {
+                            Some((old_path, old_offset)) if old_path == path => (*old_offset, false),
+                            _ => {
+                                let offset = guest
+                                    .alloc_str(path)
+                                    .map_err(|_| pathland_core::RingError::Full)?;
+                                (offset, true)
+                            }
+                        };
+                        m.insert(*prop, (path.clone(), arena));
+                        if changed {
+                            guest.set_property(node.id, *prop, value_type::DESIGN_TOKEN, arena)?;
+                            *out += 1;
+                        }
+                    }
+                    token_emit = Some(m);
                 }
             }
         }
 
         let mut prev_props = None;
         let mut prev_text = None;
+        let mut prev_token_refs = None;
         if let Some(p) = prev {
             if !props_changed {
                 prev_props = Some(p.properties);
             }
             if !text_changed {
                 prev_text = p.text;
+            }
+            if !token_changed {
+                prev_token_refs = Some(p.token_refs);
             }
             let _ = p;
         }
@@ -327,12 +463,17 @@ impl Engine {
             Some(t) => Some(t),
             None => text_borrowed.map(|s| s.to_owned()),
         };
+        let token_refs_snapshot = match token_emit {
+            Some(m) => m,
+            None => prev_token_refs.unwrap_or_default(),
+        };
         *self.slot_mut(node.id) = Some(SnapshotNode {
             component_type,
             parent,
             index,
             text,
             properties,
+            token_refs: token_refs_snapshot,
             gen: self.gen,
         });
 

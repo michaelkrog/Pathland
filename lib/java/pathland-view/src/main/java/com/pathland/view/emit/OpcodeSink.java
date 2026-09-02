@@ -41,4 +41,14 @@ public interface OpcodeSink {
      * (I32, pre-1970 negative), {@code C}=millis of day (U32, 0..86,400,000).
      */
     void setDate(int nodeId, int days, int millisOfDay);
+
+    /**
+     * Emit a global design-token override {@code STYLE::SET_DESIGN_TOKEN}
+     * (spec/TOKENS.md): {@code A}=arena offset of the token path,
+     * {@code B}=valueType, {@code C}=value (for {@code STRING}, the arena offset
+     * of the value string). {@code value} is typed like
+     * {@link #setProperty}: {@link Float} f32, {@link Integer} raw u32/u8,
+     * {@link com.pathland.view.Color} (packed argb), or {@link String}.
+     */
+    void setDesignToken(String path, int valueType, Object value);
 }

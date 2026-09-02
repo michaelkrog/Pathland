@@ -1,6 +1,7 @@
 package com.pathland.view.emit;
 
 import com.pathland.view.Categories;
+import com.pathland.view.Color;
 import com.pathland.view.Commands;
 import com.pathland.view.ValueTypes;
 
@@ -86,6 +87,11 @@ public class FrameOpcodeSink implements OpcodeSink {
             int offset = strings.size();
             writeString((String) value);
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, offset);
+        } else if (valueType == ValueTypes.DESIGN_TOKEN) {
+            // C = arena offset of the token path (spec/TOKENS.md).
+            int offset = strings.size();
+            writeString(((Color) value).token());
+            push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, offset);
         } else {
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, ValueEncoder.encodeBits(valueType, value));
         }
@@ -94,6 +100,20 @@ public class FrameOpcodeSink implements OpcodeSink {
     @Override
     public void setDate(int nodeId, int days, int millisOfDay) {
         push(Categories.STYLE, Commands.Style.SET_DATE, 0, nodeId, days, millisOfDay);
+    }
+
+    @Override
+    public void setDesignToken(String path, int valueType, Object value) {
+        int pathOffset = strings.size();
+        writeString(path);
+        int c;
+        if (valueType == ValueTypes.STRING) {
+            c = strings.size();
+            writeString((String) value);
+        } else {
+            c = ValueEncoder.encodeBits(valueType, value);
+        }
+        push(Categories.STYLE, Commands.Style.SET_DESIGN_TOKEN, 0, pathOffset, valueType, c);
     }
 
     /** Append a length-prefixed string to the string section, returning its offset. */

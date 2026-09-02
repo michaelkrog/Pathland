@@ -1,6 +1,6 @@
 # pathland-render-html (Rust) — implementation status
 
-**Last updated:** September 1, 2026
+**Last updated:** September 2, 2026
 
 The **server-side / remote-projection HTML renderer**: a **stateless, streaming**
 pure function of the opcode stream producing declarative HTML. Each render call
@@ -33,6 +33,35 @@ Statelessness). Protocol contract: `spec/`.
 - **Event surfacing**: `data-event-listeners` / `data-action-id` /
   `data-binding-id` attributes.
 - `STYLE::SET_DATE` handled (days + millis-of-day → date/time).
+- **Design tokens (spec/TOKENS.md)**:
+  - `STYLE::SET_DESIGN_TOKEN` overrides are collected per snapshot batch and
+    emitted into the document head as CSS: base (light) tokens as `:root`
+    rules, `dark.*` overrides inside `@media (prefers-color-scheme: dark)` —
+    the browser resolves the scheme natively, so SSR needs no client scheme.
+  - `DESIGN_TOKEN`-typed `SET_PROPERTY` values resolve at render time to
+    `var(--pl-…)`, with the generative `space.<N>` family resolving to
+    `calc(var(--pl-space-base) * N)` (`Node::token_ref`).
+  - **`STRING`-valued token overrides** (e.g. `font.body.family`): a
+    `SET_DESIGN_TOKEN` with `valueType = STRING` resolves the value string from
+    the batch's string section and emits it single-quoted (escaped) as a
+    `:root` rule (or inside the dark media query).
+  - The override rules render inside their own **`<style data-pathland-tokens>`**
+    element in the document head, **after** the built-in block (so their
+    `:root` variables win the cascade and the browser applies them) — matching
+    the JS DOM client's `style[data-pathland-tokens]` element. No overrides →
+    no extra element.
+  - The built-in `:root` tokens use the **canonical spec paths** (`--pl-color-primary`,
+    `--pl-color-background`, `--pl-color-text-primary`, `--pl-color-text-secondary`,
+    `--pl-color-surface`, `--pl-color-border`) so app overrides retheme the
+    renderer.
+  - **Full Tier-1 default coverage**: `--pl-space-base` (light + dark, so the
+    generative `space.<N>` family always resolves), canonical typography
+    (`--pl-font-body-size/weight/family`), the radius scale + `--pl-border-width-thin`,
+    and the **shared control core mapped onto the canonical catalog** —
+    `--pl-control-*`, `--pl-button-*`, `--pl-input-*` (light + dark), with the
+    focus ring mapped to `control.accent` and shadows mapped onto the composite
+    `elevation.low.*` / `elevation.high.*` tokens. `.pathland-*` rules reference
+    the canonical variables, so `SET_DESIGN_TOKEN` overrides retheme components.
 
 ## Design decision (decision A, September 2026): inline-all + built-in design system
 
@@ -47,11 +76,12 @@ single `style` attribute — no external compiler, no class system, no safelist:
   containing:
   - a **preflight reset** (vendored from Tailwind CSS, MIT — see
     `THIRD_PARTY_NOTICES`),
-  - `:root` **design tokens** as CSS custom properties (`--pl-color-accent`,
-    `--pl-color-surface`, `--pl-color-bg` (document background), `--pl-radius-*`,
-    `--pl-font-sans`, `--pl-input-*` (field bg/text/outline/placeholder/focus),
-    button tokens), named to match the protocol design-token paths so
-    `SET_DESIGN_TOKEN` can retheme the renderer,
+  - `:root` **design tokens** as CSS custom properties (`--pl-color-primary`,
+    `--pl-color-background` (document background), `--pl-color-surface`,
+    `--pl-color-text-primary`/`--pl-color-text-secondary`, `--pl-color-border`,
+    `--pl-radius-*`, `--pl-font-sans`, `--pl-input-*` (field bg/text/outline/
+    placeholder/focus), button tokens), named to match the canonical protocol
+    design-token paths so `SET_DESIGN_TOKEN` can retheme the renderer,
   - `.pathland-button` (the prettified-button POC, with `prefers-color-scheme`
     dark mode) and `.pathland-*` component defaults (toggle switch, slider, text
     field/editor, stepper, spinner, gauge, menu) — the interactive/hover/focus/
@@ -67,6 +97,10 @@ single `style` attribute — no external compiler, no class system, no safelist:
 
 ## Not implemented / gaps
 
+- **`DESIGN_TOKEN` property references** cover the directly-mappable subset
+  (colors, font size/weight, spacing/padding, corner radius, opacity,
+  width/height, border width/color, shadow color). Compound accumulators that
+  need concrete numbers (shadow radius/x/y) remain literal-only.
 - `SHAPE` `Path` renders as an SVG placeholder (no path data wire property).
 - GAUGE/SHAPE visuals are CSS approximations, not pixel-exact.
 - **Inter is loaded from the rsms.me CDN** (Cloudflare, `font-display: swap`,
@@ -78,6 +112,8 @@ single `style` attribute — no external compiler, no class system, no safelist:
 
 ## Verified by
 
-`cargo test -p pathland-render-html` — 28 headless render tests (components,
+`cargo test -p pathland-render-html` — 32 headless render tests (components,
 properties, composite, event attrs, `days_to_date`, network-decoded frames,
-inline-all styling, built-in CSS block contents, Inter CDN head links).
+inline-all styling, built-in CSS block contents, Inter CDN head links, design
+tokens: base/dark override CSS, `px` lengths, `DESIGN_TOKEN` refs,
+generative `space.N`).

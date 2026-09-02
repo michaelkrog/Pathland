@@ -35,15 +35,32 @@ tracks what this crate implements.
   draft `FocusChanged`, `EditingChanged`, `Submit`, `Scroll`, `Wheel`,
   `DateChanged` (0x08–0x0D) — all encode/decode round-trip.
 - **`Guest::set_date`** helper (`STYLE::SET_DATE`).
+- **`Guest::set_design_token`** helper (`STYLE::SET_DESIGN_TOKEN`): global token
+  override (`path` arena string, `valueType`, `value`), incl. `dark.`-prefixed
+  dark variants (spec/TOKENS.md).
+- **`Guest::set_design_token_string`** helper: STRING-valued token override —
+  both the path and the value ride the arena (`A` = path ref, `B` = STRING,
+  `C` = value ref).
+- **`pathland_core::tokens`** — the **reference resolution algorithm**
+  (spec/TOKENS.md): `dark.*` layer → override → default → parent-fallback →
+  fallback, the generative `space.<N>` family (`space.base` × N), and the
+  `TokenValue`/`Scheme`/`TokenTables` types. Pure `no_std` + `alloc`;
+  renderers keep their own tables and call `tokens::resolve`. The full
+  "Design-Token Resolution Conformance" table (spec/CONFORMANCE.md) is tested
+  here.
 - **`value_type_for`** matches `spec/MODIFIERS.md`'s canonical mapping
-  (COLOR / U32 / U8 / STRING / F32-enum-code).
+  (COLOR / U32 / U8 / STRING / F32-enum-code); the `DESIGN_TOKEN` value type
+  (`0x08`) is available per-instance on `SET_PROPERTY`.
 - **Listener bits**: 0–9 (`POINTER_*`, `KEY_*`, `FOCUS`, `EDITING`, `SUBMIT`,
   `SCROLL`, `WHEEL`).
 - **Shared linear memory**: 80-byte header, guest→host ring, host→guest event
   ring, guest arena, host→guest **event arena** (two-way string section — a
   host `send_event(TextChanged)` round-trips text over the shared ring).
 - **Conformance vectors** (`conformance.rs`): TREE/STYLE/META/EVENT golden
-  bytes; `cargo test` enforces them.
+  bytes **incl. vectors 17–18 and 20** (`SET_DESIGN_TOKEN` (COLOR +
+  STRING-valued), `DESIGN_TOKEN`-typed `SET_PROPERTY`) and a ring test proving
+  `Guest::set_design_token` emits vector 17 byte-exactly; `cargo test` enforces
+  them.
 
 ## Not implemented / gaps
 

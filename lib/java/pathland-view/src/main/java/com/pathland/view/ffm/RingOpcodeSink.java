@@ -1,6 +1,7 @@
 package com.pathland.view.ffm;
 
 import com.pathland.view.Categories;
+import com.pathland.view.Color;
 import com.pathland.view.Commands;
 import com.pathland.view.ValueTypes;
 import com.pathland.view.emit.Opcode;
@@ -81,6 +82,9 @@ public final class RingOpcodeSink implements OpcodeSink, AutoCloseable {
         if (valueType == ValueTypes.STRING) {
             int ref = core.arenaAlloc(handle, ((String) value).getBytes(StandardCharsets.UTF_8));
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, ref);
+        } else if (valueType == ValueTypes.DESIGN_TOKEN) {
+            int ref = core.arenaAlloc(handle, ((Color) value).token().getBytes(StandardCharsets.UTF_8));
+            push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, ref);
         } else {
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b,
                     ValueEncoder.encodeBits(valueType, value));
@@ -90,6 +94,18 @@ public final class RingOpcodeSink implements OpcodeSink, AutoCloseable {
     @Override
     public void setDate(int nodeId, int days, int millisOfDay) {
         push(Categories.STYLE, Commands.Style.SET_DATE, 0, nodeId, days, millisOfDay);
+    }
+
+    @Override
+    public void setDesignToken(String path, int valueType, Object value) {
+        int pathRef = core.arenaAlloc(handle, path.getBytes(StandardCharsets.UTF_8));
+        int c;
+        if (valueType == ValueTypes.STRING) {
+            c = core.arenaAlloc(handle, ((String) value).getBytes(StandardCharsets.UTF_8));
+        } else {
+            c = ValueEncoder.encodeBits(valueType, value);
+        }
+        push(Categories.STYLE, Commands.Style.SET_DESIGN_TOKEN, 0, pathRef, valueType, c);
     }
 
     private void push(int category, int command, int flags, int a, int b, int c) {

@@ -17,7 +17,8 @@
 use std::collections::BTreeMap;
 
 use pathland_core::{
-    Opcode, border_edges, category, component_type, property_id, style, tree, value_type,
+    Opcode, border_edges, category, component_type, property_id, style, tokens::TokenValue, tree,
+    value_type,
 };
 
 mod capi;
@@ -34,6 +35,8 @@ pub struct Node {
     pub properties: BTreeMap<u16, u32>,
     /// `STRING`-typed properties resolved at apply time (`propertyId → text`).
     pub strings: BTreeMap<u16, String>,
+    /// `DESIGN_TOKEN`-typed properties (`propertyId → token path`).
+    pub token_refs: BTreeMap<u16, String>,
     /// Date value from `STYLE::SET_DATE`: (days since epoch, millis of day).
     pub date: Option<(i32, u32)>,
     /// Child node ids in insertion order.
@@ -47,6 +50,7 @@ impl Node {
             text: None,
             properties: BTreeMap::new(),
             strings: BTreeMap::new(),
+            token_refs: BTreeMap::new(),
             date: None,
             children: Vec::new(),
         }
@@ -82,6 +86,14 @@ impl Node {
         self.properties.get(&prop).copied().unwrap_or(default)
     }
 
+    /// If the property carries a `DESIGN_TOKEN` reference, its CSS expression
+    /// (`var(--pl-…)` or `calc(var(--pl-space-base) * N)` for the generative
+    /// `space.<N>` family). Resolved at render time — the browser resolves the
+    /// variable against the token rules in the document head.
+    fn token_ref(&self, prop: u16) -> Option<String> {
+        self.token_refs.get(&prop).map(|path| resolve_token_ref(path))
+    }
+
     /// Inline CSS for the node. Literal colors and string font-family, plus all
     /// **arbitrary-number (dp/point)** styling — spacing, padding, size, offset,
     /// rotation, scale, filters, opacity, border-radius, z-index — which render
@@ -93,10 +105,14 @@ impl Node {
         let px = |v: f32| format!("{v}px");
 
         // Colors + font family.
-        if let Some(bits) = self.properties.get(&property_id::COLOR) {
+        if let Some(v) = self.token_ref(property_id::COLOR) {
+            css.push_str(&format!("color:{v};"));
+        } else if let Some(bits) = self.properties.get(&property_id::COLOR) {
             css.push_str(&format!("color:{};", rgba(*bits)));
         }
-        if let Some(bits) = self.properties.get(&property_id::BACKGROUND_COLOR) {
+        if let Some(v) = self.token_ref(property_id::BACKGROUND_COLOR) {
+            css.push_str(&format!("background-color:{v};"));
+        } else if let Some(bits) = self.properties.get(&property_id::BACKGROUND_COLOR) {
             css.push_str(&format!("background-color:{};", rgba(*bits)));
         }
         if let Some(family) = self.strings.get(&property_id::FONT_FAMILY) {
@@ -104,17 +120,23 @@ impl Node {
         }
 
         // Layout / distance (dp → px).
-        if let Some(v) = f32p(property_id::SPACING) {
+        if let Some(v) = self.token_ref(property_id::SPACING) {
+            css.push_str(&format!("gap:{v};"));
+        } else if let Some(v) = f32p(property_id::SPACING) {
             if v > 0.0 {
                 css.push_str(&format!("gap:{};", px(v)));
             }
         }
-        if let Some(m) = self.content_margins() {
+        if let Some(v) = self.token_ref(property_id::CONTENT_MARGINS) {
+            css.push_str(&format!("padding:{v};"));
+        } else if let Some(m) = self.content_margins() {
             if m > 0.0 {
                 css.push_str(&format!("padding:{};", px(m)));
             }
         }
-        if let Some(v) = f32p(property_id::PADDING) {
+        if let Some(v) = self.token_ref(property_id::PADDING) {
+            css.push_str(&format!("padding:{v};"));
+        } else if let Some(v) = f32p(property_id::PADDING) {
             if v > 0.0 {
                 css.push_str(&format!("padding:{};", px(v)));
             }
@@ -125,19 +147,25 @@ impl Node {
             (property_id::PADDING_BOTTOM, "padding-bottom"),
             (property_id::PADDING_LEFT, "padding-left"),
         ] {
-            if let Some(v) = f32p(prop) {
+            if let Some(v) = self.token_ref(prop) {
+                css.push_str(&format!("{side}:{v};"));
+            } else if let Some(v) = f32p(prop) {
                 if v > 0.0 {
                     css.push_str(&format!("{side}:{};", px(v)));
                 }
             }
         }
         // WIDTH/HEIGHT: only non-sentinel (arbitrary) values inline; FILL/HUG are classes.
-        if let Some(v) = f32p(property_id::WIDTH) {
+        if let Some(v) = self.token_ref(property_id::WIDTH) {
+            css.push_str(&format!("width:{v};"));
+        } else if let Some(v) = f32p(property_id::WIDTH) {
             if v != pathland_core::size::FILL && v != pathland_core::size::HUG_CONTENT {
                 css.push_str(&format!("width:{};", px(v)));
             }
         }
-        if let Some(v) = f32p(property_id::HEIGHT) {
+        if let Some(v) = self.token_ref(property_id::HEIGHT) {
+            css.push_str(&format!("height:{v};"));
+        } else if let Some(v) = f32p(property_id::HEIGHT) {
             if v != pathland_core::size::FILL && v != pathland_core::size::HUG_CONTENT {
                 css.push_str(&format!("height:{};", px(v)));
             }
@@ -160,17 +188,23 @@ impl Node {
         }
 
         // Typography (arbitrary size/weight inline).
-        if let Some(v) = f32p(property_id::FONT_SIZE) {
+        if let Some(v) = self.token_ref(property_id::FONT_SIZE) {
+            css.push_str(&format!("font-size:{v};"));
+        } else if let Some(v) = f32p(property_id::FONT_SIZE) {
             if v > 0.0 {
                 css.push_str(&format!("font-size:{};", px(v)));
             }
         }
-        if let Some(v) = f32p(property_id::FONT_WEIGHT) {
+        if let Some(v) = self.token_ref(property_id::FONT_WEIGHT) {
+            css.push_str(&format!("font-weight:{v};"));
+        } else if let Some(v) = f32p(property_id::FONT_WEIGHT) {
             if v > 0.0 {
                 css.push_str(&format!("font-weight:{v};"));
             }
         }
-        if let Some(v) = f32p(property_id::BORDER_RADIUS) {
+        if let Some(v) = self.token_ref(property_id::BORDER_RADIUS) {
+            css.push_str(&format!("border-radius:{v};"));
+        } else if let Some(v) = f32p(property_id::BORDER_RADIUS) {
             if v != 0.0 {
                 css.push_str(&format!("border-radius:{};", px(v)));
             }
@@ -217,10 +251,15 @@ impl Node {
             if r != 0.0 {
                 let x = f32p(property_id::SHADOW_X).unwrap_or(0.0);
                 let y = f32p(property_id::SHADOW_Y).unwrap_or(0.0);
-                css.push_str(&format!("box-shadow:{x}px {y}px {r}px {};", rgba(color_bits)));
+                let color = self
+                    .token_ref(property_id::SHADOW_COLOR)
+                    .unwrap_or_else(|| rgba(color_bits));
+                css.push_str(&format!("box-shadow:{x}px {y}px {r}px {color};"));
             }
         }
-        if let Some(v) = f32p(property_id::OPACITY) {
+        if let Some(v) = self.token_ref(property_id::OPACITY) {
+            css.push_str(&format!("opacity:{v};"));
+        } else if let Some(v) = f32p(property_id::OPACITY) {
             if v < 1.0 {
                 css.push_str(&format!("opacity:{v};"));
             }
@@ -332,22 +371,30 @@ impl Node {
     /// Border CSS, decoded from `BORDER_WIDTH`/`BORDER_COLOR`/`BORDER_RADIUS`/
     /// `BORDER_EDGES` (empty when the node has no border).
     fn border_style(&self) -> String {
-        let Some(width_bits) = self.properties.get(&property_id::BORDER_WIDTH) else {
-            return String::new();
+        let width = match self.token_ref(property_id::BORDER_WIDTH) {
+            Some(v) => v,
+            None => {
+                let Some(width_bits) = self.properties.get(&property_id::BORDER_WIDTH) else {
+                    return String::new();
+                };
+                format!("{}px", f32::from_bits(*width_bits))
+            }
         };
-        let width = f32::from_bits(*width_bits);
-        let color = self
-            .properties
-            .get(&property_id::BORDER_COLOR)
-            .copied()
-            .unwrap_or(0xFF00_0000);
+        let color = match self.token_ref(property_id::BORDER_COLOR) {
+            Some(v) => v,
+            None => rgba(
+                self.properties
+                    .get(&property_id::BORDER_COLOR)
+                    .copied()
+                    .unwrap_or(0xFF00_0000),
+            ),
+        };
         let edges = self
             .properties
             .get(&property_id::BORDER_EDGES)
             .copied()
             .unwrap_or(border_edges::ALL);
 
-        let (r, g, b, a) = unpack_color(color);
         let mut css = String::new();
         for (flag, side) in [
             (border_edges::TOP, "top"),
@@ -356,7 +403,7 @@ impl Node {
             (border_edges::TRAILING, "right"),
         ] {
             if edges & flag != 0 {
-                css.push_str(&format!("border-{side}:{width}px solid rgba({r},{g},{b},{a});"));
+                css.push_str(&format!("border-{side}:{width} solid {color};"));
             }
         }
         css
@@ -482,16 +529,35 @@ fn aria_attrs(node: &Node) -> String {
 /// Decode a self-contained snapshot batch (opcodes + string section) into a
 /// **transient** `id → Node` map. The map lives only for the duration of one
 /// render call — the renderer retains nothing between calls.
-fn decode(opcodes: &[Opcode], strings: &[u8]) -> BTreeMap<u32, Node> {
+fn decode(opcodes: &[Opcode], strings: &[u8]) -> (BTreeMap<u32, Node>, Tokens) {
     let mut nodes = BTreeMap::new();
+    let mut tokens = Tokens::default();
     for op in opcodes {
         match op.category() {
             category::TREE => apply_tree(&mut nodes, op.command(), *op),
-            category::STYLE => apply_style(&mut nodes, op.command(), *op, strings),
+            category::STYLE => {
+                if op.command() == style::SET_DESIGN_TOKEN {
+                    // Global override: A = arenaRef (token path), B = valueType,
+                    // C = value (for STRING, an arenaRef to the value string).
+                    if let Some(path) = strings_str(strings, op.a()) {
+                        let vt = (op.b() & 0xFF) as u8;
+                        let value = if vt == value_type::STRING {
+                            strings_str(strings, op.c())
+                                .map(TokenValue::Str)
+                                .unwrap_or(TokenValue::U32(0))
+                        } else {
+                            TokenValue::from_wire(vt, op.c()).unwrap_or(TokenValue::U32(op.c()))
+                        };
+                        tokens.set(&path, vt, value);
+                    }
+                } else {
+                    apply_style(&mut nodes, op.command(), *op, strings);
+                }
+            }
             _ => {}
         }
     }
-    nodes
+    (nodes, tokens)
 }
 
 /// Read a `[u32 len][utf8]` entry from the batch's string section at a relative offset.
@@ -506,6 +572,120 @@ fn strings_str(strings: &[u8], offset: u32) -> Option<String> {
         return None;
     }
     std::str::from_utf8(&strings[start..start + len]).ok().map(str::to_owned)
+}
+
+// --- Design tokens (spec/TOKENS.md) ---
+
+/// `SET_DESIGN_TOKEN` overrides collected from a snapshot batch. `base` holds
+/// light tokens (keyed by full path); `dark` holds `dark.`-prefixed overrides
+/// (keyed by the bare path). Values are resolved [`TokenValue`]s (STRING values
+/// are resolved from the batch's string section at decode time).
+#[derive(Debug, Default, Clone)]
+struct Tokens {
+    base: BTreeMap<String, (u8, TokenValue)>,
+    dark: BTreeMap<String, (u8, TokenValue)>,
+}
+
+impl Tokens {
+    fn set(&mut self, path: &str, value_type: u8, value: TokenValue) {
+        if let Some(bare) = path.strip_prefix("dark.") {
+            self.dark.insert(bare.to_string(), (value_type, value));
+        } else {
+            self.base.insert(path.to_string(), (value_type, value));
+        }
+    }
+
+    /// Render the overrides as CSS rules: base tokens as `:root` rules, dark
+    /// overrides inside `@media (prefers-color-scheme: dark)` — the browser
+    /// resolves the scheme natively, so SSR needs no client scheme knowledge.
+    fn css(&self) -> String {
+        let mut css = String::new();
+        for (path, (vt, value)) in &self.base {
+            css.push_str(&format!(
+                ":root{{{}:{};}}",
+                token_to_css_var(path),
+                token_css_value(path, *vt, value)
+            ));
+        }
+        if !self.dark.is_empty() {
+            let rules: String = self
+                .dark
+                .iter()
+                .map(|(path, (vt, value))| {
+                    format!(":root{{{}:{};}}", token_to_css_var(path), token_css_value(path, *vt, value))
+                })
+                .collect();
+            css.push_str(&format!("@media (prefers-color-scheme: dark){{{rules}}}"));
+        }
+        css
+    }
+}
+
+/// The canonical CSS custom property for a token path: `--pl-` prefix, `.` →
+/// `-`. The `dark.` scheme prefix is stripped — the dark variant overrides the
+/// same variable inside the media query (spec/TOKENS.md).
+fn token_to_css_var(path: &str) -> String {
+    let name: String = path
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .collect();
+    format!("--pl-{name}")
+}
+
+/// Token paths whose F32 values are CSS lengths (emitted with `px`).
+fn is_length_token(path: &str) -> bool {
+    if path.starts_with("space.")
+        || path.starts_with("radius.")
+        || path.starts_with("border.width.")
+        || path.starts_with("size.control.")
+        || path.starts_with("control.padding.")
+        || path.starts_with("control.height.")
+    {
+        return true;
+    }
+    if path.starts_with("control.font.") && path.ends_with(".size") {
+        return true;
+    }
+    if path == "font.body.size" || path == "font.caption.size" {
+        return true;
+    }
+    if path.starts_with("font.heading.") && path.ends_with(".size") {
+        return true;
+    }
+    path.starts_with("elevation.")
+        && (path.ends_with(".radius") || path.ends_with(".x") || path.ends_with(".y") || path.ends_with(".blur"))
+}
+
+/// Render a token override value as a CSS value string: `STRING` values are
+/// single-quoted (escaped); `F32` length tokens append `px`.
+fn token_css_value(path: &str, _value_type: u8, value: &TokenValue) -> String {
+    match value {
+        TokenValue::Str(s) => format!("'{}'", s.replace('\\', "\\\\").replace('\'', "\\'")),
+        TokenValue::Color(argb) => rgba(*argb),
+        TokenValue::F32(v) => {
+            if is_length_token(path) {
+                format!("{v}px")
+            } else {
+                format!("{v}")
+            }
+        }
+        TokenValue::I32(v) => format!("{v}"),
+        TokenValue::U32(v) => format!("{v}"),
+        TokenValue::U8(v) => format!("{v}"),
+    }
+}
+
+/// Resolve a `DESIGN_TOKEN` property reference to a CSS expression. The
+/// generative `space.<N>` family resolves to `calc(var(--pl-space-base) * N)`;
+/// every other token resolves to `var(--pl-<path>)`.
+fn resolve_token_ref(path: &str) -> String {
+    let bare = path.strip_prefix("dark.").unwrap_or(path);
+    if let Some(rest) = bare.strip_prefix("space.") {
+        if rest.parse::<f64>().is_ok() {
+            return format!("calc(var(--pl-space-base) * {rest})");
+        }
+    }
+    format!("var({})", token_to_css_var(bare))
 }
 
 fn apply_tree(nodes: &mut BTreeMap<u32, Node>, command: u8, op: Opcode) {
@@ -559,6 +739,12 @@ fn apply_style(nodes: &mut BTreeMap<u32, Node>, command: u8, op: Opcode, strings
                     if let Some(text) = strings_str(strings, op.c()) {
                         node.strings.insert(property, text);
                     }
+                } else if vt == value_type::DESIGN_TOKEN {
+                    // C = arenaRef to the token path; resolved at render time to
+                    // `var(--pl-…)` / `calc(...)` (see `Node::token_ref`).
+                    if let Some(path) = strings_str(strings, op.c()) {
+                        node.token_refs.insert(property, path);
+                    }
                 } else {
                     node.properties.insert(property, op.c());
                 }
@@ -591,22 +777,37 @@ impl HtmlRenderer {
     /// Render the subtree rooted at `root` as a full HTML document.
     #[must_use]
     pub fn render_document(&self, opcodes: &[Opcode], strings: &[u8], root: u32) -> String {
-        let body = self.render_fragment(opcodes, strings, root);
+        let (nodes, tokens) = decode(opcodes, strings);
+        let body = render_node(&nodes, root);
+        // Token overrides render as their own `<style data-pathland-tokens>`
+        // element AFTER the built-in block so their `:root` variables win the
+        // cascade (same specificity, later wins) — matching the JS DOM client's
+        // `style[data-pathland-tokens]` element. No overrides → no element.
+        let token_rules = tokens.css();
+        let token_style = if token_rules.is_empty() {
+            String::new()
+        } else {
+            format!("<style data-pathland-tokens>{token_rules}</style>\n")
+        };
         format!(
             "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n\
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
              <title>Pathland</title>\n\
              <link rel=\"preconnect\" href=\"https://rsms.me/\">\n\
              <link rel=\"stylesheet\" href=\"https://rsms.me/inter/inter.css\">\n\
-             {}\n</head>\n<body>{body}</body>\n</html>\n",
-            css::STYLE
+             {}{}\n</head>\n<body>{body}</body>\n</html>\n",
+            css::STYLE,
+            token_style
         )
     }
 
     /// Render the subtree rooted at `root` as an HTML fragment (no `<html>`).
+    /// `SET_DESIGN_TOKEN` overrides are applied to the document head by
+    /// `render_document`; a fragment is assumed to be embedded in a document
+    /// that already defines the token variables.
     #[must_use]
     pub fn render_fragment(&self, opcodes: &[Opcode], strings: &[u8], root: u32) -> String {
-        let nodes = decode(opcodes, strings);
+        let (nodes, _) = decode(opcodes, strings);
         render_node(&nodes, root)
     }
 }
@@ -1629,9 +1830,13 @@ mod tests {
         let css = css::STYLE;
         // Preflight reset.
         assert!(css.contains("box-sizing: border-box"), "preflight reset present");
-        // Design tokens on :root.
-        assert!(css.contains("--pl-color-accent"), "accent token");
+        // Design tokens on :root (canonical spec paths → --pl-* vars).
+        assert!(css.contains("--pl-color-primary"), "primary token");
+        assert!(css.contains("--pl-color-background"), "background token");
         assert!(css.contains("--pl-color-surface"), "surface token");
+        assert!(css.contains("--pl-color-text-primary"), "text token");
+        assert!(css.contains("--pl-color-text-secondary"), "muted/secondary text token");
+        assert!(css.contains("--pl-color-border"), "border token");
         assert!(css.contains("--pl-font-sans"), "font token");
         // Component defaults.
         assert!(css.contains(".pathland-button"), "button component");
@@ -1645,13 +1850,98 @@ mod tests {
         assert!(css.contains("font-variation-settings: normal"), "InterVariable enhancement");
         assert!(css.contains("'InterVariable', 'Inter'"), "variable font preferred when supported");
         // Document background + input field styling (Tailwind-style inset outline).
-        assert!(css.contains("--pl-color-bg"), "page background token");
+        assert!(css.contains("--pl-color-background"), "page background token");
         assert!(css.contains("color-scheme: light dark"), "native form controls follow the theme");
         assert!(css.contains(".pathland-input"), "input component");
-        assert!(css.contains("--pl-input-outline"), "input outline token");
-        assert!(css.contains("outline: 1px solid var(--pl-input-outline)"), "inset outline instead of border");
+        assert!(css.contains("--pl-input-border"), "input border token");
+        assert!(css.contains("outline: 1px solid var(--pl-input-border)"), "inset outline instead of border");
         assert!(css.contains("outline-offset: -1px"), "inset ring");
         assert!(css.contains("--pl-input-focus"), "input focus token");
+    }
+
+    #[test]
+    fn builtin_css_covers_tier1_default_tokens() {
+        let css = css::STYLE;
+        // Generative spacing base — without it `space.<N>` refs resolve to an
+        // undefined variable unless the app overrides `space.base`.
+        assert!(css.contains("--pl-space-base"), "space.base token");
+        assert_eq!(count(css, "--pl-space-base"), 2, "space.base has a light + dark default");
+        // Canonical typography tokens (spec/TOKENS.md font.body.*).
+        for var in [
+            "--pl-font-body-size",
+            "--pl-font-body-weight",
+            "--pl-font-body-family",
+        ] {
+            assert!(css.contains(var), "missing {var}");
+        }
+        // Canonical control/button/input tokens so app overrides retheme components.
+        for var in [
+            "--pl-control-background",
+            "--pl-control-foreground",
+            "--pl-control-border",
+            "--pl-control-border-width",
+            "--pl-control-radius",
+            "--pl-control-height",
+            "--pl-control-accent",
+            "--pl-button-background",
+            "--pl-button-background-hover",
+            "--pl-button-foreground",
+            "--pl-button-border",
+            "--pl-button-radius",
+            "--pl-button-padding",
+            "--pl-button-font-size",
+            "--pl-button-font-weight",
+            "--pl-input-background",
+            "--pl-input-foreground",
+            "--pl-input-placeholder",
+            "--pl-input-border",
+            "--pl-input-radius",
+            "--pl-input-font-size",
+        ] {
+            assert!(css.contains(var), "missing canonical token {var}");
+        }
+        // Radius scale + hairline border width (Tier 1).
+        for var in [
+            "--pl-radius-xs",
+            "--pl-radius-sm",
+            "--pl-radius-md",
+            "--pl-radius-lg",
+            "--pl-radius-xl",
+            "--pl-radius-full",
+            "--pl-border-width-thin",
+        ] {
+            assert!(css.contains(var), "missing {var}");
+        }
+        // Elevation (composite shadows) — the shadow-sm replacement.
+        for var in [
+            "--pl-elevation-low-color",
+            "--pl-elevation-low-x",
+            "--pl-elevation-low-y",
+            "--pl-elevation-low-blur",
+            "--pl-elevation-high-color",
+        ] {
+            assert!(css.contains(var), "missing {var}");
+        }
+        assert!(!css.contains("--pl-color-focus-ring"), "focus ring now maps to control.accent");
+        assert!(!css.contains("--pl-button-bg"), "internal button vars mapped onto button.*");
+        assert!(!css.contains("--pl-shadow-sm"), "shadow-sm mapped onto elevation.low.*");
+    }
+
+    #[test]
+    fn builtin_css_canonical_rules_reference_the_catalog() {
+        let css = css::STYLE;
+        assert!(css.contains("border-radius: var(--pl-button-radius)"), "button radius from button.*");
+        assert!(css.contains("background-color: var(--pl-button-background)"), "button bg from button.*");
+        assert!(css.contains("color: var(--pl-button-foreground)"), "button fg from button.*");
+        assert!(css.contains("background-color: var(--pl-input-background)"), "input bg from input.*");
+        assert!(css.contains("color: var(--pl-input-foreground)"), "input fg from input.*");
+        assert!(css.contains("outline: 2px solid var(--pl-control-accent)"), "focus ring uses control.accent");
+        assert!(css.contains("var(--pl-elevation-low-x)"), "button shadow uses elevation.low.*");
+        assert!(css.contains("var(--pl-elevation-high-x)"), "menu shadow uses elevation.high.*");
+    }
+
+    fn count(haystack: &str, needle: &str) -> usize {
+        haystack.matches(needle).count()
     }
 
     #[test]
@@ -1737,5 +2027,149 @@ mod tests {
         assert!(html.contains("blur(3px)"), "blur inline filter");
         assert!(html.contains("rotate(90deg)"), "rotation inline transform");
         assert!(html.contains("text-align:center"), "text-align inline");
+    }
+
+    fn string_section(entries: &[&str]) -> Vec<u8> {
+        let mut v = Vec::new();
+        for s in entries {
+            v.extend_from_slice(&(s.len() as u32).to_le_bytes());
+            v.extend_from_slice(s.as_bytes());
+        }
+        v
+    }
+
+    #[test]
+    fn set_design_token_emits_base_and_dark_override_css() {
+        let strings = string_section(&["color.primary", "dark.color.primary"]);
+        let dark_offset = (4 + 13) as u32; // entry 0: [len=13]"color.primary"
+        let opcodes = vec![
+            Opcode::new(category::STYLE, style::SET_DESIGN_TOKEN, 0, 0, value_type::COLOR as u32, 0xFF_2563EB),
+            Opcode::new(
+                category::STYLE,
+                style::SET_DESIGN_TOKEN,
+                0,
+                dark_offset,
+                value_type::COLOR as u32,
+                0xFF_60A5FA,
+            ),
+        ];
+        let html = HtmlRenderer::new().render_document(&opcodes, &strings, 1);
+        assert!(html.contains(":root{--pl-color-primary:rgba(37,99,235,1);}"), "base override: {html}");
+        assert!(
+            html.contains("@media (prefers-color-scheme: dark){:root{--pl-color-primary:rgba(96,165,250,1);}}"),
+            "dark override scoped in media query: {html}"
+        );
+    }
+
+    #[test]
+    fn design_token_css_renders_inside_a_style_element() {
+        // The token overrides must render as their own <style data-pathland-tokens>
+        // element in <head> — NOT as bare rules after the built-in </style>.
+        let strings = string_section(&["color.primary", "dark.color.primary"]);
+        let dark_offset = (4 + 13) as u32; // entry 0: [len=13]"color.primary"
+        let opcodes = vec![
+            Opcode::new(category::STYLE, style::SET_DESIGN_TOKEN, 0, 0, value_type::COLOR as u32, 0xFF_2563EB),
+            Opcode::new(
+                category::STYLE,
+                style::SET_DESIGN_TOKEN,
+                0,
+                dark_offset,
+                value_type::COLOR as u32,
+                0xFF_60A5FA,
+            ),
+        ];
+        let html = HtmlRenderer::new().render_document(&opcodes, &strings, 1);
+
+        // The rules sit inside a dedicated style element, after the built-in block.
+        assert!(
+            html.contains("<style data-pathland-tokens>:root{--pl-color-primary:rgba(37,99,235,1);}"),
+            "base rule inside the token style element: {html}"
+        );
+        assert!(
+            html.contains("rgba(96,165,250,1);}}</style>"),
+            "token style element is closed after the dark media query: {html}"
+        );
+        assert!(
+            !html.contains("</style>:root") && !html.contains("</style>@media"),
+            "no bare token rules outside a style element: {html}"
+        );
+
+        // No overrides → no token style element at all.
+        let plain = HtmlRenderer::new().render_document(&[], &[], 0);
+        assert!(
+            !plain.contains("data-pathland-tokens"),
+            "no token style element without overrides: {plain}"
+        );
+    }
+
+    #[test]
+    fn set_design_token_registers_a_length_token_with_px() {
+        let strings = string_section(&["space.base"]);
+        let opcodes = vec![Opcode::new(
+            category::STYLE,
+            style::SET_DESIGN_TOKEN,
+            0,
+            0,
+            value_type::F32 as u32,
+            4.0f32.to_bits(),
+        )];
+        let html = HtmlRenderer::new().render_document(&opcodes, &strings, 1);
+        assert!(html.contains(":root{--pl-space-base:4px;}"), "length token px: {html}");
+    }
+
+    #[test]
+    fn string_valued_design_token_emits_quoted_css() {
+        // Path "font.body.family" (16 chars → entry = 20 bytes) at offset 0,
+        // value "Inter" at offset 20 (conformance vector 20 wire shape).
+        let strings = string_section(&["font.body.family", "Inter"]);
+        let opcodes = vec![Opcode::new(
+            category::STYLE,
+            style::SET_DESIGN_TOKEN,
+            0,
+            0,
+            value_type::STRING as u32,
+            20,
+        )];
+        let html = HtmlRenderer::new().render_document(&opcodes, &strings, 1);
+        assert!(html.contains(":root{--pl-font-body-family:'Inter';}"), "string token: {html}");
+    }
+
+    #[test]
+    fn design_token_property_ref_renders_var() {
+        let strings = string_section(&["color.primary"]);
+        let opcodes = vec![
+            Opcode::new(category::TREE, tree::CREATE_NODE, 0, 1, component_type::TEXT as u32, 0),
+            Opcode::new(
+                category::STYLE,
+                style::SET_PROPERTY,
+                0,
+                1,
+                ((value_type::DESIGN_TOKEN as u32) << 16) | property_id::COLOR as u32,
+                0,
+            ),
+        ];
+        let html = HtmlRenderer::new().render_fragment(&opcodes, &strings, 1);
+        assert!(html.contains("color:var(--pl-color-primary);"), "token ref: {html}");
+    }
+
+    #[test]
+    fn generative_space_ref_renders_calc() {
+        let strings = string_section(&["space.2"]);
+        let opcodes = vec![
+            Opcode::new(category::TREE, tree::CREATE_NODE, 0, 1, component_type::VSTACK as u32, 0),
+            Opcode::new(
+                category::STYLE,
+                style::SET_PROPERTY,
+                0,
+                1,
+                ((value_type::DESIGN_TOKEN as u32) << 16) | property_id::SPACING as u32,
+                0,
+            ),
+        ];
+        let html = HtmlRenderer::new().render_fragment(&opcodes, &strings, 1);
+        assert!(
+            html.contains("gap:calc(var(--pl-space-base) * 2);"),
+            "generative space ref: {html}"
+        );
     }
 }

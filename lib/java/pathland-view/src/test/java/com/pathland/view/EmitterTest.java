@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -142,6 +143,38 @@ class EmitterTest {
         }
         assertTrue(sawVisible, "VISIBLE property emitted");
         assertTrue(sawString, "FONT_FAMILY string property emitted");
+    }
+
+    @Test
+    void tokenColorEmitsDesignTokenValueTypeWithPath() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        View root = Text.of("x")
+                .modifier(ForegroundStyle.of(Color.token("color.primary")))
+                .modifier(Background.of(Color.token("dark.color.surface")));
+        emitter.mount(root, Environment.DEFAULT);
+        Frame frame = sink.frame();
+
+        boolean sawPrimary = false;
+        boolean sawDark = false;
+        for (Opcode op : frame.opcodes()) {
+            if (op.category() == Categories.STYLE && op.command() == Commands.Style.SET_PROPERTY) {
+                int property = op.b() & 0xFFFF;
+                int valueType = (op.b() >>> 16) & 0xFF;
+                if (property == Properties.COLOR) {
+                    assertEquals(ValueTypes.DESIGN_TOKEN, valueType);
+                    assertEquals("color.primary", frame.stringAt(op.c()));
+                    sawPrimary = true;
+                }
+                if (property == Properties.BACKGROUND_COLOR) {
+                    assertEquals(ValueTypes.DESIGN_TOKEN, valueType);
+                    assertEquals("dark.color.surface", frame.stringAt(op.c()));
+                    sawDark = true;
+                }
+            }
+        }
+        assertTrue(sawPrimary, "COLOR token ref emitted");
+        assertTrue(sawDark, "BACKGROUND_COLOR token ref emitted");
     }
 
     @Test
@@ -331,5 +364,122 @@ class EmitterTest {
         assertEquals(0x01, bytes[4] & 0xFF); // a=1
         assertEquals(0x10, bytes[8] & 0xFF); // b=0x0010 vstack
         assertEquals(op, Opcode.fromBytes(bytes));
+    }
+
+    @Test
+    void tokenConformanceVectors17And18AreGoldenBytes() {
+        // Vector 17: STYLE:SET_DESIGN_TOKEN (path="color.primary" arenaRef=0,
+        // valueType=COLOR=0x07, value=0xFF0000FF) — spec/CONFORMANCE.md.
+        Opcode setToken = new Opcode(
+                Categories.STYLE, Commands.Style.SET_DESIGN_TOKEN, 0, 0, ValueTypes.COLOR, 0xFF0000FF);
+        assertArrayEquals(new byte[] {
+                0x02, 0x02, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+                0x07, 0x00, 0x00, 0x00,
+                (byte) 0xFF, 0x00, 0x00, (byte) 0xFF
+        }, setToken.toBytes());
+
+        // Vector 18: STYLE:SET_PROPERTY (id=1, COLOR=0x100A,
+        // valueType=DESIGN_TOKEN=0x08, arenaRef=0) — spec/CONFORMANCE.md.
+        Opcode tokenRef = new Opcode(
+                Categories.STYLE, Commands.Style.SET_PROPERTY, 0, 1,
+                (ValueTypes.DESIGN_TOKEN << 16) | Properties.COLOR, 0);
+        assertArrayEquals(new byte[] {
+                0x02, 0x01, 0x00, 0x00,
+                0x01, 0x00, 0x00, 0x00,
+                0x0A, 0x10, 0x08, 0x00,
+                0x00, 0x00, 0x00, 0x00
+        }, tokenRef.toBytes());
+    }
+
+    @Test
+    void frameCodecCarriesDesignTokenRef() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        emitter.mount(Text.of("x").modifier(ForegroundStyle.of(Color.token("color.primary"))),
+                Environment.DEFAULT);
+
+        byte[] wire = FrameCodec.encodeFrame(sink.frame());
+        Frame decoded = FrameCodec.decodeFrame(wire);
+
+        boolean sawRef = false;
+        for (Opcode op : decoded.opcodes()) {
+            if (op.category() == Categories.STYLE && op.command() == Commands.Style.SET_PROPERTY
+                    && (op.b() & 0xFFFF) == Properties.COLOR) {
+                assertEquals(ValueTypes.DESIGN_TOKEN, (op.b() >>> 16) & 0xFF);
+                assertEquals("color.primary", decoded.stringAt(op.c()));
+                sawRef = true;
+            }
+        }
+        assertTrue(sawRef, "DESIGN_TOKEN property ref round-trips through the codec");
+    }
+
+    @Test
+    void themeEmitsGlobalDesignTokenOverrides() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Theme light = new Theme()
+                .color("color.primary", 0xFF2563EB)
+                .f32("space.base", 4.0f)
+                .string("font.body.family", "Inter");
+        Theme dark = new Theme()
+                .color("color.primary", 0xFF60A5FA)
+                .f32("space.base", 4.0f);
+        new AdaptiveTheme(light, dark).emit(sink);
+
+        Frame frame = sink.frame();
+        boolean sawLight = false, sawDark = false, sawF32 = false, sawString = false, sawDarkF32 = false;
+        for (Opcode op : frame.opcodes()) {
+            assertEquals(Categories.STYLE, op.category());
+            assertEquals(Commands.Style.SET_DESIGN_TOKEN, op.command());
+            switch (op.b()) {
+                case ValueTypes.COLOR -> {
+                    if ("color.primary".equals(frame.stringAt(op.a()))) {
+                        sawLight = true;
+                        assertEquals(0xFF2563EB, op.c(), "light primary");
+                    } else {
+                        sawDark = true;
+                        assertEquals("dark.color.primary", frame.stringAt(op.a()));
+                        assertEquals(0xFF60A5FA, op.c(), "dark primary");
+                    }
+                }
+                case ValueTypes.F32 -> {
+                    String path = frame.stringAt(op.a());
+                    if ("space.base".equals(path)) {
+                        sawF32 = true;
+                        assertEquals(4.0f, Float.intBitsToFloat(op.c()), "light space.base");
+                    } else {
+                        sawDarkF32 = true;
+                        assertEquals("dark.space.base", path);
+                    }
+                }
+                case ValueTypes.STRING -> {
+                    sawString = true;
+                    assertEquals("font.body.family", frame.stringAt(op.a()));
+                    assertEquals("Inter", frame.stringAt(op.c()));
+                }
+                default -> { }
+            }
+        }
+        assertTrue(sawLight, "light color override emitted unprefixed");
+        assertTrue(sawDark, "dark color override emitted with the dark. prefix");
+        assertTrue(sawF32, "light f32 override emitted");
+        assertTrue(sawDarkF32, "dark f32 override emitted with the dark. prefix");
+        assertTrue(sawString, "STRING override emitted");
+
+        // Overrides ride the network batch too.
+        Frame decoded = FrameCodec.decodeFrame(FrameCodec.encodeFrame(frame));
+        assertEquals(frame.opcodes(), decoded.opcodes());
+    }
+
+    @Test
+    void aBareThemeEmitsLightOverridesWithoutPrefix() {
+        // A single Theme (ThemeData) mounts as light-only overrides.
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        new Theme().color("color.accent", 0xFF123456).emit(sink);
+        Frame frame = sink.frame();
+        assertEquals(1, frame.opcodes().size());
+        Opcode only = frame.opcodes().get(0);
+        assertEquals("color.accent", frame.stringAt(only.a()));
+        assertEquals(0xFF123456, only.c());
     }
 }

@@ -22,7 +22,9 @@ extern crate alloc;
 mod engine;
 mod node;
 mod signal;
+mod theme;
 
 pub use engine::{EmitResult, Engine};
 pub use node::*;
 pub use signal::{Dep, SignalId, SignalStore, SignalValue};
+pub use theme::{AdaptiveTheme, Theme};

@@ -40,12 +40,12 @@ fn build_tree(count: &Rc<RefCell<u32>>) -> Node {
         ]
         .spacing(8.0)
         .padding(16.0),
-        text("Pathland · GTK4 · shared ring").foreground_style(Color(0xFF_888888)),
+        text("Pathland · GTK4 · shared ring").foreground_style(Color::argb(0xFF_888888)),
         // A non-button view (Text) declaring raw pointer listeners — proving any
         // element can emit events via the `EVENT_LISTENERS` property.
         text("I am a Text with raw pointer listeners")
             .pointer_events(listener::POINTER_DOWN | listener::POINTER_UP)
-            .foreground_style(Color(0xFF_0000AA)),
+            .foreground_style(Color::argb(0xFF_0000AA)),
         vstack![
             text("short"),
             text("a much longer label"),

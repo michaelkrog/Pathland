@@ -23,6 +23,15 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
   - `LayoutSection` — `Grid`/`LazyVStack`/`HStack`+`Spacer`/`ZStack`/`Divider`.
   - `TextStylesSection` — text-formatting modifiers.
   - `AppearanceSection` — border/shadow/opacity/transform/hidden/z-index.
+  - `ThemeSection` — **design-token demo**: `Color.token("color.primary")`,
+    `Color.token("control.accent")`, `Color.token("color.surface")` /
+    `Color.token("dark.color.surface")` and a `control.background`-referenced
+    fill, resolving against the active scheme.
+- **`DemoTheme`** — the demo's global `SET_DESIGN_TOKEN` theme (base + `dark.*`:
+  `color.primary`, `color.surface`, `color.accent`, `space.base`,
+  `font.body.family`, `control.*`). Both demos' `SessionApp` pass it to the
+  `Emitter`, which rides the overrides into the mount (SSR) + resync frames so
+  the HTML/JS client re-themes under `prefers-color-scheme: dark`.
 - **Legacy views kept**: `CounterView`, `CounterControls`, `NameField` (still
   covered by `CounterViewTest`).
 

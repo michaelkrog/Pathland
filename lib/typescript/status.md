@@ -1,6 +1,6 @@
 # @pathland/dom-renderer (lib/typescript) — implementation status
 
-**Last updated:** September 1, 2026
+**Last updated:** September 2, 2026
 
 The **Pathland DOM renderer** — the web client. A vanilla-TypeScript hydration
 client (no runtime dependencies) that is the single source of the client,
@@ -41,6 +41,17 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
 - **Value types**: `U8`/`U32`/`I32`/`F32`/`STRING`/`ENUM`/`COLOR`/`DESIGN_TOKEN`
   handled (`enumCode`/`f32`/`isOn` decoders in classes.ts; token values in
   tokens.ts).
+- **Design tokens** (`src/tokens.ts`, spec/TOKENS.md): `SET_DESIGN_TOKEN`
+  overrides applied via a managed `<style data-pathland-tokens>` element —
+  **base (light) tokens as `:root` rules, `dark.*` overrides inside
+  `@media (prefers-color-scheme: dark)`** (so the browser resolves the scheme
+  natively and inline-style cascade can't break light mode). Canonical
+  `--pl-<path>` variable names (the `dark.` scheme prefix is stripped), F32
+  length tokens emitted with `px`, and **`DESIGN_TOKEN` property references**
+  resolved to `var(--pl-…)`, with the generative `space.<N>` family resolving
+  to `calc(var(--pl-space-base) * N)` (`applyTokenRefProperty` in classes.ts).
+  **`STRING`-valued overrides** (e.g. `font.body.family`) resolve the value
+  string from the batch's string section and emit it single-quoted.
 - **Full event encoders** (`src/events.ts`): `POINTER_DOWN` (x/y + secondary),
   `POINTER_MOVE` (x/y + hover enter/leave), `POINTER_UP` (x/y + secondary),
   `KEY_DOWN`/`KEY_UP` (keyCode + modifiers + repeat), `VALUE_CHANGED` (f32 or
@@ -63,10 +74,17 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   carries Tailwind classes; runtime style deltas apply as inline style, literal
   colors inline, design tokens as CSS variables.
 - **Tests** (`test/`, vitest + happy-dom): codec round-trips, TREE/STYLE/META
-  application, design tokens, event byte layouts, and one golden assertion per
-  property/enum — 73 tests.
+  application, design tokens (var mapping, dark scoping, px lengths, generative
+  `space.N` refs), event byte layouts, and one golden assertion per
+  property/enum — 87 tests.
 
 ## Not implemented / gaps
+
+- **`DESIGN_TOKEN` property references** cover the directly-mappable subset of
+  the property catalog (colors, font size/weight/family, spacing/padding,
+  corner radius, opacity, tint, border/shadow color, width/height). Compound
+  accumulators that need concrete numbers (e.g. `BORDER_WIDTH`'s px suffix,
+  shadow radius/x/y) remain literal-only.
 
 - **`frameCount` gap detection** (P3): the client now resyncs on EVERY reconnect via
   `META::RESYNC`; P3's `frameCount` sequencing lets it resync only when a gap is
@@ -84,5 +102,5 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
 
 ## Verified by
 
-`npm test` (vitest, 73 tests) + `npm run typecheck` (strict TS). CI runs the
+`npm test` (vitest, 87 tests) + `npm run typecheck` (strict TS). CI runs the
 web-client job (typecheck + test + build + copy-to-demos drift check).

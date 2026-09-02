@@ -1,6 +1,6 @@
 # pathland-view (Java) — implementation status
 
-**Last updated:** August 30, 2026
+**Last updated:** September 2, 2026
 
 The hand-written, framework-agnostic Java 17+ DSL (`com.pathland.view`):
 SwiftUI-style views, Angular-style signals, fine-grained emitter, `PLPL` wire
@@ -95,13 +95,27 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 - **JNA ring interop** (`ffm`): lazy `libpathland_core` binding, zero JNI.
 - **State** (`state`): `StateStore`/`PersistentState`/`State`, auto-wired by
   `pathland-view-processor`.
+- **Design tokens**: `Color` is `(argb, token)` — `Color.token("color.primary")`
+  (incl. `dark.*` paths) usable in every color-taking modifier
+  (`ForegroundStyle`/`Background`/`Border`/`Tint`, and the `Color` view). The
+  emitter sends token refs as the `DESIGN_TOKEN` value type (path in the frame's
+  string section / arena) in both `FrameOpcodeSink` and `RingOpcodeSink`
+  (spec/TOKENS.md).
+- **`Theme` / `AdaptiveTheme` (global overrides)**: `Theme` — single-value
+  builders (`color`/`f32`/`u32`/`u8`/`string`) for one scheme; `AdaptiveTheme(light,
+  dark)` composes a light + dark pair. Both implement the `ThemeData` interface
+  (`emit`/`emitInto`); `Theme.emit`/`AdaptiveTheme.emit` write one frame of
+  `STYLE::SET_DESIGN_TOKEN` overrides (the dark theme's with the `dark.` prefix),
+  and `OpcodeSink.setDesignToken` puts path + STRING values into the string
+  section (frame) / arena (ring). The `Emitter` takes a `ThemeData` and rides it
+  into the mount + resync frames. Overrides are renderer-global — they never
+  re-emit nodes.
 
 ## Not implemented / gaps
 
 - `ACTION_ID`/`BINDING_ID` are usable as modifiers (`actionId`/`bindingId`) but
   the Java model routes events by node id through the emitter's registries
   (`RenderResult`), so controls don't set them automatically.
-- No `STYLE::SET_DESIGN_TOKEN` DSL helper.
 
 ## Verified by
 

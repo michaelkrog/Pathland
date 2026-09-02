@@ -373,17 +373,20 @@ Grouped ranges (see `spec/PRIMITIVES.md`):
 ### Colors
 
 - Literal colors are **sRGB** with D65 white point, packed as `0xAARRGGBB`
+- A color property may instead carry a `DESIGN_TOKEN` reference to a token path
 - Semantic token resolution and theme adaptation are **renderer-owned**
 
 ### Design Token System
 
-**Core Principle**: Application defines intent and overrides. Renderer defines visual appearance and behavior.
+**Core Principle**: Application defines intent, overrides, and the theme.
+Renderer defines visual appearance, behavior, defaults, and interaction states.
 
-- Renderer owns design tokens, default values, semantic-token resolution, interaction states (hover, pressed, focus, disabled), and theme logic
-- `SET_DESIGN_TOKEN` identifies tokens by **dot-separated string paths** (e.g. `color.primary`, `space.2`) with the standard value-type encoding — there is no separate numeric tokenId system
+- The **application owns the theme**: token overrides (base = **light**, `dark.`-prefixed = **dark**) and token references in style properties.
+- The **renderer owns** default token values (light + dark), token resolution, effective color-scheme detection (platform-derived), interaction states (hover, pressed, focus, disabled), and theme adaptation
+- `SET_DESIGN_TOKEN` identifies tokens by **dot-separated string paths** (e.g. `color.primary`, `space.2`) with the standard value-type encoding — there is no separate numeric tokenId system. A `dark.` prefix selects the dark variant (`dark.color.primary`)
 - The protocol MUST NEVER describe hover styles, click styles, visual transitions, conditional styling, or layout tuning for interaction states
 
-Full details: [Design Token System](./spec/OPCODE.md#design-token-system).
+Full details: [Design Token System](./spec/OPCODE.md#design-token-system) and the canonical catalog / color-scheme contract in [spec/TOKENS.md](./spec/TOKENS.md).
 
 ---
 

@@ -84,6 +84,54 @@ class KitchenSinkViewTest {
         emitter.destroy();
     }
 
+    @Test
+    void themeOverridesAndTokenRefsRideTheMountFrame() {
+        StateStore store = new InMemoryStateStore();
+        PersistentState state = new PersistentState(store, "session-1");
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink, DemoTheme.adaptive());
+
+        emitter.mount(new KitchenSinkView(), new Environment(state));
+        Frame frame = sink.frame();
+
+        long overrides = frame.opcodes().stream()
+                .filter(op -> op.category() == Categories.STYLE
+                        && op.command() == Commands.Style.SET_DESIGN_TOKEN)
+                .count();
+        assertTrue(overrides >= 10, "DemoTheme rolls light + dark overrides: " + overrides);
+        assertTrue(anyDesignToken(frame, "color.primary"), "light color.primary override");
+        assertTrue(anyDesignToken(frame, "dark.color.primary"), "dark color.primary override");
+        assertTrue(anyDesignToken(frame, "dark.control.background"), "dark control.background override");
+        assertTrue(anyDesignTokenRef(frame, "color.primary"), "color.primary token ref");
+        assertTrue(anyDesignTokenRef(frame, "dark.color.surface"), "dark.color.surface token ref");
+        assertTrue(anyDesignTokenRef(frame, "control.accent"), "control.accent token ref");
+        assertTrue(anyDesignTokenRef(frame, "control.background"), "control.background token ref");
+
+        state.close();
+        emitter.destroy();
+    }
+
+    private static boolean anyDesignToken(Frame frame, String path) {
+        for (Opcode op : frame.opcodes()) {
+            if (op.category() == Categories.STYLE && op.command() == Commands.Style.SET_DESIGN_TOKEN
+                    && path.equals(frame.stringAt(op.a()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean anyDesignTokenRef(Frame frame, String path) {
+        for (Opcode op : frame.opcodes()) {
+            if (op.category() == Categories.STYLE && op.command() == Commands.Style.SET_PROPERTY
+                    && ((op.b() >>> 16) & 0xFF) == com.pathland.view.ValueTypes.DESIGN_TOKEN
+                    && path.equals(frame.stringAt(op.c()))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String allSetText(Frame frame) {
         StringBuilder sb = new StringBuilder();
         for (Opcode op : frame.opcodes()) {

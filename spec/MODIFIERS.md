@@ -2,7 +2,7 @@
 
 **Wire protocol version:** 1
 **Status:** Draft
-**Last Updated:** August 28, 2026
+**Last Updated:** September 2, 2026
 
 ---
 
@@ -63,6 +63,14 @@ the frame's string section; `C` holds the arena offset.
 
 Special `WIDTH`/`HEIGHT` values: `-1.0` = `FILL` (expand to available), `-2.0` =
 `HUG_CONTENT` (native intrinsic size).
+
+> **Token references**: every property typed `COLOR` / `F32` / `STRING` / `ENUM`
+> in the tables below MAY instead carry the `DESIGN_TOKEN` value type (`0x08`),
+> with `C` = arenaRef to a token path — so modifiers like `.foregroundStyle`,
+> `.tint`, `.background`, `.border(color:)`, `.shadow(color:)`, `.font(size:)`,
+> `.padding(_:)`, `.cornerRadius(_:)`, `.frame(width:height:)`, and `.spacing(_:)`
+> accept either a literal or a token reference. The renderer resolves the
+> reference against the [token catalog and color schemes](./TOKENS.md).
 
 ---
 
