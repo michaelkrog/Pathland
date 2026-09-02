@@ -26,7 +26,7 @@ public final class ColorPicker implements View {
         PathlandNode node = new PathlandNode(Components.COLOR_PICKER);
         node.properties.put(Properties.COLOR_VALUE, binding.get());
         node.propertyBindings.put(Properties.COLOR_VALUE, binding);
-        node.valueInput = v -> binding.set(new Color(Float.floatToRawIntBits(v)));
+        node.valueInput = v -> binding.set(new Color(Float.floatToRawIntBits(v), null));
         return node;
     }
 }

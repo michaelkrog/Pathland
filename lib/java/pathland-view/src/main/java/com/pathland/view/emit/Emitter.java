@@ -1,5 +1,6 @@
 package com.pathland.view.emit;
 
+import com.pathland.view.Color;
 import com.pathland.view.Environment;
 import com.pathland.view.ValueTypes;
 import com.pathland.view.View;
@@ -146,7 +147,9 @@ public final class Emitter {
     }
 
     private void emitProperty(int nodeId, int property, Object value) {
-        int valueType = ValueTypes.forProperty(property);
+        int valueType = value instanceof Color c && c.isToken()
+                ? ValueTypes.DESIGN_TOKEN
+                : ValueTypes.forProperty(property);
         sink.setProperty(nodeId, property, valueType, value);
     }
 

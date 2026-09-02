@@ -145,6 +145,38 @@ class EmitterTest {
     }
 
     @Test
+    void tokenColorEmitsDesignTokenValueTypeWithPath() {
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Emitter emitter = new Emitter(sink);
+        View root = Text.of("x")
+                .modifier(ForegroundStyle.of(Color.token("color.primary")))
+                .modifier(Background.of(Color.token("dark.color.surface")));
+        emitter.mount(root, Environment.DEFAULT);
+        Frame frame = sink.frame();
+
+        boolean sawPrimary = false;
+        boolean sawDark = false;
+        for (Opcode op : frame.opcodes()) {
+            if (op.category() == Categories.STYLE && op.command() == Commands.Style.SET_PROPERTY) {
+                int property = op.b() & 0xFFFF;
+                int valueType = (op.b() >>> 16) & 0xFF;
+                if (property == Properties.COLOR) {
+                    assertEquals(ValueTypes.DESIGN_TOKEN, valueType);
+                    assertEquals("color.primary", frame.stringAt(op.c()));
+                    sawPrimary = true;
+                }
+                if (property == Properties.BACKGROUND_COLOR) {
+                    assertEquals(ValueTypes.DESIGN_TOKEN, valueType);
+                    assertEquals("dark.color.surface", frame.stringAt(op.c()));
+                    sawDark = true;
+                }
+            }
+        }
+        assertTrue(sawPrimary, "COLOR token ref emitted");
+        assertTrue(sawDark, "BACKGROUND_COLOR token ref emitted");
+    }
+
+    @Test
     void buttonStyleScopesDownTheTree() {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Emitter emitter = new Emitter(sink);

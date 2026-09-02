@@ -1,6 +1,7 @@
 package com.pathland.view.ffm;
 
 import com.pathland.view.Categories;
+import com.pathland.view.Color;
 import com.pathland.view.Commands;
 import com.pathland.view.ValueTypes;
 import com.pathland.view.emit.Opcode;
@@ -80,6 +81,9 @@ public final class RingOpcodeSink implements OpcodeSink, AutoCloseable {
         int b = (valueType << 16) | (property & 0xFFFF);
         if (valueType == ValueTypes.STRING) {
             int ref = core.arenaAlloc(handle, ((String) value).getBytes(StandardCharsets.UTF_8));
+            push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, ref);
+        } else if (valueType == ValueTypes.DESIGN_TOKEN) {
+            int ref = core.arenaAlloc(handle, ((Color) value).token().getBytes(StandardCharsets.UTF_8));
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, ref);
         } else {
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b,

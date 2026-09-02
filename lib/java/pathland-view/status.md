@@ -1,6 +1,6 @@
 # pathland-view (Java) — implementation status
 
-**Last updated:** August 30, 2026
+**Last updated:** September 2, 2026
 
 The hand-written, framework-agnostic Java 17+ DSL (`com.pathland.view`):
 SwiftUI-style views, Angular-style signals, fine-grained emitter, `PLPL` wire
@@ -95,13 +95,21 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 - **JNA ring interop** (`ffm`): lazy `libpathland_core` binding, zero JNI.
 - **State** (`state`): `StateStore`/`PersistentState`/`State`, auto-wired by
   `pathland-view-processor`.
+- **Design tokens**: `Color` is `(argb, token)` — `Color.token("color.primary")`
+  (incl. `dark.*` paths) usable in every color-taking modifier
+  (`ForegroundStyle`/`Background`/`Border`/`Tint`, and the `Color` view). The
+  emitter sends token refs as the `DESIGN_TOKEN` value type (path in the frame's
+  string section / arena) in both `FrameOpcodeSink` and `RingOpcodeSink`
+  (spec/TOKENS.md).
 
 ## Not implemented / gaps
 
 - `ACTION_ID`/`BINDING_ID` are usable as modifiers (`actionId`/`bindingId`) but
   the Java model routes events by node id through the emitter's registries
   (`RenderResult`), so controls don't set them automatically.
-- No `STYLE::SET_DESIGN_TOKEN` DSL helper.
+- No `STYLE::SET_DESIGN_TOKEN` **global override helper / `Theme` object** yet
+  (token *references* in properties are done; emitting global overrides needs a
+  `setDesignToken` surface on the emitter/sink).
 
 ## Verified by
 

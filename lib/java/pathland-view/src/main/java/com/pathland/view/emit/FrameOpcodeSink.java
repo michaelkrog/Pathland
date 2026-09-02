@@ -1,6 +1,7 @@
 package com.pathland.view.emit;
 
 import com.pathland.view.Categories;
+import com.pathland.view.Color;
 import com.pathland.view.Commands;
 import com.pathland.view.ValueTypes;
 
@@ -85,6 +86,11 @@ public class FrameOpcodeSink implements OpcodeSink {
         if (valueType == ValueTypes.STRING) {
             int offset = strings.size();
             writeString((String) value);
+            push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, offset);
+        } else if (valueType == ValueTypes.DESIGN_TOKEN) {
+            // C = arena offset of the token path (spec/TOKENS.md).
+            int offset = strings.size();
+            writeString(((Color) value).token());
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, offset);
         } else {
             push(Categories.STYLE, Commands.Style.SET_PROPERTY, 0, nodeId, b, ValueEncoder.encodeBits(valueType, value));
