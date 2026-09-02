@@ -23,7 +23,6 @@ import java.io.FileOutputStream;
  * <pre>
  * const char* pathland_html_render(const uint8_t* batch, uint32 len, uint32 root);
  * const char* pathland_html_render_fragment(const uint8_t* batch, uint32 len, uint32 root);
- * const char* pathland_tailwind_compile(const char* default_css, const char* override_css);
  * void        pathland_html_free(const char* ptr);
  * </pre>
  */
@@ -40,7 +39,6 @@ public final class HtmlRenderer {
     private interface NativeRenderHtml extends Library {
         Pointer pathland_html_render(Pointer batch, int len, int root);
         Pointer pathland_html_render_fragment(Pointer batch, int len, int root);
-        Pointer pathland_tailwind_compile(String defaultCss, String overrideCss);
         void pathland_html_free(Pointer ptr);
     }
 
@@ -197,19 +195,7 @@ public final class HtmlRenderer {
     }
 
     /**
-     * Compile the Tailwind CSS bundle at application start. {@code overrideCss} is the
-     * developer's v4 CSS (may be empty). The class safelist is owned internally by the
-     * Rust renderer (the finite protocol-enum-derived set). The bundled default
-     * {@code @theme} config (Inter) is used when no default is given. Returns the
-     * compiled CSS, or a string starting with {@code PATHLAND_TAILWIND_ERROR:} when
-     * compilation fails (e.g. no embedded binary / tailwindcss on PATH).
-     */
-    public String compileTailwind(String overrideCss) {
-        Pointer result = nativeRenderer.pathland_tailwind_compile(null, overrideCss == null ? "" : overrideCss);
-        return take(result);
-    }
-
-    /** Copy a NUL-terminated C string into a Java String and free the native buffer. */
+     * Copy a NUL-terminated C string into a Java String and free the native buffer. */
     private static String take(Pointer ptr) {
         if (ptr == null) {
             return "";

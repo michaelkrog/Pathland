@@ -11,14 +11,6 @@ keywords = ["ui", "protocol", "opcode", "html", "ssr"]
 [lib]
 crate-type = ["rlib", "cdylib"]
 
-[features]
-# Embed the per-platform Tailwind standalone binary in the cdylib (MIT,
-# bundled per the pinned license). Off by default so dev/test builds stay fast;
-# enable in packaging/release builds. When off, pathland_tailwind_compile falls
-# back to a `tailwindcss` binary on PATH or errors gracefully.
-default = []
-tailwind-embed = []
-
 [dependencies]
 pathland-core = { path = "../pathland-core" }
 pathland-core-transport = { path = "../pathland-core-transport" }

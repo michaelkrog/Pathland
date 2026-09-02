@@ -47,30 +47,12 @@ jobs:
         working-directory: lib/rust
         run: ./check-wasm.sh
 
-      # The Java HTML renderer shim needs the Rust renderer cdylib built WITH the
-      # tailwind-embed feature (so the jar carries both the renderer and the Tailwind
-      # compiler). Build it here and hand it to the java job via an artifact.
-      - name: Set up Node 22 (to fetch the Tailwind standalone binary)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Cache the Tailwind standalone binary
-        uses: actions/cache@v4
-        with:
-          path: lib/rust/crates/pathland-render-html/vendor
-          key: tailwind-${{ runner.os }}-${{ runner.arch }}-v4.3.3
-
-      - name: Fetch the Tailwind standalone binary (cached; no-op on hit)
-        working-directory: lib/rust/crates/pathland-render-html
-        env:
-          TARGET: x86_64-unknown-linux-gnu
-          TAILWIND_SHA256: dc61b3ac6b8c9ca874c0cc4c57b2409791a64c5540404ca5f5367360babc313a
-        run: node scripts/fetch-tailwind.mjs
-
-      - name: Build the HTML renderer with the embedded Tailwind compiler
+      # The Java HTML renderer shim needs the Rust renderer cdylib (the jar embeds
+      # it so it travels with the artifact). Build it here and hand it to the java
+      # job via an artifact.
+      - name: Build the HTML renderer cdylib
         working-directory: lib/rust
-        run: cargo build -p pathland-render-html --features tailwind-embed
+        run: cargo build -p pathland-render-html
 
       - name: Upload the renderer dylib for the java job
         uses: actions/upload-artifact@v4
@@ -99,8 +81,8 @@ jobs:
           java-version: ${{ matrix.java }}
           cache: maven
 
-      # The renderer jar embeds the Rust cdylib (built by the rust job with
-      # tailwind-embed). Restore it into the debug dir the jar-embed step copies.
+      # The renderer jar embeds the Rust cdylib (built by the rust job). Restore it
+      # into the debug dir the jar-embed step copies.
       - name: Download the Rust renderer dylib
         uses: actions/download-artifact@v4
         with:
