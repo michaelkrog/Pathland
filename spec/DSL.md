@@ -2,7 +2,7 @@
 
 **Wire protocol version:** 1
 **Status:** Draft
-**Last Updated:** August 30, 2026
+**Last Updated:** September 2, 2026
 
 ---
 
@@ -580,6 +580,12 @@ are the companion specs.
   equivalent wiring) against a platform-neutral store ([§3.3](#33-persisted-state-statet)).
 - [ ] **Gestures** — `.onTapGesture` (composed from raw pointer down/up) and
   raw `pointerEvents`/`EVENT_LISTENERS` bitmask ([§4.4](#44-gestures)).
+- [ ] **Design tokens & theming** — a token surface: token-typed values usable
+  in style modifiers (a `Color` accepting a token path, e.g. `Color.token("color.primary")`
+  or the language's equivalent), a theme/override helper emitting
+  `STYLE::SET_DESIGN_TOKEN` (base values + `dark.`-prefixed dark values), and
+  the **base=light / `dark.*`** color-scheme convention with renderer-derived
+  scheme detection — see [TOKENS.md](./TOKENS.md).
 
 ### 8.2 Mapping rules (signature → protocol)
 
@@ -590,7 +596,12 @@ are the companion specs.
    with the documented **value type** (U8/U32/I32/F32/STRING/ENUM/COLOR/
    DESIGN_TOKEN). Enumerated values use the numeric codes in MODIFIERS.md's
    appendix.
-3. `Color` values pack as sRGB `0xAARRGGBB`.
+3. `Color` values pack as sRGB `0xAARRGGBB`. A **token-typed** value instead
+   carries the `DESIGN_TOKEN` value type with the token path in the arena
+   (never a packed literal); the renderer resolves it against the current
+   scheme. A theme/override helper emits `STYLE::SET_DESIGN_TOKEN`
+   (`A` = arenaRef path, `B` = valueType, `C` = value); a `dark.`-prefixed path
+   supplies the dark design (base = light — [TOKENS.md](./TOKENS.md)).
 4. `WIDTH`/`HEIGHT` sentinels: `FILL` = −1.0, `HUG_CONTENT` = −2.0.
 5. `DatePicker` value/event use the two-field encoding **days since epoch
    (I32) + millis of day (U32)**; there is no `DATE_VALUE` property.

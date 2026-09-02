@@ -3,7 +3,7 @@
 **Wire protocol version:** 1
 **Status:** Draft
 **Format:** Fixed-size (16-byte) opcode engine
-**Last Updated:** August 13, 2026
+**Last Updated:** September 2, 2026
 
 ---
 
@@ -150,6 +150,11 @@ B = (valueType << 16) | propertyId
 > The enumerated code tables live in
 > [MODIFIERS.md](./MODIFIERS.md#appendix-enumerated-values). The `ENUM` value type
 > (low byte of `C`) is available for explicitly `ENUM`-coded properties.
+>
+> **Token references**: any property that normally carries a `COLOR` / `F32` /
+> `STRING` / `ENUM` value MAY instead carry the `DESIGN_TOKEN` value type, with
+> `C` = arenaRef to a token path (see [Design Token System](#design-token-system)
+> and [TOKENS.md](./TOKENS.md)).
 
 #### Constraint properties for native layout
 
@@ -481,7 +486,7 @@ Literal colors are **sRGB** (IEC 61966-2-1, D65 white point), packed as `0xAARRG
 - `AA`: alpha (0x00 transparent – 0xFF opaque)
 - `RR`: red, `GG`: green, `BB`: blue
 
-Stored little-endian in a `u32` payload. Semantic token resolution and theme adaptation remain **renderer-owned** (see [Design Token System](#design-token-system)).
+Stored little-endian in a `u32` payload. A color **property** may alternatively carry a `DESIGN_TOKEN` reference to a token path instead of a literal (see [Design Token System](#design-token-system)); semantic token resolution and theme adaptation remain **renderer-owned**.
 
 ---
 
@@ -489,54 +494,58 @@ Stored little-endian in a `u32` payload. Semantic token resolution and theme ada
 
 ### Core Principle
 
-> **The renderer owns the defaults. The application owns the overrides.**
+> **The application owns the theme. The renderer owns the defaults, the scheme
+> detection, and the interaction states.**
 
-This ensures a native look-and-feel by default and cross-platform consistency when the application overrides tokens.
+- The **application** declares a theme: token overrides (base = **light**
+  design, `dark.`-prefixed = **dark** design) and token references in style
+  properties.
+- The **renderer** supplies platform-appropriate defaults, derives the
+  effective color scheme from the platform, resolves token references, and
+  owns hover/pressed/focus/disabled styling.
 
-### Responsibilities
+This ensures a native look-and-feel by default and cross-platform consistency
+when the application rolls a theme.
 
-| Aspect | Owner | Responsibility |
-|--------|-------|----------------|
-| **Default Token Values** | Renderer | Define platform-appropriate defaults for all standard tokens |
-| **Token Overrides** | Application | Specify overrides for cross-platform consistency |
-| **Token Resolution** | Renderer | Resolve final token values (override or default) |
-| **Platform Adaptation** | Renderer | Adapt default token values to platform conventions |
+### Tokens & color schemes
 
-### Token Identification
+- Tokens are identified by **dot-separated string paths** (`color.primary`,
+  `font.body.size`, `space.2`), case-sensitive, lowercase recommended. The
+  `DESIGN_TOKEN` value type (`0x08`) references a token path stored in the
+  arena; `SET_DESIGN_TOKEN` overrides a token's value globally.
+- **Base = light. `dark.`-prefixed paths are the dark variant** (`dark.color.primary`).
+  The renderer derives the effective scheme (light/dark) from the platform and
+  re-resolves when it changes — scheme selection is never carried by the
+  protocol.
+- The **standard token catalog** (colors, typography, spacing, radii,
+  elevations, `control.*`, per-component tokens) and the **resolution
+  algorithm** (dark layer → override → default → parent → fallback) are defined
+  in **[TOKENS.md](./TOKENS.md)**.
 
-Tokens are identified by **dot-separated string paths** (e.g. `color.primary`, `space.2`, `font.body`), case-sensitive, lowercase recommended. The `DESIGN_TOKEN` value type (`0x08`) references a token path stored in the arena; `SET_DESIGN_TOKEN` overrides a token's value globally.
+### References in properties
 
-### Token Resolution Algorithm
-
-```
-FUNCTION resolveToken(tokenPath: string) -> PropertyValue:
-    IF applicationOverrides.has(tokenPath):
-        RETURN applicationOverrides[tokenPath]
-    ELSE IF rendererDefaults.has(tokenPath):
-        RETURN rendererDefaults[tokenPath]
-    ELSE IF hasParentToken(tokenPath):
-        RETURN resolveToken(getParentPath(tokenPath))
-    ELSE:
-        RETURN getFallbackValue(tokenPath)
-```
+Any property whose value type is `COLOR` / `F32` / `STRING` / `ENUM` MAY instead
+carry the **`DESIGN_TOKEN`** value type (`0x08`), with `C` = arenaRef to the
+token path. The renderer resolves the reference against the token tables and the
+current scheme. A property carries exactly one value — a literal or a token
+reference, never both. Because overrides and the scheme are renderer state, a
+token-typed property requires **no re-emission** when a token changes.
 
 ### Renderer Responsibilities
 
 The renderer MUST:
 
-1. Provide platform-appropriate defaults for all standard tokens (e.g. `color.primary`, `font.body.size`, `space.md`).
+1. Provide platform-appropriate **light and dark defaults** for all Tier 1 tokens.
 2. Accept `SET_DESIGN_TOKEN` commands and store overrides.
-3. Resolve design-token references in properties.
-4. Fall back to defaults when no override exists.
-5. Never transmit visual styling rules in the protocol.
+3. Derive the effective color scheme from the platform and re-resolve on change.
+4. Resolve token references (`DESIGN_TOKEN` value type) in properties.
+5. Fall back to defaults when no override exists.
+6. Never transmit visual styling rules in the protocol.
 
-The application MAY override any token via `SET_DESIGN_TOKEN` and reference tokens via the `DESIGN_TOKEN` value type; it MUST NOT assume specific default token values.
-
-### Standard Token Catalog
-
-Required core tokens (renderer MUST support with platform-appropriate defaults): `color.primary`, `color.secondary`, `color.background`, `color.surface`, `color.text.primary`, `color.text.secondary`, `color.border`, `font.body.size`, `font.body.weight`, `font.body.family`, `space.xs`–`space.lg`.
-
-Recommended extended tokens: `color.success`, `color.warning`, `color.danger`, `color.info`, `font.heading.1`–`font.heading.6`, `font.size.heading.1`–`6`, `radius.sm`/`md`, `elevation.low`/`high`, `opacity.disabled`.
+The application MAY override any token via `SET_DESIGN_TOKEN` (base and `dark.*`)
+and reference tokens via the `DESIGN_TOKEN` value type; it MUST NOT assume
+specific default token values. Tokens a renderer cannot apply are ignored (the
+same "allowed and ignored" rule as unapplicable modifiers).
 
 ---
 
@@ -608,10 +617,11 @@ Golden byte vectors for this protocol are in [CONFORMANCE.md](./CONFORMANCE.md).
 
 ### Companion specifications
 
-The protocol's semantic surface is catalogued in three companion documents:
+The protocol's semantic surface is catalogued in four companion documents:
 [PRIMITIVES.md](./PRIMITIVES.md) (the primitive views), [MODIFIERS.md](./MODIFIERS.md)
-(the core modifiers, i.e. the `STYLE` properties), and [EVENTS.md](./EVENTS.md)
-(the core events, i.e. the raw inputs). IDs are allocated there spec-first;
+(the core modifiers, i.e. the `STYLE` properties), [EVENTS.md](./EVENTS.md)
+(the core events, i.e. the raw inputs), and [TOKENS.md](./TOKENS.md) (the design
+tokens / theming contract). IDs are allocated there spec-first;
 this file remains the wire-format authority and must be updated when new IDs
 land.
 
