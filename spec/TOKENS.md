@@ -377,10 +377,12 @@ server-side rendering and client hydration agree:
 
 ```
 tokenPathToVar("color.primary")      → --pl-color-primary
-tokenPathToVar("dark.color.primary") → --pl-dark-color-primary
+tokenPathToVar("dark.color.primary") → --pl-color-primary
 ```
 
-- The rule: `--pl-` prefix + the path with `.` → `-`.
+- The rule: `--pl-` prefix + the path with `.` → `-`. The `dark.` scheme prefix
+  is **stripped** — the dark variant overrides the *same* variable, scoped
+  inside the media query below.
 - A **base** token is emitted as a plain `:root { --pl-…: value; }` rule.
 - A `dark.*` token override is emitted **inside** `@media (prefers-color-scheme:
   dark) { :root { … } }` — never as a bare `--pl-dark-*` variable — so the

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { applyBatch, setNodeText, type DomRenderer } from "../src/apply";
 import { parseBatch } from "../src/plpl";
 import {
@@ -16,13 +16,20 @@ import {
   COMPONENT_BUTTON,
   COMPONENT_TEXT,
   COMPONENT_VSTACK,
+  PROP_COLOR,
   PROP_IMAGE_SOURCE,
   PROP_SELECTED,
+  PROP_SPACING,
   PROP_TEXT,
   PROP_VALUE,
+  VAL_DESIGN_TOKEN,
   VAL_STRING,
 } from "../src/constants";
 import { buildBatch, stringEntry } from "./plpl.test";
+
+beforeEach(() => {
+  document.head.querySelectorAll("style[data-pathland-tokens]").forEach((s) => s.remove());
+});
 
 function renderer(): DomRenderer {
   return { byId: new Map<number, Node>() };
@@ -182,7 +189,56 @@ describe("applyBatch · META + design tokens + string props", () => {
       buildBatch([[CAT_STYLE, CMD_SET_DESIGN_TOKEN, 0, 0, 0x07, 0xff0000ff]], stringEntry("color.primary")),
     );
     applyBatch(batch, renderer());
-    expect(document.documentElement.style.getPropertyValue("--color-primary")).toBe("rgba(0,0,255,1.000)");
+    const style = document.head.querySelector("style[data-pathland-tokens]");
+    expect(style?.textContent).toContain(":root{--pl-color-primary:rgba(0,0,255,1.000);}");
+  });
+
+  it("SET_DESIGN_TOKEN scopes a dark.* override inside the dark media query", () => {
+    const batch = parseBatch(
+      buildBatch([[CAT_STYLE, CMD_SET_DESIGN_TOKEN, 0, 0, 0x07, 0xff60a5fa]], stringEntry("dark.color.primary")),
+    );
+    applyBatch(batch, renderer());
+    const style = document.head.querySelector("style[data-pathland-tokens]");
+    expect(style?.textContent).toContain(
+      "@media (prefers-color-scheme: dark){:root{--pl-color-primary:rgba(96,165,250,1.000);}}",
+    );
+  });
+
+  it("SET_DESIGN_TOKEN registers a length token with px", () => {
+    const batch = parseBatch(
+      buildBatch([[CAT_STYLE, CMD_SET_DESIGN_TOKEN, 0, 0, 0x04, 0x40800000]], stringEntry("space.base")),
+    );
+    applyBatch(batch, renderer());
+    const style = document.head.querySelector("style[data-pathland-tokens]");
+    expect(style?.textContent).toContain(":root{--pl-space-base:4px;}");
+  });
+
+  it("resolves a DESIGN_TOKEN property reference to var()", () => {
+    const span = document.createElement("span");
+    const r = renderer();
+    r.byId.set(11, span);
+    const batch = parseBatch(
+      buildBatch(
+        [[CAT_STYLE, CMD_SET_PROPERTY, 0, 11, (VAL_DESIGN_TOKEN << 16) | PROP_COLOR, 0]],
+        stringEntry("color.primary"),
+      ),
+    );
+    applyBatch(batch, r);
+    expect(span.style.color).toBe("var(--pl-color-primary)");
+  });
+
+  it("resolves a generative space.<N> property reference to calc()", () => {
+    const vstack = document.createElement("div");
+    const r = renderer();
+    r.byId.set(12, vstack);
+    const batch = parseBatch(
+      buildBatch(
+        [[CAT_STYLE, CMD_SET_PROPERTY, 0, 12, (VAL_DESIGN_TOKEN << 16) | PROP_SPACING, 0]],
+        stringEntry("space.2"),
+      ),
+    );
+    applyBatch(batch, r);
+    expect(vstack.style.gap).toBe("calc(var(--pl-space-base) * 2)");
   });
 
   it("applies IMAGE_SOURCE to an img", () => {

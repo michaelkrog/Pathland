@@ -4,7 +4,7 @@
 //!   - a **preflight reset** (vendored from Tailwind CSS, MIT — see
 //!     `THIRD_PARTY_NOTICES`),
 //!   - `:root` **design tokens** as CSS custom properties, named to match the
-//!     protocol's design-token paths (e.g. `color.accent` → `--pl-color-accent`)
+//!     protocol's design-token paths (e.g. `color.primary` → `--pl-color-primary`)
 //!     so `SET_DESIGN_TOKEN` over the wire can retheme the renderer,
 //!   - `.pathland-*` component defaults written against the tokens.
 //!
@@ -17,7 +17,7 @@ pub const STYLE: &str = r#"<style>
 /* ===== Preflight reset (vendored from Tailwind CSS, MIT) ===== */
 *, ::before, ::after { box-sizing: border-box; border-width: 0; border-style: solid; border-color: currentColor; }
 ::before, ::after { --tw-content: ''; }
-html { line-height: 1.5; -webkit-text-size-adjust: 100%; -moz-tab-size: 4; tab-size: 4; font-family: var(--pl-font-sans); font-feature-settings: 'liga' 1, 'calt' 1; color-scheme: light dark; background-color: var(--pl-color-bg); color: var(--pl-color-text); }
+html { line-height: 1.5; -webkit-text-size-adjust: 100%; -moz-tab-size: 4; tab-size: 4; font-family: var(--pl-font-sans); font-feature-settings: 'liga' 1, 'calt' 1; color-scheme: light dark; background-color: var(--pl-color-background); color: var(--pl-color-text-primary); }
 body { margin: 0; line-height: inherit; }
 hr { height: 0; color: inherit; border-top-width: 1px; }
 abbr:where([title]) { text-decoration: underline dotted; }
@@ -45,7 +45,7 @@ fieldset { margin: 0; padding: 0; }
 legend { padding: 0; }
 ol, ul, menu { list-style: none; margin: 0; padding: 0; }
 textarea { resize: vertical; }
-input::placeholder, textarea::placeholder { opacity: 1; color: var(--pl-color-muted); }
+input::placeholder, textarea::placeholder { opacity: 1; color: var(--pl-color-text-secondary); }
 button, [role='button'] { cursor: pointer; }
 :disabled { cursor: default; }
 img, svg, video, canvas, audio, iframe, embed, object { display: block; vertical-align: middle; }
@@ -54,11 +54,11 @@ img, video { max-width: 100%; height: auto; }
 
 /* ===== Design tokens (protocol retheme via SET_DESIGN_TOKEN) ===== */
 :root {
-  --pl-color-bg: #ffffff;
-  --pl-color-accent: #2563eb;
+  --pl-color-background: #ffffff;
+  --pl-color-primary: #2563eb;
   --pl-color-surface: #ffffff;
-  --pl-color-text: #111827;
-  --pl-color-muted: #6b7280;
+  --pl-color-text-primary: #111827;
+  --pl-color-text-secondary: #6b7280;
   --pl-color-border: #e5e7eb;
   --pl-color-focus-ring: rgba(37, 99, 235, 0.4);
   --pl-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -98,11 +98,11 @@ img, video { max-width: 100%; height: auto; }
 .pathland-button:disabled { opacity: 0.5; pointer-events: none; }
 @media (prefers-color-scheme: dark) {
   :root {
-    --pl-color-bg: #0f172a;
-    --pl-color-accent: #60a5fa;
+    --pl-color-background: #0f172a;
+    --pl-color-primary: #60a5fa;
     --pl-color-surface: #111827;
-    --pl-color-text: #f9fafb;
-    --pl-color-muted: #9ca3af;
+    --pl-color-text-primary: #f9fafb;
+    --pl-color-text-secondary: #9ca3af;
     --pl-color-border: #374151;
     --pl-input-bg: rgb(255 255 255 / 0.05);
     --pl-input-text: #ffffff;
@@ -118,13 +118,13 @@ img, video { max-width: 100%; height: auto; }
 
 /* ===== Toggle switch / checkbox ===== */
 .pathland-toggle { display: inline-flex; align-items: center; gap: 0.5rem; }
-.pathland-toggle input[type='checkbox'] { accent-color: var(--pl-color-accent); width: 1rem; height: 1rem; }
+.pathland-toggle input[type='checkbox'] { accent-color: var(--pl-color-primary); width: 1rem; height: 1rem; }
 .pathland-toggle input[role='switch'] {
   appearance: none; width: 2.75rem; height: 1.5rem; border-radius: 9999px;
   background-color: #d1d5db; cursor: pointer; position: relative;
   transition: background-color 150ms; flex: none;
 }
-.pathland-toggle input[role='switch']:checked { background-color: var(--pl-color-accent); }
+.pathland-toggle input[role='switch']:checked { background-color: var(--pl-color-primary); }
 .pathland-toggle input[role='switch']::after {
   content: ''; position: absolute; top: 0.125rem; left: 0.125rem;
   width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: #fff;
@@ -135,7 +135,7 @@ img, video { max-width: 100%; height: auto; }
 
 /* ===== Slider ===== */
 .pathland-slider { display: inline-flex; align-items: center; gap: 0.625rem; }
-.pathland-slider input[type='range'] { flex: 1; accent-color: var(--pl-color-accent); }
+.pathland-slider input[type='range'] { flex: 1; accent-color: var(--pl-color-primary); }
 .pathland-slider input[type='range']:focus-visible { outline: 2px solid var(--pl-color-focus-ring); outline-offset: 2px; }
 
 /* ===== Text field / editor ===== */
@@ -169,12 +169,12 @@ img, video { max-width: 100%; height: auto; }
 /* ===== Progress / gauge / spinner ===== */
 .pathland-spinner {
   width: 1.25rem; height: 1.25rem; border: 3px solid var(--pl-color-border);
-  border-top-color: var(--pl-color-accent); border-radius: 9999px;
+  border-top-color: var(--pl-color-primary); border-radius: 9999px;
   animation: pathland-spin 0.8s linear infinite;
 }
 @keyframes pathland-spin { to { transform: rotate(360deg); } }
 .pathland-gauge { display: block; height: 0.625rem; width: 100%; background: var(--pl-color-border); border-radius: 9999px; overflow: hidden; }
-.pathland-gauge > div { height: 100%; background: var(--pl-color-accent); transition: width 150ms; }
+.pathland-gauge > div { height: 100%; background: var(--pl-color-primary); transition: width 150ms; }
 
 /* ===== Menu (popover) ===== */
 .pathland-menu { position: relative; display: inline-block; }
