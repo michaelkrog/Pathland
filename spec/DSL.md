@@ -24,7 +24,7 @@ A DSL in a new language is **conformant** when it:
    documented in the companion specs (no re-interpretation, no reallocation);
 3. produces **byte-identical opcode output** for the same source tree as the
    reference implementations (see the [Generation
-   contract](#8-generation-contract-for-a-new-language)).
+   contract](#9-generation-contract-for-a-new-language)).
 
 ### Relationship to the other specs
 
@@ -35,6 +35,7 @@ A DSL in a new language is **conformant** when it:
 | [MODIFIERS.md](./MODIFIERS.md) | Which **modifiers** (properties) exist and how they encode |
 | [EVENTS.md](./EVENTS.md) | Which **core events** (raw inputs) exist and how they encode |
 | [CONFORMANCE.md](./CONFORMANCE.md) | Golden byte vectors |
+| [TOKENS.md](./TOKENS.md) | Design-token catalog, resolution, and color-scheme contract |
 | **DSL.md** (this file) | How an application **author** composes those into source code |
 
 > **Implementation status** is tracked per implementing project (a `status.md`
@@ -42,7 +43,7 @@ A DSL in a new language is **conformant** when it:
 > (`com.pathland.view`) and the Rust DSL (`pathland-view`) are the two reference
 > realizations and are cited here by their **current signatures**; where they
 > diverge from the canonical form below, that divergence is noted as a *delta*,
-> and [§7](#7-java-dsl-convergence-adopted) records the adopted Java convergence.
+> and [§8](#8-java-dsl-convergence-adopted) records the adopted Java convergence.
 > This document defines the contract only.
 
 ### Two guiding rules
@@ -269,7 +270,7 @@ binding. `Button` takes a `(label, action)` pair rather than SwiftUI's
 SwiftUI-closer `of(label, isOn)`; `DatePicker` binds **days-since-epoch**
 (`WritableSignal<Integer>`) rather than a date object — the protocol's
 `SET_DATE`/`DATE_CHANGED` two-field encoding is days + millis-of-day (see
-[§7](#7-java-dsl-convergence-adopted)).
+[§8](#8-java-dsl-convergence-adopted)).
 
 **Control guarantees** (from PRIMITIVES.md): a control without children renders
 in **Native Token Mode** (native OS control); a control with a child subtree
@@ -504,7 +505,99 @@ A conformant DSL follows these conventions:
 
 ---
 
-## 7. Java DSL convergence (adopted)
+## 7. Theme management
+
+Pathland theming is **application-owned over a renderer-owned token system**
+([TOKENS.md](./TOKENS.md); the wire encoding lives in [OPCODE.md](./OPCODE.md)
+§Design Token System). The DSL gives the author two distinct surfaces:
+
+1. **Token references in style modifiers** — semantic intent instead of a
+   literal: `.foregroundStyle(Color.token("color.primary"))` emits a
+   `DESIGN_TOKEN` reference the renderer resolves against the current scheme.
+   No opcode is re-emitted when a token or the scheme changes.
+2. **Global theme overrides** — a batch of `STYLE::SET_DESIGN_TOKEN` commands
+   rolled at mount: a single-scheme `Theme` or an `AdaptiveTheme` light+dark
+   pair (base = **light**, `dark.`-prefixed = **dark**).
+
+> **Ownership**: the application owns theme values (base + `dark.*`) and token
+> references; the renderer owns token defaults (light + dark), effective
+> color-scheme detection, resolution (override → default → parent → fallback),
+> and interaction-state styling (hover/pressed/focus/disabled). The protocol
+> never transmits hover/click/transition styling.
+
+### 7.1 Token-typed values
+
+Any property whose value type is `COLOR` / `F32` / `STRING` / `ENUM` MAY carry a
+**token reference** instead of a literal value (MODIFIERS.md §Value types). The
+reference rides the `DESIGN_TOKEN` value type (`0x08`) with the token path in
+the arena — **never** a packed literal. A property carries exactly one value
+(literal or reference, never both).
+
+| Canonical (SwiftUI-shaped) | Java DSL (current) | Rust DSL (current) | Emits |
+|----------------------------|--------------------|--------------------|-------|
+| `Color.token("color.primary")` | `Color.token("color.primary")` | `Color::token("color.primary")` | `DESIGN_TOKEN` ref (`0x08`) in any COLOR-typed property: `COLOR` 0x100A (`.foregroundStyle`), `BACKGROUND_COLOR` 0x1001, `BORDER_COLOR` 0x1004, `SHADOW_COLOR` 0x1021, `TINT` 0x1030, … |
+| `Color.token("dark.color.surface")` | `Color.token("dark.color.surface")` | `Color::token("dark.color.surface")` | same — an explicit dark-variant reference |
+| `.padding(space.2)` / `Spacing(space.2)` | (token-valued spacing/padding) | (token-valued spacing/padding) | `DESIGN_TOKEN` ref in a F32-typed property: `PADDING` 0x1011 / `SPACING` 0x0001 / `CONTENT_MARGINS` 0x0005, … (see TOKENS.md §Generative token families) |
+
+`Color` keeps its dual identity: as a **View** it is a layout-greedy fill; as a
+token reference (`Color.token(path)`) it is a **data value** passed to
+style-taking modifiers. A token-typed property resolves renderer-side and
+**re-resolves automatically** when the effective scheme changes — overrides and
+scheme are renderer state, so no node is ever re-emitted for a theme/scheme
+change.
+
+Rules:
+
+1. Reference any token path — the standard catalog (TOKENS.md §Standard Token
+   Catalog) or an application-defined path. A renderer that cannot apply a token
+   falls back rather than erroring.
+2. `space.<N>` members are **generative**: reference them freely (`space.2`,
+   `space.0.5`), but override only `space.base` (see §7.2 rule 2).
+3. A token reference must not be combined with a literal on the same property.
+
+### 7.2 Global theme overrides
+
+A **theme** is a batch of token overrides. Every override defines **exactly one
+value**; combine a light and a dark `Theme` via `AdaptiveTheme` for adaptive
+theming.
+
+| Canonical (SwiftUI-shaped) | Java DSL (`com.pathland.view`) | Rust DSL (`pathland-view` / `pathland-engine`) | Emits |
+|----------------------------|--------------------------------|-----------------------------------------------|-------|
+| `Theme()` — one-scheme override batch | `new Theme()` (`ThemeData`) | `Theme::new()` | one `STYLE::SET_DESIGN_TOKEN` per override (`A` = arena path, `B` = valueType, `C` = value) |
+| `.color("color.primary", 0xFF2563EB)` | `.color("color.primary", 0xFF2563EB)` | `.color("color.primary", 0xFF2563EB)` | `COLOR`-typed override (sRGB `0xAARRGGBB`) |
+| `.f32("space.base", 4.0)` | `.f32("space.base", 4.0f)` | `.f32("space.base", 4.0)` | `F32`-typed override (lengths in device pixels) |
+| `.u32("…", v)` / `.u8("…", v)` | `.u32(path, int)` / `.u8(path, int)` | `.u32(path, v)` / `.u8(path, v)` | `U32` / `U8`-typed override |
+| `.string("font.body.family", "Inter")` | `.string(path, String)` | `.string(path, "Inter")` | `STRING`-typed override (arena) |
+| `AdaptiveTheme(light, dark)` | `new AdaptiveTheme(light, dark)` | `AdaptiveTheme::new(light, dark)` | light overrides as base tokens; dark overrides `dark.`-prefixed |
+
+Emission contract:
+
+- The theme is emitted **once at mount** as a frame of
+  `STYLE::SET_DESIGN_TOKEN` opcodes before the tree. Java: `new Emitter(sink,
+  theme)` emits it at the start of the mount and `renderFull` (resync) frames;
+  Rust: `Engine::apply_theme` / `Engine::apply_adaptive_theme`.
+- Overrides are **renderer state**: they never re-emit nodes and never
+  participate in the diff — an unchanged tree with a theme still emits **zero**
+  per-node opcodes.
+- `AdaptiveTheme` emits the light `Theme`'s overrides as base paths and the dark
+  `Theme`'s with the `dark.` prefix (added automatically when the author wrote a
+  bare path). The renderer derives the effective scheme from the platform and
+  resolves each override against it.
+- The renderer supplies light + dark defaults for the whole Tier 1 catalog, so
+  dark mode works even when the author only overrides base tokens.
+
+Authoring rules:
+
+1. Override any token in the catalog or an application-defined path; never
+   assume specific renderer default values.
+2. Override `space.base` to control the whole spacing scale — individual
+   `space.<N>` members MUST NOT be overridden.
+3. Overrides are **global and renderer-wide**: apply the theme once per
+   session/host at mount, not per view.
+
+---
+
+## 8. Java DSL convergence (adopted)
 
 The Java DSL (`com.pathland.view`) has the complete surface. The convergence
 below has been **adopted** (`.of()` construction, the removal of the `View.*`
@@ -550,13 +643,13 @@ Adopted conventions:
 
 ---
 
-## 8. Generation contract for a new language
+## 9. Generation contract for a new language
 
 An AI (or a human) generating a Pathland DSL in a new language MUST produce the
 following and verify each item. This is a checklist; the authoritative details
 are the companion specs.
 
-### 8.1 Required surface
+### 9.1 Required surface
 
 - [ ] **Views/controls** — every entry of [§4](#4-view-surface):
   `Text`, `Image`, `Color`, `Shape` (all `ShapeKind`s), `Divider`, `Spacer`,
@@ -585,9 +678,9 @@ are the companion specs.
   or the language's equivalent), a theme/override helper emitting
   `STYLE::SET_DESIGN_TOKEN` (base values + `dark.`-prefixed dark values), and
   the **base=light / `dark.*`** color-scheme convention with renderer-derived
-  scheme detection — see [TOKENS.md](./TOKENS.md).
+  scheme detection — see [§7](#7-theme-management) and [TOKENS.md](./TOKENS.md).
 
-### 8.2 Mapping rules (signature → protocol)
+### 9.2 Mapping rules (signature → protocol)
 
 1. Each view/control maps to its **fixed component id** in PRIMITIVES.md.
    Application/custom component types live in `0x0100`–`0xFFFF`; a DSL must
@@ -612,7 +705,7 @@ are the companion specs.
    emitter diffs. A generated DSL must keep the retained tree + emitter
    separation; it must not hand-serialize full trees.
 
-### 8.3 Language adaptation rules
+### 9.3 Language adaptation rules
 
 | SwiftUI mechanism | Adapt as |
 |-------------------|----------|
@@ -623,7 +716,7 @@ are the companion specs.
 | labeled parameters | named params where the language has them; otherwise preserve **parameter order** and document labels |
 | method chaining for modifiers | default methods (Java), extension traits (Rust), extension methods (C#/Kotlin) |
 
-### 8.4 Conformance recipe
+### 9.4 Conformance recipe
 
 A generated DSL is verified by proving it **emits the same bytes** as the
 reference implementations:
@@ -647,7 +740,7 @@ reference implementations:
 
 ---
 
-## 9. Appendix A: SwiftUI ↔ DSL signature map
+## 10. Appendix A: SwiftUI ↔ DSL signature map
 
 Representative rows; the full surface is in [§4](#4-view-surface) and
 [§5](#5-modifier-surface).
