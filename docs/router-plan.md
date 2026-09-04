@@ -206,6 +206,17 @@ back-stack supplies the stack LVGL lacks).
     `pathland-core-transport`, `lib/java/pathland-view`, `pathland-render-html`,
     `lib/typescript`, `pathland-demo-views` — in their landing changes.
 
+### Fix (post-Phase-6): SPA catch-all no longer shadows `/ws`
+
+The deep-link catch-all initially matched `/ws`, so the WebSocket handshake was
+answered with HTML 200 instead of a 101 upgrade — clicks went nowhere. Fixed:
+Spring `IndexController` `@GetMapping(value = "/{*path}", headers = "!Upgrade")`
+(WebSocket upgrades carry `Upgrade: websocket` and bypass the catch-all to reach
+the registered handler); Quarkus `IndexResource` `@Path("{path:(?!ws).*}")`
+(negative lookahead excludes the literal `ws` path). Verified headlessly: a
+WebSocket client gets a **101** handshake, and a synthetic tap on a link id makes
+the server reply with `ROUTE "/users"` + the destination swap — in both demos.
+
 ## Open follow-ups
 
 - `replaceState` for `replace()` (needs a wire distinction from `pushState`).

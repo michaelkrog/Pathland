@@ -32,8 +32,12 @@ public class IndexController {
     @Autowired
     private PathlandService service;
 
-    /** The SPA catch-all: every path renders the session shell seeded at the request path. */
-    @GetMapping("/{*path}")
+    /**
+     * The SPA catch-all: every path renders the session shell seeded at the request path.
+     * Requests carrying an {@code Upgrade} header (the `/ws` WebSocket handshake) are
+     * excluded so they reach the registered WebSocket handler, not this HTML renderer.
+     */
+    @GetMapping(value = "/{*path}", headers = "!Upgrade")
     @ResponseBody
     public ResponseEntity<String> index(
             @CookieValue(value = "session", required = false) String sessionId,
