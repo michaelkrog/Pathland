@@ -1,6 +1,6 @@
 # pathland-demo-views — implementation status
 
-**Last updated:** August 29, 2026
+**Last updated:** September 3, 2026
 
 The framework-agnostic shared demo views (`com.pathland.demo`), consumed by the
 Quarkus and Spring Boot demos. Uses `State` fields wired by the
@@ -34,14 +34,24 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
   the HTML/JS client re-themes under `prefers-color-scheme: dark`.
 - **Legacy views kept**: `CounterView`, `CounterControls`, `NameField` (still
   covered by `CounterViewTest`).
+- **`RouterDemo`** — the shared routing demo (spec DSL.md §4.5): Home → Users →
+  UserDetail(`:id`) with `NavigationLink`s, a guarded `/admin` (redirects home),
+  and a 404 fallback. `RouterDemo.router(initialPath)` builds the demo's route
+  table + a `Router` seeded with the host's initial path (a request URL on SSR);
+  the view is a `NavigationContainer`. Consumed by both demos' `SessionApp`
+  (which now forward `NAVIGATE` events into `RenderResult.navigateHandler`).
 
 ## Not implemented / gaps
 
 - The browser experience depends on the `@pathland/dom-renderer` client
   (`lib/typescript`, built to `dist/pathland-dom-renderer.js` and copied into
   each demo's `src/main/resources`).
+- The demos' root is still `KitchenSinkView`; making `RouterDemo` the root (or a
+  route) and wiring deep-link URL seeding into the SSR endpoints is a follow-up.
 
 ## Verified by
 
 `mvn test -pl pathland-demo-views` (JDK 17+) — `CounterViewTest`,
-`KitchenSinkViewTest` (mount + persistence + input routing).
+`KitchenSinkViewTest` (mount + persistence + input routing), and
+`RouterDemoTest` (host-seeded first frame, guard-on-initial-URL redirect,
+`NavigationLink` push through the tap registry, `NAVIGATE` event routing).

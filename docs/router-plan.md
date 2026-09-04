@@ -184,14 +184,18 @@ back-stack supplies the stack LVGL lacks).
     pkg-config** (GTK dev build unavailable locally); code unchanged, recorded in
     `pathland-render-gtk/status.md` as pending.
 
-## Phase 6 — Demos + status
+## Phase 6 — Demos + status (core ✅, demo-root switch deferred)
 
-20. `pathland-demo-views`: shared `RouterDemo`; Quarkus/Spring WS handlers
-    forward `NAVIGATE` → session routers.
-21. **status.md updates in the same changes** (per AGENTS.md): `pathland-core`,
-    `pathland-engine`, `pathland-view`, `pathland-render-gtk`,
-    `pathland-render-html`, `lib/java/pathland-view`, `lib/typescript`,
-    `pathland-demo-views`.
+20. ✅ `pathland-demo-views`: shared `RouterDemo` (Home → Users → UserDetail
+    `:id`, a guarded `/admin`, a 404 fallback) + `RouterDemoTest` (4 tests).
+    Both Quarkus and Spring `SessionApp` now forward raw `NAVIGATE` events into
+    `RenderResult.navigateHandler` (the session's router). 60 + 9 Java tests,
+    demo modules compile.
+    ⏸ Follow-up: make `RouterDemo` the demo root (or a route) and wire deep-link
+    URL seeding into the SSR endpoints (`IndexResource`/controller catch-all).
+21. ✅ **status.md updates** (per AGENTS.md): `pathland-core`,
+    `pathland-core-transport`, `lib/java/pathland-view`, `pathland-render-html`,
+    `lib/typescript`, `pathland-demo-views` — all in their landing changes.
 
 ## Open follow-ups
 

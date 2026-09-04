@@ -39,6 +39,7 @@ final class SessionApp {
     private final Map<Integer, Consumer<String>> textInputs;
     private final Map<Integer, Consumer<Float>> valueInputs;
     private final Map<Integer, DateInput> dateInputs;
+    private final Consumer<Event> navigateHandler;
     private final int rootId;
 
     private volatile WebSocketConnection connection;
@@ -69,6 +70,7 @@ final class SessionApp {
         this.textInputs = result.textInputs();
         this.valueInputs = result.valueInputs();
         this.dateInputs = result.dateInputs();
+        this.navigateHandler = result.navigateHandler();
         this.rootId = result.rootId();
     }
 
@@ -121,6 +123,12 @@ final class SessionApp {
                     DateInput sink = dateInputs.get(event.target());
                     if (sink != null) {
                         sink.accept(event.days(), event.millisOfDay());
+                    }
+                } else if (event.isNavigate()) {
+                    // Global (no target): route it into the mounted router's NAVIGATE sink.
+                    Consumer<Event> sink = navigateHandler;
+                    if (sink != null) {
+                        sink.accept(event);
                     }
                 }
             }
