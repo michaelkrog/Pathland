@@ -2,7 +2,7 @@
 
 **Wire protocol version:** 1
 **Status:** Draft
-**Last Updated:** September 2, 2026
+**Last Updated:** September 3, 2026
 
 ---
 
@@ -188,6 +188,7 @@ Visual decoration. These never change layout; they decorate the element.
 | `.colorInvert()` | `COLOR_INVERT` 0x102C | U8 (0/1) | one |
 | `.clipped()` / `.clipsToBounds` | `CLIPS_TO_BOUNDS` 0x1010 | U8 (0/1) | one |
 | `.clipShape(_:)` | `CLIPS_TO_BOUNDS` 0x1010 + `SHAPE_KIND` 0x0006 | U8 + ENUM | two (see note) |
+| `.transition(_:)` (container hint) | `TRANSITION` 0x1031 | ENUM (`None`=0, `PlatformDefault`=1, `Fade`=2, `Slide`=3, `Scale`=4) | one (presentation hint) |
 
 ### Semantics
 
@@ -205,6 +206,13 @@ Visual decoration. These never change layout; they decorate the element.
 - **Color effects** (`SATURATION`, `CONTRAST`, …) are renderer-owned filters;
   the renderer maps them to native filter APIs (CSS `filter`, GTK
   `GtkSnapshot` effects). They compose in the order applied.
+- **`TRANSITION`** is a presentation hint on a container: when its child
+  subtree is structurally replaced (a `NavigationContainer` destination swap, a
+  `Conditional.when` branch change) the renderer **may** animate the swap with
+  its native transition for the hinted kind (`PlatformDefault` = the platform's
+  navigation transition). A renderer that ignores it renders the new subtree
+  normally. It is presentation, never state — the renderer animates its own
+  rendered-output cache and never stores the application's navigation.
 
 ---
 
@@ -262,6 +270,25 @@ plus accessibility. These are the "semantic" (`0x2000`) properties.
 
 ---
 
+## 6. Navigation
+
+Two properties support routing and URL sync. They are emitted by the
+application's `NavigationContainer` ([DSL.md §4.5](./DSL.md#45-navigation)) and
+are never chainable modifiers.
+
+| Property | ID | Type | Emission |
+|----------|----|------|----------|
+| `ROUTE` | 0x2019 | STRING (arenaRef) | one — the current absolute path |
+| `TRANSITION` | 0x1031 | ENUM | one — swap transition hint (see [§3](#3-appearance--effects)) |
+
+- **`ROUTE`** carries the current absolute path (`/users/42`). The DOM renderer
+  reacts to a `ROUTE` change with `history.pushState`; the initial SSR document
+  already carries the correct URL (no push). The application owns navigation
+  state; the browser mirrors it. The platform back affordance arrives as the
+  `NAVIGATE` event (0x0E) — [EVENTS.md](./EVENTS.md#navigation).
+
+---
+
 ## Property ID Catalog
 
 ### Allocated property IDs
@@ -277,11 +304,13 @@ plus accessibility. These are the "semantic" (`0x2000`) properties.
 | `0x1002` | `IMAGE_SOURCE` (STRING; view-specific, see PRIMITIVES.md) |
 | `0x1017`–`0x102F` | Text-format properties (allocated: FONT_STYLE/DESIGN/WIDTH, KERNING, TRACKING, BASELINE_OFFSET, LINE_SPACING, TEXT_CASE, UNDERLINE, STRIKETHROUGH), effect properties (SHADOW_*, BLUR, SATURATION, CONTRAST, BRIGHTNESS, GRAYSCALE, HUE_ROTATION, COLOR_MULTIPLY, COLOR_INVERT), ROTATION_DEGREES, SCALE, ALLOWS_HIT_TESTING |
 | `0x1030` | `TINT` (COLOR) | — |
-| `0x1030`–`0x10FF` | Future styling properties (unallocated) |
+| `0x1031` | `TRANSITION` (ENUM; navigation swap hint) | — |
+| `0x1032`–`0x10FF` | Future styling properties (unallocated) |
 | `0x2001`–`0x200B` | Semantic (ROLE, STATE, ENABLED, SELECTED, EVENT_LISTENERS, VALUE, MIN_VALUE, MAX_VALUE, LABEL, PROMPT) |
 | `0x2009`, `0x200C`–`0x2014` | Control properties (allocated: STEP_VALUE, CONTROL_SIZE, IS_SECURE, PROGRESS, IS_INDETERMINATE, SELECTION, COLOR_VALUE, DATE_PICKER_MODE, PICKER_STYLE) — defined in PRIMITIVES.md controls. Note: a `DATE_PICKER`'s date is set via the `STYLE::SET_DATE` command (0x04), not a property; **`0x2011` is unallocated/reserved** (its former `DATE_VALUE` draft was dropped) |
 | `0x2016`–`0x2018` | Binding/action properties (allocated: `ACTION_ID`, `BINDING_ID`, `TOGGLE_STYLE`) — defined in PRIMITIVES.md semantic controls |
-| `0x2015`, `0x2019`–`0x20FF` | Future semantic properties (unallocated) |
+| `0x2019` | `ROUTE` (STRING; navigation current path) — see §6 |
+| `0x2015`, `0x201A`–`0x20FF` | Future semantic properties (unallocated) |
 
 ### Reserved ranges
 
@@ -303,12 +332,12 @@ The canonical value type per property (the protocol's authoritative mapping):
 - `SELECTED`, `VISIBLE`, `ENABLED`, `UNDERLINE`, `STRIKETHROUGH`,
   `COLOR_INVERT`, `CLIPS_TO_BOUNDS`, `ALLOWS_HIT_TESTING`, `IS_SECURE`,
   `IS_INDETERMINATE`, `FIXED_SIZE_*` → `U8`
-- `LABEL`, `PROMPT`, `FONT_FAMILY`, `IMAGE_SOURCE` → `STRING`
+- `LABEL`, `PROMPT`, `FONT_FAMILY`, `IMAGE_SOURCE`, `ROUTE` → `STRING`
 - `LINE_LIMIT`, `SELECTION`, `ACTION_ID`, `BINDING_ID` → `U32`
 - `ALIGNMENT`, `TEXT_ALIGNMENT`, `TRUNCATION_MODE`, `TEXT_CASE`, `FONT_STYLE`,
   `FONT_DESIGN`, `CONTENT_MODE`, `CONTROL_SIZE`, `SHAPE_KIND`,
-  `DATE_PICKER_MODE`, `PICKER_STYLE`, `TOGGLE_STYLE` → `F32` (numeric enum code;
-  see the appendix and [OPCODE.md](./OPCODE.md#value-types))
+  `DATE_PICKER_MODE`, `PICKER_STYLE`, `TOGGLE_STYLE`, `TRANSITION` → `F32`
+  (numeric enum code; see the appendix and [OPCODE.md](./OPCODE.md#value-types))
 - everything else → `F32`
 
 ---
@@ -336,6 +365,7 @@ resolution](#default-value-type-resolution).
 | `DATE_PICKER_MODE` | 0x2013 | `Date`=0, `Time`=1, `DateAndTime`=2 |
 | `PICKER_STYLE` | 0x2014 | `Menu`=0, `Segmented`=1, `Wheel`=2, `RadioGroup`=3 |
 | `TOGGLE_STYLE` | 0x2018 | `Switch`=0 (default), `Checkbox`=1, `Button`=2 |
+| `TRANSITION` | 0x1031 | `None`=0, `PlatformDefault`=1, `Fade`=2, `Slide`=3, `Scale`=4 |
 
 Non-`ENUM` scales:
 

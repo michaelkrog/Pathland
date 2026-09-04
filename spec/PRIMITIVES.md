@@ -2,7 +2,7 @@
 
 **Wire protocol version:** 1
 **Status:** Draft
-**Last Updated:** August 28, 2026
+**Last Updated:** September 3, 2026
 
 ---
 
@@ -221,7 +221,7 @@ from the primitives in this file, so no component IDs are allocated:
 | SwiftUI view | Composition |
 |--------------|-------------|
 | `List` | `ScrollView` + `VStack` of rows; row selection via `SELECTED` per row |
-| `NavigationStack` | app-held navigation state emitting the current destination stack (`ZStack`/overlay) |
+| `NavigationStack` | app-held navigation state emitting the current destination into a stable `Group` slot (a structural container, [DSL.md §3.4](./DSL.md#34-structural-reactivity-conditional-rendering)); the slot's child swaps on route change, producing `TREE` deltas |
 | `NavigationSplitView` | `HStack` (sidebar + detail) |
 | `Label` | `HStack` + `IMAGE` + `TEXT` |
 

@@ -2,7 +2,7 @@
 
 **Wire protocol version:** 1
 **Status:** Draft
-**Last Updated:** September 2, 2026
+**Last Updated:** September 3, 2026
 
 ---
 
@@ -72,6 +72,10 @@ DSL must be *shaped* by them:
   subtree once; reactivity comes from **signals**, never from re-evaluating the
   body. This is what lets the emitter produce fine-grained
   `SET_TEXT`/`SET_PROPERTY`/`SET_DATE` deltas instead of rebuilding the tree.
+  The one sanctioned exception is a **structural container**
+  ([§3.4](#34-structural-reactivity-conditional-rendering)): its content is
+  re-evaluated on a signal change and the emitter reconciles the retained
+  subtree into `TREE` deltas.
 - **Modifiers are decoupled from views — and never hard-bound to a view
   type.** Any modifier applies to any view (`.padding` works on a `Text` and a
   `VStack` alike), and any developer can **author a custom modifier in
@@ -197,6 +201,66 @@ view class; connection happens when the view renders. A generated DSL in a
 language without reflection/annotation processing MUST offer the equivalent
 explicit wiring.
 
+### 3.4 Structural reactivity (conditional rendering)
+
+The tree is normally static once mounted (["`body()` is evaluated once at
+mount"](#1-design-principles-dsl-flavored)); the **only** sanctioned way to
+change *structure* reactively is a **structural container**: a slot whose
+single child subtree is selected by a signal and **reconciled** when the
+signal changes. This is the foundation for `if`/`else`, `switch`, and
+navigation ([§4.5](#45-navigation)).
+
+| Canonical (SwiftUI-shaped) | Java DSL (current) | Rust DSL (current) | Emits |
+|----------------------------|--------------------|--------------------|-------|
+| `if cond { then } else { else }` in a result builder | `Conditional.when(Signal<Boolean>, View then, View else)` | plain `if`/`match` in `build()` | `TREE` deltas (reconcile) |
+| `switch value { case a -> v; default -> d }` | `Conditional.when(Signal<T>, Case.of(T, View)...)` + `Case.otherwise(View)` | plain `if`/`match` in `build()` | `TREE` deltas (reconcile) |
+
+**Java realization** (`com.pathland.view.Conditional`): statically importable
+lowercase factories on a final class with a private constructor, mirroring
+[`Signals`](#31-signal-surface):
+
+```java
+import static com.pathland.view.Conditional.when;
+import static com.pathland.view.Conditional.Case;
+
+when(showLogin, LoginView.of(), HomeView.of());              // if / else
+when(mode,
+    Case.of(RouteMode.HOME, HomeView.of()),
+    Case.of(RouteMode.USERS, UsersView.of()),
+    Case.otherwise(NotFoundView.of()));                      // switch + default
+```
+
+The names `if`, `switch`, `case`, and `else` are Java reserved keywords, so
+`when` (Kotlin's `switch` analog, and a valid Java identifier) is the method
+name, and `Case.of(...)` / `Case.otherwise(...)` carry the branches. A boolean
+signal takes the two-branch overload (`then`, `else`); an enum/int/string
+signal takes keyed `Case` branches typed to the signal's value type, with an
+optional `Case.otherwise` default.
+
+**Emission contract** (the body-once exception, formalized):
+
+1. A structural container holds a **stable slot node** (a `Group`, see
+   [§8](#8-java-dsl-convergence-adopted)) whose single child is the currently
+   selected content. Selection is a **content function** over the selector
+   signal — `if`/`else` and `switch` are sugar over it, so value-parametrized
+   content (e.g. a route param) is a first-class case.
+2. On selector change the container re-evaluates the content function,
+   **renders the new subtree**, and the emitter **reconciles** it against the
+   retained snapshot — emitting only `TREE` deltas (`CREATE_NODE` /
+   `DELETE_NODE` / `INSERT_CHILD` / `REMOVE_CHILD` / `MOVE_CHILD`).
+3. **Identical structure emits zero opcodes.** The reconcile diffs old vs new;
+   a recompute that yields the same structure produces no `TREE` deltas, so no
+   equality predicate is needed on the selector signal.
+4. Structural containers **nest**: a container inside a container re-evaluates
+   and reconciles its own slot independently.
+5. All other reactivity stays fine-grained (`SET_TEXT` / `SET_PROPERTY`); a
+   structural container never re-emits siblings or ancestors.
+
+**Rust delta**: the Rust DSL builds `Node` trees directly and the host rebuilds
++ re-`assign_id`s + diffs on every interaction, so plain `if`/`match` in
+`build()` already produces the same reconcile — no wrapper slot and no special
+type. An optional `switch!` macro is sugar.
+
 ---
 
 ## 4. View surface
@@ -290,6 +354,67 @@ Tap is **not** a protocol event: it is composed app-side from `POINTER_DOWN`
 then `POINTER_UP` on the same target (`EVENT_LISTENERS` bits 0|2). The
 `TapGesture` modifier value declares those listeners and records the action;
 the host routes the recognized tap via the emitter's tap-action registry.
+
+### 4.5 Navigation
+
+Navigation is **structural reactivity over a route signal**
+([§3.4](#34-structural-reactivity-conditional-rendering)): a
+`NavigationContainer` is a structural container whose content function is
+route-table matching. The wire surface is minimal and entirely optional:
+`ROUTE` (MODIFIERS.md `0x2019`, a STRING current-path property on the slot),
+`TRANSITION` (MODIFIERS.md `0x1031`, a presentation hint), and the `NAVIGATE`
+event (EVENTS.md `0x0E`, host→guest). Renderers stay stateless: they render
+whatever destination subtree the app emits and **may** animate a swap when the
+`TRANSITION` hint is present, but must render normally when they ignore it.
+
+| View | Canonical (SwiftUI-shaped) | Java DSL (current) | Rust DSL (current) | Emits / Binds |
+|------|----------------------------|--------------------|--------------------|---------------|
+| `NavigationContainer` | `NavigationStack(path:) { destination(for:) }` | `NavigationContainer.of(Router)` | `NavigationContainer::new(Router)` | a `Group` slot + `ROUTE` `0x2019`, `TRANSITION` `0x1031`; destination swap = `TREE` deltas |
+| `NavigationLink` | `NavigationLink("label", value:)` | `NavigationLink.of(String, Router, String to)` | `navigation_link(...)` | a `BUTTON` whose tap pushes `to` |
+| `RouteTable` | — | `RouteTable` (builder) | `RouteTable::new(...)` | none (app-side matching) |
+| `Location` | — | `InMemoryLocation` / `BrowserLocation` | `Location` | none (host-side) |
+
+**Router state** — app-owned (never renderer state):
+
+- `Route` = absolute path + path params (`/users/:id` → `{id:"42"}`) + query.
+  Path params are strings; typed params are a DSL concern.
+- `RouteTable` maps path patterns to destination factories, captures params,
+  and runs **guards**; a guard redirects via `replace()`. Factories are lazy —
+  in the SSR model the client only ever receives the chosen destination's
+  deltas.
+- `Router` owns a `Signal<Route>` plus a **back-stack** and exposes
+  `navigate` / `push` / `pop` / `replace` / `back`. `push` appends; `pop` /
+  `back` step back; `navigate` / `replace` set the current route. The current
+  path is emitted as the `ROUTE` property on the container slot.
+- The initial route hydrates from the `Location` at mount (a request URL on
+  SSR; a configured route or platform deep-link on native).
+
+**URL sync (web)** — the app owns state; the browser mirrors it:
+
+1. On a route change the app emits the new path as `ROUTE`; the DOM client
+   reacts with `history.pushState` (v1 always pushes; `replaceState` for
+   `replace()` is a documented follow-up).
+2. Browser back/forward fire `popstate`; the DOM client sends a `NAVIGATE`
+   event with the new URL over the event path; the host routes it into the
+   router (`handlePlatformNavigation`), which matches and re-emits.
+3. No sync loop: a server-originated `pushState` never fires `popstate`. On
+   initial SSR hydrate the URL is already correct — no `pushState`.
+
+**Native back** — platform back affordances (Android predictive-back, iOS
+swipe-back, a desktop back button) map to a `NAVIGATE` event **without** a URL
+payload (= "back one step"); the host calls `router.pop()`. The renderer never
+decides navigation — it only requests it.
+
+**Native integration** — each renderer maps the slot onto its platform
+navigation affordance: SwiftUI `NavigationStack`, Compose `NavHost`, WinUI
+`NavigationView` (the `HStack` sidebar+detail composition, PRIMITIVES.md),
+LVGL screens (`lv_scr_load` — a whole-tree swap; the app's back-stack supplies
+the stack LVGL lacks).
+
+**Deltas (Java)**: `Router` / `RouteTable` / `Location` live in
+`com.pathland.view.router`; `Conditional` in `com.pathland.view`. The
+`NavigationContainer` is a structural container, so `if`/`switch`-style sugar
+is the `Conditional.when` form of [§3.4](#34-structural-reactivity-conditional-rendering).
 
 ---
 
@@ -498,7 +623,9 @@ A conformant DSL follows these conventions:
    environment (Java: thread-local), never threaded through constructors.
 7. **Reactivity discipline**: `body()` is evaluated once; a signal read during
    mount records a dependency; a later write re-emits only the bound node.
-   Never mutate signals during mount.
+   Never mutate signals during mount. The only structural re-evaluation is a
+   structural container ([§3.4](#34-structural-reactivity-conditional-rendering)),
+   which the emitter reconciles into `TREE` deltas.
 8. **Emission contract**: each DSL call emits exactly the documented
    properties with the documented value types; the emitter diffs. The DSL never
    computes layout, never positions, never serializes full trees.
@@ -673,6 +800,14 @@ are the companion specs.
   equivalent wiring) against a platform-neutral store ([§3.3](#33-persisted-state-statet)).
 - [ ] **Gestures** — `.onTapGesture` (composed from raw pointer down/up) and
   raw `pointerEvents`/`EVENT_LISTENERS` bitmask ([§4.4](#44-gestures)).
+- [ ] **Structural reactivity (conditional rendering)** — a structural
+  container over a selector signal (`Conditional.when(...)` / `Case.of` /
+  `Case.otherwise`, or the language's `if`/`switch` equivalent), reconciling
+  the slot into `TREE` deltas with zero opcodes for identical structure
+  ([§3.4](#34-structural-reactivity-conditional-rendering)).
+- [ ] **Navigation** — `Router` / `RouteTable` / `NavigationContainer` /
+  `NavigationLink` plus a `Location` adapter, emitting `ROUTE` and `TRANSITION`
+  and consuming the `NAVIGATE` event ([§4.5](#45-navigation)).
 - [ ] **Design tokens & theming** — a token surface: token-typed values usable
   in style modifiers (a `Color` accepting a token path, e.g. `Color.token("color.primary")`
   or the language's equivalent), a theme/override helper emitting
@@ -763,6 +898,9 @@ Representative rows; the full surface is in [§4](#4-view-surface) and
 | `.fontWeight(.bold)` | `.fontWeight(FontWeight)` | `.modifier(FontWeightMod.of(FontWeight.BOLD))` | `.font_weight(700.0)` |
 | `.shadow(color:radius:x:y:)` | `.shadow(color:radius:x:y:)` | `.modifier(Shadow.of(Color, float, float, float))` | (not yet) |
 | `.onTapGesture { go() }` | `.onTapGesture(action)` | `.modifier(TapGesture.of(() -> go()))` | `.on_tap_gesture(|| go())` |
+| `if showLogin { LoginView() } else { HomeView() }` | `if/else` in a result builder | `Conditional.when(showLogin, LoginView.of(), HomeView.of())` | `if`/`match` in `build()` |
+| `NavigationStack { … }` | `Router` + `NavigationContainer` | `NavigationContainer.of(router)` | `NavigationContainer::new(router)` |
+| `NavigationLink("Users", value:)` | `NavigationLink("label", router, to)` | `NavigationLink.of("Users", router, "/users")` | `navigation_link(...)` |
 | `content.modifier(Card())` | `content.modifier(Card())` | `content.modifier(CardStyle.of(...))` | `.modifier(Card)` |
 
 Core modifier sugar (`.padding`, `.foregroundStyle`, …) is shorthand for

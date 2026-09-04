@@ -207,7 +207,7 @@ All multi-byte fields little-endian. `A`/`B`/`C` may carry `f32` bit patterns.
 - `TREE` / `STYLE` are **guest → host** (application → renderer).
 - `EVENT` is **host → guest** (renderer → application): raw pointer/keyboard
   inputs with a host-resolved `targetId`. A conforming EVENT encoder/decoder
-  MUST reproduce vectors 8–12 exactly.
+  MUST reproduce vectors 8–12 and 21–22 exactly.
 - `META` is both directions.
 
 ## Frame Conformance
@@ -225,10 +225,11 @@ into the event ring must reproduce the exact vector-11 bytes in the slot at
 `eventWriteCursor`, then advance `eventWriteCursor`; the guest advances
 `eventReadCursor` after draining.
 
-String-bearing events (`TEXT_CHANGED`) resolve their text from the host → guest
-**event arena** (header `eventArenaOffset` 0x40 / `eventArenaCursor` 0x48,
-host-owned, shared memory) or the batch's string section (network) — the same
-dual absolute/relative convention as `STYLE::SET_TEXT`. See OPCODE.md's
+String-bearing events (`TEXT_CHANGED`, `NAVIGATE` with the `NAVIGATE_URL`
+flag) resolve their text from the host → guest **event arena** (header
+`eventArenaOffset` 0x40 / `eventArenaCursor` 0x48, host-owned, shared memory)
+or the batch's string section (network) — the same dual absolute/relative
+convention as `STYLE::SET_TEXT`. See OPCODE.md's
 [event arena](./OPCODE.md#event-arena-host--guest) section.
 
 ## Network Batch Conformance
@@ -358,6 +359,98 @@ offset 20.
 - `00 00 00 00` A = arenaRef = 0 (token path `"font.body.family"`)
 - `05 00 00 00` B = valueType = 0x05 (STRING)
 - `14 00 00 00` C = arenaRef = 20 (value string `"Inter"`)
+
+### 21. EVENT:NAVIGATE (URL="/users/42" arenaRef=0, NAVIGATE_URL flag)
+
+A **global** navigation request with a URL: the renderer/host reports the
+browser moved to a URL (`popstate`/back/forward/deep-link). The URL is a
+length-prefixed entry in the event arena (shared memory) or the batch's string
+section (network) — the same dual convention as `TEXT_CHANGED`.
+
+```
+03 0E 01 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
+
+- `03` category = EVENT
+- `0E` command = NAVIGATE
+- `01 00` flags = 0x0001 (`NAVIGATE_URL`)
+- `00 00 00 00` A = 0 (global — no `targetId`, never node-keyed)
+- `00 00 00 00` B = URL string offset = 0 (entry is `[u32 length][bytes]`; `"/users/42"`)
+- `00 00 00 00` C = 0
+
+### 22. EVENT:NAVIGATE (back, no URL)
+
+A global **back** request (Android predictive-back, iOS swipe-back, a desktop
+back button): no `NAVIGATE_URL` flag, so `B` is ignored and the host calls
+`router.pop()`.
+
+```
+03 0E 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+```
+
+- `03` category = EVENT
+- `0E` command = NAVIGATE
+- `00 00` flags = 0 (no URL — back one step)
+- `00 00 00 00` A = 0
+- `00 00 00 00` B = 0
+- `00 00 00 00` C = 0
+
+### 23. STYLE:SET_PROPERTY (id=1, propertyId=ROUTE=0x2019, valueType=STRING=0x05, arenaRef=0)
+
+The `NavigationContainer` emits the current path as a STRING property; the DOM
+renderer reacts with `history.pushState`.
+
+```
+02 01 00 00 01 00 00 00 19 20 05 00 00 00 00 00
+```
+
+- `02` category = STYLE
+- `01` command = SET_PROPERTY
+- `00 00` flags = 0
+- `01 00 00 00` A = nodeId = 1
+- `19 20 05 00` B = `(valueType << 16) | propertyId` = `(0x05 << 16) | 0x2019`
+  - low two bytes `19 20` = propertyId = 0x2019 (ROUTE)
+  - high byte `05` = valueType = 0x05 (STRING)
+- `00 00 00 00` C = arenaRef = 0 (`"/users/42"`)
+
+### 24. STYLE:SET_PROPERTY (id=1, propertyId=TRANSITION=0x1031, valueType=F32=0x04, Slide=3)
+
+A transition hint on the slot (enum code carried as an `F32` bit pattern):
+`Slide`=3 → `C` = 3.0 (0x40400000).
+
+```
+02 01 00 00 01 00 00 00 31 10 04 00 00 00 40 40
+```
+
+- `02` category = STYLE
+- `01` command = SET_PROPERTY
+- `00 00` flags = 0
+- `01 00 00 00` A = nodeId = 1
+- `31 10 04 00` B = `(valueType << 16) | propertyId` = `(0x04 << 16) | 0x1031`
+  - low two bytes `31 10` = propertyId = 0x1031 (TRANSITION)
+  - high byte `04` = valueType = 0x04 (F32)
+- `00 00 40 40` C = 3.0 (f32 LE: 0x40400000) = `Slide`
+
+### 25. Structural swap (slot 4: delete old destination 5, create new destination 6, insert)
+
+A `NavigationContainer` (slot id 4) whose child changes from destination 5 to a
+new destination 6 — the frame of `TREE` deltas a reconcile emits:
+
+```
+01 02 00 00 05 00 00 00 00 00 00 00 00 00 00 00
+01 01 00 00 06 00 00 00 10 00 00 00 00 00 00 00
+01 03 00 00 04 00 00 00 06 00 00 00 FF FF FF FF
+```
+
+- `01 02 00 00 05 00 00 00 00 00 00 00 00 00 00 00` = `TREE:DELETE_NODE` (id=5)
+  — the old destination subtree root
+- `01 01 00 00 06 00 00 00 10 00 00 00 00 00 00 00` = `TREE:CREATE_NODE`
+  (id=6, VSTACK) — the new destination root
+- `01 03 00 00 04 00 00 00 06 00 00 00 FF FF FF FF` = `TREE:INSERT_CHILD`
+  (parent=4, child=6, APPEND)
+
+An identical recompute (same structure, same ids) emits **zero** opcodes — the
+reconcile is a diff.
 
 ---
 
