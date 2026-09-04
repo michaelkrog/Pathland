@@ -372,7 +372,6 @@ whatever destination subtree the app emits and **may** animate a swap when the
 | `NavigationContainer` | `NavigationStack(path:) { destination(for:) }` | `NavigationContainer.of(Router)` | `NavigationContainer::new(Router)` | a `Group` slot + `ROUTE` `0x2019`, `TRANSITION` `0x1031`; destination swap = `TREE` deltas |
 | `NavigationLink` | `NavigationLink("label", value:)` | `NavigationLink.of(String, Router, String to)` | `navigation_link(...)` | a `BUTTON` whose tap pushes `to` |
 | `RouteTable` | — | `RouteTable` (builder) | `RouteTable::new(...)` | none (app-side matching) |
-| `Location` | — | `InMemoryLocation` / `BrowserLocation` | `Location` | none (host-side) |
 
 **Router state** — app-owned (never renderer state):
 
@@ -386,8 +385,11 @@ whatever destination subtree the app emits and **may** animate a swap when the
   `navigate` / `push` / `pop` / `replace` / `back`. `push` appends; `pop` /
   `back` step back; `navigate` / `replace` set the current route. The current
   path is emitted as the `ROUTE` property on the container slot.
-- The initial route hydrates from the `Location` at mount (a request URL on
-  SSR; a configured route or platform deep-link on native).
+- The initial route is **hydrated from the environment** at mount: the host
+  injects it (a request URL on SSR; a configured route or platform deep-link on
+  native). The app never models the platform's location handling — history
+  adaptation (`pushState` / `replaceState` / back) is a renderer/DOM-client
+  translation of the `ROUTE` property and the `NAVIGATE` event.
 
 **URL sync (web)** — the app owns state; the browser mirrors it:
 
@@ -411,7 +413,7 @@ navigation affordance: SwiftUI `NavigationStack`, Compose `NavHost`, WinUI
 LVGL screens (`lv_scr_load` — a whole-tree swap; the app's back-stack supplies
 the stack LVGL lacks).
 
-**Deltas (Java)**: `Router` / `RouteTable` / `Location` live in
+**Deltas (Java)**: `Router` / `RouteTable` live in
 `com.pathland.view.router`; `Conditional` in `com.pathland.view`. The
 `NavigationContainer` is a structural container, so `if`/`switch`-style sugar
 is the `Conditional.when` form of [§3.4](#34-structural-reactivity-conditional-rendering).
@@ -806,8 +808,9 @@ are the companion specs.
   the slot into `TREE` deltas with zero opcodes for identical structure
   ([§3.4](#34-structural-reactivity-conditional-rendering)).
 - [ ] **Navigation** — `Router` / `RouteTable` / `NavigationContainer` /
-  `NavigationLink` plus a `Location` adapter, emitting `ROUTE` and `TRANSITION`
-  and consuming the `NAVIGATE` event ([§4.5](#45-navigation)).
+  `NavigationLink`, hydrating the initial route from the environment, emitting
+  `ROUTE` and `TRANSITION` and consuming the `NAVIGATE` event
+  ([§4.5](#45-navigation)).
 - [ ] **Design tokens & theming** — a token surface: token-typed values usable
   in style modifiers (a `Color` accepting a token path, e.g. `Color.token("color.primary")`
   or the language's equivalent), a theme/override helper emitting
