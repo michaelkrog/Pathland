@@ -46,12 +46,14 @@ export const CMD_SUBMIT = 0x0a;
 export const CMD_SCROLL = 0x0b;
 export const CMD_WHEEL = 0x0c;
 export const CMD_DATE_CHANGED = 0x0d;
+export const CMD_NAVIGATE = 0x0e;
 
 // EVENT flags
 export const FLAG_POINTER_SECONDARY = 0x0001;
 export const FLAG_HOVER_ENTER = 0x0001;
 export const FLAG_HOVER_LEAVE = 0x0002;
 export const FLAG_KEY_REPEAT = 0x0002;
+export const FLAG_NAVIGATE_URL = 0x0001;
 
 // EVENT_LISTENERS bits (spec/EVENTS.md)
 export const LISTEN_POINTER_DOWN = 1 << 0;
@@ -147,6 +149,7 @@ export const PROP_ROTATION_DEGREES = 0x102d;
 export const PROP_SCALE = 0x102e;
 export const PROP_ALLOWS_HIT_TESTING = 0x102f;
 export const PROP_TINT = 0x1030;
+export const PROP_TRANSITION = 0x1031;
 export const PROP_ROLE = 0x2001;
 export const PROP_STATE = 0x2002;
 export const PROP_ENABLED = 0x2003;
@@ -169,6 +172,7 @@ export const PROP_PICKER_STYLE = 0x2014;
 export const PROP_ACTION_ID = 0x2016;
 export const PROP_BINDING_ID = 0x2017;
 export const PROP_TOGGLE_STYLE = 0x2018;
+export const PROP_ROUTE = 0x2019;
 
 // Width/height hints (WIDTH/HEIGHT values)
 export const WIDTH_FILL = -1;

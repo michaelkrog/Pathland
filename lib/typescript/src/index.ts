@@ -11,6 +11,7 @@ import {
   encodeFocusChanged,
   encodeKeyDown,
   encodeKeyUp,
+  encodeNavigate,
   encodePointerDown,
   encodePointerMove,
   encodePointerUp,
@@ -80,6 +81,19 @@ function boot(): void {
     renderer,
   });
   transport.start();
+
+  // URL mirroring (spec DSL.md §4.5): the server emits the route as ROUTE; we push
+  // it into the history so the browser URL follows the app. pushState never fires
+  // popstate, so server-originated navigation can't loop back into NAVIGATE events.
+  renderer.onRoute = (path) => history.pushState(null, "", path);
+
+  // Browser back/forward: popstate has already moved the URL; report it to the
+  // server as a NAVIGATE event so the app routes (and re-emits the destination).
+  window.addEventListener("popstate", () => {
+    if (transport.open) {
+      transport.send(encodeNavigate(location.href));
+    }
+  });
 
   // Hover tracking for POINTER_MOVE enter/leave.
   const hovered = new WeakSet<Element>();

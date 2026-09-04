@@ -25,6 +25,7 @@ import {
   PROP_IMAGE_SOURCE,
   PROP_LABEL,
   PROP_PROMPT,
+  PROP_ROUTE,
   PROP_SELECTED,
   PROP_SELECTION,
   PROP_TEXT,
@@ -42,6 +43,12 @@ import { argbToHex, daysToIso, f32FromBits, millisToTime } from "./format";
 /** The retained `node id → DOM Node` registry the renderer works against. */
 export interface DomRenderer {
   byId: Map<number, Node>;
+  /**
+   * Optional hook invoked when a slot's `ROUTE` property changes — the host wires it
+   * to `history.pushState` so the browser URL mirrors the app's navigation (spec
+   * DSL.md §4.5). Not called on hydrate (the URL is already correct).
+   */
+  onRoute?: (path: string) => void;
   /** Optional design-token sink (defaults to document-root CSS variables). */
   tokenSink?: DesignTokenSink;
 }
@@ -115,6 +122,7 @@ function applyTree(op: Opcode, r: DomRenderer): void {
         // (the SSR DOM already holds the initial tree; a resync replays it).
         if (container && !container.contains(child)) {
           insertAt(container, child, op.c);
+          maybeAnimateInsert(parent, child);
         }
       }
       break;
@@ -160,6 +168,49 @@ function insertAt(container: Node, child: Node, index: number): void {
   }
 }
 
+// --- swap transitions (spec DSL.md §4.5 / MODIFIERS.md TRANSITION) ---
+// When a child is inserted into a slot carrying a `data-pathland-transition` hint,
+// the DOM client animates the new subtree in (fade/slide/scale). This is a pure
+// renderer-side animation of its own output cache — never app state.
+
+const TRANSITION_KEYFRAMES: Record<string, string> = {
+  platform: "@keyframes pl-platform { from { opacity: 0; } to { opacity: 1; } }",
+  fade: "@keyframes pl-fade { from { opacity: 0; } to { opacity: 1; } }",
+  slide:
+    "@keyframes pl-slide { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: none; } }",
+  scale:
+    "@keyframes pl-scale { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }",
+};
+
+let transitionsInjected = false;
+
+function ensureTransitionStyles(): void {
+  if (transitionsInjected || typeof document === "undefined") {
+    return;
+  }
+  transitionsInjected = true;
+  const style = document.createElement("style");
+  style.setAttribute("data-pathland-transitions", "");
+  style.textContent = Object.values(TRANSITION_KEYFRAMES).join("\n");
+  document.head.appendChild(style);
+}
+
+function maybeAnimateInsert(parent: Node, child: Node): void {
+  if (!(parent instanceof HTMLElement) || !(child instanceof HTMLElement)) {
+    return;
+  }
+  const name = parent.getAttribute("data-pathland-transition");
+  if (!name) {
+    return;
+  }
+  ensureTransitionStyles();
+  const key = TRANSITION_KEYFRAMES[name] ? name : "platform";
+  child.style.animation = `pl-${key} 180ms ease-out`;
+  child.addEventListener("animationend", () => {
+    child.style.animation = "";
+  }, { once: true });
+}
+
 function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
   if (op.command === CMD_SET_DESIGN_TOKEN) {
     applyDesignToken(op, strings, r.tokenSink ?? createTokenSink());
@@ -195,7 +246,13 @@ function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
       const propId = op.b & 0xffff;
       const valueType = (op.b >>> 16) & 0xff;
       if (valueType === VAL_STRING) {
-        applyStringProperty(el, propId, readString(strings, op.c));
+        const text = readString(strings, op.c);
+        if (propId === PROP_ROUTE) {
+          el.setAttribute("data-pathland-route", text);
+          r.onRoute?.(text); // host mirrors the URL (history.pushState)
+        } else {
+          applyStringProperty(el, propId, text);
+        }
       } else if (valueType === VAL_DESIGN_TOKEN) {
         applyTokenRefProperty(el, propId, readString(strings, op.c));
       } else {

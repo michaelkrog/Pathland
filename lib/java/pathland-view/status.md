@@ -105,7 +105,8 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
   (`Signal<Route>` + back-stack; `navigate`/`push`/`pop`/`replace`/`back`,
   `handlePlatformNavigation`/`handleEvent`), `NavigationContainer` (structural
   slot emitting the `ROUTE` property coalesced into the same frame as the
-  destination swap), `NavigationLink` (a `BUTTON` that pushes). The route is a
+  destination swap, plus a `TRANSITION` PlatformDefault hint renderers may use
+  to animate the swap), `NavigationLink` (a `BUTTON` that pushes). The route is a
   **plain signal** (not persisted; the URL is the web's persistence layer) and
   the host **seeds it before mount** via `navigate(...)` — no `Location`, no
   environment-carried route. A `NAVIGATE` event (`Event.navigate(url)` /

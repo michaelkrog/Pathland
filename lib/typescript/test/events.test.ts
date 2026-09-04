@@ -5,6 +5,8 @@ import {
   encodeFocusChanged,
   encodeKeyDown,
   encodeKeyUp,
+  encodeNavigate,
+  encodeNavigateBack,
   encodePointerDown,
   encodePointerMove,
   encodePointerUp,
@@ -23,6 +25,7 @@ import {
   CMD_FOCUS_CHANGED,
   CMD_KEY_DOWN,
   CMD_KEY_UP,
+  CMD_NAVIGATE,
   CMD_POINTER_DOWN,
   CMD_POINTER_UP,
   CMD_SCROLL,
@@ -30,6 +33,7 @@ import {
   CMD_TEXT_CHANGED,
   CMD_VALUE_CHANGED,
   CMD_WHEEL,
+  FLAG_NAVIGATE_URL,
   HEADER_SIZE,
   MAGIC,
   VERSION,
@@ -136,5 +140,22 @@ describe("event encoders", () => {
     expect(batch.opcodes[0]?.a).toBe(0);
     expect(batch.opcodes[0]?.b).toBe(0);
     expect(batch.opcodes[0]?.c).toBe(0);
+  });
+
+  it("encodeNavigate rides the URL in the string section (no target, global)", () => {
+    const batch = parseBatch(encodeNavigate("https://example.com/users/7"));
+    const op = batch.opcodes[0]!;
+    expect(op.category).toBe(CAT_EVENT);
+    expect(op.command).toBe(CMD_NAVIGATE);
+    expect(op.flags).toBe(FLAG_NAVIGATE_URL);
+    expect(op.a).toBe(0); // global — not node-keyed
+    expect(readString(batch.strings, op.b)).toBe("https://example.com/users/7");
+  });
+
+  it("encodeNavigateBack is a NAVIGATE with no URL flag", () => {
+    const op = eventOf(encodeNavigateBack());
+    expect(op.command).toBe(CMD_NAVIGATE);
+    expect(op.flags).toBe(0);
+    expect(op.a).toBe(0);
   });
 });

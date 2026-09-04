@@ -74,7 +74,7 @@ pub unsafe extern "C" fn pathland_html_free(ptr: *const c_char) {
 mod tests {
     use std::ffi::CStr;
 
-    use pathland_core::{Opcode, category, component_type, style, tree};
+    use pathland_core::{Opcode, category, component_type, property_id, style, tree};
     use pathland_core_transport::encode_frame;
 
     use super::*;
@@ -100,6 +100,40 @@ mod tests {
         let html = unsafe { CStr::from_ptr(frag) }.to_string_lossy().into_owned();
         assert!(!html.contains("<!DOCTYPE html>"));
         assert!(html.contains("data-pathland-id=\"1\""));
+        unsafe { pathland_html_free(frag) };
+    }
+
+    #[test]
+    fn capi_renders_slot_route_and_transition_attrs() {
+        // A VSTACK slot carrying ROUTE (STRING) + TRANSITION (F32 enum 3 = Slide): the
+        // DOM client reads data-pathland-route to mirror the URL and may animate a swap.
+        let mut opcodes = Vec::new();
+        let mut strings = Vec::new();
+        opcodes.push(Opcode::new(category::TREE, tree::CREATE_NODE, 0, 1, component_type::VSTACK as u32, 0));
+        strings.extend_from_slice(&(9u32).to_le_bytes());
+        strings.extend_from_slice(b"/users/42");
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            (0x05u32 << 16) | property_id::ROUTE as u32,
+            0,
+        ));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            (0x04u32 << 16) | property_id::TRANSITION as u32,
+            3.0f32.to_bits(),
+        ));
+        let bytes = encode_frame(&opcodes, &strings);
+
+        let frag = unsafe { pathland_html_render_fragment(bytes.as_ptr(), bytes.len() as u32, 1) };
+        let html = unsafe { CStr::from_ptr(frag) }.to_string_lossy().into_owned();
+        assert!(html.contains("data-pathland-route=\"/users/42\""), "{html}");
+        assert!(html.contains("data-pathland-transition=\"slide\""), "{html}");
         unsafe { pathland_html_free(frag) };
     }
 

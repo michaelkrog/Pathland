@@ -1,6 +1,6 @@
 # @pathland/dom-renderer (lib/typescript) — implementation status
 
-**Last updated:** September 2, 2026
+**Last updated:** September 3, 2026
 
 The **Pathland DOM renderer** — the web client. A vanilla-TypeScript hydration
 client (no runtime dependencies) that is the single source of the client,
@@ -56,8 +56,18 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   `POINTER_MOVE` (x/y + hover enter/leave), `POINTER_UP` (x/y + secondary),
   `KEY_DOWN`/`KEY_UP` (keyCode + modifiers + repeat), `VALUE_CHANGED` (f32 or
   raw bits), `TEXT_CHANGED` (string section), `DATE_CHANGED`, `FOCUS_CHANGED`,
-  `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL` — guest → host (flags
-  `0x0000`).
+  `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL`, **`NAVIGATE`** (`encodeNavigate`
+  URL in the string section + `NAVIGATE_URL` flag; `encodeNavigateBack` no URL) —
+  guest → host (flags `0x0000`).
+- **URL mirroring + back/forward** (spec DSL.md §4.5): a slot's `ROUTE`
+  (STRING) property updates `data-pathland-route` and fires the `onRoute` hook
+  (`src/index.ts` wires it to `history.pushState` — never called on hydrate, so
+  no duplicate history entry); `popstate` reports `location.href` as a
+  `NAVIGATE` event so the app routes. `pushState` never fires `popstate`, so
+  server-originated navigation cannot loop. **Swap transitions**: a child
+  inserted into a `data-pathland-transition` slot is animated in (fade/slide/
+  scale keyframes injected once into a `<style data-pathland-transitions>`),
+  a renderer-side animation of its own output cache — never app state.
 - **`EVENT_LISTENERS` gating**: `src/index.ts` reads the SSR `data-event-listeners`
   mask (mirroring the Rust renderer's event attrs) and emits an event only when
   the node opted into it; absent attribute = permissive (no gating info).
@@ -75,8 +85,9 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   colors inline, design tokens as CSS variables.
 - **Tests** (`test/`, vitest + happy-dom): codec round-trips, TREE/STYLE/META
   application, design tokens (var mapping, dark scoping, px lengths, generative
-  `space.N` refs), event byte layouts, and one golden assertion per
-  property/enum — 87 tests.
+  `space.N` refs), event byte layouts (incl. `NAVIGATE`), navigation (ROUTE →
+  `onRoute`, transition animation, non-hinted slots), and one golden assertion
+  per property/enum — 93 tests.
 
 ## Not implemented / gaps
 

@@ -170,14 +170,19 @@ back-stack supplies the stack LVGL lacks).
     `pathland-engine` so the slot can emit `ROUTE` (STRING) — `TRANSITION`
     (F32) needs nothing.
 
-## Phase 5 — Renderers + DOM client
+## Phase 5 — Renderers + DOM client (5a/5b ✅, 5c blocked)
 
-17. `pathland-render-html`: `ROUTE` → `data-pathland-route`; `TRANSITION` →
-    CSS class.
-18. `lib/typescript`: hydrate reads route attr (no pushState); `SET_PROPERTY
-    ROUTE` → `history.pushState`; `popstate` → `NAVIGATE` over `/ws`;
-    TRANSITION CSS. No sync loop.
-19. `pathland-render-gtk`: Escape/back → `NAVIGATE` (no payload); optional fade.
+17. ✅ `pathland-render-html`: a slot's `ROUTE` (STRING) renders as
+    `data-pathland-route` and `TRANSITION` as `data-pathland-transition`
+    (`platform`/`fade`/`slide`/`scale`) — verified by cargo test (37 tests).
+    The Java `NavigationContainer` now emits a `TRANSITION` PlatformDefault hint.
+18. ✅ `lib/typescript`: `onRoute` hook → `history.pushState` (never on hydrate);
+    `popstate` → `NAVIGATE` event over `/ws` (`encodeNavigate`/`encodeNavigateBack`);
+    fade/slide/scale swap animation for transition-hinted slots. 93 tests +
+    typecheck + build green.
+19. ⏸ `pathland-render-gtk`: Escape/back → `NAVIGATE` (no payload) — **blocked on
+    pkg-config** (GTK dev build unavailable locally); code unchanged, recorded in
+    `pathland-render-gtk/status.md` as pending.
 
 ## Phase 6 — Demos + status
 

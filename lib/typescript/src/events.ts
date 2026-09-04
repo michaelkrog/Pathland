@@ -9,6 +9,7 @@ import {
   CMD_FOCUS_CHANGED,
   CMD_KEY_DOWN,
   CMD_KEY_UP,
+  CMD_NAVIGATE,
   CMD_POINTER_DOWN,
   CMD_POINTER_MOVE,
   CMD_POINTER_UP,
@@ -18,6 +19,7 @@ import {
   CMD_TEXT_CHANGED,
   CMD_VALUE_CHANGED,
   CMD_WHEEL,
+  FLAG_NAVIGATE_URL,
   HEADER_SIZE,
   MAGIC,
   OPCODE_SIZE,
@@ -156,4 +158,35 @@ export function encodeScroll(target: number, offsetX: number, offsetY: number): 
 /** WHEEL (A=target, B=deltaX f32, C=deltaY f32). */
 export function encodeWheel(target: number, deltaX: number, deltaY: number): Uint8Array {
   return eventBatch(CMD_WHEEL, target, bitsFromF32(deltaX), bitsFromF32(deltaY));
+}
+
+// --- navigation (global, not node-keyed) ---
+
+/** NAVIGATE to a URL (browser back/forward `popstate`, a deep link); the URL rides the string section. */
+export function encodeNavigate(url: string): Uint8Array {
+  const bytes = new TextEncoder().encode(url);
+  const out = new Uint8Array(HEADER_SIZE + OPCODE_SIZE + 4 + 4 + bytes.length);
+  const view = new DataView(out.buffer);
+  view.setUint32(0, MAGIC, true);
+  view.setUint16(4, VERSION, true);
+  view.setUint16(6, 0, true);
+  view.setUint32(8, 0, true);
+  view.setUint32(12, 1, true);
+  const pos = HEADER_SIZE;
+  view.setUint8(pos, CAT_EVENT);
+  view.setUint8(pos + 1, CMD_NAVIGATE);
+  view.setUint16(pos + 2, FLAG_NAVIGATE_URL, true);
+  view.setUint32(pos + 4, 0, true); // no target — global
+  view.setUint32(pos + 8, 0, true); // b = relative string offset (first entry)
+  view.setUint32(pos + 12, 0, true);
+  const stringsAt = HEADER_SIZE + OPCODE_SIZE;
+  view.setUint32(stringsAt, 4 + bytes.length, true);
+  view.setUint32(stringsAt + 4, bytes.length, true);
+  out.set(bytes, stringsAt + 8);
+  return out;
+}
+
+/** NAVIGATE with no URL: a native back request (the app pops its own back-stack). */
+export function encodeNavigateBack(): Uint8Array {
+  return eventBatch(CMD_NAVIGATE, 0, 0, 0);
 }

@@ -18,6 +18,7 @@ import {
   COMPONENT_VSTACK,
   PROP_COLOR,
   PROP_IMAGE_SOURCE,
+  PROP_ROUTE,
   PROP_SELECTED,
   PROP_SPACING,
   PROP_TEXT,
@@ -351,5 +352,58 @@ describe("applyBatch · hydration reconciliation (no-replay-on-connect)", () => 
     expect(stack.children).toHaveLength(1);
     expect(r.byId.get(7)?.textContent).toBe("");
     document.body.removeChild(stack);
+  });
+});
+
+describe("applyBatch · navigation (spec DSL.md §4.5)", () => {
+  it("mirrors a ROUTE change into the slot attribute and the onRoute hook", () => {
+    const slot = document.createElement("div");
+    slot.setAttribute("data-pathland-id", "1");
+    const routes: string[] = [];
+    const r = renderer();
+    r.onRoute = (path) => routes.push(path);
+    r.byId.set(1, slot);
+
+    const batch = parseBatch(
+      buildBatch([[CAT_STYLE, CMD_SET_PROPERTY, 0, 1, (VAL_STRING << 16) | PROP_ROUTE, 0]], stringEntry("/users/7")),
+    );
+    applyBatch(batch, r);
+    expect(slot.getAttribute("data-pathland-route")).toBe("/users/7");
+    expect(routes).toEqual(["/users/7"]);
+  });
+
+  it("animates a child inserted into a transition-hinted slot", () => {
+    const r = renderer();
+    const slot = document.createElement("div");
+    slot.setAttribute("data-pathland-id", "1");
+    slot.setAttribute("data-pathland-transition", "fade");
+    r.byId.set(1, slot);
+
+    const batch = parseBatch(
+      buildBatch([
+        [CAT_TREE, CMD_CREATE_NODE, 0, 2, COMPONENT_TEXT],
+        [CAT_TREE, CMD_INSERT_CHILD, 0, 1, 2],
+      ]),
+    );
+    applyBatch(batch, r);
+    const child = r.byId.get(2) as HTMLElement;
+    expect(child.style.animation).toContain("pl-fade");
+    expect(document.head.querySelector("style[data-pathland-transitions]")).not.toBeNull();
+  });
+
+  it("does not animate children of a slot without a transition hint", () => {
+    const r = renderer();
+    const stack = document.createElement("div");
+    stack.setAttribute("data-pathland-id", "1");
+    r.byId.set(1, stack);
+
+    const batch = parseBatch(
+      buildBatch([
+        [CAT_TREE, CMD_CREATE_NODE, 0, 2, COMPONENT_TEXT],
+        [CAT_TREE, CMD_INSERT_CHILD, 0, 1, 2],
+      ]),
+    );
+    applyBatch(batch, r);
+    expect((r.byId.get(2) as HTMLElement).style.animation).toBe("");
   });
 });

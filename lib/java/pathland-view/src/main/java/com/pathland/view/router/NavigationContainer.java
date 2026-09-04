@@ -43,10 +43,12 @@ public final class NavigationContainer implements View {
             node.children.add(selected.render(env));
         }
         // ROUTE: the current path, re-emitted by the structural effect in the same frame
-        // as a destination swap (spec DSL.md §4.5 URL sync).
+        // as a destination swap (spec DSL.md §4.5 URL sync). TRANSITION: a presentation
+        // hint (PlatformDefault) so renderers may animate the swap — never state.
         node.properties.put(Properties.ROUTE, router.path());
         node.structuralStringProperty = Properties.ROUTE;
         node.structuralStringValue = router::path;
+        node.properties.put(Properties.TRANSITION, 1f); // PlatformDefault
         node.navigateHandler = router::handleEvent;
         return node;
     }

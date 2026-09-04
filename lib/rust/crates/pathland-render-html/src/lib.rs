@@ -821,7 +821,8 @@ impl HtmlRenderer {
             .iter()
             .map(|&child| render_node(nodes, child))
             .collect();
-        let data_id = format!(" data-pathland-id=\"{id}\"");
+        let mut data_id = format!(" data-pathland-id=\"{id}\"");
+        data_id.push_str(&slot_attrs(node));
         let css = format!("{}{}", node.style_css(), node.border_style());
         let style = style_attr(&css);
         let event = event_attrs(node);
@@ -1137,7 +1138,8 @@ if indeterminate {
         );
         let stack_style = style_attr(&combined);
         format!(
-            "<div data-pathland-id=\"{id}\"{event}{aria}{stack_style}>{children}</div>",
+            "<div data-pathland-id=\"{id}\"{}{event}{aria}{stack_style}>{children}</div>",
+            slot_attrs(node),
         )
     }
 
@@ -1180,6 +1182,28 @@ fn escape(input: &str) -> String {
         .replace('>', "&gt;")
         .replace('"', "&quot;")
         .replace('\'', "&#39;")
+}
+
+/// Slot attributes for a navigation/conditional slot node: the current path as
+/// `data-pathland-route` (the DOM client mirrors it into the URL) and the
+/// `data-pathland-transition` swap hint (`platform`/`fade`/`slide`/`scale`). Empty
+/// for ordinary nodes. See `spec/DSL.md` §4.5 and `spec/MODIFIERS.md`.
+fn slot_attrs(node: &Node) -> String {
+    let mut attrs = String::new();
+    if let Some(path) = node.strings.get(&property_id::ROUTE) {
+        attrs.push_str(&format!(" data-pathland-route=\"{}\"", escape(path)));
+    }
+    let transition = node.f32_property(property_id::TRANSITION, 0.0).round() as u8;
+    if transition != 0 {
+        let name = match transition {
+            2 => "fade",
+            3 => "slide",
+            4 => "scale",
+            _ => "platform",
+        };
+        attrs.push_str(&format!(" data-pathland-transition=\"{name}\""));
+    }
+    attrs
 }
 
 #[cfg(test)]
