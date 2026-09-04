@@ -99,6 +99,16 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
   **zero** opcodes, nested containers work, and the slot's subtree owns its own
   bindings. `RenderResult` routing maps are now live unmodifiable views (a swap
   updates tap/text/value/date routing after mount).
+- **Router** (`com.pathland.view.router`, spec DSL.md §4.5): `Route` (absolute
+  path, `pathOnly()` strips query/fragment), `RouteTable` (literal + `:param`
+  patterns, guards → `replace()` redirect, `fallback` 404), `Router`
+  (`Signal<Route>` + back-stack; `navigate`/`push`/`pop`/`replace`/`back`,
+  `handlePlatformNavigation`/`handleEvent`), `Location` (`InMemoryLocation`,
+  `BrowserLocation`), `NavigationContainer` (structural slot emitting the
+  `ROUTE` property coalesced into the same frame as the destination swap),
+  `NavigationLink` (a `BUTTON` that pushes). A `NAVIGATE` event
+  (`Event.navigate(url)` / `Event.navigateBack()`, wire round-trip via
+  `FrameCodec`) routes into the router through `RenderResult.navigateHandler`.
 - **Wire codec** (`transport`): `FrameCodec` — self-contained `PLPL` frames
   both directions, `encodeEvents`/`decodeEvents` (host→guest events with
   `TEXT_CHANGED` string-section offsets).
@@ -132,8 +142,9 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 
 ## Verified by
 
-`mvn test` (JDK 17+) — emitter, codec round-trips, signals, state, and the
-structural-reactivity suite (`ConditionalTest`: branch-swap `TREE` deltas,
-zero-opcode identical recompute, switch by key, empty slot, nested containers,
-fine-grained reactive content); the JNA ring test runs when `libpathland_core`
-is on `java.library.path`. CI proves every LTS from 17 (Temurin 17/21/25).
+`mvn test` (JDK 17+) — emitter, codec round-trips (incl. `NAVIGATE`), signals,
+state, structural-reactivity (`ConditionalTest`) and the router (`RouterTest`:
+initial route + `ROUTE` property, destination swap deltas, back-stack, params,
+guard redirect, fallback, `NAVIGATE` routing, `NavigationLink`); the JNA ring
+test runs when `libpathland_core` is on `java.library.path`. CI proves every
+LTS from 17 (Temurin 17/21/25).

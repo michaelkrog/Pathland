@@ -71,6 +71,16 @@ public record Event(
         return new Event(Commands.Event.DATE_CHANGED, target, 0, 0, 0, 0, null, days, millisOfDay);
     }
 
+    /** Global navigation to a URL (web back/forward/deep-link); the URL rides the string section. */
+    public static Event navigate(String url) {
+        return new Event(Commands.Event.NAVIGATE, 0, Commands.Flags.NAVIGATE_URL, 0, 0, 0, url, 0, 0);
+    }
+
+    /** Global native back request (no URL — "back one step"). */
+    public static Event navigateBack() {
+        return new Event(Commands.Event.NAVIGATE, 0, 0, 0, 0, 0, null, 0, 0);
+    }
+
     public boolean isPointerDown() {
         return command == Commands.Event.POINTER_DOWN;
     }
@@ -121,6 +131,20 @@ public record Event(
 
     public boolean isDateChanged() {
         return command == Commands.Event.DATE_CHANGED;
+    }
+
+    public boolean isNavigate() {
+        return command == Commands.Event.NAVIGATE;
+    }
+
+    /** For `NAVIGATE` with the `NAVIGATE_URL` flag: the destination URL; null for a back request. */
+    public String url() {
+        return text;
+    }
+
+    /** For `NAVIGATE` without the `NAVIGATE_URL` flag: the platform wants to go back one step. */
+    public boolean isNavigateBack() {
+        return isNavigate() && (flags & Commands.Flags.NAVIGATE_URL) == 0;
     }
 
     /** For {@code KEY_*}: the canonical logical key code. */

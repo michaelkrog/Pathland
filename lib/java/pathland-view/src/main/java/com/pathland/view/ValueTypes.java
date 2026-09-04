@@ -23,7 +23,8 @@ public final class ValueTypes {
                     Properties.STRIKETHROUGH, Properties.COLOR_INVERT, Properties.CLIPS_TO_BOUNDS,
                     Properties.ALLOWS_HIT_TESTING, Properties.IS_SECURE, Properties.IS_INDETERMINATE,
                     Properties.FIXED_SIZE_HORIZONTAL, Properties.FIXED_SIZE_VERTICAL -> U8;
-            case Properties.LABEL, Properties.PROMPT, Properties.FONT_FAMILY, Properties.IMAGE_SOURCE -> STRING;
+            case Properties.LABEL, Properties.PROMPT, Properties.FONT_FAMILY, Properties.IMAGE_SOURCE,
+                    Properties.ROUTE -> STRING;
             case Properties.LINE_LIMIT, Properties.SELECTION, Properties.ACTION_ID, Properties.BINDING_ID -> U32;
             // Enums ride the wire as F32 holding the numeric enum code (spec convention).
             case Properties.ALIGNMENT, Properties.TEXT_ALIGNMENT, Properties.TRUNCATION_MODE,

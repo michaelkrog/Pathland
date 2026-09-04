@@ -39,6 +39,8 @@ public final class Commands {
         public static final int SCROLL = 0x0B;
         public static final int WHEEL = 0x0C;
         public static final int DATE_CHANGED = 0x0D;
+        /** Global navigation request (host → guest, never node-keyed); URL in the string section when `NAVIGATE_URL` is set. */
+        public static final int NAVIGATE = 0x0E;
         private Event() {}
     }
 
@@ -57,6 +59,8 @@ public static final class Meta {
         public static final int HOVER_ENTER = 0x0001;
         public static final int HOVER_LEAVE = 0x0002;
         public static final int KEY_REPEAT = 0x0002;
+        /** `NAVIGATE`: the URL in the string section; without it the event is a back request. */
+        public static final int NAVIGATE_URL = 0x0001;
         private Flags() {}
     }
 

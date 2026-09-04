@@ -80,6 +80,8 @@ public final class Properties {
     public static final int SCALE = 0x102E;
     public static final int ALLOWS_HIT_TESTING = 0x102F;
     public static final int TINT = 0x1030;
+    /** Presentation hint for structural swaps (F32 enum code): None=0, PlatformDefault=1, Fade=2, Slide=3, Scale=4. */
+    public static final int TRANSITION = 0x1031;
     // Semantic (0x2000 range)
     public static final int ROLE = 0x2001;
     public static final int STATE = 0x2002;
@@ -105,6 +107,8 @@ public final class Properties {
     public static final int ACTION_ID = 0x2016;
     public static final int BINDING_ID = 0x2017;
     public static final int TOGGLE_STYLE = 0x2018;
+    // Navigation
+    public static final int ROUTE = 0x2019;
 
     private Properties() {}
 }

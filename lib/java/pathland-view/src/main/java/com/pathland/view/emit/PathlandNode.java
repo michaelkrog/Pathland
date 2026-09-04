@@ -2,6 +2,7 @@ package com.pathland.view.emit;
 
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
+import com.pathland.view.transport.Event;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -73,6 +74,21 @@ public final class PathlandNode {
      * deltas. All other reactivity stays fine-grained.
      */
     public Supplier<View> structuralContent;
+
+    /**
+     * Structural slot reactive STRING property: re-evaluated and re-emitted by the
+     * structural effect <em>within the same reconcile frame</em> as the subtree swap
+     * (e.g. the router's {@code ROUTE} property). Keeps a navigation to one frame.
+     */
+    public Integer structuralStringProperty;
+    public Supplier<String> structuralStringValue;
+
+    /**
+     * Global navigation sink: the host forwards raw {@code NAVIGATE} events here
+     * (a {@code NavigationContainer} sets this to its router's handler). Unlike the
+     * node-keyed input sinks, this is global — a {@code NAVIGATE} event has no target.
+     */
+    public Consumer<Event> navigateHandler;
 
     public PathlandNode(int component) {
         this.component = component;

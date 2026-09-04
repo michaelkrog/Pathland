@@ -1,6 +1,6 @@
 # Pathland Structural Reactivity + Router — Implementation Plan
 
-**Status:** Approved — in progress (Phases 1–2 complete)
+**Status:** Approved — in progress (Phases 1–3 complete)
 **Branch:** `feat/router-structural-reactivity`
 **Last Updated:** September 3, 2026
 
@@ -139,15 +139,25 @@ back-stack supplies the stack LVGL lacks).
   with destroyed inner effects, fine-grained reactive content. `mvn -pl
   pathland-view test` — 47 tests green.
 
-## Phase 3 — Java router (on top, on deck)
+## Phase 3 — Java router ✅ complete
 
-14. `Route`/`RouteTable`/`Router`/`Location`/`NavigationContainer`/
-    `NavigationLink`; `ROUTE` + `TRANSITION` props; `NAVIGATE` → `RenderResult`
-    navigation sink.
-15. Tests: route-change structural deltas + property diff; unchanged → zero
-    opcodes; `NAVIGATE` round-trip.
+- `com.pathland.view.router`: `Route` (`pathOnly()` strips query/fragment),
+  `RouteTable` (literal + `:param` matching, guards → `replace()` redirect,
+  `fallback` 404), `Router` (`Signal<Route>` + back-stack;
+  `navigate/push/pop/replace/back`, `handlePlatformNavigation` strips the URL to
+  a path, `handleEvent`), `Location`/`InMemoryLocation`/`BrowserLocation`,
+  `NavigationContainer` (structural slot; **ROUTE property coalesced into the
+  same frame** as the destination swap via a generic slot STRING property),
+  `NavigationLink` (BUTTON that pushes).
+- `RenderResult.navigateHandler` — a live global sink hosts forward raw
+  `NAVIGATE` events into the router; `Event.navigate`/`navigateBack` wire
+  round-trip through `FrameCodec`.
+- `RouterTest` (11 tests): initial route + ROUTE emission, destination-swap
+  deltas, back-stack, params, guard redirect, fallback, NAVIGATE routing,
+  NavigationLink, equality suppression. `mvn -pl pathland-view test` — 58 tests
+  green.
 
-## Phase 4 — Rust
+## Phase 4 — Rust (on deck)
 
 16. `if`/`match` in `build()` (free), optional `switch!` macro;
     `Route`/`RouteTable`/`Router` over `pathland-core::signal`; GTK demo (Home →

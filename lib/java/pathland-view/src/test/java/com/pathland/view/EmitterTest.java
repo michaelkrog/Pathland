@@ -252,7 +252,9 @@ class EmitterTest {
                 Event.wheel(9, 1.5f, -2f),
                 Event.focusChanged(2, true),
                 Event.editingChanged(2, false),
-                Event.submit(2));
+                Event.submit(2),
+                Event.navigate("https://example.com/users/7"),
+                Event.navigateBack());
         byte[] wire = FrameCodec.encodeEvents(events);
         List<Event> decoded = FrameCodec.decodeEvents(wire);
         assertEquals(events, decoded, "full event catalog round-trips byte-exactly");

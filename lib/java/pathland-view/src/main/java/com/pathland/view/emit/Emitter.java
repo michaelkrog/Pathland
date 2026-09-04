@@ -8,6 +8,7 @@ import com.pathland.view.View;
 import com.pathland.view.signal.EffectRef;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
+import com.pathland.view.transport.Event;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -45,6 +46,7 @@ public final class Emitter {
     private final Map<Integer, DateInput> dateInputs = new LinkedHashMap<>();
     private final List<EffectRef> bindings = new ArrayList<>();
     private final Map<Integer, List<EffectRef>> nodeBindings = new LinkedHashMap<>();
+    private Consumer<Event> navigateHandler;
     private int nextId = 1;
     private int rootId;
     private boolean mounted;
@@ -84,6 +86,7 @@ public final class Emitter {
         textInputs.clear();
         valueInputs.clear();
         dateInputs.clear();
+        navigateHandler = null;
         collectInputs(tree);
 
         sink.beginFrame();
@@ -100,7 +103,8 @@ public final class Emitter {
                 Collections.unmodifiableMap(tapActions),
                 Collections.unmodifiableMap(textInputs),
                 Collections.unmodifiableMap(valueInputs),
-                Collections.unmodifiableMap(dateInputs));
+                Collections.unmodifiableMap(dateInputs),
+                navigateHandler);
     }
 
     /** The root node id (0 until mounted). */
@@ -159,6 +163,9 @@ public final class Emitter {
         }
         if (node.dateInput != null) {
             dateInputs.put(node.id, node.dateInput);
+        }
+        if (node.navigateHandler != null) {
+            navigateHandler = node.navigateHandler; // global: a NavigationContainer's router sink
         }
         for (PathlandNode child : node.children) {
             collectInputs(child);
@@ -295,6 +302,17 @@ public final class Emitter {
         reconcileChildren(slot, oldChildren, newChildren, ops);
         slot.children.clear();
         slot.children.addAll(newChildren);
+
+        // Coalesce a slot-level STRING property change (e.g. ROUTE) into the same frame.
+        if (slot.structuralStringProperty != null) {
+            int property = slot.structuralStringProperty;
+            String value = Signals.untracked(slot.structuralStringValue);
+            if (!Objects.equals(value, slot.properties.get(property))) {
+                slot.properties.put(property, value);
+                int id = slot.id;
+                ops.add(() -> emitProperty(id, property, value));
+            }
+        }
 
         if (!ops.isEmpty()) {
             sink.beginFrame();

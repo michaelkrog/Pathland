@@ -84,6 +84,17 @@ public final class FrameCodec {
                 strings.writeBytes(utf8);
                 opcodes.add(new Opcode(
                         Categories.EVENT, Commands.Event.TEXT_CHANGED, 0, event.target(), offset, 0));
+            } else if (event.isNavigate()) {
+                if (event.isNavigateBack()) {
+                    opcodes.add(new Opcode(Categories.EVENT, Commands.Event.NAVIGATE, 0, 0, 0, 0));
+                } else {
+                    int offset = strings.size();
+                    byte[] utf8 = event.url().getBytes(StandardCharsets.UTF_8);
+                    writeIntLE(strings, utf8.length);
+                    strings.writeBytes(utf8);
+                    opcodes.add(new Opcode(
+                            Categories.EVENT, Commands.Event.NAVIGATE, Commands.Flags.NAVIGATE_URL, 0, offset, 0));
+                }
             } else if (event.isValueChanged()) {
                 opcodes.add(new Opcode(
                         Categories.EVENT,
@@ -132,6 +143,13 @@ public final class FrameCodec {
             int command = op.command();
             switch (command) {
                 case Commands.Event.TEXT_CHANGED -> events.add(Event.textChanged(op.a(), parsed.stringAt(op.b())));
+                case Commands.Event.NAVIGATE -> {
+                    if ((op.flags() & Commands.Flags.NAVIGATE_URL) != 0) {
+                        events.add(Event.navigate(parsed.stringAt(op.b())));
+                    } else {
+                        events.add(Event.navigateBack());
+                    }
+                }
                 case Commands.Event.VALUE_CHANGED -> events.add(Event.valueChanged(op.a(), Float.intBitsToFloat(op.b())));
                 case Commands.Event.KEY_DOWN -> events.add(Event.keyDown(op.a(), op.b(), op.c(), op.flags()));
                 case Commands.Event.KEY_UP -> events.add(Event.keyUp(op.a(), op.b(), op.c()));
