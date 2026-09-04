@@ -18,12 +18,16 @@ import {
   CMD_SET_DESIGN_TOKEN,
   CMD_SET_PROPERTY,
   CMD_SET_TEXT,
+  COMPONENT_PROGRESS_VIEW,
+  COMPONENT_ZSTACK,
   PROP_BINDING_ID,
   PROP_COLOR_VALUE,
   PROP_ENABLED,
   PROP_FONT_FAMILY,
   PROP_IMAGE_SOURCE,
+  PROP_IS_INDETERMINATE,
   PROP_LABEL,
+  PROP_PROGRESS,
   PROP_PROMPT,
   PROP_ROUTE,
   PROP_SELECTED,
@@ -32,6 +36,7 @@ import {
   PROP_VALUE,
   VAL_DESIGN_TOKEN,
   VAL_STRING,
+  VAL_U8,
 } from "./constants";
 import type { Batch, Opcode } from "./plpl";
 import { readString } from "./plpl";
@@ -39,6 +44,11 @@ import { childrenContainer, createElement } from "./elements";
 import { applyEnabled, applyProperty, applyTokenRefProperty } from "./classes";
 import { createTokenSink, applyDesignToken, type DesignTokenSink } from "./tokens";
 import { argbToHex, daysToIso, f32FromBits, millisToTime } from "./format";
+
+/** Component type per retained node, so STYLE/TREE application can special-case
+ *  per component (a ZSTACK child's absolute positioning, a ProgressView's
+ *  spinner/progress morph) without baking it into the DOM. */
+const componentByNode = new WeakMap<Node, number>();
 
 /** The retained `node id → DOM Node` registry the renderer works against. */
 export interface DomRenderer {
@@ -103,6 +113,9 @@ function applyTree(op: Opcode, r: DomRenderer): void {
         }
         r.byId.set(op.a, el);
       }
+      if (el.nodeType === Node.ELEMENT_NODE) {
+        componentByNode.set(el, op.b);
+      }
       break;
     }
     case CMD_DELETE_NODE: {
@@ -121,6 +134,14 @@ function applyTree(op: Opcode, r: DomRenderer): void {
         // Hydration/idempotent-replay guard: skip when the child is already there
         // (the SSR DOM already holds the initial tree; a resync replays it).
         if (container && !container.contains(child)) {
+          if (componentByNode.get(parent) === COMPONENT_ZSTACK && child instanceof HTMLElement) {
+            // ZStack children overlap: fill the stack (mirrors the Rust renderer's
+            // per-child `position:absolute;inset:0` wrapper).
+            child.style.position = "absolute";
+            child.style.inset = "0";
+            child.style.width = "100%";
+            child.style.height = "100%";
+          }
           insertAt(container, child, op.c);
           maybeAnimateInsert(parent, child);
         }
@@ -255,6 +276,9 @@ function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
         }
       } else if (valueType === VAL_DESIGN_TOKEN) {
         applyTokenRefProperty(el, propId, readString(strings, op.c));
+      } else if (componentByNode.get(el) === COMPONENT_PROGRESS_VIEW
+              && (propId === PROP_IS_INDETERMINATE || propId === PROP_PROGRESS)) {
+        applyProgress(el, r, propId, valueType, op.c);
       } else {
         applyNumericProperty(el, propId, valueType, op.c);
       }
@@ -381,4 +405,52 @@ function applyNumericProperty(el: HTMLElement, propId: number, valueType: number
       applyProperty(el, propId, valueType, bits);
       break;
   }
+}
+
+/**
+ * A ProgressView's indicator properties: morphs the element between the
+ * determinate `<progress>` and the indeterminate `pathland-spinner` div (the
+ * Rust renderer's SSR shapes) and applies the determinate value. Mirrors the
+ * Rust indeterminate rule: `IS_INDETERMINATE != 0 || PROGRESS < 0`.
+ */
+function applyProgress(el: HTMLElement, r: DomRenderer, propId: number, valueType: number, bits: number): void {
+  const on = valueType === VAL_U8 ? bits & 0xff : bits;
+  const indeterminate = propId === PROP_IS_INDETERMINATE ? on !== 0 : f32FromBits(bits) < 0;
+  const el2 = morphProgress(el, r, indeterminate);
+  if (propId === PROP_PROGRESS && el2 instanceof HTMLProgressElement) {
+    const value = Math.min(1, Math.max(0, f32FromBits(bits)));
+    el2.value = value;
+    el2.max = 1;
+  }
+}
+
+/** Replace a ProgressView element between its two shapes, preserving attributes and the byId entry. */
+function morphProgress(el: HTMLElement, r: DomRenderer, wantSpinner: boolean): HTMLElement {
+  const isSpinner = el.classList.contains("pathland-spinner");
+  if (wantSpinner === isSpinner) {
+    return el;
+  }
+  const fresh = wantSpinner
+    ? (() => {
+        const s = document.createElement("div");
+        s.className = "pathland-spinner";
+        return s;
+      })()
+    : (() => {
+        const p = document.createElement("progress");
+        p.max = 1;
+        return p;
+      })();
+  for (const attr of Array.from(el.attributes)) {
+    fresh.setAttribute(attr.name, attr.value);
+  }
+  if (el.parentNode) {
+    el.parentNode.replaceChild(fresh, el);
+  }
+  const id = Number(el.getAttribute("data-pathland-id"));
+  if (id) {
+    r.byId.set(id, fresh);
+  }
+  componentByNode.set(fresh, COMPONENT_PROGRESS_VIEW);
+  return fresh;
 }

@@ -61,8 +61,11 @@ export function createElement(component: number): Node {
     }
     case COMPONENT_TEXT:
       return document.createElement("span");
-    case COMPONENT_BUTTON:
-      return document.createElement("button");
+    case COMPONENT_BUTTON: {
+      const el = document.createElement("button");
+      el.className = "pathland-button"; // mirror the Rust renderer's SSR class
+      return el;
+    }
     case COMPONENT_IMAGE: {
       const el = document.createElement("img");
       el.alt = "";
@@ -70,8 +73,15 @@ export function createElement(component: number): Node {
     }
     case COMPONENT_COLOR:
     case COMPONENT_SHAPE:
-    case COMPONENT_GAUGE:
       return document.createElement("div");
+    case COMPONENT_GAUGE: {
+      // `<div class="pathland-gauge"><div></div></div>` — the bar width is set from
+      // the VALUE property at apply time (mirrors the Rust renderer's SSR markup).
+      const el = document.createElement("div");
+      el.className = "pathland-gauge";
+      el.append(document.createElement("div"));
+      return el;
+    }
     case COMPONENT_DIVIDER:
       return document.createElement("hr");
     case COMPONENT_SPACER: {

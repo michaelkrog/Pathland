@@ -89,6 +89,15 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   existing hydrated element (id already in the registry) and `INSERT_CHILD` skips
   when the child is already in the parent's container — so a resync'd full
   snapshot reconciles against the SSR DOM without clobbering or duplicating.
+- **Runtime shells mirror the Rust renderer** (`src/elements.ts`): runtime-created
+  nodes carry the same `pathland-*` classes/structure as SSR (a reinstated
+  `BUTTON` gets `pathland-button`, `GAUGE` gets its `pathland-gauge` bar shell);
+  a `ZStack` child is absolutely positioned (`position:absolute;inset:0`), and a
+  `ProgressView` morphs between the determinate `<progress>` and the
+  `pathland-spinner` div per `IS_INDETERMINATE`/`PROGRESS` — so a destination
+  reinstated after a navigation swap keeps its styling. A table-driven **drift
+  guard** (`test/elements.test.ts`) pins the canonical shells against the Rust
+  renderer's SSR markup.
 - **`META::RESYNC`** (`encodeResync`): the client requests a full snapshot after
   **reconnect** (never on first connect — the UI is already the SSR HTML).
 - **Transport** (`src/transport.ts`): WebSocket connect, protocol-version
@@ -101,8 +110,9 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   application, design tokens (var mapping, dark scoping, px lengths, generative
   `space.N` refs), event byte layouts (incl. `NAVIGATE`), navigation (ROUTE →
   `onRoute`, transition animation, non-hinted slots), transport lifecycle
-  (reconnect/resync), the logger (level gating, prefix), and the opcode/event
-  descriptors — 108 tests.
+  (reconnect/resync), the logger (level gating, prefix), the opcode/event
+  descriptors, the runtime-shell drift guard, and the ZStack/ProgressView
+  behavior — 138 tests.
 
 ## Not implemented / gaps
 
