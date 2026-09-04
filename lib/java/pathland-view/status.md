@@ -1,6 +1,6 @@
 # pathland-view (Java) — implementation status
 
-**Last updated:** September 2, 2026
+**Last updated:** September 3, 2026
 
 The hand-written, framework-agnostic Java 17+ DSL (`com.pathland.view`):
 SwiftUI-style views, Angular-style signals, fine-grained emitter, `PLPL` wire
@@ -89,6 +89,16 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 - **Emitter** (`emit`): mounts once, stable ids, node-level binding effects
   (a signal change re-emits only that node), `FrameOpcodeSink` /
   `RingOpcodeSink`.
+- **Structural reactivity** (spec DSL.md §3.4): `Conditional.when(Signal<Boolean>,
+  then, else)` and `when(Signal<T>, Case.of(...)...) / Case.otherwise(...)` —
+  statically importable lowercase factories on a final class (mirrors
+  `Signals`; `if`/`switch`/`case`/`else` are Java keywords). A structural
+  container materializes as a `Group` slot (bare `VSTACK` node); the emitter's
+  structural effect reconciles the slot's single child on selector change —
+  position+type-stable ids, `TREE` deltas only, identical recompute emits
+  **zero** opcodes, nested containers work, and the slot's subtree owns its own
+  bindings. `RenderResult` routing maps are now live unmodifiable views (a swap
+  updates tap/text/value/date routing after mount).
 - **Wire codec** (`transport`): `FrameCodec` — self-contained `PLPL` frames
   both directions, `encodeEvents`/`decodeEvents` (host→guest events with
   `TEXT_CHANGED` string-section offsets).
@@ -116,9 +126,14 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 - `ACTION_ID`/`BINDING_ID` are usable as modifiers (`actionId`/`bindingId`) but
   the Java model routes events by node id through the emitter's registries
   (`RenderResult`), so controls don't set them automatically.
+- Structural reconcile does not emit `SET_PROPERTY` for a *removed* property on
+  a matched node (the wire has no unset; the renderer keeps the last value) —
+  consistent with the Rust engine.
 
 ## Verified by
 
-`mvn test` (JDK 17+) — emitter, codec round-trips, signals, state; the JNA ring
-test runs when `libpathland_core` is on `java.library.path`. CI proves every LTS
-from 17 (Temurin 17/21/25).
+`mvn test` (JDK 17+) — emitter, codec round-trips, signals, state, and the
+structural-reactivity suite (`ConditionalTest`: branch-swap `TREE` deltas,
+zero-opcode identical recompute, switch by key, empty slot, nested containers,
+fine-grained reactive content); the JNA ring test runs when `libpathland_core`
+is on `java.library.path`. CI proves every LTS from 17 (Temurin 17/21/25).

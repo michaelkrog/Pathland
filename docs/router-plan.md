@@ -1,6 +1,6 @@
 # Pathland Structural Reactivity + Router — Implementation Plan
 
-**Status:** Approved — in progress (Phase 1 complete)
+**Status:** Approved — in progress (Phases 1–2 complete)
 **Branch:** `feat/router-structural-reactivity`
 **Last Updated:** September 3, 2026
 
@@ -123,17 +123,23 @@ back-stack supplies the stack LVGL lacks).
   dev-dep); lib compiles clean. `wasm32-unknown-unknown` target not installed
   locally (pre-existing).
 
-## Phase 2 — Java structural reactivity (on deck)
+## Phase 2 — Java structural reactivity ✅ complete
 
-11. Emitter subtree reconcile (`Emitter.java`): retained-snapshot diff → `TREE`
-    deltas, mirroring Rust `reconcile_node`; `StructuralEffect` mechanism; no
-    new protocol surface.
-12. `Conditional.when(...)` + `Case.of`/`Case.otherwise`, Group-backed, nested
-    allowed.
-13. Tests: branch-swap deltas; identical structure → zero opcodes; nested
-    `when`; byte parity.
+- `Emitter` subtree reconcile: `reconcileSlot`/`reconcileChildren`/
+  `reconcileNode`/`emitSubtreeInto` — position+type-stable ids, recorded-op
+  replay within one frame, skipped when unchanged (zero opcodes, no frame).
+  Slot subtrees own their bindings (per-node `nodeBindings` map, destroyed on
+  replace); `RenderResult` routing maps are now live unmodifiable views so a
+  swap updates tap/text/value/date routing after mount.
+- `Conditional` (`when(Signal<Boolean>, then, else)` +
+  `when(Signal<T>, Case<T>...)` with `Case.of`/`Case.otherwise`) + a Group-backed
+  `ConditionalWhen` slot view (bare `VSTACK`).
+- `ConditionalTest` (7 tests): branch-swap `TREE` deltas (vector-25 shape),
+  zero-opcode identical recompute, switch by key, empty slot, nested containers
+  with destroyed inner effects, fine-grained reactive content. `mvn -pl
+  pathland-view test` — 47 tests green.
 
-## Phase 3 — Java router (on top)
+## Phase 3 — Java router (on top, on deck)
 
 14. `Route`/`RouteTable`/`Router`/`Location`/`NavigationContainer`/
     `NavigationLink`; `ROUTE` + `TRANSITION` props; `NAVIGATE` → `RenderResult`

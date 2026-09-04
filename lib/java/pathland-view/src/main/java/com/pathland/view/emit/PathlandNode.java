@@ -1,5 +1,6 @@
 package com.pathland.view.emit;
 
+import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 
 import java.util.ArrayList;
@@ -7,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * A node in the retained view tree — the app's canonical tree, produced by
@@ -62,6 +64,15 @@ public final class PathlandNode {
 
     /** Writable date-input sink (date pickers); the emitter routes DATE_CHANGED into it. */
     public DateInput dateInput;
+
+    /**
+     * Structural slot: when non-null this node's single child subtree is selected by
+     * a signal and **reconciled** by the emitter on selector change (spec DSL.md §3.4).
+     * The emitter re-evaluates the supplier (which reads the selector signal) and
+     * diffs the resulting subtree against the retained one, emitting only `TREE`
+     * deltas. All other reactivity stays fine-grained.
+     */
+    public Supplier<View> structuralContent;
 
     public PathlandNode(int component) {
         this.component = component;

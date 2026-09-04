@@ -7,6 +7,11 @@ import java.util.function.Consumer;
  * The result of mounting a view tree: the root node id and the event-routing maps. The
  * host forwards raw input events into these maps — it never reaches into view internals.
  *
+ * <p>The routing maps are <b>live unmodifiable views</b> of the emitter's maps: a
+ * structural reconcile (spec DSL.md §3.4 — a {@code Conditional.when} branch swap, a
+ * navigation destination change) adds/removes entries after mount, and a host reading
+ * the maps per event sees the current routing.
+ *
  * @param rootId      the retained tree's root node id
  * @param tapActions  node id → pointer-up action
  * @param textInputs  node id → text-input sink (TEXT_CHANGED)
