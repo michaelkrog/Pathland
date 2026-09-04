@@ -1,8 +1,8 @@
 # Pathland Structural Reactivity + Router — Implementation Plan
 
-**Status:** Approved — in progress (Phases 1–3 complete)
+**Status:** Approved — in progress (Phases 0–3, 5a/5b, 6 complete)
 **Branch:** `feat/router-structural-reactivity`
-**Last Updated:** September 3, 2026
+**Last Updated:** September 4, 2026
 
 ---
 
@@ -117,11 +117,11 @@ back-stack supplies the stack LVGL lacks).
 - **Finding:** `pathland-engine` has **no general STRING-property diff path**
   (numeric `properties` + design-token refs only). `TRANSITION` (F32) is
   handled generically today; `ROUTE` (STRING) needs a small string-property
-  capability when the Rust router lands (Phase 3). Recorded in
+  capability when the Rust router lands (Phase 4). Recorded in
   `pathland-core/status.md`.
-- **Env note:** full `pathland-core-transport` tests need pkg-config (GTK
-  dev-dep); lib compiles clean. `wasm32-unknown-unknown` target not installed
-  locally (pre-existing).
+- **Env:** `pkg-config` + GTK4 and the `wasm32-unknown-unknown` target are now
+  installed locally, so the full workspace builds/tests and the wasm guard
+  runs — nothing is build-blocked anymore.
 
 ## Phase 2 — Java structural reactivity ✅ complete
 
@@ -170,7 +170,7 @@ back-stack supplies the stack LVGL lacks).
     `pathland-engine` so the slot can emit `ROUTE` (STRING) — `TRANSITION`
     (F32) needs nothing.
 
-## Phase 5 — Renderers + DOM client (5a/5b ✅, 5c blocked)
+## Phase 5 — Renderers + DOM client (5a/5b ✅, 5c pending)
 
 17. ✅ `pathland-render-html`: a slot's `ROUTE` (STRING) renders as
     `data-pathland-route` and `TRANSITION` as `data-pathland-transition`
@@ -178,11 +178,12 @@ back-stack supplies the stack LVGL lacks).
     The Java `NavigationContainer` now emits a `TRANSITION` PlatformDefault hint.
 18. ✅ `lib/typescript`: `onRoute` hook → `history.pushState` (never on hydrate);
     `popstate` → `NAVIGATE` event over `/ws` (`encodeNavigate`/`encodeNavigateBack`);
-    fade/slide/scale swap animation for transition-hinted slots. 93 tests +
-    typecheck + build green.
-19. ⏸ `pathland-render-gtk`: Escape/back → `NAVIGATE` (no payload) — **blocked on
-    pkg-config** (GTK dev build unavailable locally); code unchanged, recorded in
-    `pathland-render-gtk/status.md` as pending.
+    fade/slide/scale swap animation for transition-hinted slots; tiny
+    zero-dependency logger with opcode/event receive-emit logging; runtime
+    element shells mirror the Rust renderer (buttons keep `pathland-button`
+    after a navigation swap — drift-guard test). 138 tests + typecheck + build.
+19. ⏸ `pathland-render-gtk`: Escape/back → `NAVIGATE` (no payload) — **pending**
+    (was blocked on pkg-config; now unblocked — GTK4 is installed).
 
 ## Phase 6 — Demos + status ✅ (runnable in the browser)
 
@@ -222,3 +223,44 @@ the server reply with `ROUTE "/users"` + the destination swap — in both demos.
 - `replaceState` for `replace()` (needs a wire distinction from `pushState`).
 - Per-destination enter/exit transitions; multi-outlet/nested routers; a true
   passthrough `Group` protocol component; typed route params.
+- **STEPPER SSR/runtime divergence**: the Rust renderer emits a native
+  `<input type="number">`, the DOM client builds the custom `pathland-stepper`
+  shell — a design decision to reconcile.
+
+---
+
+## Session handoff (September 4, 2026)
+
+**Branch:** `feat/router-structural-reactivity` — 13 commits, working tree
+clean. Phases 0–3, 5a/5b, 6 are complete and verified (Rust full workspace
+incl. GTK + wasm guard, `mvn install`, TS 138 tests). `pkg-config` + GTK4 and
+the `wasm32-unknown-unknown` target are installed — nothing is build-blocked.
+
+### Continuation todos (recommended order)
+
+- [ ] **Phase 5c** — `pathland-render-gtk`: map Escape/back → `Event::Navigate
+  { url: None }` through the event ring; `cargo test -p pathland-render-gtk`;
+  run `cargo run -p pathland-render-gtk-demo` to exercise the desktop path.
+- [ ] **Rust engine string-property diff (Prerequisite B)** — add
+  `string_properties: BTreeMap<u16, String>` to the engine `Node` + diff
+  emission → `SET_PROPERTY` STRING (lets a Rust `NavigationContainer` emit
+  `ROUTE`; generalizes `LABEL`/`PROMPT`/`FONT_FAMILY`).
+- [ ] **Rust DSL signal surface (Prerequisite A)** — `pathland-view` is
+  structural-only today (DSL.md §10): add `Text(SignalId)`, signal modifier
+  overloads, `TextField` writable binding, `Button` action wiring over
+  `pathland-core::signal`.
+- [ ] **Phase 4 — Rust router** — `pathland-view::router`: `Route`/`RouteTable`/
+  `Router` over `pathland-core::signal`, `NavigationContainer` (Group slot
+  emitting `ROUTE`), `NavigationLink`; GTK demo (Home → Users → UserDetail `:id`).
+- [ ] **STEPPER SSR/runtime reconciliation** (design decision: native number
+  input vs the custom `pathland-stepper` shell).
+- [ ] **`replaceState` wire distinction** so `replace()` → `replaceState`.
+- [ ] **`.transition(...)` Java modifier** — expose the `TRANSITION` hint.
+- [ ] **Java conformance byte-parity** for vectors 21–27 (structural swap,
+  `ROUTE`, `NAVIGATE`, `ENVIRONMENT`).
+- [ ] **`/ws` plain-GET consistency** (Spring serves HTML; make 404).
+- [ ] **Web back-button history refinement** — app-initiated `pop()` currently
+  pushes a new history entry; use `replaceState`/`history.back()` for pops.
+
+Start with the plan-doc refresh (this section), then Phase 5c — the quick win
+that completes Phase 5.
