@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   encodeDateChanged,
   encodeEditingChanged,
+  encodeEnvironment,
   encodeFocusChanged,
   encodeKeyDown,
   encodeKeyUp,
@@ -20,8 +21,10 @@ import {
 } from "../src/events";
 import {
   CAT_EVENT,
+  CAT_META,
   CMD_DATE_CHANGED,
   CMD_EDITING_CHANGED,
+  CMD_ENVIRONMENT,
   CMD_FOCUS_CHANGED,
   CMD_KEY_DOWN,
   CMD_KEY_UP,
@@ -33,6 +36,9 @@ import {
   CMD_TEXT_CHANGED,
   CMD_VALUE_CHANGED,
   CMD_WHEEL,
+  ENV_ROUTE,
+  ENV_VIEWPORT_HEIGHT,
+  ENV_VIEWPORT_WIDTH,
   FLAG_NAVIGATE_URL,
   HEADER_SIZE,
   MAGIC,
@@ -157,5 +163,19 @@ describe("event encoders", () => {
     expect(op.command).toBe(CMD_NAVIGATE);
     expect(op.flags).toBe(0);
     expect(op.a).toBe(0);
+  });
+
+  it("encodeEnvironment carries viewport + route as a META::ENVIRONMENT field batch", () => {
+    const batch = parseBatch(encodeEnvironment(800, 600, "/users/42"));
+    const ops = batch.opcodes;
+    expect(ops).toHaveLength(3);
+    expect(ops.every((op) => op.category === CAT_META && op.command === CMD_ENVIRONMENT)).toBe(true);
+
+    const width = ops.find((op) => op.a === ENV_VIEWPORT_WIDTH)!;
+    const height = ops.find((op) => op.a === ENV_VIEWPORT_HEIGHT)!;
+    const route = ops.find((op) => op.a === ENV_ROUTE)!;
+    expect(new Float32Array(new Uint32Array([width.b]).buffer)[0]).toBe(800);
+    expect(new Float32Array(new Uint32Array([height.b]).buffer)[0]).toBe(600);
+    expect(readString(batch.strings, route.b)).toBe("/users/42");
   });
 });

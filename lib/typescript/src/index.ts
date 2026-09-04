@@ -8,6 +8,7 @@ import { Transport } from "./transport";
 import {
   encodeDateChanged,
   encodeEditingChanged,
+  encodeEnvironment,
   encodeFocusChanged,
   encodeKeyDown,
   encodeKeyUp,
@@ -79,8 +80,21 @@ function boot(): void {
   const transport = new Transport({
     url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`,
     renderer,
+    // The platform environment (viewport + current route) is the FIRST message:
+    // the server session seeds its router from the ROUTE field before mount, so a
+    // deep-linked URL renders the right destination (spec DSL.md §4.5).
+    onOpen: (t) =>
+      t.send(encodeEnvironment(window.innerWidth, window.innerHeight, location.pathname)),
   });
   transport.start();
+
+  // Enrich the environment after connect: a window resize re-emits the viewport
+  // fields (the mechanism future platform fields ride too).
+  window.addEventListener("resize", () => {
+    if (transport.open) {
+      transport.send(encodeEnvironment(window.innerWidth, window.innerHeight, location.pathname));
+    }
+  });
 
   // URL mirroring (spec DSL.md §4.5): the server emits the route as ROUTE; we push
   // it into the history so the browser URL follows the app. pushState never fires

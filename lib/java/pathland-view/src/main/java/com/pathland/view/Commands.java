@@ -47,11 +47,20 @@ public final class Commands {
     /** META commands. */
 public static final class Meta {
             public static final int RESET = 0x01;
+            /** Platform environment field (host → guest): `A=fieldId, B=value`. See {@link Environment}. */
             public static final int ENVIRONMENT = 0x02;
             /** The host (renderer) requests a full snapshot of the current tree (host → guest). */
             public static final int RESYNC = 0x03;
             private Meta() {}
         }
+
+    /** `META::ENVIRONMENT` field ids (spec/OPCODE.md §Environment fields). */
+    public static final class Environment {
+        public static final int VIEWPORT_WIDTH = 0x0001;
+        public static final int VIEWPORT_HEIGHT = 0x0002;
+        public static final int ROUTE = 0x0003;
+        private Environment() {}
+    }
 
     /** Flag bits shared across categories. */
     public static final class Flags {

@@ -42,6 +42,10 @@ public class PathlandSocket extends AbstractWebSocketHandler {
             byte[] bytes = toByteArray(binary.getPayload());
             if (FrameCodec.isResync(bytes)) {
                 service.resync(sessionId(session));
+            } else if (FrameCodec.isEnvironment(bytes)) {
+                // The DOM client's FIRST message: seeds the session (created lazily) from
+                // the ROUTE field; later messages enrich the environment (viewport, …).
+                service.environment(sessionId(session), FrameCodec.decodeEnvironment(bytes));
             } else {
                 service.dispatch(sessionId(session), bytes);
             }

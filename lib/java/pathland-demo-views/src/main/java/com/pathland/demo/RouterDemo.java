@@ -37,6 +37,7 @@ public final class RouterDemo implements View {
         Router[] link = new Router[1]; // destinations capture the router (built below)
         Router router = new Router(RouteTable.builder()
                 .route("/", p -> home(link[0]))
+                .route("/kitchen", p -> new KitchenSinkView())
                 .route("/users", p -> users(link[0]))
                 .route("/users/:id", p -> userDetail(link[0], p.get("id")))
                 .route("/admin", p -> false, "/", p -> Text.of("Admin")) // guard always redirects home
@@ -58,6 +59,7 @@ public final class RouterDemo implements View {
                 NavigationLink.of("Users", router, "/users"),
                 NavigationLink.of("User 1", router, "/users/1"),
                 NavigationLink.of("User 2", router, "/users/2"),
+                NavigationLink.of("Kitchen sink", router, "/kitchen"),
                 NavigationLink.of("Admin (guarded)", router, "/admin"));
     }
 

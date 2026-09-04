@@ -32,6 +32,11 @@ export const CMD_RESET = 0x01;
 export const CMD_ENVIRONMENT = 0x02;
 export const CMD_RESYNC = 0x03;
 
+// META::ENVIRONMENT field ids (spec/OPCODE.md §Environment fields)
+export const ENV_VIEWPORT_WIDTH = 0x0001;
+export const ENV_VIEWPORT_HEIGHT = 0x0002;
+export const ENV_ROUTE = 0x0003;
+
 // EVENT commands (host -> guest)
 export const CMD_POINTER_DOWN = 0x01;
 export const CMD_POINTER_MOVE = 0x02;

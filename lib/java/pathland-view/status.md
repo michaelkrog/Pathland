@@ -114,7 +114,10 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
   router through `RenderResult.navigateHandler`.
 - **Wire codec** (`transport`): `FrameCodec` — self-contained `PLPL` frames
   both directions, `encodeEvents`/`decodeEvents` (host→guest events with
-  `TEXT_CHANGED` string-section offsets).
+  `TEXT_CHANGED` string-section offsets), and **`META::ENVIRONMENT`**
+  (`isEnvironment`/`decodeEnvironment` → `EnvironmentData` — the platform
+  environment: viewport + initial route; SSR synthesizes it from the request,
+  the DOM client sends/enriches it over the WebSocket).
 - **JNA ring interop** (`ffm`): lazy `libpathland_core` binding, zero JNI.
 - **State** (`state`): `StateStore`/`PersistentState`/`State`, auto-wired by
   `pathland-view-processor`.

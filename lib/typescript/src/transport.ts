@@ -19,6 +19,12 @@ export interface TransportOptions {
   /** Invoked after a batch is successfully applied (P3: resync/frameCount hooks). */
   onBatch?: (batch: Batch) => void;
   onStatus?: (status: TransportStatus) => void;
+  /**
+   * Invoked on every socket open (first connect and reconnect), before any RESYNC —
+   * the DOM client sends its `META::ENVIRONMENT` (viewport + route) here as the first
+   * message so the server session seeds from it.
+   */
+  onOpen?: (transport: Transport) => void;
   /** Injectable socket factory (tests). */
   createSocket?: (url: string) => WebSocket;
 }
@@ -75,10 +81,12 @@ export class Transport {
     ws.onopen = () => {
       // A reconnect means the client missed deltas while disconnected: request a
       // full snapshot (META::RESYNC). The first connect never does — the client
-      // already has the whole UI from the SSR HTML.
+      // already has the whole UI from the SSR HTML. On EVERY open (before any
+      // resync) the client sends its environment (viewport + route).
       const reconnected = this.attempt > 0;
       this.attempt = 0;
       this.options.onStatus?.("open");
+      this.options.onOpen?.(this);
       if (reconnected) {
         this.send(encodeResync());
       }

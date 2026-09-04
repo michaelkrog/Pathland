@@ -94,11 +94,27 @@ pub mod event {
 pub mod meta {
     /// Host must clear all rendered output.
     pub const RESET: u8 = 0x01;
-    /// `A=viewportWidth (f32), B=viewportHeight (f32)` (host → guest)
+    /// `A=fieldId (u16, low), B=field value` — a platform environment field
+    /// (host → guest); see [`crate::environment`]. An extensible field family:
+    /// each opcode sets one field (viewport, initial route, …).
     pub const ENVIRONMENT: u8 = 0x02;
     /// The host (renderer) requests a full snapshot of the current tree
     /// (host → guest). `A/B/C = 0`. Used for reconnect/gap recovery.
     pub const RESYNC: u8 = 0x03;
+}
+
+/// Environment field ids for `META::ENVIRONMENT` (host → guest).
+///
+/// Each opcode sets one platform environment field; new fields are new ids, never
+/// new commands (spec/OPCODE.md §Environment fields).
+pub mod environment {
+    /// Viewport width in logical points (f32 in `B`).
+    pub const VIEWPORT_WIDTH: u16 = 0x0001;
+    /// Viewport height in logical points (f32 in `B`).
+    pub const VIEWPORT_HEIGHT: u16 = 0x0002;
+    /// The initial route/deep-link path (STRING: `B` is a string-section/event-arena
+    /// offset — the `TEXT_CHANGED`/`NAVIGATE` dual convention).
+    pub const ROUTE: u16 = 0x0003;
 }
 
 /// Flag bits used across categories.

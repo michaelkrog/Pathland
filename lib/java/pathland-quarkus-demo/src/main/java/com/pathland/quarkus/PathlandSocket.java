@@ -51,6 +51,10 @@ public class PathlandSocket {
     void onBinary(byte[] message) {
         if (FrameCodec.isResync(message)) {
             app.resync(sessionId());
+        } else if (FrameCodec.isEnvironment(message)) {
+            // The DOM client's FIRST message: seeds the session (created lazily) from
+            // the ROUTE field; later messages enrich the environment (viewport, …).
+            app.environment(sessionId(), FrameCodec.decodeEnvironment(message));
         } else {
             app.dispatch(sessionId(), message);
         }

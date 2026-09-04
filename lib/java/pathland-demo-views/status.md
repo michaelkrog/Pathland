@@ -36,18 +36,19 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
   covered by `CounterViewTest`).
 - **`RouterDemo`** — the shared routing demo (spec DSL.md §4.5): Home → Users →
   UserDetail(`:id`) with `NavigationLink`s, a guarded `/admin` (redirects home),
-  and a 404 fallback. `RouterDemo.router(initialPath)` builds the demo's route
-  table + a `Router` seeded with the host's initial path (a request URL on SSR);
-  the view is a `NavigationContainer`. Consumed by both demos' `SessionApp`
-  (which now forward `NAVIGATE` events into `RenderResult.navigateHandler`).
+  a 404 fallback, and `/kitchen` (the full `KitchenSinkView` showcase, now a
+  route). `RouterDemo.router(initialPath)` builds the demo's route table + a
+  `Router`; the view is a `NavigationContainer`. Both demos' `SessionApp` mount
+  it as the **root** and seed the router from the applied `META::ENVIRONMENT`
+  `ROUTE` field (a request URL on SSR, the DOM client's first message on the
+  WebSocket), so deep links render correctly on the first frame; `NAVIGATE`
+  events forward into `RenderResult.navigateHandler`.
 
 ## Not implemented / gaps
 
 - The browser experience depends on the `@pathland/dom-renderer` client
   (`lib/typescript`, built to `dist/pathland-dom-renderer.js` and copied into
   each demo's `src/main/resources`).
-- The demos' root is still `KitchenSinkView`; making `RouterDemo` the root (or a
-  route) and wiring deep-link URL seeding into the SSR endpoints is a follow-up.
 
 ## Verified by
 
@@ -55,3 +56,6 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
 `KitchenSinkViewTest` (mount + persistence + input routing), and
 `RouterDemoTest` (host-seeded first frame, guard-on-initial-URL redirect,
 `NavigationLink` push through the tap registry, `NAVIGATE` event routing).
+Both SSR demos are verified by running them and curling the deep links
+(`/users/42` renders `User 42` + `data-pathland-route="/users/42"`; guards,
+fallback, and the JS bundle all correct).

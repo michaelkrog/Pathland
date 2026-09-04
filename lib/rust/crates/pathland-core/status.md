@@ -31,7 +31,10 @@ tracks what this crate implements.
   drafts `TRANSITION` (0x1031) and `ROUTE` (0x2019, STRING)).
 - **Commands**: `TREE` create/delete/insert/remove/move (append = `u32::MAX`);
   `STYLE` `SET_PROPERTY`/`SET_DESIGN_TOKEN`/`SET_TEXT`/`SET_DATE`; `META`
-  `RESET`/`ENVIRONMENT`.
+  `RESET`/`ENVIRONMENT`/`RESYNC`. `META::ENVIRONMENT` is the extensible
+  platform-environment field family (`environment::VIEWPORT_WIDTH`/
+  `VIEWPORT_HEIGHT`/`ROUTE` — the `ROUTE` string uses the `TEXT_CHANGED`/
+  `NAVIGATE` dual convention).
 - **Typed `Event` enum**: pointer/key/value/text events (0x01–0x07) plus the
   draft `FocusChanged`, `EditingChanged`, `Submit`, `Scroll`, `Wheel`,
   `DateChanged` (0x08–0x0D) and `Navigate` (0x0E) — all encode/decode
@@ -62,14 +65,18 @@ tracks what this crate implements.
   ring, guest arena, host→guest **event arena** (two-way string section — a
   host `send_event(TextChanged)` round-trips text over the shared ring).
 - **Conformance vectors** (`conformance.rs`): TREE/STYLE/META/EVENT golden
-  bytes **incl. vectors 17–18, 20–24** (`SET_DESIGN_TOKEN` (COLOR +
+  bytes **incl. vectors 17–18, 20–27** (`SET_DESIGN_TOKEN` (COLOR +
   STRING-valued), `DESIGN_TOKEN`-typed `SET_PROPERTY`, `NAVIGATE`±URL,
-  `ROUTE`, `TRANSITION`) and a ring test proving `Guest::set_design_token`
-  emits vector 17 byte-exactly; `cargo test` enforces them.
+  `ROUTE`, `TRANSITION`, `META::ENVIRONMENT` VIEWPORT_WIDTH + ROUTE) and a ring
+  test proving `Guest::set_design_token` emits vector 17 byte-exactly;
+  `cargo test` enforces them.
 
 ## Not implemented / gaps
 
-- `ENVIRONMENT` (`META`) is a constant only (no viewport plumbing).
+- `ENVIRONMENT` (`META`) is a constant + the field-id family; the **string
+  codec over the shared ring** (event-arena absolute offset for a `ROUTE`
+  field) and a native emitter are not wired yet — the web path encodes/decodes
+  it in the TS client + Java `FrameCodec` (batch string section).
 - Enum *value* codes (e.g. `TOGGLE_STYLE=Switch=0`) are used inline; there are
   no named value constants.
 - No **general STRING-property diff path** in `pathland-engine` (the engine

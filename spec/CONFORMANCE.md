@@ -452,6 +452,39 @@ new destination 6 — the frame of `TREE` deltas a reconcile emits:
 An identical recompute (same structure, same ids) emits **zero** opcodes — the
 reconcile is a diff.
 
+### 26. META:ENVIRONMENT (VIEWPORT_WIDTH=0x0001, width=800.0)
+
+An environment field opcode: `A` = field id, `B` = the field value. `800.0`
+(f32 LE: 0x44480000).
+
+```
+04 02 00 00 01 00 00 00 00 00 48 44 00 00 00 00
+```
+
+- `04` category = META
+- `02` command = ENVIRONMENT
+- `00 00` flags = 0
+- `01 00 00 00` A = fieldId = 0x0001 (VIEWPORT_WIDTH)
+- `00 00 48 44` B = 800.0 (f32 LE: 0x44480000)
+- `00 00 00 00` C = 0
+
+### 27. META:ENVIRONMENT (ROUTE=0x0003, string offset 0)
+
+A STRING-valued environment field: `B` is a string-section/event-arena offset
+(the dual convention of `TEXT_CHANGED`/`NAVIGATE`) to the initial route —
+`"/users/42"`.
+
+```
+04 02 00 00 03 00 00 00 00 00 00 00 00 00 00 00
+```
+
+- `04` category = META
+- `02` command = ENVIRONMENT
+- `00 00` flags = 0
+- `03 00 00 00` A = fieldId = 0x0003 (ROUTE)
+- `00 00 00 00` B = string offset = 0 (`"/users/42"`)
+- `00 00 00 00` C = 0
+
 ---
 
 ## Design-Token Resolution Conformance

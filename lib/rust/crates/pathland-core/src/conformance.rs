@@ -178,6 +178,24 @@ pub(crate) const VECTORS: &[(&str, [u8; 16])] = &[
             0x00, 0x00, 0x40, 0x40, // C = 3.0 (f32 LE: 0x40400000) = Slide
         ],
     ),
+    (
+        "META:ENVIRONMENT (VIEWPORT_WIDTH=0x0001, width=800.0)",
+        [
+            0x04, 0x02, 0x00, 0x00, // category META, command ENVIRONMENT
+            0x01, 0x00, 0x00, 0x00, // A = fieldId = 0x0001 (VIEWPORT_WIDTH)
+            0x00, 0x00, 0x48, 0x44, // B = 800.0 (f32 LE: 0x44480000)
+            0x00, 0x00, 0x00, 0x00, // C = 0
+        ],
+    ),
+    (
+        "META:ENVIRONMENT (ROUTE=0x0003, string offset 0)",
+        [
+            0x04, 0x02, 0x00, 0x00, // category META, command ENVIRONMENT
+            0x03, 0x00, 0x00, 0x00, // A = fieldId = 0x0003 (ROUTE)
+            0x00, 0x00, 0x00, 0x00, // B = string offset = 0 ("/users/42")
+            0x00, 0x00, 0x00, 0x00, // C = 0
+        ],
+    ),
 ];
 
 #[cfg(test)]
@@ -282,6 +300,8 @@ mod tests {
                 3.0f32.to_bits(),
                 VECTORS[18].1,
             ),
+            (0x04, 0x02, 0x0000, 0x0001, 800.0f32.to_bits(), 0, VECTORS[19].1),
+            (0x04, 0x02, 0x0000, 0x0003, 0, 0, VECTORS[20].1),
         ];
         for (cat, cmd, flags, a, b, c, expected) in cases {
             let op = Opcode::new(*cat, *cmd, *flags, *a, *b, *c);

@@ -1,7 +1,7 @@
 package com.pathland.spring;
 
 import com.pathland.demo.DemoTheme;
-import com.pathland.demo.KitchenSinkView;
+import com.pathland.demo.RouterDemo;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
 import com.pathland.view.emit.DateInput;
@@ -9,8 +9,10 @@ import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.emit.RenderResult;
+import com.pathland.view.router.Router;
 import com.pathland.view.state.PersistentState;
 import com.pathland.view.state.StateStore;
+import com.pathland.view.transport.EnvironmentData;
 import com.pathland.view.transport.Event;
 import com.pathland.view.transport.FrameCodec;
 import org.springframework.web.socket.BinaryMessage;
@@ -23,11 +25,18 @@ import java.util.function.Consumer;
  * One Pathland application instance per WebSocket connection (1:1). Identical to the
  * Quarkus {@code SessionApp} except for the WebSocket transport type ({@link WebSocketSession}
  * instead of {@code WebSocketConnection}) — the view, state, and emitter code is shared.
+ *
+ * <p>The platform environment (spec/OPCODE.md §Environment fields) seeds the app: the
+ * router hydrates from its {@code ROUTE} field before mount (a request URL on SSR; the
+ * DOM client's first message over the WebSocket), so a deep-linked URL renders the
+ * right destination on the first frame. Later environment messages **enrich** the
+ * session (viewport resizes, future fields) via {@link #applyEnvironment}.
  */
 final class SessionApp {
 
     private final PersistentState state;
-    private final KitchenSinkView root;
+    private final Router router;
+    private final RouterDemo root;
 
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
@@ -38,11 +47,15 @@ final class SessionApp {
     private final Consumer<Event> navigateHandler;
     private final int rootId;
 
+    private float viewportWidth = -1f;
+    private float viewportHeight = -1f;
+
     private volatile WebSocketSession session;
 
-    SessionApp(String sessionId, StateStore store) {
+    SessionApp(String sessionId, StateStore store, EnvironmentData env) {
         this.state = new PersistentState(store, sessionId);
-        this.root = new KitchenSinkView();
+        this.router = RouterDemo.router(env.route());
+        this.root = RouterDemo.of(router);
 
         this.sink = new FrameOpcodeSink() {
             @Override
@@ -67,6 +80,20 @@ final class SessionApp {
         this.dateInputs = result.dateInputs();
         this.navigateHandler = result.navigateHandler();
         this.rootId = result.rootId();
+        applyEnvironment(env); // records viewport; the router already seeded from env.route()
+    }
+
+    /** Apply (or enrich) the platform environment after mount (viewport resizes, …). */
+    void applyEnvironment(EnvironmentData env) {
+        if (!env.route().equals(router.path())) {
+            router.navigate(env.route()); // re-route if the platform moved (idempotent)
+        }
+        if (env.viewportWidth() > 0) {
+            viewportWidth = env.viewportWidth();
+        }
+        if (env.viewportHeight() > 0) {
+            viewportHeight = env.viewportHeight();
+        }
     }
 
     void connect(WebSocketSession session) {

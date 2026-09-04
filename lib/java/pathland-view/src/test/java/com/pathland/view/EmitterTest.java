@@ -10,9 +10,11 @@ import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.WritableSignal;
 import com.pathland.view.signal.Signals;
 import com.pathland.view.transport.Event;
+import com.pathland.view.transport.EnvironmentData;
 import com.pathland.view.transport.FrameCodec;
 import org.junit.jupiter.api.Test;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
@@ -225,6 +227,36 @@ class EmitterTest {
         assertEquals(1, result.valueInputs().size(), "the value control exposes one input sink");
         result.valueInputs().values().iterator().next().accept(0.75f);
         assertEquals(0.75f, value.get(), "VALUE_CHANGED writes straight into the bound signal");
+    }
+
+    @Test
+    void environmentCodecDetectsAndDecodesTheFieldBatch() {
+        // The DOM client's first message (spec vector 26/27): VIEWPORT_WIDTH,
+        // VIEWPORT_HEIGHT, and ROUTE (a string in the batch's string section).
+        Opcode width = new Opcode(Categories.META, Commands.Meta.ENVIRONMENT, 0,
+                Commands.Environment.VIEWPORT_WIDTH, Float.floatToRawIntBits(800f), 0);
+        Opcode height = new Opcode(Categories.META, Commands.Meta.ENVIRONMENT, 0,
+                Commands.Environment.VIEWPORT_HEIGHT, Float.floatToRawIntBits(600f), 0);
+        byte[] routeBytes = "/users/42".getBytes(StandardCharsets.UTF_8);
+        byte[] strings = new byte[4 + routeBytes.length];
+        strings[0] = (byte) routeBytes.length; // [u32 len][bytes], len < 256
+        System.arraycopy(routeBytes, 0, strings, 4, routeBytes.length);
+        Opcode route = new Opcode(Categories.META, Commands.Meta.ENVIRONMENT, 0,
+                Commands.Environment.ROUTE, 0, 0);
+        byte[] batch = FrameCodec.encodeFrame(new Frame(List.of(width, height, route), strings));
+
+        assertTrue(FrameCodec.isEnvironment(batch), "the batch carries ENVIRONMENT fields");
+        assertFalse(FrameCodec.isEnvironment(FrameCodec.encodeResync()), "a resync is not an environment");
+
+        EnvironmentData env = FrameCodec.decodeEnvironment(batch);
+        assertEquals("/users/42", env.route());
+        assertEquals(800f, env.viewportWidth());
+        assertEquals(600f, env.viewportHeight());
+
+        // Normalization: SSR synthesis without a viewport, and blank/missing routes.
+        assertEquals("/", EnvironmentData.of(null).route());
+        assertEquals("/users/7", EnvironmentData.of("users/7").route(), "missing slash is added");
+        assertEquals(-1f, EnvironmentData.of("/").viewportWidth());
     }
 
     @Test

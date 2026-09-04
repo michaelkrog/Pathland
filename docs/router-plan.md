@@ -184,18 +184,27 @@ back-stack supplies the stack LVGL lacks).
     pkg-config** (GTK dev build unavailable locally); code unchanged, recorded in
     `pathland-render-gtk/status.md` as pending.
 
-## Phase 6 — Demos + status (core ✅, demo-root switch deferred)
+## Phase 6 — Demos + status ✅ (runnable in the browser)
 
-20. ✅ `pathland-demo-views`: shared `RouterDemo` (Home → Users → UserDetail
-    `:id`, a guarded `/admin`, a 404 fallback) + `RouterDemoTest` (4 tests).
-    Both Quarkus and Spring `SessionApp` now forward raw `NAVIGATE` events into
-    `RenderResult.navigateHandler` (the session's router). 60 + 9 Java tests,
-    demo modules compile.
-    ⏸ Follow-up: make `RouterDemo` the demo root (or a route) and wire deep-link
-    URL seeding into the SSR endpoints (`IndexResource`/controller catch-all).
-21. ✅ **status.md updates** (per AGENTS.md): `pathland-core`,
+20. ✅ The initial route is part of the **platform environment** (user-driven
+    design revision): `META::ENVIRONMENT` became the extensible field family
+    (`VIEWPORT_WIDTH`/`VIEWPORT_HEIGHT`/`ROUTE`, spec/OPCODE.md §Environment
+    fields). **SSR** synthesizes it from the HTTP request (catch-alls in both
+    demos); the **DOM client** sends it (viewport + route) as its first WS
+    message and **enriches** it after connect (window-resize re-emits viewport).
+    Sessions are created **lazily on the first message** so the router seeds
+    from the `ROUTE` field before mount — deep links render correctly on the
+    first frame and the WS tree stays consistent with the SSR HTML.
+21. ✅ `pathland-demo-views`: `RouterDemo` is the demo root (with `/kitchen`
+    keeping the showcase); both `SessionApp` apply the environment
+    (seed + `applyEnvironment` enrichment) and forward `NAVIGATE` events.
+22. ✅ **Verified in the browser**: both demos run; `curl /users/42` →
+    `User 42` + `data-pathland-route="/users/42"`; `/admin` guard redirects;
+    `/nope` fallback; JS bundle served. 76 Java tests + 61 TS tests + core
+    vectors 26–27 green.
+23. ✅ **status.md updates** (per AGENTS.md): `pathland-core`,
     `pathland-core-transport`, `lib/java/pathland-view`, `pathland-render-html`,
-    `lib/typescript`, `pathland-demo-views` — all in their landing changes.
+    `lib/typescript`, `pathland-demo-views` — in their landing changes.
 
 ## Open follow-ups
 

@@ -388,13 +388,18 @@ whatever destination subtree the app emits and **may** animate a swap when the
 - The route is a **plain signal — not persisted**. On the web the URL is the
   persistence layer (the DOM client mirrors it via `pushState`/`popstate`); on
   native the route is per-session.
-- The **host seeds the initial route before mount** with `navigate(...)` (a
-  request URL on SSR; a configured route or platform deep-link on native), so
-  the first frame is already correct and the initial URL flows through the same
-  route-table/guard matching as any navigation. The app never models the
-  platform's location handling — history adaptation (`pushState` /
-  `replaceState` / back) is a renderer/DOM-client translation of the `ROUTE`
-  property and the `NAVIGATE` event.
+- The initial route is delivered as a **`META::ENVIRONMENT` `ROUTE` field**
+  (host → guest platform environment, OPCODE.md — the same message that carries
+  the viewport): on SSR the host synthesizes it from the HTTP request (the
+  request path — all the request offers), and over the WebSocket the DOM client
+  sends it (with the viewport) as its **first** message and later **enriches**
+  the environment (a window-resize re-emits the viewport; future platform
+  fields arrive the same way). The application applies the environment
+  uniformly — the router hydrates from the `ROUTE` field before mount, so a
+  deep-link request renders the right destination on the first frame. The app
+  never models the platform's location handling — history adaptation
+  (`pushState` / `replaceState` / back) is a renderer/DOM-client translation of
+  the `ROUTE` property and the `NAVIGATE` event.
 
 **URL sync (web)** — the app owns state; the browser mirrors it:
 

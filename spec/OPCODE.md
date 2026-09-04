@@ -355,8 +355,32 @@ element.
 | Command | Value | A | B | C | Description |
 |---------|-------|---|---|---|-------------|
 | `RESET` | `0x01` | 0 | 0 | 0 | Host must clear all rendered output |
-| `ENVIRONMENT` | `0x02` | viewportWidth (f32) | viewportHeight (f32) | 0 | Viewport size in logical points (host → guest) |
+| `ENVIRONMENT` | `0x02` | fieldId (u16, low) | field value | 0 | A platform environment field (host → guest) — see [Environment fields](#environment-fields) |
 | `RESYNC` | `0x03` | 0 | 0 | 0 | The host (renderer) requests a **full snapshot** of the current tree (host → guest). The guest answers with a single full-snapshot batch (the same TREE + STYLE stream as a mount). Used for reconnect/gap recovery and no-JS refresh. |
+
+#### Environment fields
+
+`META::ENVIRONMENT` is an **extensible field family** (mirroring
+`STYLE::SET_PROPERTY`): each opcode sets one platform environment field, so
+any number of fields ride one batch and new fields are new ids — never new
+commands. The platform (renderer / DOM client / SSR host) delivers the
+application's launch context this way; an HTTP request supplies what it offers,
+and the WebSocket connection **enriches** the environment after connect
+(viewport, native deep-links, and future fields all arrive the same way).
+
+| Field | Value | `B` encoding | Notes |
+|-------|-------|--------------|-------|
+| `VIEWPORT_WIDTH` | `0x0001` | f32 | Logical points |
+| `VIEWPORT_HEIGHT` | `0x0002` | f32 | Logical points |
+| `ROUTE` | `0x0003` | string offset | The initial route/deep-link path. String convention is the `TEXT_CHANGED`/`NAVIGATE` dual: absolute offset into the host → guest **event arena** over the shared ring, *relative* offset into the batch's string section over the network. |
+
+**Delivery** (spec DSL.md §4.5): on SSR the host synthesizes the environment
+from the HTTP request (`ROUTE` = request path — all the request offers); over
+the WebSocket the DOM client sends it (viewport + `ROUTE`) as its first message
+and re-sends it to **enrich** after connect (a window-resize re-emits the
+viewport fields). The application applies the environment uniformly — the
+router hydrates from the `ROUTE` field before mount, so a deep-link renders
+correctly on the first frame.
 
 ---
 

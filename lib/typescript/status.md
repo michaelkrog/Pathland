@@ -57,8 +57,14 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   `KEY_DOWN`/`KEY_UP` (keyCode + modifiers + repeat), `VALUE_CHANGED` (f32 or
   raw bits), `TEXT_CHANGED` (string section), `DATE_CHANGED`, `FOCUS_CHANGED`,
   `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL`, **`NAVIGATE`** (`encodeNavigate`
-  URL in the string section + `NAVIGATE_URL` flag; `encodeNavigateBack` no URL) —
-  guest → host (flags `0x0000`).
+  URL in the string section + `NAVIGATE_URL` flag; `encodeNavigateBack` no URL),
+  and **`META::ENVIRONMENT`** (`encodeEnvironment(width, height, route)`) — guest →
+  host (flags `0x0000`).
+- **Platform environment** (spec/OPCODE.md §Environment fields): the client sends
+  `encodeEnvironment` as its **first** WS message (`transport.ts` `onOpen`, before
+  any resync) so the server session seeds its router from the `ROUTE` field, and
+  re-sends it on `window.resize` to **enrich** the environment after connect
+  (viewport + future fields ride the same message).
 - **URL mirroring + back/forward** (spec DSL.md §4.5): a slot's `ROUTE`
   (STRING) property updates `data-pathland-route` and fires the `onRoute` hook
   (`src/index.ts` wires it to `history.pushState` — never called on hydrate, so

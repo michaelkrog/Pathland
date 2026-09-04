@@ -72,6 +72,40 @@ public final class FrameCodec {
         return false;
     }
 
+    /** True when the batch carries `META::ENVIRONMENT` fields (host → guest). */
+    public static boolean isEnvironment(byte[] bytes) {
+        Parsed parsed = parse(bytes);
+        for (Opcode op : parsed.opcodes()) {
+            if (op.category() == Categories.META && op.command() == Commands.Meta.ENVIRONMENT) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Decode a `META::ENVIRONMENT` field batch into {@link EnvironmentData}. */
+    public static EnvironmentData decodeEnvironment(byte[] bytes) {
+        Parsed parsed = parse(bytes);
+        String route = null;
+        float width = -1f;
+        float height = -1f;
+        for (Opcode op : parsed.opcodes()) {
+            if (op.category() != Categories.META || op.command() != Commands.Meta.ENVIRONMENT) {
+                continue;
+            }
+            switch (op.a() & 0xFFFF) {
+                case Commands.Environment.VIEWPORT_WIDTH ->
+                        width = Float.intBitsToFloat(op.b());
+                case Commands.Environment.VIEWPORT_HEIGHT ->
+                        height = Float.intBitsToFloat(op.b());
+                case Commands.Environment.ROUTE ->
+                        route = parsed.stringAt(op.b());
+                default -> { }
+            }
+        }
+        return new EnvironmentData(route, width, height);
+    }
+
     /** Encode host → guest events as a batch (binary EVENT opcodes + string section). */
     public static byte[] encodeEvents(List<Event> events) {
         List<Opcode> opcodes = new ArrayList<>(events.size());
