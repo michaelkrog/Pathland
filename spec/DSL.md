@@ -385,11 +385,16 @@ whatever destination subtree the app emits and **may** animate a swap when the
   `navigate` / `push` / `pop` / `replace` / `back`. `push` appends; `pop` /
   `back` step back; `navigate` / `replace` set the current route. The current
   path is emitted as the `ROUTE` property on the container slot.
-- The initial route is **hydrated from the environment** at mount: the host
-  injects it (a request URL on SSR; a configured route or platform deep-link on
-  native). The app never models the platform's location handling — history
-  adaptation (`pushState` / `replaceState` / back) is a renderer/DOM-client
-  translation of the `ROUTE` property and the `NAVIGATE` event.
+- The route is a **plain signal — not persisted**. On the web the URL is the
+  persistence layer (the DOM client mirrors it via `pushState`/`popstate`); on
+  native the route is per-session.
+- The **host seeds the initial route before mount** with `navigate(...)` (a
+  request URL on SSR; a configured route or platform deep-link on native), so
+  the first frame is already correct and the initial URL flows through the same
+  route-table/guard matching as any navigation. The app never models the
+  platform's location handling — history adaptation (`pushState` /
+  `replaceState` / back) is a renderer/DOM-client translation of the `ROUTE`
+  property and the `NAVIGATE` event.
 
 **URL sync (web)** — the app owns state; the browser mirrors it:
 
@@ -808,9 +813,9 @@ are the companion specs.
   the slot into `TREE` deltas with zero opcodes for identical structure
   ([§3.4](#34-structural-reactivity-conditional-rendering)).
 - [ ] **Navigation** — `Router` / `RouteTable` / `NavigationContainer` /
-  `NavigationLink`, hydrating the initial route from the environment, emitting
-  `ROUTE` and `TRANSITION` and consuming the `NAVIGATE` event
-  ([§4.5](#45-navigation)).
+  `NavigationLink` over a plain `Signal<Route>`, the initial route host-seeded
+  before mount, emitting `ROUTE` and `TRANSITION` and consuming the `NAVIGATE`
+  event ([§4.5](#45-navigation)).
 - [ ] **Design tokens & theming** — a token surface: token-typed values usable
   in style modifiers (a `Color` accepting a token path, e.g. `Color.token("color.primary")`
   or the language's equivalent), a theme/override helper emitting

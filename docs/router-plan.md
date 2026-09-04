@@ -148,11 +148,12 @@ back-stack supplies the stack LVGL lacks).
   a path, `handleEvent`), `NavigationContainer` (structural slot; **ROUTE
   property coalesced into the same frame** as the destination swap via a generic
   slot STRING property), `NavigationLink` (BUTTON that pushes).
-  **Design revision:** no `Location` abstraction — the initial route is
-  **carried in the `Environment`** (`env.initialRoute()`, host-injected: request
-  URL on SSR, configured route/deep-link on native) and the router hydrates from
-  it at mount. The app never models the platform's location handling; history
-  adaptation is renderer-owned.
+  **Design revision (final):** no `Location` abstraction and no environment-carried
+  route. The route is a **plain `WritableSignal<Route>`** owned by the `Router`
+  (not persisted — the URL is the web's persistence layer; native is per-session),
+  and the **host seeds it before mount** with `router.navigate(requestUrl)` so the
+  initial URL flows through the same route-table/guard matching and the first SSR
+  frame is correct. History adaptation is renderer-owned.
 - `RenderResult.navigateHandler` — a live global sink hosts forward raw
   `NAVIGATE` events into the router; `Event.navigate`/`navigateBack` wire
   round-trip through `FrameCodec`.

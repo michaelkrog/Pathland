@@ -19,11 +19,17 @@ import java.util.Objects;
  *
  * <p>Navigation never touches a renderer: {@code navigate}/{@code push}/{@code pop}/
  * {@code replace}/{@code back} write the signal; the emitter does the rest. The app
- * never models the platform's location handling — the initial route is **hydrated
- * from the environment at mount** (the host injects it: a request URL on SSR, a
- * configured route or deep-link on native), and platform back/browser {@code popstate}
- * arrive as raw {@code NAVIGATE} events routed through {@link #handleEvent(Event)}
- * (the host forwards them from the {@code RenderResult.navigateHandler} sink).
+ * never models the platform's location handling — the host seeds the initial route
+ * with {@link #navigate(String)} **before mount** (a request URL on SSR, a configured
+ * route or deep-link on native), so the first frame is already correct and the initial
+ * URL flows through the same route-table/guard matching as any navigation. Platform
+ * back / browser {@code popstate} arrive as raw {@code NAVIGATE} events routed through
+ * {@link #handleEvent(Event)} (the host forwards them from the
+ * {@code RenderResult.navigateHandler} sink).
+ *
+ * <p>The route is a **plain signal** — not persisted. On the web the URL is the
+ * persistence layer (the DOM client mirrors it via {@code pushState}/{@code popstate});
+ * on native the route is per-session.
  *
  * <p>Guards: a {@code RouteTable} guard that fails resolves to a redirect, which this
  * router applies as a {@link #replace(String)} (no back-stack entry).
@@ -32,32 +38,21 @@ public final class Router {
 
     private final RouteTable table;
     private final Deque<Route> stack = new ArrayDeque<>();
-    private WritableSignal<Route> current; // seeded at mount from the environment
+    private final WritableSignal<Route> current = Signals.signal(Route.of("/"));
 
-    /** A router over {@code table}; the route signal is seeded at mount. */
+    /** A router over {@code table}; seed the initial route with {@link #navigate(String)} before mount. */
     public Router(RouteTable table) {
         this.table = Objects.requireNonNull(table, "table");
     }
 
-    /**
-     * Seed the route signal from the environment's initial route (idempotent; the
-     * {@code NavigationContainer} calls this at mount). Falls back to {@code /} when the
-     * host provided none.
-     */
-    void hydrate(Route initial) {
-        if (current == null) {
-            current = Signals.signal(initial != null ? initial : Route.of("/"));
-        }
-    }
-
     /** The current route signal — the structural container's selector. */
     public Signal<Route> routeSignal() {
-        return seeded().asReadonly();
+        return current.asReadonly();
     }
 
     /** The current route. */
     public Route current() {
-        return seeded().get();
+        return current.get();
     }
 
     /** The current path (query/fragment stripped). */
@@ -143,14 +138,6 @@ public final class Router {
             return null; // no match, no fallback → the slot is empty
         }
         return match.handler().destination(match.params());
-    }
-
-    private WritableSignal<Route> seeded() {
-        if (current == null) {
-            throw new IllegalStateException(
-                    "Router not hydrated: mount a NavigationContainer so it can seed from the environment");
-        }
-        return current;
     }
 
     private void go(Route route) {

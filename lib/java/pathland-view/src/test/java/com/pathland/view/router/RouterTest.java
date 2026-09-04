@@ -49,9 +49,11 @@ class RouterTest {
         return new FrameOpcodeSink();
     }
 
-    /** An environment carrying the session's initial route (host-injected on SSR/native). */
-    private static Environment env(String path) {
-        return new Environment(null, Route.of(path));
+    /** The router seeded the way a host seeds it before mount: {@code navigate(initialPath)}. */
+    private static Router seeded(String path) {
+        Router router = new Router(table());
+        router.navigate(path);
+        return router;
     }
 
     private static RouteTable table() {
@@ -83,7 +85,7 @@ class RouterTest {
     void mountRendersInitialDestinationAndEmitsRoute() {
         Router router = new Router(table());
         FrameOpcodeSink sink = sink();
-        RenderResult result = new Emitter(sink).mount(NavigationContainer.of(router), env("/"));
+        RenderResult result = new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
 
         Frame frame = sink.frame();
         Opcode route = frame.opcodes().stream()
@@ -97,15 +99,14 @@ class RouterTest {
     }
 
     @Test
-    void environmentSuppliesTheInitialRoute() {
-        // On SSR the host injects the request URL; the router hydrates from it at mount,
-        // so the first frame renders the right destination without a spurious navigation.
-        Router router = new Router(table());
+    void hostSeedsTheInitialRouteBeforeMount() {
+        // On SSR the host seeds the router with the request URL before mount, so the
+        // first frame renders the right destination with no spurious navigation.
         FrameOpcodeSink sink = sink();
-        new Emitter(sink).mount(NavigationContainer.of(router), env("/users"));
+        new Emitter(sink).mount(NavigationContainer.of(seeded("/users")), Environment.DEFAULT);
 
         Frame frame = sink.frame();
-        assertEquals("Users", lastText(frame), "the environment's initial route rendered");
+        assertEquals("Users", lastText(frame), "the host-seeded initial route rendered");
         Opcode route = frame.opcodes().stream()
                 .filter(o -> o.category() == Categories.STYLE
                         && o.command() == Commands.Style.SET_PROPERTY
@@ -115,10 +116,28 @@ class RouterTest {
     }
 
     @Test
+    void initialUrlGuardRedirectsOnTheFirstFrame() {
+        // The host seeds through navigate(...), so a request to a guarded URL resolves
+        // its redirect BEFORE mount — the first frame shows the redirect target, not the
+        // guarded destination.
+        FrameOpcodeSink sink = sink();
+        new Emitter(sink).mount(NavigationContainer.of(seeded("/admin")), Environment.DEFAULT);
+
+        Frame frame = sink.frame();
+        assertEquals("Home", lastText(frame), "a failing guard on the initial URL redirects");
+        Opcode route = frame.opcodes().stream()
+                .filter(o -> o.category() == Categories.STYLE
+                        && o.command() == Commands.Style.SET_PROPERTY
+                        && (o.b() & 0xFFFF) == Properties.ROUTE)
+                .findFirst().orElseThrow();
+        assertEquals("/", frame.stringAt(route.c()), "ROUTE carries the redirect target");
+    }
+
+    @Test
     void navigateSwapsDestinationAndEmitsTheRouteProperty() {
         Router router = new Router(table());
         FrameOpcodeSink sink = sink();
-        new Emitter(sink).mount(NavigationContainer.of(router), env("/"));
+        new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
 
         router.navigate("/users");
         Frame delta = sink.frame();
@@ -146,7 +165,7 @@ class RouterTest {
                 .build();
         Router router = new Router(table);
         FrameOpcodeSink sink = sink();
-        new Emitter(sink).mount(NavigationContainer.of(router), env("/"));
+        new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
 
         router.navigate("/plain"); // VSTACK destination -> TEXT destination
         Frame delta = sink.frame();
@@ -160,7 +179,7 @@ class RouterTest {
     void pushAndPopManageTheBackStack() {
         Router router = new Router(table());
         FrameOpcodeSink sink = sink();
-        new Emitter(sink).mount(NavigationContainer.of(router), env("/"));
+        new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
 
         router.push("/users");
         router.push("/users/42");
@@ -178,7 +197,7 @@ class RouterTest {
     void routeParamsReachTheDestination() {
         Router router = new Router(table());
         FrameOpcodeSink sink = sink();
-        new Emitter(sink).mount(NavigationContainer.of(router), env("/"));
+        new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
 
         router.navigate("/users/42");
         Frame delta = sink.frame();
@@ -195,7 +214,7 @@ class RouterTest {
     @Test
     void guardRedirectsInsteadOfMounting() {
         Router router = new Router(table());
-        new Emitter(sink()).mount(NavigationContainer.of(router), env("/"));
+        new Emitter(sink()).mount(NavigationContainer.of(router), Environment.DEFAULT);
 
         router.navigate("/admin"); // guard always fails -> redirect "/"
         assertEquals("/", router.current().path(), "a failing guard replaces to the redirect target");
@@ -205,7 +224,7 @@ class RouterTest {
     void fallbackServesUnknownPaths() {
         Router router = new Router(table());
         FrameOpcodeSink sink = sink();
-        new Emitter(sink).mount(NavigationContainer.of(router), env("/"));
+        new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
 
         router.navigate("/no-such-path");
         Frame delta = sink.frame();
@@ -223,7 +242,7 @@ class RouterTest {
     void navigateEventRoutesIntoTheRouter() {
         Router router = new Router(table());
         FrameOpcodeSink sink = sink();
-        RenderResult result = new Emitter(sink).mount(NavigationContainer.of(router), env("/"));
+        RenderResult result = new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
 
         assertNotNull(result.navigateHandler(), "NAVIGATE sink exposed on RenderResult");
 
@@ -250,7 +269,7 @@ class RouterTest {
                 return node;
             }
         };
-        RenderResult result = new Emitter(sink).mount(root, env("/"));
+        RenderResult result = new Emitter(sink).mount(root, Environment.DEFAULT);
 
         assertTrue(result.tapActions().size() >= 1, "the link exposes a tap action");
         result.tapActions().values().iterator().next().run();
@@ -261,7 +280,7 @@ class RouterTest {
     void navigatingToTheCurrentPathIsEqualitySuppressed() {
         Router router = new Router(table());
         FrameOpcodeSink sink = sink();
-        new Emitter(sink).mount(NavigationContainer.of(router), env("/"));
+        new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
         int frames = sink.framesProduced();
 
         router.navigate("/");

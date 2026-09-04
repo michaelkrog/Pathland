@@ -105,12 +105,12 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
   (`Signal<Route>` + back-stack; `navigate`/`push`/`pop`/`replace`/`back`,
   `handlePlatformNavigation`/`handleEvent`), `NavigationContainer` (structural
   slot emitting the `ROUTE` property coalesced into the same frame as the
-  destination swap), `NavigationLink` (a `BUTTON` that pushes). The initial
-  route is **carried in the `Environment`** (`Environment(PersistentState,
-  Route)` / `initialRoute()`) and hydrated at mount — the app never models the
-  platform's location handling. A `NAVIGATE` event
-  (`Event.navigate(url)` / `Event.navigateBack()`, wire round-trip via
-  `FrameCodec`) routes into the router through `RenderResult.navigateHandler`.
+  destination swap), `NavigationLink` (a `BUTTON` that pushes). The route is a
+  **plain signal** (not persisted; the URL is the web's persistence layer) and
+  the host **seeds it before mount** via `navigate(...)` — no `Location`, no
+  environment-carried route. A `NAVIGATE` event (`Event.navigate(url)` /
+  `Event.navigateBack()`, wire round-trip via `FrameCodec`) routes into the
+  router through `RenderResult.navigateHandler`.
 - **Wire codec** (`transport`): `FrameCodec` — self-contained `PLPL` frames
   both directions, `encodeEvents`/`decodeEvents` (host→guest events with
   `TEXT_CHANGED` string-section offsets).

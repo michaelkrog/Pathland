@@ -36,7 +36,6 @@ public final class NavigationContainer implements View {
 
     @Override
     public PathlandNode render(Environment env) {
-        router.hydrate(env.initialRoute()); // seed from the host-injected route (idempotent)
         PathlandNode node = new PathlandNode(Components.VSTACK); // Group-backed slot
         node.structuralContent = router::destination; // reads the route signal (tracked)
         View selected = router.destination();
