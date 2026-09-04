@@ -5,6 +5,7 @@
 
 import type { DomRenderer } from "./apply";
 import { Transport } from "./transport";
+import { log } from "./log";
 import {
   encodeDateChanged,
   encodeEditingChanged,
@@ -76,6 +77,7 @@ function boot(): void {
   for (const el of document.querySelectorAll<HTMLElement>("[data-pathland-id]")) {
     byId.set(Number(el.getAttribute("data-pathland-id")), el);
   }
+  log.info(undefined, `dom-renderer boot — hydrated ${byId.size} nodes`);
   const renderer: DomRenderer = { byId };
   const transport = new Transport({
     url: `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`,
@@ -83,8 +85,11 @@ function boot(): void {
     // The platform environment (viewport + current route) is the FIRST message:
     // the server session seeds its router from the ROUTE field before mount, so a
     // deep-linked URL renders the right destination (spec DSL.md §4.5).
-    onOpen: (t) =>
-      t.send(encodeEnvironment(window.innerWidth, window.innerHeight, location.pathname)),
+    onOpen: (t) => {
+      const { innerWidth: w, innerHeight: h } = window;
+      log.info("route", `environment: viewport ${w}x${h}, route "${location.pathname}"`);
+      t.send(encodeEnvironment(w, h, location.pathname));
+    },
   });
   transport.start();
 
@@ -92,6 +97,7 @@ function boot(): void {
   // fields (the mechanism future platform fields ride too).
   window.addEventListener("resize", () => {
     if (transport.open) {
+      log.debug("route", `viewport resize -> ${window.innerWidth}x${window.innerHeight}`);
       transport.send(encodeEnvironment(window.innerWidth, window.innerHeight, location.pathname));
     }
   });
@@ -99,11 +105,15 @@ function boot(): void {
   // URL mirroring (spec DSL.md §4.5): the server emits the route as ROUTE; we push
   // it into the history so the browser URL follows the app. pushState never fires
   // popstate, so server-originated navigation can't loop back into NAVIGATE events.
-  renderer.onRoute = (path) => history.pushState(null, "", path);
+  renderer.onRoute = (path) => {
+    log.info("route", `server navigated -> pushState("${path}")`);
+    history.pushState(null, "", path);
+  };
 
   // Browser back/forward: popstate has already moved the URL; report it to the
   // server as a NAVIGATE event so the app routes (and re-emits the destination).
   window.addEventListener("popstate", () => {
+    log.info("route", `popstate -> NAVIGATE("${location.href}")`);
     if (transport.open) {
       transport.send(encodeNavigate(location.href));
     }

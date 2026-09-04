@@ -1,6 +1,6 @@
 # @pathland/dom-renderer (lib/typescript) — implementation status
 
-**Last updated:** September 3, 2026
+**Last updated:** September 4, 2026
 
 The **Pathland DOM renderer** — the web client. A vanilla-TypeScript hydration
 client (no runtime dependencies) that is the single source of the client,
@@ -16,6 +16,14 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   duplicated `app.js` is removed.
 - **Hydration**: builds the `data-pathland-id → element` registry from the SSR
   DOM.
+- **Logging** (`src/log.ts`, `src/describe.ts`): a tiny **zero-dependency**
+  logger (levels + `[pathland:ns]` namespaces, default `info`; opt into
+  `debug` with `window.__PATHLAND_LOG_LEVEL="debug"` or
+  `?pathland-log=debug`). Meaningful **receive/emit** logging of opcodes and
+  events — `→ send EVENT POINTER_UP(target=4, …)`, `← recv frame=7 (2 ops):
+  STYLE SET_PROPERTY(ROUTE="/users", …)`, plus lifecycle (connect/reconnect,
+  `pushState`, `popstate`, environment) — with a full per-opcode trace at
+  `debug` (`src/describe.ts`).
 - **PLPL decode** (`src/plpl.ts`): bounds-checked batch parse — magic/version
   validation, truncated-opcode/string rejection, length-prefixed string reads.
 - **Full delta application** (`src/apply.ts`):
@@ -92,8 +100,9 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
 - **Tests** (`test/`, vitest + happy-dom): codec round-trips, TREE/STYLE/META
   application, design tokens (var mapping, dark scoping, px lengths, generative
   `space.N` refs), event byte layouts (incl. `NAVIGATE`), navigation (ROUTE →
-  `onRoute`, transition animation, non-hinted slots), and one golden assertion
-  per property/enum — 93 tests.
+  `onRoute`, transition animation, non-hinted slots), transport lifecycle
+  (reconnect/resync), the logger (level gating, prefix), and the opcode/event
+  descriptors — 108 tests.
 
 ## Not implemented / gaps
 
