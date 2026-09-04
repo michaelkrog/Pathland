@@ -83,6 +83,11 @@ pub mod event {
     /// **Draft.** `A=targetId, B=days since epoch (I32), C=millis of day (U32)`
     /// — a `DATE_PICKER`'s value changed (matches `STYLE::SET_DATE`).
     pub const DATE_CHANGED: u8 = 0x0D;
+    /// **Draft.** Global navigation request (host → guest), never node-keyed.
+    /// With the `NAVIGATE_URL` flag, `B` is a string offset (event arena /
+    /// batch string section) to the destination URL; without it, the event means
+    /// "back one step" (native back affordance) and `B`/`C` are ignored.
+    pub const NAVIGATE: u8 = 0x0E;
 }
 
 /// Commands within the `META` category.
@@ -106,6 +111,9 @@ pub mod flag {
     pub const HOVER_LEAVE: u16 = 0x0002;
     /// `KEY_DOWN`: key repeat (bit 1).
     pub const KEY_REPEAT: u16 = 0x0002;
+    /// `NAVIGATE`: `B` is a URL string offset (bit 0). Without this flag the
+    /// event is a back request.
+    pub const NAVIGATE_URL: u16 = 0x0001;
 }
 
 /// Bits for the `EVENT_LISTENERS` semantic property (a u32 bitmask).
@@ -383,6 +391,11 @@ pub mod property_id {
     pub const ALLOWS_HIT_TESTING: u16 = 0x102F;
     /// **Draft.** Accent/tint color (COLOR). `.tint(_:)`.
     pub const TINT: u16 = 0x1030;
+    /// **Draft.** Presentation hint for structural swaps (F32 enum code):
+    /// `None`=0, `PlatformDefault`=1, `Fade`=2, `Slide`=3, `Scale`=4 — emitted
+    /// by a `NavigationContainer`/`Conditional.when` slot; the renderer may
+    /// animate the swap and must render normally when it ignores the hint.
+    pub const TRANSITION: u16 = 0x1031;
     // Semantic (0x2000 range)
     pub const ROLE: u16 = 0x2001;
     pub const STATE: u16 = 0x2002;
@@ -430,6 +443,9 @@ pub mod property_id {
     /// **Draft.** Visual style token for a `TOGGLE` (F32 enum code):
     /// `Switch`=0, `Checkbox`=1, `Button`=2.
     pub const TOGGLE_STYLE: u16 = 0x2018;
+    /// **Draft.** Current navigation path (STRING, arenaRef), emitted by a
+    /// `NavigationContainer` slot; drives web URL sync.
+    pub const ROUTE: u16 = 0x2019;
 }
 
 /// The protocol value type for a property id.
@@ -463,9 +479,11 @@ pub fn value_type_for(prop: u16) -> u8 {
         | property_id::ALLOWS_HIT_TESTING
         | property_id::FIXED_SIZE_HORIZONTAL
         | property_id::FIXED_SIZE_VERTICAL => value_type::U8,
-        property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY | property_id::IMAGE_SOURCE => {
-            value_type::STRING
-        }
+        property_id::LABEL
+        | property_id::PROMPT
+        | property_id::FONT_FAMILY
+        | property_id::IMAGE_SOURCE
+        | property_id::ROUTE => value_type::STRING,
         property_id::LINE_LIMIT
         | property_id::SELECTION
         | property_id::ACTION_ID

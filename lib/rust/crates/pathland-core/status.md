@@ -1,6 +1,6 @@
 # pathland-core — implementation status
 
-**Last updated:** August 28, 2026
+**Last updated:** September 3, 2026
 
 The **protocol core**: 16-byte opcode, SPSC ring buffers (both directions),
 bump arenas (both directions), memory layout, typed events, and the golden
@@ -27,13 +27,18 @@ tracks what this crate implements.
   `ROTATION_DEGREES`/`SCALE`/`ALLOWS_HIT_TESTING`, control drafts
   `STEP_VALUE`/`CONTROL_SIZE`/`IS_SECURE`/`PROGRESS`/`IS_INDETERMINATE`/
   `SELECTION`/`COLOR_VALUE`/`DATE_PICKER_MODE`/`PICKER_STYLE`,
-  `ACTION_ID`/`BINDING_ID`/`TOGGLE_STYLE`, `IMAGE_SOURCE`).
+  `ACTION_ID`/`BINDING_ID`/`TOGGLE_STYLE`, `IMAGE_SOURCE`, plus the navigation
+  drafts `TRANSITION` (0x1031) and `ROUTE` (0x2019, STRING)).
 - **Commands**: `TREE` create/delete/insert/remove/move (append = `u32::MAX`);
   `STYLE` `SET_PROPERTY`/`SET_DESIGN_TOKEN`/`SET_TEXT`/`SET_DATE`; `META`
   `RESET`/`ENVIRONMENT`.
 - **Typed `Event` enum**: pointer/key/value/text events (0x01–0x07) plus the
   draft `FocusChanged`, `EditingChanged`, `Submit`, `Scroll`, `Wheel`,
-  `DateChanged` (0x08–0x0D) — all encode/decode round-trip.
+  `DateChanged` (0x08–0x0D) and `Navigate` (0x0E) — all encode/decode
+  round-trip. `Navigate { url: Some(_) }` resolves its URL from the event arena
+  / batch string section (same dual convention as `TEXT_CHANGED`);
+  `Navigate { url: None }` is a native back request (decodes from a bare
+  opcode).
 - **`Guest::set_date`** helper (`STYLE::SET_DATE`).
 - **`Guest::set_design_token`** helper (`STYLE::SET_DESIGN_TOKEN`): global token
   override (`path` arena string, `valueType`, `value`), incl. `dark.`-prefixed
@@ -57,19 +62,23 @@ tracks what this crate implements.
   ring, guest arena, host→guest **event arena** (two-way string section — a
   host `send_event(TextChanged)` round-trips text over the shared ring).
 - **Conformance vectors** (`conformance.rs`): TREE/STYLE/META/EVENT golden
-  bytes **incl. vectors 17–18 and 20** (`SET_DESIGN_TOKEN` (COLOR +
-  STRING-valued), `DESIGN_TOKEN`-typed `SET_PROPERTY`) and a ring test proving
-  `Guest::set_design_token` emits vector 17 byte-exactly; `cargo test` enforces
-  them.
+  bytes **incl. vectors 17–18, 20–24** (`SET_DESIGN_TOKEN` (COLOR +
+  STRING-valued), `DESIGN_TOKEN`-typed `SET_PROPERTY`, `NAVIGATE`±URL,
+  `ROUTE`, `TRANSITION`) and a ring test proving `Guest::set_design_token`
+  emits vector 17 byte-exactly; `cargo test` enforces them.
 
 ## Not implemented / gaps
 
 - `ENVIRONMENT` (`META`) is a constant only (no viewport plumbing).
 - Enum *value* codes (e.g. `TOGGLE_STYLE=Switch=0`) are used inline; there are
   no named value constants.
+- No **general STRING-property diff path** in `pathland-engine` (the engine
+  stores numeric properties + design-token refs only). `ROUTE` (STRING) will
+  need a small string-property capability when the Rust router lands (Phase 3);
+  `TRANSITION` (F32) is handled by the generic property diff today.
 
 ## Verified by
 
 `cargo test -p pathland-core` — conformance vectors, opcode round-trips,
-arena, ring, event-ring (incl. shared-ring `TEXT_CHANGED` round-trip and
-`META::RESET` event-arena recycle), randomized tests.
+arena, ring, event-ring (incl. shared-ring `TEXT_CHANGED` + `Navigate` round
+trips and `META::RESET` event-arena recycle), randomized tests.

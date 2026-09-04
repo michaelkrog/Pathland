@@ -584,11 +584,11 @@ impl<'a> Host<'a> {
     /// 16-byte `EVENT` opcode. The renderer reports inputs here; the guest
     /// drains them via [`Guest::drain_events`].
     ///
-    /// `TextChanged` text is bump-allocated into the host → guest **event
-    /// arena** and referenced by its absolute offset in `B` (the `SET_TEXT`
-    /// shared-memory convention); the guest resolves it from the same region.
-    /// If the event arena is full the event is rejected with [`RingError::Full`]
-    /// (backpressure).
+    /// `TextChanged` text and `Navigate` URLs are bump-allocated into the
+    /// host → guest **event arena** and referenced by their absolute offset in
+    /// `B` (the `SET_TEXT` shared-memory convention); the guest resolves them
+    /// from the same region. If the event arena is full the event is rejected
+    /// with [`RingError::Full`] (backpressure).
     pub fn send_event(&mut self, event: &Event) -> Result<(), RingError> {
         let mask = slot_mask(self.header);
         let op = match event {
@@ -596,6 +596,18 @@ impl<'a> Host<'a> {
                 let offset = crate::arena::alloc_event(&mut self.event_arena, self.header, value.as_bytes())
                     .map_err(|_| RingError::Full)?;
                 Opcode::new(category::EVENT, crate::event::TEXT_CHANGED, 0, *target, offset, 0)
+            }
+            Event::Navigate { url: Some(url) } => {
+                let offset = crate::arena::alloc_event(&mut self.event_arena, self.header, url.as_bytes())
+                    .map_err(|_| RingError::Full)?;
+                Opcode::new(
+                    category::EVENT,
+                    crate::event::NAVIGATE,
+                    crate::flag::NAVIGATE_URL,
+                    0,
+                    offset,
+                    0,
+                )
             }
             _ => event.encode(),
         };

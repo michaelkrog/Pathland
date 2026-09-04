@@ -127,6 +127,35 @@ fn event_ring_reports_full() {
     }
 
     #[test]
+    fn navigate_round_trips_over_the_shared_ring() {
+        let mut m = Memory::new(MemoryLayout::default());
+
+        {
+            let mut h = m.host();
+            h.send_event(&Event::Navigate {
+                url: Some("/users/42".into()),
+            })
+            .unwrap();
+            h.send_event(&Event::Navigate { url: None }).unwrap();
+        }
+
+        let mut g = m.guest();
+        assert_eq!(
+            g.drain_events(),
+            vec![
+                Event::Navigate {
+                    url: Some("/users/42".into())
+                },
+                Event::Navigate { url: None },
+            ]
+        );
+        assert!(g.drain_events().is_empty());
+
+        // The event arena cursor advanced past the URL entry (4-byte length prefix + 9 bytes).
+        assert_eq!(g.event_arena_cursor(), 4 + 9);
+    }
+
+    #[test]
     fn guest_set_date_emits_the_set_date_command() {
         use pathland_core::{component_type, style};
 

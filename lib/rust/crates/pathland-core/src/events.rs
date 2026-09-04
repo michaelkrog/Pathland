@@ -16,10 +16,12 @@ use crate::Opcode;
 
 /// A raw-input event (host → guest).
 ///
-/// `Event` is **not** `Copy`: [`Event::TextChanged`] owns the new field text.
-/// Simple events round-trip through `encode`/`try_from` as pure 16-byte
-/// opcodes; `TextChanged` is encoded/decoded at the batch level (its text
-/// lives in the batch's string section, referenced by a relative offset).
+/// `Event` is **not** `Copy`: [`Event::TextChanged`] owns the new field text
+/// and [`Event::Navigate`] owns an optional URL. Simple events round-trip
+/// through `encode`/`try_from` as pure 16-byte opcodes; `TextChanged` and
+/// `Navigate` with a URL are encoded/decoded at the batch level (their strings
+/// live in the string section / event arena, referenced by a relative/absolute
+/// offset).
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     /// Pointer button pressed at a viewport-relative point.
@@ -95,15 +97,21 @@ pub enum Event {
         days: i32,
         millis: u32,
     },
+    /// A global navigation request (host → guest). Draft command 0x0E; never
+    /// node-keyed. `url: Some(...)` carries the destination URL the platform
+    /// navigated to (browser `popstate`/back/forward/deep-link), resolved from
+    /// the string section / event arena; `url: None` is a native back request.
+    Navigate { url: Option<String> },
 }
 
 impl Event {
     /// Encode this event as a 16-byte opcode.
     ///
-    /// `TextChanged` cannot be fully encoded here — its text lives in the
-    /// batch's string section — so this emits the opcode with a zero `B`
-    /// offset; the batch-aware `encode_events`/`decode_events` pair in
-    /// `pathland-core-transport` writes the text and its real offset.
+    /// `TextChanged` and `Navigate` with a URL cannot be fully encoded here —
+    /// their strings live in the batch's string section / event arena — so this
+    /// emits the opcode with a zero `B` offset; the batch-aware
+    /// `encode_events`/`decode_events` pair in `pathland-core-transport` writes
+    /// the string and its real offset.
     pub fn encode(&self) -> Opcode {
         match self {
             Event::PointerDown {
@@ -247,6 +255,14 @@ impl Event {
                 *days as u32,
                 *millis,
             ),
+            Event::Navigate { url } => Opcode::new(
+                category::EVENT,
+                crate::event::NAVIGATE,
+                if url.is_some() { flag::NAVIGATE_URL } else { 0 },
+                0,
+                0,
+                0,
+            ),
         }
     }
 }
@@ -348,17 +364,25 @@ impl TryFrom<Opcode> for Event {
                 millis: op.c(),
             }),
             crate::event::TEXT_CHANGED => Err(EventError::NeedsStringSection),
+            crate::event::NAVIGATE => {
+                if flags & flag::NAVIGATE_URL != 0 {
+                    Err(EventError::NeedsStringSection)
+                } else {
+                    Ok(Event::Navigate { url: None })
+                }
+            }
             _ => Err(EventError::UnknownCommand),
         }
     }
 }
 
 /// Decode an event opcode for the **shared-memory path**, resolving
-/// `TEXT_CHANGED` text from the host → guest event arena (`B` is an absolute
-/// offset into that region). Non-text events decode as usual.
+/// `TEXT_CHANGED` text and `NAVIGATE` URLs from the host → guest event arena
+/// (`B` is an absolute offset into that region). Non-string events decode as
+/// usual.
 ///
-/// Returns `None` for non-event opcodes, unknown commands, or text events whose
-/// offset cannot be resolved (invalid or out of range).
+/// Returns `None` for non-event opcodes, unknown commands, or string events
+/// whose offset cannot be resolved (invalid or out of range).
 pub fn decode_event(op: &Opcode, event_arena: &[u8]) -> Option<Event> {
     if op.category() != category::EVENT {
         return None;
@@ -368,6 +392,12 @@ pub fn decode_event(op: &Opcode, event_arena: &[u8]) -> Option<Event> {
         return Some(Event::TextChanged {
             target: op.a(),
             value: text.to_string(),
+        });
+    }
+    if op.command() == crate::event::NAVIGATE && op.flags() & flag::NAVIGATE_URL != 0 {
+        let url = crate::arena::get_str(event_arena, op.b()).ok()?;
+        return Some(Event::Navigate {
+            url: Some(url.to_string()),
         });
     }
     Event::try_from(*op).ok()
@@ -489,6 +519,62 @@ mod tests {
         // string section); a bare opcode cannot resolve it.
         let op = Opcode::new(crate::category::EVENT, crate::event::TEXT_CHANGED, 0, 7, 0, 0);
         assert_eq!(Event::try_from(op), Err(EventError::NeedsStringSection));
+    }
+
+    #[test]
+    fn navigate_back_round_trips() {
+        let e = Event::Navigate { url: None };
+        assert_eq!(round_trip(e.clone()), e);
+    }
+
+    #[test]
+    fn navigate_with_url_needs_string_section() {
+        // `Navigate` with a URL is only decodable where the URL can be resolved
+        // (batch string section / shared-memory event arena); a bare opcode
+        // cannot resolve it.
+        let op = Opcode::new(
+            crate::category::EVENT,
+            crate::event::NAVIGATE,
+            flag::NAVIGATE_URL,
+            0,
+            0,
+            0,
+        );
+        assert_eq!(Event::try_from(op), Err(EventError::NeedsStringSection));
+    }
+
+    #[test]
+    fn navigate_back_matches_conformance_vector_bytes() {
+        // EVENT:NAVIGATE (back, no URL) — vector 22.
+        let e = Event::Navigate { url: None };
+        assert_eq!(
+            e.encode().to_bytes(),
+            [0x03, 0x0E, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+        );
+    }
+
+    #[test]
+    fn decode_event_resolves_navigate_url_from_arena() {
+        // The shared-memory path resolves a `Navigate` URL from the event arena.
+        use alloc::vec;
+        let mut arena = vec![0u8; 32];
+        // "[u32 len=9][/users/42]" at offset 0.
+        arena[0..4].copy_from_slice(&9u32.to_le_bytes());
+        arena[4..13].copy_from_slice(b"/users/42");
+        let op = Opcode::new(
+            crate::category::EVENT,
+            crate::event::NAVIGATE,
+            flag::NAVIGATE_URL,
+            0,
+            0,
+            0,
+        );
+        assert_eq!(
+            decode_event(&op, &arena),
+            Some(Event::Navigate {
+                url: Some("/users/42".into())
+            })
+        );
     }
 
     #[test]

@@ -264,8 +264,8 @@ impl BatchDecoder {
 /// Events are `EVENT`-category opcodes; the batch reuses the wire format with
 /// the `HOST_TO_GUEST` direction flag. `TextChanged` events carry their text in
 /// the batch's string section (a length-prefixed entry referenced by the
-/// opcode's `B` offset), so the string section is only empty when there are no
-/// text events.
+/// opcode's `B` offset), as do `Navigate` URLs; the string section is only
+/// empty when there are no such events.
 pub fn encode_events(frame_count: u32, events: &[Event]) -> Vec<u8> {
     let mut opcodes = Vec::new();
     let mut strings = Vec::new();
@@ -284,6 +284,19 @@ pub fn encode_events(frame_count: u32, events: &[Event]) -> Vec<u8> {
                     0,
                 ));
             }
+            Event::Navigate { url: Some(url) } => {
+                let offset = strings.len() as u32;
+                strings.extend_from_slice(&(url.len() as u32).to_le_bytes());
+                strings.extend_from_slice(url.as_bytes());
+                opcodes.push(Opcode::new(
+                    category::EVENT,
+                    event::NAVIGATE,
+                    pathland_core::flag::NAVIGATE_URL,
+                    0,
+                    offset,
+                    0,
+                ));
+            }
             other => opcodes.push(other.encode()),
         }
     }
@@ -292,8 +305,8 @@ pub fn encode_events(frame_count: u32, events: &[Event]) -> Vec<u8> {
 
 /// Decode a host → guest event batch, returning `(frame_count, events)`.
 ///
-/// Unknown or malformed event opcodes are skipped. `TextChanged` opcodes
-/// resolve their text from the batch's string section.
+/// Unknown or malformed event opcodes are skipped. `TextChanged` opcodes and
+/// `Navigate` URL opcodes resolve their strings from the batch's string section.
 pub fn decode_events(bytes: &[u8]) -> Result<(u32, Vec<Event>), BatchError> {
     let mut decoder = BatchDecoder::new();
     let batch = decoder.decode(bytes)?;
@@ -308,6 +321,17 @@ pub fn decode_events(bytes: &[u8]) -> Result<(u32, Vec<Event>), BatchError> {
                         target: op.a(),
                         value: text.to_string(),
                     })
+            } else if op.category() == category::EVENT && op.command() == event::NAVIGATE {
+                if op.flags() & pathland_core::flag::NAVIGATE_URL != 0 {
+                    batch
+                        .arena_str(op.b())
+                        .ok()
+                        .map(|url| Event::Navigate {
+                            url: Some(url.to_string()),
+                        })
+                } else {
+                    Some(Event::Navigate { url: None })
+                }
             } else {
                 Event::try_from(op).ok()
             }
@@ -584,6 +608,20 @@ pub fn decode_frame(bytes: &[u8]) -> Result<(Vec<Opcode>, Vec<u8>), BatchError> 
         let bytes = encode_events(3, &events);
         let (frame_count, decoded) = decode_events(&bytes).unwrap();
         assert_eq!(frame_count, 3);
+        assert_eq!(decoded, events);
+    }
+
+    #[test]
+    fn navigate_round_trips_through_batch() {
+        let events = vec![
+            Event::Navigate {
+                url: Some("/users/42".to_string()),
+            },
+            Event::Navigate { url: None },
+        ];
+        let bytes = encode_events(5, &events);
+        let (frame_count, decoded) = decode_events(&bytes).unwrap();
+        assert_eq!(frame_count, 5);
         assert_eq!(decoded, events);
     }
 

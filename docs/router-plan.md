@@ -1,6 +1,6 @@
 # Pathland Structural Reactivity + Router — Implementation Plan
 
-**Status:** Approved — in progress
+**Status:** Approved — in progress (Phase 1 complete)
 **Branch:** `feat/router-structural-reactivity`
 **Last Updated:** September 3, 2026
 
@@ -102,7 +102,28 @@ back-stack supplies the stack LVGL lacks).
 10. `CONFORMANCE.md`: golden vectors — `SET_PROPERTY ROUTE` frame; `NAVIGATE`
     with URL; structural-swap `TREE` deltas.
 
-## Phase 1 — Java structural reactivity (ships alone)
+## Phase 1 — Core (`pathland-core`) ✅ complete
+
+- `constants.rs`: `ROUTE = 0x2019`, `TRANSITION = 0x1031`, `NAVIGATE = 0x0E`,
+  `flag::NAVIGATE_URL`; `value_type_for(ROUTE) = STRING` (TRANSITION rides the
+  F32-enum fallthrough).
+- `Event::Navigate { url: Option<String> }` end-to-end: `encode`/`try_from`
+  (bare opcode = back request; URL flag needs string section/event arena),
+  shared-memory `decode_event` (event-arena resolution) and `send_event`
+  (event-arena alloc), network `encode_events`/`decode_events` (batch string
+  section).
+- Conformance vectors 21–24 enforced in `conformance.rs`; unit + integration
+  tests for both transports.
+- **Finding:** `pathland-engine` has **no general STRING-property diff path**
+  (numeric `properties` + design-token refs only). `TRANSITION` (F32) is
+  handled generically today; `ROUTE` (STRING) needs a small string-property
+  capability when the Rust router lands (Phase 3). Recorded in
+  `pathland-core/status.md`.
+- **Env note:** full `pathland-core-transport` tests need pkg-config (GTK
+  dev-dep); lib compiles clean. `wasm32-unknown-unknown` target not installed
+  locally (pre-existing).
+
+## Phase 2 — Java structural reactivity (on deck)
 
 11. Emitter subtree reconcile (`Emitter.java`): retained-snapshot diff → `TREE`
     deltas, mirroring Rust `reconcile_node`; `StructuralEffect` mechanism; no
@@ -112,7 +133,7 @@ back-stack supplies the stack LVGL lacks).
 13. Tests: branch-swap deltas; identical structure → zero opcodes; nested
     `when`; byte parity.
 
-## Phase 2 — Java router (on top)
+## Phase 3 — Java router (on top)
 
 14. `Route`/`RouteTable`/`Router`/`Location`/`NavigationContainer`/
     `NavigationLink`; `ROUTE` + `TRANSITION` props; `NAVIGATE` → `RenderResult`
@@ -120,13 +141,15 @@ back-stack supplies the stack LVGL lacks).
 15. Tests: route-change structural deltas + property diff; unchanged → zero
     opcodes; `NAVIGATE` round-trip.
 
-## Phase 3 — Rust
+## Phase 4 — Rust
 
 16. `if`/`match` in `build()` (free), optional `switch!` macro;
     `Route`/`RouteTable`/`Router` over `pathland-core::signal`; GTK demo (Home →
-    Users → UserDetail `:id`); no engine change.
+    Users → UserDetail `:id`). **Plus:** a small string-property capability in
+    `pathland-engine` so the slot can emit `ROUTE` (STRING) — `TRANSITION`
+    (F32) needs nothing.
 
-## Phase 4 — Renderers + DOM client
+## Phase 5 — Renderers + DOM client
 
 17. `pathland-render-html`: `ROUTE` → `data-pathland-route`; `TRANSITION` →
     CSS class.
@@ -135,7 +158,7 @@ back-stack supplies the stack LVGL lacks).
     TRANSITION CSS. No sync loop.
 19. `pathland-render-gtk`: Escape/back → `NAVIGATE` (no payload); optional fade.
 
-## Phase 5 — Demos + status
+## Phase 6 — Demos + status
 
 20. `pathland-demo-views`: shared `RouterDemo`; Quarkus/Spring WS handlers
     forward `NAVIGATE` → session routers.
