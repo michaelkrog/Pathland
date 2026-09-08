@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 3.7627897879999983,
+    "cost": 3.774422679999998,
     "tokens": {
-      "input": 10682509,
-      "output": 308692,
+      "input": 10683136,
+      "output": 309462,
       "reasoning": 8888,
       "cache": {
-        "read": 171862144,
+        "read": 173431680,
         "write": 0
       }
     },
     "time": {
       "created": 1788848417240,
-      "updated": 1788891663023
+      "updated": 1788891686754
     }
   },
   "messages": [
@@ -107472,21 +107472,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.003990584,
         "tokens": {
-          "input": 0,
-          "output": 0,
+          "total": 523404,
+          "input": 225,
+          "output": 427,
           "reasoning": 0,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 522752
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1788891663047
+          "created": 1788891663047,
+          "completed": 1788891678323
         },
+        "finish": "tool-calls",
         "id": "msg_082408ac7002oPe0JlSKExFUgn",
         "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI"
       },
@@ -107514,20 +107517,211 @@
           "tool": "bash",
           "callID": "call_cf3b334855514ed4bdbe839f",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && cat > /tmp/dx-commit.txt <<'EOF'\nfeat(dsl-java): Navigation facade + Params + isActive — better router DX\n\nErgonomic navigation authoring surface (spec DSL.md §4.5) on top of the\nlower-level Router/RouteTable/NavigationContainer primitives:\n\n- Navigation facade: Navigation.navigator(initialPath).route(...).fallback(...).\n  build() collapses route table + router + seeding into one flow (View and\n  RouteHandler overloads, guarded routes, 404 fallback); Navigation.of(router)\n  is the container.\n- Params: typed path-param access (get/intValue/longValue/doubleValue/\n  booleanValue/path) replacing the raw Map in RouteHandler; RouteTable captures\n  params into a Params value and the builder gains route(String, View) +\n  fallback(View) conveniences.\n- Navigation.isActive(router, path) -> Signal<Boolean>: a reactive active-route\n  signal for styling menu rows / gating conditional content.\n- SplitNavDemo builds its router via the facade and highlights rows via\n  isActive; the link[] self-reference hack is already gone (removed with\n  RouterDemo). Lower-level API kept as primitives.\n\nVerified: 69 pathland-view tests (3 new: facade build+seed, typed Params,\nisActive reactivity), 10 demo-views, mvn install green; live Spring demo\nrenders /, /kitchen, /settings and the 404 fallback correctly.\nEOF\ngit commit -F /tmp/dx-commit.txt && git log --oneline -1 && rm -f /tmp/dx-commit.txt"
             },
+            "output": "[feat/router-dx 6556ed1] feat(dsl-java): Navigation facade + Params + isActive — better router DX\n 9 files changed, 373 insertions(+), 49 deletions(-)\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/router/Navigation.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/router/Params.java\n6556ed1b feat(dsl-java): Navigation facade + Params + isActive — better router DX\n",
+            "metadata": {
+              "output": "[feat/router-dx 6556ed1] feat(dsl-java): Navigation facade + Params + isActive — better router DX\n 9 files changed, 373 insertions(+), 49 deletions(-)\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/router/Navigation.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/router/Params.java\n6556ed1b feat(dsl-java): Navigation facade + Params + isActive — better router DX\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && cat > /tmp/dx-commit.txt <<'EOF'\nfeat(dsl-java): Navigation facade + Params + isActive — better router DX\n\nErgonomic navigation authoring surface (spec DSL.md §4.5) on top of the\nlower-level Router/RouteTable/NavigationContainer primitives:\n\n- Navigation facade: Navigation.navigator(initialPath).route(...).fallback(...).\n  build() collapses route table + router + seeding into one flow (View and\n  RouteHandler overloads, guarded routes, 404 fallback); Navigation.of(router)\n  is the container.\n- Params: typed path-param access (get/intValue/longValue/doubleValue/\n  booleanValue/path) replacing the raw Map in RouteHandler; RouteTable captures\n  params into a Params value and the builder gains route(String, View) +\n  fallback(View) conveniences.\n- Navigation.isActive(router, path) -> Signal<Boolean>: a reactive active-route\n  signal for styling menu rows / gating conditional content.\n- SplitNavDemo builds its router via the facade and highlights rows via\n  isActive; the link[] self-reference hack is already gone (removed with\n  RouterDemo). Lower-level API kept as primitives.\n\nVerified: 69 pathland-view tests (3 new: facade build+seed, typed Params,\nisActive reactivity), 10 demo-views, mvn install green; live Spring demo\nrenders /, /kitchen, /settings and the 404 fallback correctly.\nEOF\ngit commit -F /tmp/dx-commit.txt && git log --oneline -1 && rm -f /tmp/dx-commit.txt",
             "time": {
-              "start": 1788891674186
+              "start": 1788891674186,
+              "end": 1788891678223
             }
           },
           "id": "prt_08240aa0b001AKydL5ajLdsbB4",
           "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
           "messageID": "msg_082408ac7002oPe0JlSKExFUgn"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "3e182a6994723167ae91257956f5eab4b56447a8",
+          "type": "step-finish",
+          "tokens": {
+            "total": 523404,
+            "input": 225,
+            "output": 427,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 522752
+            }
+          },
+          "cost": 0.003990584,
+          "id": "prt_08240c640001QjHORhW86qQJ6o",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_082408ac7002oPe0JlSKExFUgn"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0823fe4540011lMYslLWYPjkea",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.003787368,
+        "tokens": {
+          "total": 523632,
+          "input": 269,
+          "output": 99,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 523264
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1788891678379,
+          "completed": 1788891681022
+        },
+        "finish": "tool-calls",
+        "id": "msg_08240c6ab002a19dwdheFQg6h6",
+        "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI"
+      },
+      "parts": [
+        {
+          "snapshot": "3e182a6994723167ae91257956f5eab4b56447a8",
+          "type": "step-start",
+          "id": "prt_08240ce2d001Ns01QoKbh3NKWf",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_08240c6ab002a19dwdheFQg6h6"
+        },
+        {
+          "type": "text",
+          "text": "Committed `6556ed1` on `feat/router-dx`. Let me verify the working tree is clean:",
+          "time": {
+            "start": 1788891680334,
+            "end": 1788891680932
+          },
+          "id": "prt_08240ce4e0017s6Lm63cYLAub5",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_08240c6ab002a19dwdheFQg6h6"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "call_00d3773fbd7947749b5e0d04",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "cd /Users/michael/Development/michaelkrog/Pathland && git status --short && echo \"=== branch ===\" && git branch --show-current"
+            },
+            "output": "=== branch ===\nfeat/router-dx\n",
+            "metadata": {
+              "output": "=== branch ===\nfeat/router-dx\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git status --short && echo \"=== branch ===\" && git branch --show-current",
+            "time": {
+              "start": 1788891680812,
+              "end": 1788891680845
+            }
+          },
+          "id": "prt_08240cf1c001m0E2YbP74yfIlo",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_08240c6ab002a19dwdheFQg6h6"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "3e182a6994723167ae91257956f5eab4b56447a8",
+          "type": "step-finish",
+          "tokens": {
+            "total": 523632,
+            "input": 269,
+            "output": 99,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 523264
+            }
+          },
+          "cost": 0.003787368,
+          "id": "prt_08240d0d0001AxehRoSwrNBViW",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_08240c6ab002a19dwdheFQg6h6"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0823fe4540011lMYslLWYPjkea",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.00385494,
+        "tokens": {
+          "total": 523897,
+          "input": 133,
+          "output": 244,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 523520
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1788891681076,
+          "completed": 1788891686727
+        },
+        "finish": "stop",
+        "id": "msg_08240d1340026kNxStXqL5CTlf",
+        "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI"
+      },
+      "parts": [
+        {
+          "snapshot": "3e182a6994723167ae91257956f5eab4b56447a8",
+          "type": "step-start",
+          "id": "prt_08240da49001N552mN9PdzXs9K",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_08240d1340026kNxStXqL5CTlf"
+        },
+        {
+          "type": "text",
+          "text": "Committed and clean. `6556ed1` — \"feat(dsl-java): Navigation facade + Params + isActive — better router DX\" (9 files, +373/−49) on `feat/router-dx`.\n\n## What's in the commit\n- **`Navigation` facade** — `navigator(...).route(...).fallback(...).build()` collapses table + router + seeding; `Navigation.of(router)` is the container.\n- **`Params`** — typed path-param access (`get`/`intValue`/`longValue`/`doubleValue`/`booleanValue`/`path`), replacing the raw `Map` in `RouteHandler`; `RouteTable` gained `route(String, View)` + `fallback(View)` conveniences.\n- **`Navigation.isActive(router, path)` → `Signal<Boolean>`** — reactive active-route signal.\n- **`SplitNavDemo`** refactored to the facade + `isActive`.\n\nThe branch `feat/router-dx` is ready — clean tree, everything green (69 + 10 Java tests, live demo verified).",
+          "time": {
+            "start": 1788891683402,
+            "end": 1788891686639
+          },
+          "id": "prt_08240da4a0013ROsQP6tIZ7K0I",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_08240d1340026kNxStXqL5CTlf"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "3e182a6994723167ae91257956f5eab4b56447a8",
+          "type": "step-finish",
+          "tokens": {
+            "total": 523897,
+            "input": 133,
+            "output": 244,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 523520
+            }
+          },
+          "cost": 0.00385494,
+          "id": "prt_08240e71800180hwZaMT6o5X1m",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_08240d1340026kNxStXqL5CTlf"
         }
       ]
     }
