@@ -72,6 +72,40 @@ public final class FrameCodec {
         return false;
     }
 
+    /** True when the batch carries `META::ENVIRONMENT` fields (host → guest). */
+    public static boolean isEnvironment(byte[] bytes) {
+        Parsed parsed = parse(bytes);
+        for (Opcode op : parsed.opcodes()) {
+            if (op.category() == Categories.META && op.command() == Commands.Meta.ENVIRONMENT) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Decode a `META::ENVIRONMENT` field batch into {@link EnvironmentData}. */
+    public static EnvironmentData decodeEnvironment(byte[] bytes) {
+        Parsed parsed = parse(bytes);
+        String route = null;
+        float width = -1f;
+        float height = -1f;
+        for (Opcode op : parsed.opcodes()) {
+            if (op.category() != Categories.META || op.command() != Commands.Meta.ENVIRONMENT) {
+                continue;
+            }
+            switch (op.a() & 0xFFFF) {
+                case Commands.Environment.VIEWPORT_WIDTH ->
+                        width = Float.intBitsToFloat(op.b());
+                case Commands.Environment.VIEWPORT_HEIGHT ->
+                        height = Float.intBitsToFloat(op.b());
+                case Commands.Environment.ROUTE ->
+                        route = parsed.stringAt(op.b());
+                default -> { }
+            }
+        }
+        return new EnvironmentData(route, width, height);
+    }
+
     /** Encode host → guest events as a batch (binary EVENT opcodes + string section). */
     public static byte[] encodeEvents(List<Event> events) {
         List<Opcode> opcodes = new ArrayList<>(events.size());
@@ -84,6 +118,17 @@ public final class FrameCodec {
                 strings.writeBytes(utf8);
                 opcodes.add(new Opcode(
                         Categories.EVENT, Commands.Event.TEXT_CHANGED, 0, event.target(), offset, 0));
+            } else if (event.isNavigate()) {
+                if (event.isNavigateBack()) {
+                    opcodes.add(new Opcode(Categories.EVENT, Commands.Event.NAVIGATE, 0, 0, 0, 0));
+                } else {
+                    int offset = strings.size();
+                    byte[] utf8 = event.url().getBytes(StandardCharsets.UTF_8);
+                    writeIntLE(strings, utf8.length);
+                    strings.writeBytes(utf8);
+                    opcodes.add(new Opcode(
+                            Categories.EVENT, Commands.Event.NAVIGATE, Commands.Flags.NAVIGATE_URL, 0, offset, 0));
+                }
             } else if (event.isValueChanged()) {
                 opcodes.add(new Opcode(
                         Categories.EVENT,
@@ -132,6 +177,13 @@ public final class FrameCodec {
             int command = op.command();
             switch (command) {
                 case Commands.Event.TEXT_CHANGED -> events.add(Event.textChanged(op.a(), parsed.stringAt(op.b())));
+                case Commands.Event.NAVIGATE -> {
+                    if ((op.flags() & Commands.Flags.NAVIGATE_URL) != 0) {
+                        events.add(Event.navigate(parsed.stringAt(op.b())));
+                    } else {
+                        events.add(Event.navigateBack());
+                    }
+                }
                 case Commands.Event.VALUE_CHANGED -> events.add(Event.valueChanged(op.a(), Float.intBitsToFloat(op.b())));
                 case Commands.Event.KEY_DOWN -> events.add(Event.keyDown(op.a(), op.b(), op.c(), op.flags()));
                 case Commands.Event.KEY_UP -> events.add(Event.keyUp(op.a(), op.b(), op.c()));

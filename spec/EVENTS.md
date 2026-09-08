@@ -2,7 +2,7 @@
 
 **Wire protocol version:** 1
 **Status:** Draft
-**Last Updated:** August 28, 2026
+**Last Updated:** September 3, 2026
 
 ---
 
@@ -217,6 +217,31 @@ its own native control geometry.
   that declared the `WHEEL` listener bit (bit 9). Renderers map native scroll
   deltas (GTK `GtkEventControllerScroll`, DOM `wheel`) onto x/y deltas.
 
+### Navigation
+
+| Command | Value | A | B | C | Flags | SwiftUI counterpart |
+| --------- | ------- | --- | --- | --- | ------- | --------------------- |
+| `NAVIGATE` | 0x0E | 0 | URL string offset | 0 | `NAVIGATE_URL` (0x0001) | browser back/forward (`popstate`), a deep link, or a native back affordance |
+
+- **`NAVIGATE` is a global event — never node-gated.** It carries **no
+  `targetId`** (`A` = 0) and is **not** subject to `EVENT_LISTENERS` or the
+  transport-aware event guards: the renderer/host emits it only when the
+  application has registered a navigation handler (a `Router`), and it is
+  delivered directly to that handler. See [DSL.md §4.5](./DSL.md#45-navigation).
+- **With a URL** (`NAVIGATE_URL` flag set): `B` is a string-section / event-arena
+  offset to the destination URL the platform navigated to — a browser
+  `popstate` (back/forward), a deep link, or a renderer-originated URL. The
+  host calls `router.handlePlatformNavigation(url)`, which matches and re-emits.
+- **Without a URL** (flag clear): the platform back affordance (Android
+  predictive-back, iOS swipe-back, a desktop back button) — the host calls
+  `router.pop()`. The renderer never decides navigation; it only requests it.
+- The string encoding follows the exact `TEXT_CHANGED` dual convention: over
+  the **shared-memory ring** the renderer bump-allocates the URL into the
+  host-owned event arena and `B` is its absolute offset; over the **network**
+  it lives in the batch's string section referenced by a *relative* `B` offset.
+  The `NAVIGATE_URL` flag distinguishes "URL at `B`" from "back one step" even
+  when `B` would otherwise be a valid offset.
+
 ---
 
 ## Event listeners (`EVENT_LISTENERS`)
@@ -272,8 +297,8 @@ wire protocol will never carry interpreted gestures — only raw inputs.
 
 | Range | Use |
 |-------|-----|
-| `0x01`–`0x0D` | Core events (allocated, this file) |
-| `0x0E`–`0x3F` | Future core events (unallocated) |
+| `0x01`–`0x0E` | Core events (allocated, this file) |
+| `0x0F`–`0x3F` | Future core events (unallocated) |
 | `0x40`–`0xFF` | Custom/application events |
 
 A renderer/decoder MUST skip unknown event commands and continue.

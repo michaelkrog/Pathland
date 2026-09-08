@@ -39,17 +39,28 @@ public final class Commands {
         public static final int SCROLL = 0x0B;
         public static final int WHEEL = 0x0C;
         public static final int DATE_CHANGED = 0x0D;
+        /** Global navigation request (host → guest, never node-keyed); URL in the string section when `NAVIGATE_URL` is set. */
+        public static final int NAVIGATE = 0x0E;
         private Event() {}
     }
 
     /** META commands. */
 public static final class Meta {
             public static final int RESET = 0x01;
+            /** Platform environment field (host → guest): `A=fieldId, B=value`. See {@link Environment}. */
             public static final int ENVIRONMENT = 0x02;
             /** The host (renderer) requests a full snapshot of the current tree (host → guest). */
             public static final int RESYNC = 0x03;
             private Meta() {}
         }
+
+    /** `META::ENVIRONMENT` field ids (spec/OPCODE.md §Environment fields). */
+    public static final class Environment {
+        public static final int VIEWPORT_WIDTH = 0x0001;
+        public static final int VIEWPORT_HEIGHT = 0x0002;
+        public static final int ROUTE = 0x0003;
+        private Environment() {}
+    }
 
     /** Flag bits shared across categories. */
     public static final class Flags {
@@ -57,6 +68,8 @@ public static final class Meta {
         public static final int HOVER_ENTER = 0x0001;
         public static final int HOVER_LEAVE = 0x0002;
         public static final int KEY_REPEAT = 0x0002;
+        /** `NAVIGATE`: the URL in the string section; without it the event is a back request. */
+        public static final int NAVIGATE_URL = 0x0001;
         private Flags() {}
     }
 

@@ -3,7 +3,7 @@
 **Wire protocol version:** 1
 **Status:** Draft
 **Format:** Fixed-size (16-byte) opcode engine
-**Last Updated:** September 2, 2026
+**Last Updated:** September 3, 2026
 
 ---
 
@@ -201,6 +201,7 @@ per-edge variants map to widget margins / CSS `padding`, alongside
 | `PADDING_BOTTOM` | `0x1014` | F32 | Bottom padding |
 | `PADDING_LEFT` | `0x1015` | F32 | Left padding |
 | `BORDER_EDGES` | `0x1016` | U32 | Which border edges to draw (bitmask, see [`border_edges`] flags) |
+| `TRANSITION` | `0x1031` | F32 (enum code) | Presentation hint for structural swaps (a `NavigationContainer` destination swap, a `Conditional.when` branch change): `None`=0, `PlatformDefault`=1, `Fade`=2, `Slide`=3, `Scale`=4 — the renderer **may** animate, never stores navigation state |
 
 `BORDER_EDGES` is a u32 bitmask (`SET_PROPERTY` with the `U32` value type)
 selecting which edges of a node's border are drawn. Bits are direction-aware:
@@ -241,6 +242,9 @@ delivery (see [EVENTS.md](./EVENTS.md#transport-aware-event-guards-must)).
 | `ACTION_ID` | `0x2016` | U32 | Bound callback id; gates event delivery for this node |
 | `BINDING_ID` | `0x2017` | U32 | Two-way binding id (control value ↔ app state) |
 | `TOGGLE_STYLE` | `0x2018` | ENUM (F32 code) | Visual style token for a `TOGGLE`: `Switch`=0, `Checkbox`=1, `Button`=2 |
+| `ROUTE` | `0x2019` | STRING | Current navigation path (absolute, e.g. `/users/42`); drives web URL sync — see [DSL.md §4.5](./DSL.md#45-navigation) |
+| `NAV_DEPTH` | `0x201A` | U32 | Navigation back-stack depth (destinations in the app's path incl. current; `push`+1, `pop`−1, `replace` unchanged); lets native navigation adapters reconcile their page stack by depth — see [DSL.md §4.5](./DSL.md#45-navigation) |
+| `NAV_CHROME` | `0x201B` | F32 (enum code) | Navigation chrome mode on a `NavigationContainer` slot: `PlatformDefault`=0 (renderer supplies chrome — native container where one exists, renderer-drawn back affordance on DOM), `Custom`=1 (developer owns all nav UI; renderer adds none). Emitted once at mount; missing = `PlatformDefault` — see [DSL.md §4.5](./DSL.md#45-navigation) |
 
 **`ROLE` enumerated values** (accessibility role; carried as an `F32` numeric code, `value_type::F32`):
 
@@ -346,14 +350,39 @@ element.
 | `KEY_UP` | `0x05` | targetId | keyCode (u16, low) | modifiers (u8, low) | — | Key released |
 | `VALUE_CHANGED` | `0x06` | targetId | value (f32) | 0 | — | A value-bearing control changed (e.g. slider); the renderer resolves the semantic value from its track geometry |
 | `TEXT_CHANGED` | `0x07` | targetId | string offset | 0 | — | A text field's value changed; the new text is a length-prefixed entry in the **event arena** (shared memory, absolute `B` offset) or the batch's string section (network, *relative* `B` offset) — the same dual convention as `STYLE::SET_TEXT` |
+| `NAVIGATE` | `0x0E` | 0 | URL string offset | 0 | `NAVIGATE_URL` | Global navigation request: with the flag, `B` is the destination URL (browser `popstate`/back/forward/deep-link, same dual string convention as `TEXT_CHANGED`); without the flag, "back one step" (native back affordance). Never node-keyed, never `EVENT_LISTENERS`-gated — see [EVENTS.md](./EVENTS.md#navigation) |
 
 ### META (0x04)
 
 | Command | Value | A | B | C | Description |
 |---------|-------|---|---|---|-------------|
 | `RESET` | `0x01` | 0 | 0 | 0 | Host must clear all rendered output |
-| `ENVIRONMENT` | `0x02` | viewportWidth (f32) | viewportHeight (f32) | 0 | Viewport size in logical points (host → guest) |
+| `ENVIRONMENT` | `0x02` | fieldId (u16, low) | field value | 0 | A platform environment field (host → guest) — see [Environment fields](#environment-fields) |
 | `RESYNC` | `0x03` | 0 | 0 | 0 | The host (renderer) requests a **full snapshot** of the current tree (host → guest). The guest answers with a single full-snapshot batch (the same TREE + STYLE stream as a mount). Used for reconnect/gap recovery and no-JS refresh. |
+
+#### Environment fields
+
+`META::ENVIRONMENT` is an **extensible field family** (mirroring
+`STYLE::SET_PROPERTY`): each opcode sets one platform environment field, so
+any number of fields ride one batch and new fields are new ids — never new
+commands. The platform (renderer / DOM client / SSR host) delivers the
+application's launch context this way; an HTTP request supplies what it offers,
+and the WebSocket connection **enriches** the environment after connect
+(viewport, native deep-links, and future fields all arrive the same way).
+
+| Field | Value | `B` encoding | Notes |
+|-------|-------|--------------|-------|
+| `VIEWPORT_WIDTH` | `0x0001` | f32 | Logical points |
+| `VIEWPORT_HEIGHT` | `0x0002` | f32 | Logical points |
+| `ROUTE` | `0x0003` | string offset | The initial route/deep-link path. String convention is the `TEXT_CHANGED`/`NAVIGATE` dual: absolute offset into the host → guest **event arena** over the shared ring, *relative* offset into the batch's string section over the network. |
+
+**Delivery** (spec DSL.md §4.5): on SSR the host synthesizes the environment
+from the HTTP request (`ROUTE` = request path — all the request offers); over
+the WebSocket the DOM client sends it (viewport + `ROUTE`) as its first message
+and re-sends it to **enrich** after connect (a window-resize re-emits the
+viewport fields). The application applies the environment uniformly — the
+router hydrates from the `ROUTE` field before mount, so a deep-link renders
+correctly on the first frame.
 
 ---
 

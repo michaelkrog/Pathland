@@ -3,6 +3,7 @@ package com.pathland.quarkus;
 import com.pathland.state.redis.RedisStateStore;
 import com.pathland.view.state.InMemoryStateStore;
 import com.pathland.view.state.StateStore;
+import com.pathland.view.transport.EnvironmentData;
 import io.quarkus.websockets.next.WebSocketConnection;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -17,6 +18,13 @@ import java.util.concurrent.Executors;
  * The application registry. Sessions are <strong>1:1</strong> — each WebSocket connection
  * owns a {@link SessionApp} with its own reactive state; deltas flow only to that client
  * (never broadcast). The registry routes inbound events and tears sessions down.
+ *
+ * <p>Sessions are created **lazily on the first inbound message**: the platform
+ * environment (`META::ENVIRONMENT`, spec/OPCODE.md) arrives as the DOM client's first
+ * message, and its `ROUTE` field seeds the router before mount — so a deep-linked URL
+ * renders the right destination and the WebSocket tree stays consistent with the SSR
+ * HTML. `open` only registers the pending connection; later environment messages
+ * **enrich** the session via {@code applyEnvironment}.
  *
  * <p>All session work is serialized on a single actor thread (signals are single-threaded
  * by contract). Per-session SSR runs on the request thread against the thread-safe
@@ -38,6 +46,7 @@ public class PathlandApp {
     });
 
     private final Map<String, SessionApp> sessions = new ConcurrentHashMap<>();
+    private final Map<String, WebSocketConnection> pending = new ConcurrentHashMap<>();
     private StateStore store;
 
     @PostConstruct
@@ -49,9 +58,9 @@ public class PathlandApp {
     // SSR
     // ------------------------------------------------------------------
 
-    /** Render the SSR HTML for a session's persisted state (request thread). */
-    public String renderHtml(String sessionId) {
-        SessionApp app = new SessionApp(sessionId, store);
+    /** Render the SSR HTML for a session (request thread), seeding the router from the request path. */
+    public String renderHtml(String sessionId, String route) {
+        SessionApp app = new SessionApp(sessionId, store, EnvironmentData.of(route));
         try {
             return app.renderHtml();
         } finally {
@@ -60,19 +69,24 @@ public class PathlandApp {
     }
 
     // ------------------------------------------------------------------
-    // WebSocket (1:1 sessions)
+    // WebSocket (1:1 sessions, created lazily on the first message)
     // ------------------------------------------------------------------
 
-    /** Create (or replace) the session for a connection; wires deltas to it only. */
+    /** Register the connection for a session id; the session is created on its first message. */
     public void open(String sessionId, WebSocketConnection connection) {
         actor.execute(() -> {
             SessionApp previous = sessions.remove(sessionId);
             if (previous != null) {
                 previous.close();
             }
-            SessionApp app = new SessionApp(sessionId, store);
-            app.connect(connection);
-            sessions.put(sessionId, app);
+            pending.put(sessionId, connection);
+        });
+    }
+
+    /** Apply the platform environment: creates the session (seeded from its ROUTE field) on first contact, or enriches it after mount. */
+    public void environment(String sessionId, EnvironmentData env) {
+        actor.execute(() -> {
+            session(sessionId, env).applyEnvironment(env);
         });
     }
 
@@ -82,31 +96,40 @@ public class PathlandApp {
             return;
         }
         actor.execute(() -> {
-            SessionApp app = sessions.get(sessionId);
-            if (app != null) {
-                app.dispatch(message);
-            }
+            session(sessionId, EnvironmentData.of("/")).dispatch(message);
         });
     }
 
     /** Handle a META::RESYNC request: re-send the session's current tree as a snapshot. */
     public void resync(String sessionId) {
         actor.execute(() -> {
-            SessionApp app = sessions.get(sessionId);
-            if (app != null) {
-                app.resync();
-            }
+            session(sessionId, EnvironmentData.of("/")).resync();
         });
     }
 
-    /** Close and remove a session. */
+    /** Close and remove a session (and drop any pending connection). */
     public void close(String sessionId) {
         actor.execute(() -> {
+            pending.remove(sessionId);
             SessionApp app = sessions.remove(sessionId);
             if (app != null) {
                 app.close();
             }
         });
+    }
+
+    /** Create the session on first contact, wired to its pending connection. */
+    private SessionApp session(String sessionId, EnvironmentData env) {
+        SessionApp app = sessions.get(sessionId);
+        if (app == null) {
+            WebSocketConnection connection = pending.remove(sessionId);
+            app = new SessionApp(sessionId, store, env);
+            if (connection != null) {
+                app.connect(connection);
+            }
+            sessions.put(sessionId, app);
+        }
+        return app;
     }
 
     @PreDestroy
@@ -115,6 +138,7 @@ public class PathlandApp {
             app.close();
         }
         sessions.clear();
+        pending.clear();
         actor.shutdown();
     }
 

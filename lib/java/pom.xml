@@ -84,6 +84,17 @@
                     <version>3.2.5</version>
                 </plugin>
                 <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-resources-plugin</artifactId>
+                    <version>3.3.1</version>
+                    <configuration>
+                        <!-- Re-copy static resources (e.g. the rebuilt
+                             pathland-dom-renderer.js) over existing target files instead
+                             of failing with FileAlreadyExistsException on repeat builds. -->
+                        <overwrite>true</overwrite>
+                    </configuration>
+                </plugin>
+                <plugin>
                     <groupId>io.quarkus</groupId>
                     <artifactId>quarkus-maven-plugin</artifactId>
                     <version>${quarkus.version}</version>

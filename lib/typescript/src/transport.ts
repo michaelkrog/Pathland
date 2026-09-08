@@ -8,6 +8,8 @@ import { ProtocolError, parseBatch } from "./plpl";
 import { applyBatch, type DomRenderer } from "./apply";
 import { encodeResync } from "./events";
 import { VERSION } from "./constants";
+import { log } from "./log";
+import { describeBatch, describeBatchDetail } from "./describe";
 
 export type TransportStatus = "connecting" | "open" | "reconnecting";
 
@@ -19,6 +21,12 @@ export interface TransportOptions {
   /** Invoked after a batch is successfully applied (P3: resync/frameCount hooks). */
   onBatch?: (batch: Batch) => void;
   onStatus?: (status: TransportStatus) => void;
+  /**
+   * Invoked on every socket open (first connect and reconnect), before any RESYNC —
+   * the DOM client sends its `META::ENVIRONMENT` (viewport + route) here as the first
+   * message so the server session seeds from it.
+   */
+  onOpen?: (transport: Transport) => void;
   /** Injectable socket factory (tests). */
   createSocket?: (url: string) => WebSocket;
 }
@@ -61,12 +69,22 @@ export class Transport {
   }
 
   send(bytes: Uint8Array): void {
-    if (this.open) {
-      this.ws!.send(bytes);
+    if (!this.open) {
+      return;
     }
+    // Best-effort description (never drops the bytes, even if undecodable).
+    try {
+      const batch = parseBatch(bytes);
+      log.info("ws", "→ send", describeBatch(batch));
+      log.debug("ws", "→ send detail", describeBatchDetail(batch));
+    } catch {
+      log.info("ws", "→ send", bytes.length, "bytes");
+    }
+    this.ws!.send(bytes);
   }
 
   private connect(): void {
+    log.debug("ws", "connecting", this.options.url);
     const ws = this.options.createSocket
       ? this.options.createSocket(this.options.url)
       : new WebSocket(this.options.url);
@@ -75,23 +93,30 @@ export class Transport {
     ws.onopen = () => {
       // A reconnect means the client missed deltas while disconnected: request a
       // full snapshot (META::RESYNC). The first connect never does — the client
-      // already has the whole UI from the SSR HTML.
+      // already has the whole UI from the SSR HTML. On EVERY open (before any
+      // resync) the client sends its environment (viewport + route).
       const reconnected = this.attempt > 0;
       this.attempt = 0;
+      log.info("ws", reconnected ? "connected (reconnect)" : "connected");
       this.options.onStatus?.("open");
+      this.options.onOpen?.(this);
       if (reconnected) {
+        log.debug("ws", "requesting RESYNC (missed deltas while disconnected)");
         this.send(encodeResync());
       }
     };
     ws.onmessage = (event) => this.handleMessage(event.data);
     ws.onerror = () => {
+      log.error("ws", "socket error");
       // onclose always follows; nothing to do here.
     };
     ws.onclose = () => {
       this.ws = null;
       if (this.stopped) {
+        log.debug("ws", "closed (stopped)");
         return;
       }
+      log.info("ws", "closed — reconnecting (attempt", this.attempt + 1 + ")");
       this.options.onStatus?.("reconnecting");
       this.scheduleReconnect();
     };
@@ -121,13 +146,15 @@ export class Transport {
       batch = parseBatch(bytes);
     } catch (err) {
       if (err instanceof ProtocolError) {
-        console.error("[pathland] rejected batch:", err.message);
+        log.error("ws", "rejected batch:", err.message);
         return;
       }
       throw err;
     }
+    log.info("ws", "← recv", describeBatch(batch));
+    log.debug("ws", "← recv detail", describeBatchDetail(batch));
     if (batch.version !== VERSION) {
-      console.warn(`[pathland] protocol version ${batch.version} != ${VERSION}; reloading`);
+      log.warn("ws", `protocol version ${batch.version} != ${VERSION}; reloading`);
       location.reload();
       return;
     }
@@ -135,7 +162,7 @@ export class Transport {
       applyBatch(batch, this.options.renderer);
     } catch (err) {
       if (err instanceof ProtocolError) {
-        console.error("[pathland] rejected delta:", err.message);
+        log.error("ws", "rejected delta:", err.message);
         return;
       }
       throw err;

@@ -18,6 +18,7 @@ pathland-view-native = { path = "../pathland-view-native" }
 gtk = { package = "gtk4", version = "0.9" }
 glib = "0.20"
 pango = "0.20"
+libadwaita = { version = "0.7", features = ["v1_4"] }
 
 [dev-dependencies]
 pathland-engine = { path = "../pathland-engine" }

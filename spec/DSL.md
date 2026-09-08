@@ -2,7 +2,7 @@
 
 **Wire protocol version:** 1
 **Status:** Draft
-**Last Updated:** September 2, 2026
+**Last Updated:** September 3, 2026
 
 ---
 
@@ -72,6 +72,10 @@ DSL must be *shaped* by them:
   subtree once; reactivity comes from **signals**, never from re-evaluating the
   body. This is what lets the emitter produce fine-grained
   `SET_TEXT`/`SET_PROPERTY`/`SET_DATE` deltas instead of rebuilding the tree.
+  The one sanctioned exception is a **structural container**
+  ([§3.4](#34-structural-reactivity-conditional-rendering)): its content is
+  re-evaluated on a signal change and the emitter reconciles the retained
+  subtree into `TREE` deltas.
 - **Modifiers are decoupled from views — and never hard-bound to a view
   type.** Any modifier applies to any view (`.padding` works on a `Text` and a
   `VStack` alike), and any developer can **author a custom modifier in
@@ -197,6 +201,66 @@ view class; connection happens when the view renders. A generated DSL in a
 language without reflection/annotation processing MUST offer the equivalent
 explicit wiring.
 
+### 3.4 Structural reactivity (conditional rendering)
+
+The tree is normally static once mounted (["`body()` is evaluated once at
+mount"](#1-design-principles-dsl-flavored)); the **only** sanctioned way to
+change *structure* reactively is a **structural container**: a slot whose
+single child subtree is selected by a signal and **reconciled** when the
+signal changes. This is the foundation for `if`/`else`, `switch`, and
+navigation ([§4.5](#45-navigation)).
+
+| Canonical (SwiftUI-shaped) | Java DSL (current) | Rust DSL (current) | Emits |
+|----------------------------|--------------------|--------------------|-------|
+| `if cond { then } else { else }` in a result builder | `Conditional.when(Signal<Boolean>, View then, View else)` | plain `if`/`match` in `build()` | `TREE` deltas (reconcile) |
+| `switch value { case a -> v; default -> d }` | `Conditional.when(Signal<T>, Case.of(T, View)...)` + `Case.otherwise(View)` | plain `if`/`match` in `build()` | `TREE` deltas (reconcile) |
+
+**Java realization** (`com.pathland.view.Conditional`): statically importable
+lowercase factories on a final class with a private constructor, mirroring
+[`Signals`](#31-signal-surface):
+
+```java
+import static com.pathland.view.Conditional.when;
+import static com.pathland.view.Conditional.Case;
+
+when(showLogin, LoginView.of(), HomeView.of());              // if / else
+when(mode,
+    Case.of(RouteMode.HOME, HomeView.of()),
+    Case.of(RouteMode.USERS, UsersView.of()),
+    Case.otherwise(NotFoundView.of()));                      // switch + default
+```
+
+The names `if`, `switch`, `case`, and `else` are Java reserved keywords, so
+`when` (Kotlin's `switch` analog, and a valid Java identifier) is the method
+name, and `Case.of(...)` / `Case.otherwise(...)` carry the branches. A boolean
+signal takes the two-branch overload (`then`, `else`); an enum/int/string
+signal takes keyed `Case` branches typed to the signal's value type, with an
+optional `Case.otherwise` default.
+
+**Emission contract** (the body-once exception, formalized):
+
+1. A structural container holds a **stable slot node** (a `Group`, see
+   [§8](#8-java-dsl-convergence-adopted)) whose single child is the currently
+   selected content. Selection is a **content function** over the selector
+   signal — `if`/`else` and `switch` are sugar over it, so value-parametrized
+   content (e.g. a route param) is a first-class case.
+2. On selector change the container re-evaluates the content function,
+   **renders the new subtree**, and the emitter **reconciles** it against the
+   retained snapshot — emitting only `TREE` deltas (`CREATE_NODE` /
+   `DELETE_NODE` / `INSERT_CHILD` / `REMOVE_CHILD` / `MOVE_CHILD`).
+3. **Identical structure emits zero opcodes.** The reconcile diffs old vs new;
+   a recompute that yields the same structure produces no `TREE` deltas, so no
+   equality predicate is needed on the selector signal.
+4. Structural containers **nest**: a container inside a container re-evaluates
+   and reconciles its own slot independently.
+5. All other reactivity stays fine-grained (`SET_TEXT` / `SET_PROPERTY`); a
+   structural container never re-emits siblings or ancestors.
+
+**Rust delta**: the Rust DSL builds `Node` trees directly and the host rebuilds
++ re-`assign_id`s + diffs on every interaction, so plain `if`/`match` in
+`build()` already produces the same reconcile — no wrapper slot and no special
+type. An optional `switch!` macro is sugar.
+
 ---
 
 ## 4. View surface
@@ -290,6 +354,153 @@ Tap is **not** a protocol event: it is composed app-side from `POINTER_DOWN`
 then `POINTER_UP` on the same target (`EVENT_LISTENERS` bits 0|2). The
 `TapGesture` modifier value declares those listeners and records the action;
 the host routes the recognized tap via the emitter's tap-action registry.
+
+### 4.5 Navigation
+
+Navigation is **structural reactivity over a route signal**
+([§3.4](#34-structural-reactivity-conditional-rendering)): a
+`NavigationContainer` is a structural container whose content function is
+route-table matching. The wire surface is minimal and entirely optional:
+`ROUTE` (MODIFIERS.md `0x2019`, a STRING current-path property on the slot),
+`NAV_DEPTH` (MODIFIERS.md `0x201A`, a U32 back-stack-depth property on the
+slot), `NAV_CHROME` (MODIFIERS.md `0x201B`, an F32-enum chrome-mode property
+on the slot), `TRANSITION` (MODIFIERS.md `0x1031`, a presentation hint), and
+the `NAVIGATE` event (EVENTS.md `0x0E`, host→guest). Renderers stay
+stateless: they render whatever destination subtree the app emits and **may**
+animate a swap when the `TRANSITION` hint is present, but must render normally
+when they ignore it.
+
+**Navigation is opt-in — the developer declares it by inserting a
+`NavigationContainer`.** A tree without one has no navigation and the renderer
+adds none. The container's chrome mode decides who supplies the navigation UI:
+
+- `PlatformDefault` (default): the **renderer** supplies the chrome — the
+  platform's native navigation container where one exists (GTK
+  `AdwNavigationView`, SwiftUI `NavigationStack`, Compose `NavHost`), and a
+  renderer-drawn back affordance where none exists (the DOM renderer shows a
+  back button once `NAV_DEPTH > 1`; a no-JS SSR page falls back to the browser
+  back button). `NavigationContainer.of(router)`.
+- `Custom`: the **developer owns all navigation UI** — they draw their own
+  back buttons / bars in the destinations and call `router.back()` /
+  `navigate(...)` directly; the renderer adds no chrome (no native header-bar
+  back button, no DOM back button). `NavigationContainer.of(router, Chrome.CUSTOM)`.
+  Renderers treat a missing `NAV_CHROME` as `PlatformDefault`.
+
+| View | Canonical (SwiftUI-shaped) | Java DSL (current) | Rust DSL (current) | Emits / Binds |
+|------|----------------------------|--------------------|--------------------|---------------|
+| `NavigationContainer` | `NavigationStack(path:) { destination(for:) }` | `NavigationContainer.of(Router)` / `.of(Router, Chrome.CUSTOM)` | `NavigationContainer::new(Router)` | a `Group` slot + `ROUTE` `0x2019`, `NAV_DEPTH` `0x201A`, `NAV_CHROME` `0x201B`, `TRANSITION` `0x1031`; destination swap = `TREE` deltas |
+| `NavigationLink` | `NavigationLink("label", value:)` | `NavigationLink.of(String, Router, String to)` / `NavigationLink.of(String, String to)` (router-agnostic) | `navigation_link(...)` | a `BUTTON` whose tap pushes `to` (via the router, or resolved to the nearest enclosing router when router-agnostic) |
+| `RouteTable` | — | `RouteTable` (builder) | `RouteTable::new(...)` | none (app-side matching) |
+
+**Router state** — app-owned (never renderer state):
+
+- `Route` = absolute path + path params (`/users/:id` → `{id:"42"}`) + query.
+  Path params are strings; typed params are a DSL concern.
+- `RouteTable` maps path patterns to destination factories, captures params,
+  and runs **guards**; a guard redirects via `replace()`. Factories are lazy —
+  in the SSR model the client only ever receives the chosen destination's
+  deltas.
+- `Router` owns a `Signal<Route>` plus a **back-stack** and exposes
+  `navigate` / `push` / `pop` / `replace` / `back`. `push` appends; `pop` /
+  `back` step back; `navigate` / `replace` set the current route. The current
+  path is emitted as the `ROUTE` property on the container slot.
+- The route is a **plain signal — not persisted**. On the web the URL is the
+  persistence layer (the DOM client mirrors it via `pushState`/`popstate`); on
+  native the route is per-session.
+- The initial route is delivered as a **`META::ENVIRONMENT` `ROUTE` field**
+  (host → guest platform environment, OPCODE.md — the same message that carries
+  the viewport): on SSR the host synthesizes it from the HTTP request (the
+  request path — all the request offers), and over the WebSocket the DOM client
+  sends it (with the viewport) as its **first** message and later **enriches**
+  the environment (a window-resize re-emits the viewport; future platform
+  fields arrive the same way). The application applies the environment
+  uniformly — the router hydrates from the `ROUTE` field before mount, so a
+  deep-link request renders the right destination on the first frame. The app
+  never models the platform's location handling — history adaptation
+  (`pushState` / `replaceState` / back) is a renderer/DOM-client translation of
+  the `ROUTE` property and the `NAVIGATE` event.
+
+**Any component can change the route** — declarative navigation intents. A
+component anywhere *inside* a `NavigationContainer` can change the route without
+threading a `Router` by hand, using a `NavigationMod` on a `BUTTON`:
+
+```java
+Button.of("Go to kitchen").navigate("/kitchen");  // direct selection
+Button.of("Open item").push("/item/1");           // drill-down (back-stack)
+Button.of("Swap").replace("/settings");           // guard redirect / replace
+NavigationLink.of("Users", "/users");             // router-agnostic (pushes)
+```
+
+- The intent (`navigateTo` + a `NavOp` — `NAVIGATE`/`PUSH`/`REPLACE`) is
+  recorded on the node at render.
+- The **emitter resolves it to the nearest enclosing `Router`** — the
+  `NavigationContainer` whose subtree the component lives under — while walking
+  the retained tree (nested containers resolve to the innermost one). No
+  hidden global, no environment lookup.
+- The resolved action is exposed on `RenderResult.navigateActions`
+  (`node id → Runnable`), a live map like `tapActions`; the host routes a tap
+  on that node to the action (checked before `tapActions`).
+- A `NavigationContainer` whose subtree *is* a destination resolves its own
+  router, so the sidebar's own menu rows (which sit *outside* the container, as
+  the developer's custom chrome) capture the router explicitly — the
+  nearest-enclosing mechanism covers components inside a container.
+
+**URL sync (web)** — the app owns state; the browser mirrors it:
+
+1. On a route change the app emits the new path as `ROUTE`; the DOM client
+   reacts with `history.pushState` (v1 always pushes; `replaceState` for
+   `replace()` is a documented follow-up).
+2. Browser back/forward fire `popstate`; the DOM client sends a `NAVIGATE`
+   event with the new URL over the event path; the host routes it into the
+   router (`handlePlatformNavigation`), which matches and re-emits.
+3. No sync loop: a server-originated `pushState` never fires `popstate`. On
+   initial SSR hydrate the URL is already correct — no `pushState`.
+
+**Native back** — platform back affordances (Android predictive-back, iOS
+swipe-back, a desktop back button) map to a `NAVIGATE` event **without** a URL
+payload (= "back one step"); the host calls `router.pop()`. The renderer never
+decides navigation — it only requests it.
+
+**Native integration** — each renderer **may** promote a `NavigationContainer`
+slot onto its platform navigation affordance. The trigger is structural, not a
+new primitive: a slot carrying the `ROUTE` (STRING) property is a navigation
+slot and may be rendered as the platform's native navigation container
+(SwiftUI `NavigationStack`, Compose `NavHost`, WinUI `NavigationView` / `Frame`,
+GTK `AdwNavigationView`, LVGL screens `lv_scr_load`). The contract keeps the
+renderer stateless:
+
+- **App owns** the route signal, the back-stack, and which destination is
+  current; it emits the current destination as the slot child plus `ROUTE`
+  and `NAV_DEPTH`.
+- **Renderer owns** the native chrome and presentation only: it maps the slot's
+  child swaps onto native push/pop, uses `ROUTE` for native path parity and
+  `NAV_DEPTH` to reconcile its page stack (push when deeper, replace the top
+  when the depth is unchanged, pop down on a depth decrease), uses `TRANSITION`
+  (0x1031) to choose a native transition (fade/slide/scale), and
+  translates every native back affordance (a header-bar back button, a
+  swipe/gesture, a platform back key, predictive back) into a `NAVIGATE` event
+  **without** a URL payload (= "back one step"). The renderer never holds the
+  back-stack and never decides navigation — it renders whatever destination
+  subtree the app emits and may animate the swap.
+- Platforms with no native navigation container (LVGL, terminal/canvas, plain
+  GTK4 boxes) render the slot as an ordinary container that swaps children in
+  place; the app's own back-stack is the only stack. The app does not branch on
+  platform — the same `NavigationContainer` works on both, and the renderer's
+  use (or not) of a native container is purely a presentation decision.
+
+| Platform | Native container | Slot child swap maps to | Native back → |
+|---|---|---|---|
+| GTK/Linux | `AdwNavigationView` | `push`/`pop` the child widgets | `NAVIGATE` (no URL) |
+| SwiftUI | `NavigationStack(path:)` | bind emitted path → native path | `NAVIGATE` |
+| Android/Compose | `NavHost` | route string → `NavHostController.navigate` | `NAVIGATE` |
+| WinUI | `NavigationView` / `Frame` | `Frame.Navigate` / sidebar+detail | `NAVIGATE` |
+| Web (DOM client) | History API | `ROUTE` → `pushState` (already implemented) | `NAVIGATE` |
+| LVGL / embedded | none | whole-tree swap (app's back-stack) | n/a |
+
+**Deltas (Java)**: `Router` / `RouteTable` live in
+`com.pathland.view.router`; `Conditional` in `com.pathland.view`. The
+`NavigationContainer` is a structural container, so `if`/`switch`-style sugar
+is the `Conditional.when` form of [§3.4](#34-structural-reactivity-conditional-rendering).
 
 ---
 
@@ -498,7 +709,9 @@ A conformant DSL follows these conventions:
    environment (Java: thread-local), never threaded through constructors.
 7. **Reactivity discipline**: `body()` is evaluated once; a signal read during
    mount records a dependency; a later write re-emits only the bound node.
-   Never mutate signals during mount.
+   Never mutate signals during mount. The only structural re-evaluation is a
+   structural container ([§3.4](#34-structural-reactivity-conditional-rendering)),
+   which the emitter reconciles into `TREE` deltas.
 8. **Emission contract**: each DSL call emits exactly the documented
    properties with the documented value types; the emitter diffs. The DSL never
    computes layout, never positions, never serializes full trees.
@@ -673,6 +886,15 @@ are the companion specs.
   equivalent wiring) against a platform-neutral store ([§3.3](#33-persisted-state-statet)).
 - [ ] **Gestures** — `.onTapGesture` (composed from raw pointer down/up) and
   raw `pointerEvents`/`EVENT_LISTENERS` bitmask ([§4.4](#44-gestures)).
+- [ ] **Structural reactivity (conditional rendering)** — a structural
+  container over a selector signal (`Conditional.when(...)` / `Case.of` /
+  `Case.otherwise`, or the language's `if`/`switch` equivalent), reconciling
+  the slot into `TREE` deltas with zero opcodes for identical structure
+  ([§3.4](#34-structural-reactivity-conditional-rendering)).
+- [ ] **Navigation** — `Router` / `RouteTable` / `NavigationContainer` /
+  `NavigationLink` over a plain `Signal<Route>`, the initial route host-seeded
+  before mount, emitting `ROUTE` and `TRANSITION` and consuming the `NAVIGATE`
+  event ([§4.5](#45-navigation)).
 - [ ] **Design tokens & theming** — a token surface: token-typed values usable
   in style modifiers (a `Color` accepting a token path, e.g. `Color.token("color.primary")`
   or the language's equivalent), a theme/override helper emitting
@@ -763,6 +985,9 @@ Representative rows; the full surface is in [§4](#4-view-surface) and
 | `.fontWeight(.bold)` | `.fontWeight(FontWeight)` | `.modifier(FontWeightMod.of(FontWeight.BOLD))` | `.font_weight(700.0)` |
 | `.shadow(color:radius:x:y:)` | `.shadow(color:radius:x:y:)` | `.modifier(Shadow.of(Color, float, float, float))` | (not yet) |
 | `.onTapGesture { go() }` | `.onTapGesture(action)` | `.modifier(TapGesture.of(() -> go()))` | `.on_tap_gesture(|| go())` |
+| `if showLogin { LoginView() } else { HomeView() }` | `if/else` in a result builder | `Conditional.when(showLogin, LoginView.of(), HomeView.of())` | `if`/`match` in `build()` |
+| `NavigationStack { … }` | `Router` + `NavigationContainer` | `NavigationContainer.of(router)` | `NavigationContainer::new(router)` |
+| `NavigationLink("Users", value:)` | `NavigationLink("label", router, to)` | `NavigationLink.of("Users", router, "/users")` | `navigation_link(...)` |
 | `content.modifier(Card())` | `content.modifier(Card())` | `content.modifier(CardStyle.of(...))` | `.modifier(Card)` |
 
 Core modifier sugar (`.padding`, `.foregroundStyle`, …) is shorthand for

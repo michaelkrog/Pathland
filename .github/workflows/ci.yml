@@ -12,13 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # The workspace includes pathland-render-gtk (GTK4), so the runner needs
-      # the GTK4 system libraries before `cargo test` can link them.
-      - name: Install GTK4 system dependencies
+      # The workspace includes pathland-render-gtk (GTK4 + libadwaita), so the runner
+      # needs the GTK4 and libadwaita system libraries before `cargo test` can link them.
+      - name: Install GTK4 + libadwaita system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
             libgtk-4-dev \
+            libadwaita-1-dev \
             libglib2.0-dev \
             libcairo2-dev \
             libpango1.0-dev \

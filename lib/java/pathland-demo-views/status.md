@@ -1,6 +1,6 @@
 # pathland-demo-views — implementation status
 
-**Last updated:** August 29, 2026
+**Last updated:** September 3, 2026
 
 The framework-agnostic shared demo views (`com.pathland.demo`), consumed by the
 Quarkus and Spring Boot demos. Uses `State` fields wired by the
@@ -34,6 +34,26 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
   the HTML/JS client re-themes under `prefers-color-scheme: dark`.
 - **Legacy views kept**: `CounterView`, `CounterControls`, `NameField` (still
   covered by `CounterViewTest`).
+- **`SplitNavDemo`** — the demo **root** (spec PRIMITIVES.md:
+  `NavigationSplitView` → `HStack` sidebar + detail): a fixed menu column on
+  the left (3 items: Home / Kitchen sink / Settings) and a
+  `NavigationContainer` content area on the right that swaps on selection
+  (`router.navigate` — direct selection, no back-stack growth). Both demos'
+  `SessionApp` mount it and seed the router from the applied
+  `META::ENVIRONMENT` `ROUTE` field (a request URL on SSR, the DOM client's
+  first message on the WebSocket), so deep links render correctly on the first
+  frame; `NAVIGATE` events forward into `RenderResult.navigateHandler`. The
+  active menu row is highlighted **reactively** — a computed signal from
+  `router.routeSignal()` drives `Background.of(Signal<Color>)` /
+  `ForegroundStyle.of(Signal<Color>)`, so a selection re-emits only that row's
+  color properties. Content areas are router-free, self-contained views
+  instantiated inline in the route table:
+  - `HomeView` — titled welcome pane with a declarative `.navigate("/kitchen")`
+    button (spec DSL.md §4.5 — a component inside the container changing the
+    route without a router) (`/` and `/home`).
+  - `KitchenSinkView` — the full showcase (`/kitchen`).
+  - `SettingsView` — a switch + volume slider on local signals (`/settings`).
+  - A `fallback` ("Not Found") for any other path.
 
 ## Not implemented / gaps
 
@@ -44,4 +64,10 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
 ## Verified by
 
 `mvn test -pl pathland-demo-views` (JDK 17+) — `CounterViewTest`,
-`KitchenSinkViewTest` (mount + persistence + input routing).
+`KitchenSinkViewTest` (mount + persistence + input routing), and
+`SplitNavDemoTest` (sidebar + content first frame, `/kitchen` content swap,
+menu-click content swap deltas, reactive active-row highlight). Both SSR demos
+are verified by running them and curling the deep links (`/`, `/home`,
+`/kitchen`, `/settings` render the splitview seeded at that path with the right
+content + `data-pathland-route`; unknown paths show the sidebar + "Not Found";
+the JS bundle serves correctly).

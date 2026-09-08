@@ -1,6 +1,7 @@
 package com.pathland.view;
 
 import com.pathland.view.emit.PathlandNode;
+import com.pathland.view.router.NavigationMod;
 import com.pathland.view.signal.Signal;
 
 /**
@@ -65,5 +66,25 @@ public interface View {
             result = result.modifier(modifier);
         }
         return result;
+    }
+
+    /**
+     * Declare this view a route-changer that {@code navigate}s to {@code to} (a
+     * direct selection — no back-stack entry). Resolved to the nearest enclosing
+     * {@code Router} by the emitter (spec DSL.md §4.5 "any component can change
+     * the route").
+     */
+    default View navigate(String to) {
+        return modifier(NavigationMod.navigate(to));
+    }
+
+    /** Declare this view a route-changer that {@code push}es to {@code to} (drill-down). */
+    default View push(String to) {
+        return modifier(NavigationMod.push(to));
+    }
+
+    /** Declare this view a route-changer that {@code replace}s to {@code to}. */
+    default View replace(String to) {
+        return modifier(NavigationMod.replace(to));
     }
 }

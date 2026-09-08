@@ -83,17 +83,38 @@ pub mod event {
     /// **Draft.** `A=targetId, B=days since epoch (I32), C=millis of day (U32)`
     /// — a `DATE_PICKER`'s value changed (matches `STYLE::SET_DATE`).
     pub const DATE_CHANGED: u8 = 0x0D;
+    /// **Draft.** Global navigation request (host → guest), never node-keyed.
+    /// With the `NAVIGATE_URL` flag, `B` is a string offset (event arena /
+    /// batch string section) to the destination URL; without it, the event means
+    /// "back one step" (native back affordance) and `B`/`C` are ignored.
+    pub const NAVIGATE: u8 = 0x0E;
 }
 
 /// Commands within the `META` category.
 pub mod meta {
     /// Host must clear all rendered output.
     pub const RESET: u8 = 0x01;
-    /// `A=viewportWidth (f32), B=viewportHeight (f32)` (host → guest)
+    /// `A=fieldId (u16, low), B=field value` — a platform environment field
+    /// (host → guest); see [`crate::environment`]. An extensible field family:
+    /// each opcode sets one field (viewport, initial route, …).
     pub const ENVIRONMENT: u8 = 0x02;
     /// The host (renderer) requests a full snapshot of the current tree
     /// (host → guest). `A/B/C = 0`. Used for reconnect/gap recovery.
     pub const RESYNC: u8 = 0x03;
+}
+
+/// Environment field ids for `META::ENVIRONMENT` (host → guest).
+///
+/// Each opcode sets one platform environment field; new fields are new ids, never
+/// new commands (spec/OPCODE.md §Environment fields).
+pub mod environment {
+    /// Viewport width in logical points (f32 in `B`).
+    pub const VIEWPORT_WIDTH: u16 = 0x0001;
+    /// Viewport height in logical points (f32 in `B`).
+    pub const VIEWPORT_HEIGHT: u16 = 0x0002;
+    /// The initial route/deep-link path (STRING: `B` is a string-section/event-arena
+    /// offset — the `TEXT_CHANGED`/`NAVIGATE` dual convention).
+    pub const ROUTE: u16 = 0x0003;
 }
 
 /// Flag bits used across categories.
@@ -106,6 +127,9 @@ pub mod flag {
     pub const HOVER_LEAVE: u16 = 0x0002;
     /// `KEY_DOWN`: key repeat (bit 1).
     pub const KEY_REPEAT: u16 = 0x0002;
+    /// `NAVIGATE`: `B` is a URL string offset (bit 0). Without this flag the
+    /// event is a back request.
+    pub const NAVIGATE_URL: u16 = 0x0001;
 }
 
 /// Bits for the `EVENT_LISTENERS` semantic property (a u32 bitmask).
@@ -383,6 +407,11 @@ pub mod property_id {
     pub const ALLOWS_HIT_TESTING: u16 = 0x102F;
     /// **Draft.** Accent/tint color (COLOR). `.tint(_:)`.
     pub const TINT: u16 = 0x1030;
+    /// **Draft.** Presentation hint for structural swaps (F32 enum code):
+    /// `None`=0, `PlatformDefault`=1, `Fade`=2, `Slide`=3, `Scale`=4 — emitted
+    /// by a `NavigationContainer`/`Conditional.when` slot; the renderer may
+    /// animate the swap and must render normally when it ignores the hint.
+    pub const TRANSITION: u16 = 0x1031;
     // Semantic (0x2000 range)
     pub const ROLE: u16 = 0x2001;
     pub const STATE: u16 = 0x2002;
@@ -430,6 +459,24 @@ pub mod property_id {
     /// **Draft.** Visual style token for a `TOGGLE` (F32 enum code):
     /// `Switch`=0, `Checkbox`=1, `Button`=2.
     pub const TOGGLE_STYLE: u16 = 0x2018;
+    /// **Draft.** Current navigation path (STRING, arenaRef), emitted by a
+    /// `NavigationContainer` slot; drives web URL sync.
+    pub const ROUTE: u16 = 0x2019;
+    /// **Draft.** Navigation back-stack depth (U32: number of destinations in
+    /// the app's path, including the current one — `push` increments, `pop`
+    /// decrements, `replace` leaves it unchanged). Emitted by a
+    /// `NavigationContainer` slot so native navigation adapters can reconcile
+    /// their page stack by depth (push/pop/replace/reset) instead of route
+    /// tags alone. See `spec/DSL.md §4.5` and `spec/MODIFIERS.md §6`.
+    pub const NAV_DEPTH: u16 = 0x201A;
+    /// **Draft.** Navigation chrome mode (F32 enum code) on a
+    /// `NavigationContainer` slot: `PlatformDefault`=0 (the renderer supplies
+    /// the navigation chrome — the native container where one exists, a
+    /// renderer-drawn back affordance on DOM), `Custom`=1 (the developer owns
+    /// all navigation UI and the renderer adds none). A container emits this
+    /// once at mount (it never varies per destination). See `spec/DSL.md §4.5`
+    /// and `spec/MODIFIERS.md §6`.
+    pub const NAV_CHROME: u16 = 0x201B;
 }
 
 /// The protocol value type for a property id.
@@ -463,13 +510,16 @@ pub fn value_type_for(prop: u16) -> u8 {
         | property_id::ALLOWS_HIT_TESTING
         | property_id::FIXED_SIZE_HORIZONTAL
         | property_id::FIXED_SIZE_VERTICAL => value_type::U8,
-        property_id::LABEL | property_id::PROMPT | property_id::FONT_FAMILY | property_id::IMAGE_SOURCE => {
-            value_type::STRING
-        }
+        property_id::LABEL
+        | property_id::PROMPT
+        | property_id::FONT_FAMILY
+        | property_id::IMAGE_SOURCE
+        | property_id::ROUTE => value_type::STRING,
         property_id::LINE_LIMIT
         | property_id::SELECTION
         | property_id::ACTION_ID
-        | property_id::BINDING_ID => value_type::U32,
+        | property_id::BINDING_ID
+        | property_id::NAV_DEPTH => value_type::U32,
         _ => value_type::F32,
     }
 }

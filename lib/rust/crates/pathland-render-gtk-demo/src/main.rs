@@ -105,6 +105,12 @@ fn main() {
             let now_ms = start.elapsed().as_millis() as u64;
             let mut tapped = false;
             for ev in &events {
+                // Platform back (Escape/back key) arrives as a global NAVIGATE
+                // request with no URL. There is no Rust router yet, so this is
+                // surfaced to the console to prove the event reached the app.
+                if matches!(ev, pathland_core::Event::Navigate { url: None }) {
+                    eprintln!("[demo] NAVIGATE back requested");
+                }
                 if let Some(target) = recognizer.feed(ev, now_ms) {
                     if let Some(handler) = handlers.borrow().get(&target) {
                         let mut cb = handler.borrow_mut();

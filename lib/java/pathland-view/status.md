@@ -1,6 +1,6 @@
 # pathland-view (Java) — implementation status
 
-**Last updated:** September 2, 2026
+**Last updated:** September 3, 2026
 
 The hand-written, framework-agnostic Java 17+ DSL (`com.pathland.view`):
 SwiftUI-style views, Angular-style signals, fine-grained emitter, `PLPL` wire
@@ -89,9 +89,48 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 - **Emitter** (`emit`): mounts once, stable ids, node-level binding effects
   (a signal change re-emits only that node), `FrameOpcodeSink` /
   `RingOpcodeSink`.
+- **Structural reactivity** (spec DSL.md §3.4): `Conditional.when(Signal<Boolean>,
+  then, else)` and `when(Signal<T>, Case.of(...)...) / Case.otherwise(...)` —
+  statically importable lowercase factories on a final class (mirrors
+  `Signals`; `if`/`switch`/`case`/`else` are Java keywords). A structural
+  container materializes as a `Group` slot (bare `VSTACK` node); the emitter's
+  structural effect reconciles the slot's single child on selector change —
+  position+type-stable ids, `TREE` deltas only, identical recompute emits
+  **zero** opcodes, nested containers work, and the slot's subtree owns its own
+  bindings. `RenderResult` routing maps are now live unmodifiable views (a swap
+  updates tap/text/value/date routing after mount).
+- **Router** (`com.pathland.view.router`, spec DSL.md §4.5): `Route` (absolute
+  path, `pathOnly()` strips query/fragment), `RouteTable` (literal + `:param`
+  patterns, guards → `replace()` redirect, `fallback` 404), `Router`
+  (`Signal<Route>` + back-stack; `navigate`/`push`/`pop`/`replace`/`back`,
+  `handlePlatformNavigation`/`handleEvent`), `NavigationContainer` (structural
+  slot emitting the `ROUTE` property coalesced into the same frame as the
+  destination swap, plus a `NAV_DEPTH` U32 back-stack-depth property
+  (`router.depth()` = stack size + 1; `push`+1 / `pop`−1 / `replace` unchanged)
+  so native navigation adapters reconcile their page stack by depth, a
+  `NAV_CHROME` chrome-mode property (`Chrome.PLATFORM_DEFAULT` / `Chrome.CUSTOM`
+  — the renderer supplies default navigation chrome, or the developer owns all
+  nav UI), and a `TRANSITION` PlatformDefault hint renderers may use
+  to animate the swap), `NavigationLink` (a `BUTTON` that pushes — both
+  explicit-router and **router-agnostic** overloads). **Any component can change
+  the route** (spec DSL.md §4.5): `Button.of(...).navigate/push/replace(path)`
+  (`NavigationMod`) and router-agnostic `NavigationLink.of(label, to)` record a
+  `NavOp` intent on the node; the emitter resolves it to the **nearest
+  enclosing** `Router` (the `NavigationContainer` the component lives under)
+  during the retained-tree walk and exposes it on
+  `RenderResult.navigateActions` (a live `node id → Runnable` map like
+  `tapActions`), which the host routes on tap before `tapActions`. The route is a
+  **plain signal** (not persisted; the URL is the web's persistence layer) and
+  the host **seeds it before mount** via `navigate(...)` — no `Location`, no
+  environment-carried route. A `NAVIGATE` event (`Event.navigate(url)` /
+  `Event.navigateBack()`, wire round-trip via `FrameCodec`) routes into the
+  router through `RenderResult.navigateHandler`.
 - **Wire codec** (`transport`): `FrameCodec` — self-contained `PLPL` frames
   both directions, `encodeEvents`/`decodeEvents` (host→guest events with
-  `TEXT_CHANGED` string-section offsets).
+  `TEXT_CHANGED` string-section offsets), and **`META::ENVIRONMENT`**
+  (`isEnvironment`/`decodeEnvironment` → `EnvironmentData` — the platform
+  environment: viewport + initial route; SSR synthesizes it from the request,
+  the DOM client sends/enriches it over the WebSocket).
 - **JNA ring interop** (`ffm`): lazy `libpathland_core` binding, zero JNI.
 - **State** (`state`): `StateStore`/`PersistentState`/`State`, auto-wired by
   `pathland-view-processor`.
@@ -116,9 +155,18 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 - `ACTION_ID`/`BINDING_ID` are usable as modifiers (`actionId`/`bindingId`) but
   the Java model routes events by node id through the emitter's registries
   (`RenderResult`), so controls don't set them automatically.
+- Structural reconcile does not emit `SET_PROPERTY` for a *removed* property on
+  a matched node (the wire has no unset; the renderer keeps the last value) —
+  consistent with the Rust engine.
 
 ## Verified by
 
-`mvn test` (JDK 17+) — emitter, codec round-trips, signals, state; the JNA ring
-test runs when `libpathland_core` is on `java.library.path`. CI proves every LTS
-from 17 (Temurin 17/21/25).
+`mvn test` (JDK 17+) — emitter, codec round-trips (incl. `NAVIGATE`), signals,
+state, structural-reactivity (`ConditionalTest`) and the router (`RouterTest`:
+initial route + `ROUTE` property + `NAV_DEPTH` depth tracking + `NAV_CHROME`
+chrome mode, destination swap deltas, back-stack, params, guard redirect,
+fallback, `NAVIGATE` routing, `NavigationLink`, and the **declarative nav
+intents**: `.navigate/.push/.replace` + router-agnostic `NavigationLink`
+resolve to the nearest enclosing router via `navigateActions`); the JNA ring
+test runs when `libpathland_core` is on `java.library.path`. CI proves every
+LTS from 17 (Temurin 17/21/25).

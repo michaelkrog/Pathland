@@ -142,6 +142,78 @@ pub(crate) const VECTORS: &[(&str, [u8; 16])] = &[
             0x14, 0x00, 0x00, 0x00, // C = arenaRef = 20 ("Inter")
         ],
     ),
+    (
+        "EVENT:NAVIGATE (URL=\"/users/42\" arenaRef=0, NAVIGATE_URL flag)",
+        [
+            0x03, 0x0E, 0x01, 0x00, // category EVENT, command NAVIGATE, NAVIGATE_URL
+            0x00, 0x00, 0x00, 0x00, // A = 0 (global, no targetId)
+            0x00, 0x00, 0x00, 0x00, // B = URL string offset = 0
+            0x00, 0x00, 0x00, 0x00, // C = 0
+        ],
+    ),
+    (
+        "EVENT:NAVIGATE (back, no URL)",
+        [
+            0x03, 0x0E, 0x00, 0x00, // category EVENT, command NAVIGATE, no flag
+            0x00, 0x00, 0x00, 0x00, // A = 0
+            0x00, 0x00, 0x00, 0x00, // B = 0
+            0x00, 0x00, 0x00, 0x00, // C = 0
+        ],
+    ),
+    (
+        "STYLE:SET_PROPERTY (id=1, ROUTE=0x2019, valueType=STRING=0x05, arenaRef=0)",
+        [
+            0x02, 0x01, 0x00, 0x00, // category STYLE, command SET_PROPERTY
+            0x01, 0x00, 0x00, 0x00, // A = nodeId = 1
+            0x19, 0x20, 0x05, 0x00, // B = (0x05 << 16) | 0x2019 (STRING | ROUTE)
+            0x00, 0x00, 0x00, 0x00, // C = arenaRef = 0 ("/users/42")
+        ],
+    ),
+    (
+        "STYLE:SET_PROPERTY (id=1, TRANSITION=0x1031, valueType=F32=0x04, Slide=3)",
+        [
+            0x02, 0x01, 0x00, 0x00, // category STYLE, command SET_PROPERTY
+            0x01, 0x00, 0x00, 0x00, // A = nodeId = 1
+            0x31, 0x10, 0x04, 0x00, // B = (0x04 << 16) | 0x1031 (F32 | TRANSITION)
+            0x00, 0x00, 0x40, 0x40, // C = 3.0 (f32 LE: 0x40400000) = Slide
+        ],
+    ),
+    (
+        "META:ENVIRONMENT (VIEWPORT_WIDTH=0x0001, width=800.0)",
+        [
+            0x04, 0x02, 0x00, 0x00, // category META, command ENVIRONMENT
+            0x01, 0x00, 0x00, 0x00, // A = fieldId = 0x0001 (VIEWPORT_WIDTH)
+            0x00, 0x00, 0x48, 0x44, // B = 800.0 (f32 LE: 0x44480000)
+            0x00, 0x00, 0x00, 0x00, // C = 0
+        ],
+    ),
+    (
+        "META:ENVIRONMENT (ROUTE=0x0003, string offset 0)",
+        [
+            0x04, 0x02, 0x00, 0x00, // category META, command ENVIRONMENT
+            0x03, 0x00, 0x00, 0x00, // A = fieldId = 0x0003 (ROUTE)
+            0x00, 0x00, 0x00, 0x00, // B = string offset = 0 ("/users/42")
+            0x00, 0x00, 0x00, 0x00, // C = 0
+        ],
+    ),
+    (
+        "STYLE:SET_PROPERTY (id=1, NAV_DEPTH=0x201A, valueType=U32=0x02, depth=3)",
+        [
+            0x02, 0x01, 0x00, 0x00, // category STYLE, command SET_PROPERTY
+            0x01, 0x00, 0x00, 0x00, // A = nodeId = 1
+            0x1A, 0x20, 0x02, 0x00, // B = (0x02 << 16) | 0x201A (U32 | NAV_DEPTH)
+            0x03, 0x00, 0x00, 0x00, // C = depth = 3 (U32 LE)
+        ],
+    ),
+    (
+        "STYLE:SET_PROPERTY (id=1, NAV_CHROME=0x201B, valueType=F32=0x04, Custom=1)",
+        [
+            0x02, 0x01, 0x00, 0x00, // category STYLE, command SET_PROPERTY
+            0x01, 0x00, 0x00, 0x00, // A = nodeId = 1
+            0x1B, 0x20, 0x04, 0x00, // B = (0x04 << 16) | 0x201B (F32 | NAV_CHROME)
+            0x00, 0x00, 0x80, 0x3F, // C = 1.0 (f32 LE: 0x3F800000) = Custom
+        ],
+    ),
 ];
 
 #[cfg(test)]
@@ -226,6 +298,46 @@ mod tests {
                 VECTORS[13].1,
             ),
             (0x02, 0x02, 0x0000, 0, 0x05, 0x14, VECTORS[14].1),
+            (0x03, 0x0E, 0x0001, 0, 0, 0, VECTORS[15].1),
+            (0x03, 0x0E, 0x0000, 0, 0, 0, VECTORS[16].1),
+            (
+                0x02,
+                0x01,
+                0x0000,
+                1,
+                (0x05u32 << 16) | 0x2019,
+                0,
+                VECTORS[17].1,
+            ),
+            (
+                0x02,
+                0x01,
+                0x0000,
+                1,
+                (0x04u32 << 16) | 0x1031,
+                3.0f32.to_bits(),
+                VECTORS[18].1,
+            ),
+            (0x04, 0x02, 0x0000, 0x0001, 800.0f32.to_bits(), 0, VECTORS[19].1),
+            (0x04, 0x02, 0x0000, 0x0003, 0, 0, VECTORS[20].1),
+            (
+                0x02,
+                0x01,
+                0x0000,
+                1,
+                (0x02u32 << 16) | 0x201A,
+                3,
+                VECTORS[21].1,
+            ),
+            (
+                0x02,
+                0x01,
+                0x0000,
+                1,
+                (0x04u32 << 16) | 0x201B,
+                1.0f32.to_bits(),
+                VECTORS[22].1,
+            ),
         ];
         for (cat, cmd, flags, a, b, c, expected) in cases {
             let op = Opcode::new(*cat, *cmd, *flags, *a, *b, *c);

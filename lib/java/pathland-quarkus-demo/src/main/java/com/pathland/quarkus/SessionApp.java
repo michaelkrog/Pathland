@@ -1,7 +1,7 @@
 package com.pathland.quarkus;
 
 import com.pathland.demo.DemoTheme;
-import com.pathland.demo.KitchenSinkView;
+import com.pathland.demo.SplitNavDemo;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
 import com.pathland.view.emit.DateInput;
@@ -9,8 +9,10 @@ import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.emit.RenderResult;
+import com.pathland.view.router.Router;
 import com.pathland.view.state.PersistentState;
 import com.pathland.view.state.StateStore;
+import com.pathland.view.transport.EnvironmentData;
 import com.pathland.view.transport.Event;
 import com.pathland.view.transport.FrameCodec;
 import io.quarkus.websockets.next.WebSocketConnection;
@@ -23,29 +25,42 @@ import java.util.function.Consumer;
  * {@link PersistentState}, retained tree, fine-grained emitter, HTML renderer, and the
  * single connection it sends deltas to.
  *
+ * <p>The platform environment (spec/OPCODE.md §Environment fields) seeds the app: the
+ * router hydrates from its {@code ROUTE} field before mount (a request URL on SSR; the
+ * DOM client's first message over the WebSocket), so a deep-linked URL renders the
+ * right destination on the first frame. Later environment messages **enrich** the
+ * session (viewport resizes, future fields) via {@link #applyEnvironment}.
+ *
  * <p>State wiring is automatic: {@code State} fields in the shared views are connected
- * to the store at mount time (see {@link Emitter#mount}). The same class is also used
- * (throwaway) for per-session SSR. The connection is wired only for the live (WebSocket)
- * path, and only <em>after</em> mount, so the mount's full frame is never re-sent.
+ * to the store at mount time (see {@link Emitter#mount}). The connection is wired only
+ * for the live (WebSocket) path, and only <em>after</em> mount, so the mount's full
+ * frame is never re-sent.
  */
 final class SessionApp {
 
     private final PersistentState state;
-    private final KitchenSinkView root;
+    private final Router router;
+    private final SplitNavDemo root;
 
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
+    private final Map<Integer, Runnable> navigateActions;
     private final Map<Integer, Consumer<String>> textInputs;
     private final Map<Integer, Consumer<Float>> valueInputs;
     private final Map<Integer, DateInput> dateInputs;
+    private final Consumer<Event> navigateHandler;
     private final int rootId;
+
+    private float viewportWidth = -1f;
+    private float viewportHeight = -1f;
 
     private volatile WebSocketConnection connection;
 
-    SessionApp(String sessionId, StateStore store) {
+    SessionApp(String sessionId, StateStore store, EnvironmentData env) {
         this.state = new PersistentState(store, sessionId);
-        this.root = new KitchenSinkView();
+        this.router = SplitNavDemo.router(env.route());
+        this.root = SplitNavDemo.of(router);
 
         // Every completed frame is applied to the session's HTML renderer (for SSR) and,
         // when connected, sent as a delta to THIS session's single client. No broadcast.
@@ -66,10 +81,26 @@ final class SessionApp {
         // Mount wires State fields, then renders and emits the structural frame.
         RenderResult result = emitter.mount(root, new Environment(state));
         this.tapActions = result.tapActions();
+        this.navigateActions = result.navigateActions();
         this.textInputs = result.textInputs();
         this.valueInputs = result.valueInputs();
         this.dateInputs = result.dateInputs();
+        this.navigateHandler = result.navigateHandler();
         this.rootId = result.rootId();
+        applyEnvironment(env); // records viewport; the router already seeded from env.route()
+    }
+
+    /** Apply (or enrich) the platform environment after mount (viewport resizes, …). */
+    void applyEnvironment(EnvironmentData env) {
+        if (!env.route().equals(router.path())) {
+            router.navigate(env.route()); // re-route if the platform moved (idempotent)
+        }
+        if (env.viewportWidth() > 0) {
+            viewportWidth = env.viewportWidth();
+        }
+        if (env.viewportHeight() > 0) {
+            viewportHeight = env.viewportHeight();
+        }
     }
 
     /** Wire the live connection AFTER mount (the initial frame was already SSR'd). */
@@ -103,9 +134,16 @@ final class SessionApp {
         try {
             for (Event event : FrameCodec.decodeEvents(message)) {
                 if (event.isPointerUp()) {
-                    Runnable action = tapActions.get(event.target());
-                    if (action != null) {
-                        action.run();
+                    // A declared navigation intent (`.navigate/.push/.replace`) wins over a
+                    // plain tap action — route it first (spec DSL.md §4.5).
+                    Runnable nav = navigateActions.get(event.target());
+                    if (nav != null) {
+                        nav.run();
+                    } else {
+                        Runnable action = tapActions.get(event.target());
+                        if (action != null) {
+                            action.run();
+                        }
                     }
                 } else if (event.isTextChanged()) {
                     Consumer<String> sink = textInputs.get(event.target());
@@ -121,6 +159,12 @@ final class SessionApp {
                     DateInput sink = dateInputs.get(event.target());
                     if (sink != null) {
                         sink.accept(event.days(), event.millisOfDay());
+                    }
+                } else if (event.isNavigate()) {
+                    // Global (no target): route it into the mounted router's NAVIGATE sink.
+                    Consumer<Event> sink = navigateHandler;
+                    if (sink != null) {
+                        sink.accept(event);
                     }
                 }
             }

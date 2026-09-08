@@ -1,6 +1,6 @@
 # pathland-render-html (Rust) — implementation status
 
-**Last updated:** September 2, 2026
+**Last updated:** September 3, 2026
 
 The **server-side / remote-projection HTML renderer**: a **stateless, streaming**
 pure function of the opcode stream producing declarative HTML. Each render call
@@ -32,6 +32,15 @@ Statelessness). Protocol contract: `spec/`.
   `CLIPS_TO_BOUNDS`, `ALLOWS_HIT_TESTING`, `COLOR_INVERT`.
 - **Event surfacing**: `data-event-listeners` / `data-action-id` /
   `data-binding-id` attributes.
+- **Navigation slot attrs** (spec DSL.md §4.5 / MODIFIERS.md): a slot node's
+  `ROUTE` (STRING) renders as `data-pathland-route="<path>"`, its
+  `TRANSITION` hint renders as `data-pathland-transition="<platform|fade|slide|scale>"`,
+  its `NAV_CHROME` (F32 enum) renders `data-pathland-nav-chrome="custom"`
+  when `Custom` (the renderer adds no default chrome), and `NAV_DEPTH` (U32)
+  renders `data-pathland-depth="N"` when deeper than its root so the DOM client
+  can hydrate its default back button from the SSR HTML — the DOM renderer
+  mirrors the route into the URL, may animate a swap, and draws the renderer's
+  own back button (the web has no native navigation container).
 - `STYLE::SET_DATE` handled (days + millis-of-day → date/time).
 - **Design tokens (spec/TOKENS.md)**:
   - `STYLE::SET_DESIGN_TOKEN` overrides are collected per snapshot batch and
@@ -112,8 +121,8 @@ single `style` attribute — no external compiler, no class system, no safelist:
 
 ## Verified by
 
-`cargo test -p pathland-render-html` — 32 headless render tests (components,
-properties, composite, event attrs, `days_to_date`, network-decoded frames,
-inline-all styling, built-in CSS block contents, Inter CDN head links, design
-tokens: base/dark override CSS, `px` lengths, `DESIGN_TOKEN` refs,
-generative `space.N`).
+`cargo test -p pathland-render-html` — 37 headless render tests (components,
+properties, composite, event attrs, navigation slot route/transition attrs,
+`days_to_date`, network-decoded frames, inline-all styling, built-in CSS block
+contents, Inter CDN head links, design tokens: base/dark override CSS, `px`
+lengths, `DESIGN_TOKEN` refs, generative `space.N`).

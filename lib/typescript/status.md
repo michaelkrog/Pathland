@@ -1,6 +1,6 @@
 # @pathland/dom-renderer (lib/typescript) — implementation status
 
-**Last updated:** September 2, 2026
+**Last updated:** September 4, 2026
 
 The **Pathland DOM renderer** — the web client. A vanilla-TypeScript hydration
 client (no runtime dependencies) that is the single source of the client,
@@ -16,6 +16,14 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   duplicated `app.js` is removed.
 - **Hydration**: builds the `data-pathland-id → element` registry from the SSR
   DOM.
+- **Logging** (`src/log.ts`, `src/describe.ts`): a tiny **zero-dependency**
+  logger (levels + `[pathland:ns]` namespaces, default `info`; opt into
+  `debug` with `window.__PATHLAND_LOG_LEVEL="debug"` or
+  `?pathland-log=debug`). Meaningful **receive/emit** logging of opcodes and
+  events — `→ send EVENT POINTER_UP(target=4, …)`, `← recv frame=7 (2 ops):
+  STYLE SET_PROPERTY(ROUTE="/users", …)`, plus lifecycle (connect/reconnect,
+  `pushState`, `popstate`, environment) — with a full per-opcode trace at
+  `debug` (`src/describe.ts`).
 - **PLPL decode** (`src/plpl.ts`): bounds-checked batch parse — magic/version
   validation, truncated-opcode/string rejection, length-prefixed string reads.
 - **Full delta application** (`src/apply.ts`):
@@ -56,8 +64,34 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   `POINTER_MOVE` (x/y + hover enter/leave), `POINTER_UP` (x/y + secondary),
   `KEY_DOWN`/`KEY_UP` (keyCode + modifiers + repeat), `VALUE_CHANGED` (f32 or
   raw bits), `TEXT_CHANGED` (string section), `DATE_CHANGED`, `FOCUS_CHANGED`,
-  `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL` — guest → host (flags
-  `0x0000`).
+  `EDITING_CHANGED`, `SUBMIT`, `SCROLL`, `WHEEL`, **`NAVIGATE`** (`encodeNavigate`
+  URL in the string section + `NAVIGATE_URL` flag; `encodeNavigateBack` no URL),
+  and **`META::ENVIRONMENT`** (`encodeEnvironment(width, height, route)`) — guest →
+  host (flags `0x0000`).
+- **Platform environment** (spec/OPCODE.md §Environment fields): the client sends
+  `encodeEnvironment` as its **first** WS message (`transport.ts` `onOpen`, before
+  any resync) so the server session seeds its router from the `ROUTE` field, and
+  re-sends it on `window.resize` to **enrich** the environment after connect
+  (viewport + future fields ride the same message).
+- **URL mirroring + back/forward** (spec DSL.md §4.5): a slot's `ROUTE`
+  (STRING) property updates `data-pathland-route` and fires the `onRoute` hook
+  (`src/index.ts` wires it to `history.pushState` — never called on hydrate, so
+  no duplicate history entry); `popstate` reports `location.href` as a
+  `NAVIGATE` event so the app routes. `pushState` never fires `popstate`, so
+  server-originated navigation cannot loop. **Swap transitions**: a child
+  inserted into a `data-pathland-transition` slot is animated in (fade/slide/
+  scale keyframes injected once into a `<style data-pathland-transitions>`),
+  a renderer-side animation of its own output cache — never app state.
+- **Renderer-provided default back button** (spec DSL.md §4.5): the web has no
+  native navigation container, so the DOM renderer draws its own back
+  affordance for a `PlatformDefault` nav slot at depth > 1 — a `.pathland-nav-back`
+  button injected above the destination when `NAV_DEPTH` (`data-pathland-depth`)
+  exceeds 1 and removed at depth 1 / for `Custom` chrome
+  (`data-pathland-nav-chrome="custom"`, `NAV_CHROME=1`). The button is excluded
+  from reconcile indexing (`insertAt` skips the class) so TREE deltas never
+  displace it; clicking it fires `onNavigateBack`, wired in `src/index.ts` to
+  `encodeNavigateBack()` (a `NAVIGATE` back request — the app pops). Hydrated
+  once at boot from the SSR HTML via `updateNavBackButtons`.
 - **`EVENT_LISTENERS` gating**: `src/index.ts` reads the SSR `data-event-listeners`
   mask (mirroring the Rust renderer's event attrs) and emits an event only when
   the node opted into it; absent attribute = permissive (no gating info).
@@ -65,6 +99,15 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   existing hydrated element (id already in the registry) and `INSERT_CHILD` skips
   when the child is already in the parent's container — so a resync'd full
   snapshot reconciles against the SSR DOM without clobbering or duplicating.
+- **Runtime shells mirror the Rust renderer** (`src/elements.ts`): runtime-created
+  nodes carry the same `pathland-*` classes/structure as SSR (a reinstated
+  `BUTTON` gets `pathland-button`, `GAUGE` gets its `pathland-gauge` bar shell);
+  a `ZStack` child is absolutely positioned (`position:absolute;inset:0`), and a
+  `ProgressView` morphs between the determinate `<progress>` and the
+  `pathland-spinner` div per `IS_INDETERMINATE`/`PROGRESS` — so a destination
+  reinstated after a navigation swap keeps its styling. A table-driven **drift
+  guard** (`test/elements.test.ts`) pins the canonical shells against the Rust
+  renderer's SSR markup.
 - **`META::RESYNC`** (`encodeResync`): the client requests a full snapshot after
   **reconnect** (never on first connect — the UI is already the SSR HTML).
 - **Transport** (`src/transport.ts`): WebSocket connect, protocol-version
@@ -75,8 +118,11 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   colors inline, design tokens as CSS variables.
 - **Tests** (`test/`, vitest + happy-dom): codec round-trips, TREE/STYLE/META
   application, design tokens (var mapping, dark scoping, px lengths, generative
-  `space.N` refs), event byte layouts, and one golden assertion per
-  property/enum — 87 tests.
+  `space.N` refs), event byte layouts (incl. `NAVIGATE`), navigation (ROUTE →
+  `onRoute`, transition animation, non-hinted slots), transport lifecycle
+  (reconnect/resync), the logger (level gating, prefix), the opcode/event
+  descriptors, the runtime-shell drift guard, and the ZStack/ProgressView
+  behavior — 138 tests.
 
 ## Not implemented / gaps
 

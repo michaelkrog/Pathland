@@ -1,12 +1,16 @@
 package com.pathland.view.emit;
 
+import com.pathland.view.View;
+import com.pathland.view.router.NavOp;
 import com.pathland.view.signal.Signal;
+import com.pathland.view.transport.Event;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * A node in the retained view tree — the app's canonical tree, produced by
@@ -54,6 +58,16 @@ public final class PathlandNode {
     /** App-side tap callbacks (resolved by node id after the emitter assigns ids). */
     public final List<Runnable> tapActions = new ArrayList<>();
 
+    /**
+     * Declared navigation intent (spec DSL.md §4.5 "any component can change the
+     * route"): a non-null {@code navigateTo} marks this node as a route-changer —
+     * the emitter resolves it to the **nearest enclosing** {@code Router} (the
+     * {@code NavigationContainer} this node lives under) and registers it in
+     * {@code RenderResult.navigateActions}. No router is threaded by hand.
+     */
+    public String navigateTo;
+    public NavOp navOp = NavOp.NAVIGATE;
+
     /** Writable text-input sink (text fields); the emitter routes TEXT_CHANGED into it. */
     public Consumer<String> textInput;
 
@@ -62,6 +76,47 @@ public final class PathlandNode {
 
     /** Writable date-input sink (date pickers); the emitter routes DATE_CHANGED into it. */
     public DateInput dateInput;
+
+    /**
+     * Structural slot: when non-null this node's single child subtree is selected by
+     * a signal and **reconciled** by the emitter on selector change (spec DSL.md §3.4).
+     * The emitter re-evaluates the supplier (which reads the selector signal) and
+     * diffs the resulting subtree against the retained one, emitting only `TREE`
+     * deltas. All other reactivity stays fine-grained.
+     */
+    public Supplier<View> structuralContent;
+
+    /**
+     * Structural slot reactive STRING property: re-evaluated and re-emitted by the
+     * structural effect <em>within the same reconcile frame</em> as the subtree swap
+     * (e.g. the router's {@code ROUTE} property). Keeps a navigation to one frame.
+     */
+    public Integer structuralStringProperty;
+    public Supplier<String> structuralStringValue;
+
+    /**
+     * Structural slot reactive U32 property: re-evaluated and re-emitted by the
+     * structural effect <em>within the same reconcile frame</em> as the subtree
+     * swap (e.g. the router's {@code NAV_DEPTH} property), so native navigation
+     * adapters reconcile their page stack by depth.
+     */
+    public Integer structuralU32Property;
+    public java.util.function.Supplier<Integer> structuralU32Value;
+
+    /**
+     * Global navigation sink: the host forwards raw {@code NAVIGATE} events here
+     * (a {@code NavigationContainer} sets this to its router's handler). Unlike the
+     * node-keyed input sinks, this is global — a {@code NAVIGATE} event has no target.
+     */
+    public Consumer<Event> navigateHandler;
+
+    /**
+     * The {@code Router} this node's subtree navigates against (a
+     * {@code NavigationContainer} sets this to its router). The emitter tracks the
+     * **nearest enclosing** one down the retained tree to resolve declarative
+     * {@code navigateTo} intents (spec DSL.md §4.5).
+     */
+    public com.pathland.view.router.Router router;
 
     public PathlandNode(int component) {
         this.component = component;
