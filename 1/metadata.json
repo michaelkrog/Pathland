@@ -1,0 +1,152 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M20R7PRQ340NK1YNSXS8TMVD",
+  "session_id": "ses_f80535627ffe0oRq2rzjS3zIFI",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-08T14:55:00.614007Z",
+  "branch": "feat/router-structural-reactivity",
+  "checkpoints_count": 14,
+  "save_step_count": 15,
+  "files_touched": [
+    "docs/router-plan.md",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/HomeView.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/RouterDemo.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/SettingsView.java",
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/SplitNavDemo.java",
+    "lib/java/pathland-demo-views/src/test/java/com/pathland/demo/RouterDemoTest.java",
+    "lib/java/pathland-demo-views/src/test/java/com/pathland/demo/SplitNavDemoTest.java",
+    "lib/java/pathland-demo-views/status.md",
+    "lib/java/pathland-quarkus-demo/src/main/java/com/pathland/quarkus/SessionApp.java",
+    "lib/java/pathland-spring-boot-demo/src/main/java/com/pathland/spring/SessionApp.java"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "52b4e05eb5e9",
+  "compact_transcript_start": 0,
+  "token_usage": {
+    "input_tokens": 6153371,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 102706048,
+    "output_tokens": 238789,
+    "api_call_count": 491
+  },
+  "session_metrics": {
+    "turn_count": 28
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 33,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1045,
+      "agent_lines_removed": 66,
+      "user_added_per_file": {
+        "lib/java/pathland-view/src/main/java/com/pathland/view/router/Chrome.java": 33
+      }
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1078,
+      "agent_lines_removed": 66
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1078,
+      "agent_lines_removed": 66
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1388,
+      "agent_lines_removed": 68
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1388,
+      "agent_lines_removed": 68
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1410,
+      "agent_lines_removed": 72
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1410,
+      "agent_lines_removed": 72
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1410,
+      "agent_lines_removed": 72
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1410,
+      "agent_lines_removed": 72
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1410,
+      "agent_lines_removed": 72
+    },
+    {
+      "checkpoint_number": 14,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1410,
+      "agent_lines_removed": 72
+    },
+    {
+      "checkpoint_number": 15,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 1410,
+      "agent_lines_removed": 72
+    },
+    {
+      "checkpoint_number": 16,
+      "user_lines_added": 2,
+      "user_lines_removed": 2,
+      "agent_lines_added": 1462,
+      "agent_lines_removed": 272,
+      "user_added_per_file": {
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/SplitNavDemo.java": 2
+      },
+      "user_removed_per_file": {
+        "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/SplitNavDemo.java": 2
+      }
+    }
+  ]
+}
