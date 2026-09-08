@@ -243,6 +243,8 @@ delivery (see [EVENTS.md](./EVENTS.md#transport-aware-event-guards-must)).
 | `BINDING_ID` | `0x2017` | U32 | Two-way binding id (control value ↔ app state) |
 | `TOGGLE_STYLE` | `0x2018` | ENUM (F32 code) | Visual style token for a `TOGGLE`: `Switch`=0, `Checkbox`=1, `Button`=2 |
 | `ROUTE` | `0x2019` | STRING | Current navigation path (absolute, e.g. `/users/42`); drives web URL sync — see [DSL.md §4.5](./DSL.md#45-navigation) |
+| `NAV_DEPTH` | `0x201A` | U32 | Navigation back-stack depth (destinations in the app's path incl. current; `push`+1, `pop`−1, `replace` unchanged); lets native navigation adapters reconcile their page stack by depth — see [DSL.md §4.5](./DSL.md#45-navigation) |
+| `NAV_CHROME` | `0x201B` | F32 (enum code) | Navigation chrome mode on a `NavigationContainer` slot: `PlatformDefault`=0 (renderer supplies chrome — native container where one exists, renderer-drawn back affordance on DOM), `Custom`=1 (developer owns all nav UI; renderer adds none). Emitted once at mount; missing = `PlatformDefault` — see [DSL.md §4.5](./DSL.md#45-navigation) |
 
 **`ROLE` enumerated values** (accessibility role; carried as an `F32` numeric code, `value_type::F32`):
 

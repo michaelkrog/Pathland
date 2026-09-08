@@ -1,6 +1,6 @@
 # pathland-render-gtk — implementation status
 
-**Last updated:** September 2, 2026
+**Last updated:** September 8, 2026
 
 The **GTK4 renderer**: maps opcode frames incrementally onto native GTK widgets
 (shared-memory desktop path). Protocol contract: `spec/`. Design-token contract:
@@ -42,6 +42,30 @@ The **GTK4 renderer**: maps opcode frames incrementally onto native GTK widgets
   (`VALUE_CHANGED` from toggle/slider/picker, `TEXT_CHANGED` from text field)
   **gated by `BINDING_ID`** (transport-aware event guards), sent through the
   two-way event arena.
+- **Platform back / `NAVIGATE`**: a window-level `EventControllerKey`
+  (capture phase, attached once in `run_with_pump`) maps Escape — and
+  BackSpace when no text entry has focus — to `Event::Navigate { url: None }`
+  through the shared event sink. `NAVIGATE` is global (never node-keyed),
+  matching spec/EVENTS.md.
+- **Native navigation slot (`AdwNavigationView`)**: a stack node carrying the
+  `ROUTE` property (a `NavigationContainer`, spec/DSL.md §4.5) renders as an
+  `AdwNavigationView` instead of a `GtkBox`. The adapter reconciles its page
+  stack **by depth** (`NAV_DEPTH` 0x201A, U32): it pops pages down to the
+  app's depth, then **pushes** when the route is deeper (normal push / deep
+  link), **replaces the top page** when the depth is unchanged and the route
+  differs (a guard redirect / `replace()`), and **refreshes in place** when the
+  visible page already shows the route (a signal update, or a re-emit after a
+  user-initiated back). In the default chrome mode (`NAV_CHROME` 0x201B
+  `PlatformDefault`, or missing) each page wraps the destination in a
+  `ToolbarView` + `HeaderBar` (`show-back-button`) — the native top bar and
+  back button; in `Custom` chrome mode (`Chrome.CUSTOM` → `NAV_CHROME=1`) the
+  page child is the bare destination (the developer owns all nav UI). The
+  header-bar back button's `popped` signal drops the
+  page from the adapter's mirror and emits `Event::Navigate { url: None }`
+  (suppressed during renderer-driven pops), so native back and Escape both flow
+  into the app's `router.pop()`. The back-stack stays app-owned; the
+  `AdwNavigationView` is only the renderer's rendered-output cache.
+  `libadwaita` (0.7, `v1_4` feature) is a new native dependency.
 - **Design tokens / theming (spec/TOKENS.md renderer contract)**:
   - `STYLE::SET_DESIGN_TOKEN` overrides are stored (`host.rs`), base + `dark.*`
     split by path prefix; STRING-valued overrides resolve the value string from
@@ -73,12 +97,23 @@ The **GTK4 renderer**: maps opcode frames incrementally onto native GTK widgets
 - Composite bodies attach to button-like controls only; other controls ignore
   children.
 - `LAZY_*` renders eagerly (no GTK windowing).
+- The `AdwNavigationView` adapter does not (yet) reflect the `TRANSITION`
+  (0x1031) hint into a native animation choice — libadwaita animates its
+  standard push/pop; per-transition styling is a follow-up.
+- **Duplicate same-route pushes collapse**: pages are keyed by the current
+  route tag on top — a `push` to a route that already sits on top refreshes in
+  place instead of stacking a second identical page (the app's back-stack is
+  the source of truth for depth; the native stack is only its rendered cache).
+- A **multi-step jump deeper in one frame** (the app emitting only the final
+  destination) pushes a single page; intermediate pages are not fabricated.
 
 ## Verified by
 
 `cargo test -p pathland-render-gtk` — layout mapping, `widget_kind` (full
 component map), container/composite kinds, string resolution, value type
-mapping (headless; widget construction is exercised without a display), and
-design tokens: `DESIGN_TOKEN` property refs resolve against concrete defaults,
-`SET_DESIGN_TOKEN` overrides + `dark.*` + scheme change re-resolve, generative
-`space.N`, and the GTK-native default enrichment (fallback path headless).
+mapping (headless; widget construction is exercised without a display), the
+nav-slot detection + `nav_action` depth decision + `NAV_CHROME` mode
+(`is_custom_chrome`), and design tokens: `DESIGN_TOKEN` property refs resolve
+against concrete defaults, `SET_DESIGN_TOKEN` overrides + `dark.*` + scheme
+change re-resolve, generative `space.N`, and the GTK-native default enrichment
+(fallback path headless).

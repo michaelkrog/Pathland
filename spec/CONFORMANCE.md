@@ -485,6 +485,44 @@ A STRING-valued environment field: `B` is a string-section/event-arena offset
 - `00 00 00 00` B = string offset = 0 (`"/users/42"`)
 - `00 00 00 00` C = 0
 
+### 28. STYLE:SET_PROPERTY (id=1, propertyId=NAV_DEPTH=0x201A, valueType=U32=0x02, depth=3)
+
+The `NavigationContainer` emits its back-stack depth as a U32 property — three
+destinations in the app's path (the current one included), so a native
+navigation adapter reconciles its page stack by depth. `C` = 3 (U32 LE).
+
+```
+02 01 00 00 01 00 00 00 1A 20 02 00 03 00 00 00
+```
+
+- `02` category = STYLE
+- `01` command = SET_PROPERTY
+- `00 00` flags = 0
+- `01 00 00 00` A = nodeId = 1
+- `1A 20 02 00` B = `(valueType << 16) | propertyId` = `(0x02 << 16) | 0x201A`
+  - low two bytes `1A 20` = propertyId = 0x201A (NAV_DEPTH)
+  - high byte `02` = valueType = 0x02 (U32)
+- `03 00 00 00` C = 3 (U32 LE) = depth
+
+### 29. STYLE:SET_PROPERTY (id=1, propertyId=NAV_CHROME=0x201B, valueType=F32=0x04, Custom=1)
+
+The `NavigationContainer`'s chrome mode (F32 enum code): `Custom`=1 → `C` =
+1.0 (0x3F800000) — the developer owns all navigation UI and the renderer adds
+none. `PlatformDefault`=0 is the missing/default value.
+
+```
+02 01 00 00 01 00 00 00 1B 20 04 00 00 00 80 3F
+```
+
+- `02` category = STYLE
+- `01` command = SET_PROPERTY
+- `00 00` flags = 0
+- `01 00 00 00` A = nodeId = 1
+- `1B 20 04 00` B = `(valueType << 16) | propertyId` = `(0x04 << 16) | 0x201B`
+  - low two bytes `1B 20` = propertyId = 0x201B (NAV_CHROME)
+  - high byte `04` = valueType = 0x04 (F32)
+- `00 00 80 3F` C = 1.0 (f32 LE: 0x3F800000) = Custom
+
 ---
 
 ## Design-Token Resolution Conformance

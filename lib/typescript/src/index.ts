@@ -4,6 +4,7 @@
 // SSR HTML carries a `data-event-listeners` mask). Bundle: dist/pathland-dom-renderer.js
 
 import type { DomRenderer } from "./apply";
+import { updateNavBackButtons } from "./apply";
 import { Transport } from "./transport";
 import { log } from "./log";
 import {
@@ -14,6 +15,7 @@ import {
   encodeKeyDown,
   encodeKeyUp,
   encodeNavigate,
+  encodeNavigateBack,
   encodePointerDown,
   encodePointerMove,
   encodePointerUp,
@@ -109,6 +111,18 @@ function boot(): void {
     log.info("route", `server navigated -> pushState("${path}")`);
     history.pushState(null, "", path);
   };
+
+  // Renderer-provided navigation chrome (spec DSL.md §4.5): a PlatformDefault nav
+  // slot at depth > 1 shows the renderer's own back button (the web has no native
+  // navigation container); clicking it is a NAVIGATE back request — the app pops.
+  renderer.onNavigateBack = () => {
+    log.info("route", "default back button -> NAVIGATE(back)");
+    if (transport.open) {
+      transport.send(encodeNavigateBack());
+    }
+  };
+  // Hydrate the default back button from the SSR HTML (it carries data-pathland-depth).
+  updateNavBackButtons(renderer);
 
   // Browser back/forward: popstate has already moved the URL; report it to the
   // server as a NAVIGATE event so the app routes (and re-emits the destination).

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { applyBatch, setNodeText, type DomRenderer } from "../src/apply";
+import { applyBatch, setNodeText, updateNavBackButtons, type DomRenderer } from "../src/apply";
 import { parseBatch } from "../src/plpl";
 import {
   CAT_META,
@@ -21,6 +21,8 @@ import {
   PROP_COLOR,
   PROP_IMAGE_SOURCE,
   PROP_IS_INDETERMINATE,
+  PROP_NAV_CHROME,
+  PROP_NAV_DEPTH,
   PROP_PROGRESS,
   PROP_ROUTE,
   PROP_SELECTED,
@@ -30,6 +32,7 @@ import {
   VAL_DESIGN_TOKEN,
   VAL_F32,
   VAL_STRING,
+  VAL_U32,
   VAL_U8,
 } from "../src/constants";
 import { buildBatch, stringEntry } from "./plpl.test";
@@ -413,6 +416,91 @@ describe("applyBatch · navigation (spec DSL.md §4.5)", () => {
     );
     applyBatch(batch, r);
     expect((r.byId.get(2) as HTMLElement).style.animation).toBe("");
+  });
+
+  it("draws a default back button on a PlatformDefault slot at depth > 1", () => {
+    const r = renderer();
+    const backs: string[] = [];
+    r.onNavigateBack = () => backs.push("back");
+    const slot = document.createElement("div");
+    slot.setAttribute("data-pathland-id", "1");
+    slot.setAttribute("data-pathland-route", "/users");
+    r.byId.set(1, slot);
+
+    const batch = parseBatch(
+      buildBatch([
+        [CAT_TREE, CMD_CREATE_NODE, 0, 2, COMPONENT_TEXT],
+        [CAT_TREE, CMD_INSERT_CHILD, 0, 1, 2],
+        [CAT_STYLE, CMD_SET_PROPERTY, 0, 1, (VAL_U32 << 16) | PROP_NAV_DEPTH, 2],
+      ]),
+    );
+    applyBatch(batch, r);
+
+    const back = slot.querySelector(".pathland-nav-back");
+    expect(back).not.toBeNull();
+    // The injected button is excluded from reconcile indexing: a child inserted
+    // after it still lands in the right slot position.
+    expect(slot.children[0]).toBe(back);
+    expect(slot.children[1]).toBe(r.byId.get(2));
+
+    (back as HTMLButtonElement).click();
+    expect(backs).toEqual(["back"]);
+  });
+
+  it("removes the default back button when depth returns to 1", () => {
+    const r = renderer();
+    const slot = document.createElement("div");
+    slot.setAttribute("data-pathland-id", "1");
+    slot.setAttribute("data-pathland-route", "/");
+    r.byId.set(1, slot);
+
+    applyBatch(
+      parseBatch(
+        buildBatch([[CAT_STYLE, CMD_SET_PROPERTY, 0, 1, (VAL_U32 << 16) | PROP_NAV_DEPTH, 2]]),
+      ),
+      r,
+    );
+    expect(slot.querySelector(".pathland-nav-back")).not.toBeNull();
+
+    applyBatch(
+      parseBatch(
+        buildBatch([[CAT_STYLE, CMD_SET_PROPERTY, 0, 1, (VAL_U32 << 16) | PROP_NAV_DEPTH, 1]]),
+      ),
+      r,
+    );
+    expect(slot.querySelector(".pathland-nav-back")).toBeNull();
+  });
+
+  it("never draws a back button on a Custom-chrome slot", () => {
+    const r = renderer();
+    const slot = document.createElement("div");
+    slot.setAttribute("data-pathland-id", "1");
+    slot.setAttribute("data-pathland-route", "/users");
+    r.byId.set(1, slot);
+
+    applyBatch(
+      parseBatch(
+        buildBatch([
+          [CAT_STYLE, CMD_SET_PROPERTY, 0, 1, (VAL_F32 << 16) | PROP_NAV_CHROME, f32bits(1)],
+          [CAT_STYLE, CMD_SET_PROPERTY, 0, 1, (VAL_U32 << 16) | PROP_NAV_DEPTH, 3],
+        ]),
+      ),
+      r,
+    );
+    expect(slot.querySelector(".pathland-nav-back")).toBeNull();
+    expect(slot.getAttribute("data-pathland-nav-chrome")).toBe("custom");
+  });
+
+  it("hydrates a default back button from the SSR HTML (data-pathland-depth)", () => {
+    const r = renderer();
+    const slot = document.createElement("div");
+    slot.setAttribute("data-pathland-id", "1");
+    slot.setAttribute("data-pathland-route", "/users");
+    slot.setAttribute("data-pathland-depth", "2");
+    r.byId.set(1, slot);
+
+    updateNavBackButtons(r);
+    expect(slot.querySelector(".pathland-nav-back")).not.toBeNull();
   });
 
   it("absolutely positions children inserted into a ZStack (runtime overlap)", () => {

@@ -83,7 +83,7 @@ public final class SplitNavDemo implements View {
     // --- sidebar (the developer's own navigation UI) ---
 
     private static View sidebar(Router router) {
-        return VStack.of(
+        return VStack.of(Alignment.LEADING, 8,
                 Text.of("Pathland").modifiers(
                         FontSize.of(18), FontWeightMod.of(FontWeight.BOLD)),
                 menuRow(router, "/home", "Home"),

@@ -27,17 +27,20 @@ mod tokens;
 
 pub use host::{describe, render_tree_from_frame, HostNode, RenderTree};
 
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use gtk::prelude::*;
+use libadwaita::prelude::*;
+use libadwaita::NavigationView;
 use gtk::{
-    Align, Box as GtkBox, Button, EventControllerMotion, GestureClick, Label, PropagationPhase,
+    Align, Box as GtkBox, Button, EventControllerKey, EventControllerMotion, GestureClick, Label,
+    PropagationPhase,
 };
 use pathland_core::tokens::Scheme;
 use pathland_core::{component_type, listener, property_id, Event, Frame};
 use pathland_core_transport::{DriverTransport, FrameSource, OpcodeBatch, RingTransport, TransportError};
+use glib::translate::IntoGlib;
 
 /// The bidirectional transport surface the renderer pumps: frames in
 /// (guest → host) and events out (host → guest).
@@ -78,6 +81,19 @@ pub struct GtkRenderer {
     /// A widget's style context captured at first build, used to enrich the
     /// design-token defaults with GTK-native theme colors (`None` headless).
     native_ctx: Option<gtk::StyleContext>,
+    /// `AdwNavigationView` handles for navigation slots (a container carrying
+    /// the `ROUTE` property), keyed by slot node id.
+    nav_views: HashMap<u32, NavigationView>,
+    /// Per-navigation-slot page stack mirror (shared with the `popped`
+    /// handler), keyed by slot node id. The native `AdwNavigationView` is the
+    /// renderer's rendered-output cache of the app's back-stack; this vec is
+    /// the adapter's depth bookkeeping (the widget's own page stack is not
+    /// directly countable).
+    nav_pages: HashMap<u32, Rc<RefCell<Vec<libadwaita::NavigationPage>>>>,
+    /// Per-navigation-slot "reconciling" flag: while the renderer pops pages
+    /// itself (a route change it already applied), the `popped` signal must not
+    /// be re-emitted as a back request — the app already knows it navigated.
+    nav_reconciling: HashMap<u32, Rc<Cell<bool>>>,
 }
 
 impl Default for GtkRenderer {
@@ -96,6 +112,9 @@ impl GtkRenderer {
             composite_boxes: HashMap::new(),
             event_sink: None,
             native_ctx: None,
+            nav_views: HashMap::new(),
+            nav_pages: HashMap::new(),
+            nav_reconciling: HashMap::new(),
         }
     }
 
@@ -163,6 +182,9 @@ impl GtkRenderer {
             self.widgets.remove(&id);
             self.attached_listeners.remove(&id);
             self.composite_boxes.remove(&id);
+            self.nav_views.remove(&id);
+            self.nav_pages.remove(&id);
+            self.nav_reconciling.remove(&id);
         }
 
         // 2. Pre-order walk: get-or-create widgets, update text/style, and
@@ -231,6 +253,13 @@ impl GtkRenderer {
             return w.clone();
         }
         let widget = build_widget(node);
+        // Register a navigation slot's `AdwNavigationView` so page reconcile
+        // (`sync_navigation_children`) can push/pop on it.
+        if is_nav_slot(node) {
+            if let Ok(nav) = widget.clone().downcast::<NavigationView>() {
+                self.nav_views.insert(id, nav);
+            }
+        }
         // Capture a style context once the first native widget exists so the
         // design-token defaults can be enriched with GTK theme colors.
         if self.native_ctx.is_none() {
@@ -458,6 +487,10 @@ entry.set_placeholder_text(Some(node.string_property(property_id::PROMPT).unwrap
     /// widgets. Leaf widgets are preserved (never recreated); only the
     /// parent→child links are re-established, so unchanged subtrees stay put.
     fn sync_container(&mut self, parent_id: u32, children: &[u32], node: &HostNode) {
+        if is_nav_slot(node) {
+            self.sync_navigation_children(parent_id, children, node);
+            return;
+        }
         match widget_kind(node.component_type) {
             WidgetKind::Stack => self.sync_stack_children(parent_id, children, node),
             WidgetKind::Grid => self.sync_grid_children(parent_id, children, node),
@@ -585,6 +618,120 @@ entry.set_placeholder_text(Some(node.string_property(property_id::PROMPT).unwrap
             }
         }
     }
+
+    /// Reconcile a navigation slot's pages against the app's current destination.
+    /// The slot carries exactly one child — the current destination subtree —
+    /// plus a `ROUTE` string and a `NAV_DEPTH` (U32) back-stack depth. The
+    /// adapter reconciles the `AdwNavigationView` page stack **by depth**:
+    ///
+    /// - **deeper than the current stack** → `push` a new page for the route,
+    /// - **shallower** → `pop` pages down to the target depth (back, or a
+    ///   deep-link stack reset),
+    /// - **same depth, new route** → **replace** the top page (a guard
+    ///   redirect / `replace()`),
+    /// - **same depth, same route** → refresh the top page's content in place
+    ///   (a signal-driven update of the current destination).
+    ///
+    /// The back-stack stays app-owned; the `AdwNavigationView` is only the
+    /// renderer's rendered-output cache of it. Programmatic pops here are
+    /// guarded so they never re-emit as a back request.
+    fn sync_navigation_children(&mut self, slot_id: u32, children: &[u32], node: &HostNode) {
+        let Some(nav) = self.nav_views.get(&slot_id).cloned() else {
+            return;
+        };
+        let Some(target) = children
+            .first()
+            .and_then(|id| self.widgets.get(id).cloned())
+        else {
+            return;
+        };
+        // Without a ROUTE the slot is not a navigation slot (the renderer would
+        // not have promoted it). Depth defaults to 1.
+        let route = node.string_property(property_id::ROUTE).unwrap_or_default();
+        let depth = node.u32_property(property_id::NAV_DEPTH, 1).max(1) as usize;
+        // Custom chrome mode: the developer owns all nav UI → no native chrome.
+        let custom_chrome = is_custom_chrome(node);
+
+        let stack = self.nav_pages.entry(slot_id).or_default().clone();
+        self.attach_nav_back(slot_id, &nav, &stack);
+
+        let mut pages = stack.borrow_mut();
+
+        // Pop down to the app's depth (an app-driven pop or a stack reset). The
+        // `popped` signal fires for each, so the reconciling flag suppresses it
+        // (and we pop the mirror here, not in the handler).
+        if let Some(flag) = self.nav_reconciling.get(&slot_id).cloned() {
+            flag.set(true);
+        }
+        while pages.len() > depth {
+            nav.pop();
+            pages.pop();
+        }
+        if let Some(flag) = self.nav_reconciling.get(&slot_id).cloned() {
+            flag.set(false);
+        }
+
+        if pages.is_empty() {
+            // Root page: push the current destination.
+            let page = nav_page(route, route, &target, custom_chrome);
+            nav.push(&page);
+            pages.push(page);
+            return;
+        }
+
+        let top = pages.last().expect("non-empty").clone();
+        match nav_action(pages.len(), depth, top.tag().as_deref(), route) {
+            NavAction::Refresh => {
+                // Same destination route → refresh content in place (signal
+                // update, or a re-emit of the current destination on a
+                // user-initiated back that already popped the page).
+                top.set_child(Some(&target));
+            }
+            NavAction::Push => {
+                // Deeper than the current stack → push a new page.
+                let page = nav_page(route, route, &target, custom_chrome);
+                nav.push(&page);
+                pages.push(page);
+            }
+            NavAction::Replace => {
+                // Same depth, different route → replace the top page (a guard
+                // redirect / `replace()`, or a stack reset that kept this page).
+                top.set_child(Some(&target));
+                top.set_tag(Some(route));
+                top.set_title(route);
+            }
+        }
+    }
+
+    /// Wire the native back affordance of a navigation slot once: when a page
+    /// is popped (the header-bar back button, or a swipe/gesture), drop it from
+    /// the adapter's page mirror and emit `Event::Navigate { url: None }` so the
+    /// app pops its own back-stack and re-emits the previous destination.
+    /// Suppressed while the renderer pops pages itself during reconcile.
+    fn attach_nav_back(
+        &mut self,
+        slot_id: u32,
+        nav: &NavigationView,
+        stack: &Rc<RefCell<Vec<libadwaita::NavigationPage>>>,
+    ) {
+        if self.nav_reconciling.contains_key(&slot_id) {
+            return;
+        }
+        let flag = Rc::new(Cell::new(false));
+        self.nav_reconciling.insert(slot_id, flag.clone());
+        let stack = stack.clone();
+        if let Some(sink) = self.event_sink.clone() {
+            nav.connect_popped(move |_nav, page| {
+                if flag.get() {
+                    return; // renderer-driven pop: the mirror is managed here
+                }
+                if let Ok(mut pages) = stack.try_borrow_mut() {
+                    pages.retain(|p| p != page);
+                }
+                sink.borrow_mut()(Event::Navigate { url: None });
+            });
+        }
+    }
 }
 
 /// The native widget kind a component type maps to (pure, headless-testable).
@@ -672,6 +819,55 @@ pub fn widget_kind(component_type: u16) -> WidgetKind {
     }
 }
 
+/// Whether a node is a navigation slot: a stack container carrying the `ROUTE`
+/// property (a `NavigationContainer`, spec/DSL.md §4.5). Such nodes render as
+/// the platform's native navigation container (`AdwNavigationView`) instead of
+/// an in-place `GtkBox` child swap.
+fn is_nav_slot(node: &HostNode) -> bool {
+    matches!(
+        node.component_type,
+        component_type::VSTACK | component_type::HSTACK
+    ) && node.string_property(property_id::ROUTE).is_some()
+}
+
+/// Whether a navigation slot is in `Custom` chrome mode (`NAV_CHROME` 0x201B
+/// enum: `PlatformDefault`=0, `Custom`=1; missing = `PlatformDefault`): the
+/// developer owns all navigation UI, so the renderer adds no chrome (no native
+/// header-bar back button).
+fn is_custom_chrome(node: &HostNode) -> bool {
+    node.f32_property(property_id::NAV_CHROME, 0.0).round() as u8 == 1
+}
+
+/// The native page action for the current destination, decided by depth
+/// (spec DSL.md §4.5): a `NavigationContainer` emits `ROUTE` + `NAV_DEPTH` on
+/// its slot, and the adapter reconciles its page stack by depth.
+///
+/// - `Refresh` — the visible page already shows this route: update its content
+///   in place (a signal-driven update, or a re-emit after a user-initiated
+///   back that already popped the page).
+/// - `Push` — deeper than the current stack: push a new page (a normal push, or
+///   a single-step deep-link landing deeper).
+/// - `Replace` — same depth, different route: replace the top page (a guard
+///   redirect / `replace()`, or a stack reset that kept this page).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum NavAction {
+    Refresh,
+    Push,
+    Replace,
+}
+
+/// The pure depth-vs-stack decision (headless-testable; see
+/// [`GtkRenderer::sync_navigation_children`] for the pop-down step).
+fn nav_action(stack_len: usize, depth: usize, top_tag: Option<&str>, route: &str) -> NavAction {
+    if top_tag == Some(route) {
+        NavAction::Refresh
+    } else if stack_len < depth {
+        NavAction::Push
+    } else {
+        NavAction::Replace
+    }
+}
+
 /// Whether a component type reconciles native children (a container).
 fn is_container(component_type: u16) -> bool {
     matches!(
@@ -735,6 +931,10 @@ fn grid_matches(
 /// Build the base native widget for a node (no children attached, no input
 /// controllers — those are attached later in [`GtkRenderer::update`]).
 fn build_widget(node: &HostNode) -> gtk::Widget {
+    // A navigation slot renders as the native navigation container.
+    if is_nav_slot(node) {
+        return NavigationView::new().upcast();
+    }
     match widget_kind(node.component_type) {
         WidgetKind::Stack => stack_widget(node),
         WidgetKind::Text => Label::new(Some(node.text.as_deref().unwrap_or(""))).upcast(),
@@ -1026,6 +1226,38 @@ fn stack_widget(node: &HostNode) -> gtk::Widget {
     bx.upcast()
 }
 
+/// Build an `AdwNavigationPage` for a navigation slot. In the default chrome
+/// mode the destination widget is wrapped in a `AdwToolbarView` with an
+/// `AdwHeaderBar`, so the page gets the native top bar and the back button
+/// appears once the page is not the root. In `Custom` chrome mode
+/// (`NAV_CHROME`=1, `is_custom_chrome`) the destination is the bare page child
+/// — the developer owns all navigation UI, so no native chrome is added. The
+/// page's tag is the `ROUTE` path — pages are reconciled by depth and tag, and
+/// the native back button's pop (via `popped`) surfaces as a `NAVIGATE` request.
+fn nav_page(route: &str, title: &str, child: &gtk::Widget, custom_chrome: bool) -> libadwaita::NavigationPage {
+    if custom_chrome {
+        return libadwaita::NavigationPage::builder()
+            .title(title)
+            .tag(route)
+            .child(child)
+            .build();
+    }
+    let toolbar = libadwaita::ToolbarView::new();
+    let header = libadwaita::HeaderBar::new();
+    header.set_show_back_button(true);
+    // No window controls in the page header — the app's own content provides
+    // them; only the navigation back button is native chrome.
+    header.set_show_start_title_buttons(false);
+    header.set_show_end_title_buttons(false);
+    toolbar.add_top_bar(&header);
+    toolbar.set_content(Some(child));
+    libadwaita::NavigationPage::builder()
+        .title(title)
+        .tag(route)
+        .child(&toolbar)
+        .build()
+}
+
 /// Apply a node's padding as widget margins (styling, any widget type).
 fn apply_padding(widget: &gtk::Widget, node: &HostNode) {
     let e = layout::padding_from(node);
@@ -1205,18 +1437,49 @@ pub fn run_with_pump<P, F>(
 
         // Native inputs are written as EVENT opcodes into the pump (host → guest);
         // the host is then woken to drain the event ring itself.
-        {
-            let pump_for_buttons = pump.clone();
+        //
+        // `emit` is the shared path for every raw input the renderer reports —
+        // pointer/control events from the sink below, and platform back /
+        // Escape-key navigation from the window-level key controller.
+        let emit = {
+            let pump = pump.clone();
             let wake = on_event.clone();
+            move |ev: Event| {
+                let mut p = pump.borrow_mut();
+                let _ = p.send_input(&ev);
+                drop(p);
+                wake.borrow_mut()(pump.clone());
+            }
+        };
+        {
+            let emit_for_sink = emit.clone();
             let sink: Rc<RefCell<dyn FnMut(Event)>> =
-                Rc::new(RefCell::new(move |ev: Event| {
-                    {
-                        let mut p = pump_for_buttons.borrow_mut();
-                        let _ = p.send_input(&ev);
-                    }
-                    wake.borrow_mut()(pump_for_buttons.clone());
-                }));
+                Rc::new(RefCell::new(move |ev: Event| emit_for_sink(ev)));
             renderer.borrow_mut().set_event_sink(sink);
+
+            // Platform back: Escape (and BackSpace when no text entry has focus)
+            // is a native back request → `Event::Navigate { url: None }`. NAVIGATE
+            // is global (never node-keyed), so it is attached once at the window
+            // level, in the capture phase so it fires even when a child widget
+            // holds focus. BackSpace is only mapped when the focused widget is
+            // not a text input, so it never swallows text editing.
+            let emit_for_key = emit.clone();
+            let window_for_key = window.clone();
+            let key = EventControllerKey::new();
+            key.set_propagation_phase(PropagationPhase::Capture);
+            key.connect_key_pressed(move |_key, keyval, _code, _state| {
+                let keyval = keyval.into_glib();
+                let is_escape = keyval == gtk::gdk::ffi::GDK_KEY_Escape as u32;
+                let is_backspace = keyval == gtk::gdk::ffi::GDK_KEY_BackSpace as u32
+                    && !window_has_text_focus(&window_for_key);
+                if is_escape || is_backspace {
+                    emit_for_key(Event::Navigate { url: None });
+                    glib::Propagation::Stop
+                } else {
+                    glib::Propagation::Proceed
+                }
+            });
+            window.add_controller(key);
         }
 
         // Initial render + window root.
@@ -1239,6 +1502,15 @@ pub fn run_with_pump<P, F>(
 
     // Run the GTK main loop with the caller-provided argv.
     app.run_with_args(args);
+}
+
+/// Whether a text input currently holds keyboard focus, so backspace is not
+/// misread as a platform-back navigation while the user is editing text.
+fn window_has_text_focus(window: &impl IsA<gtk::Window>) -> bool {
+    let focused: Option<gtk::Widget> = window
+        .upcast_ref::<gtk::Window>()
+        .property::<Option<gtk::Widget>>("focus-widget");
+    focused.map_or(false, |w| w.is::<gtk::Entry>() || w.is::<gtk::TextView>())
 }
 
 /// Apply pending frames to the renderer. (Events flow the other way: the
@@ -1476,6 +1748,50 @@ mod tests {
     }
 
     #[test]
+    fn nav_slot_detection_is_route_driven() {
+        use component_type::*;
+        // A stack carrying ROUTE is a navigation slot.
+        let mut node = test_node(1, VSTACK, vec![2], HashMap::new(), HashMap::new());
+        assert!(!is_nav_slot(&node), "no ROUTE → not a nav slot");
+        node.strings.insert(property_id::ROUTE, "/users/42".into());
+        assert!(is_nav_slot(&node), "VSTACK + ROUTE → nav slot");
+        node.component_type = HSTACK;
+        assert!(is_nav_slot(&node), "HSTACK + ROUTE → nav slot");
+        node.component_type = TEXT;
+        assert!(!is_nav_slot(&node), "ROUTE on a leaf is not a nav slot");
+    }
+
+    #[test]
+    fn nav_chrome_mode_is_f32_enum() {
+        use component_type::*;
+        let mut node = test_node(1, VSTACK, vec![], HashMap::new(), HashMap::new());
+        assert!(!is_custom_chrome(&node), "missing NAV_CHROME → PlatformDefault");
+        // Custom = enum code 1 carried as an F32 bit pattern (spec convention).
+        node.properties.insert(property_id::NAV_CHROME, 1.0f32.to_bits());
+        assert!(is_custom_chrome(&node), "NAV_CHROME=1.0 → Custom");
+        node.properties.insert(property_id::NAV_CHROME, 0.0f32.to_bits());
+        assert!(!is_custom_chrome(&node), "NAV_CHROME=0.0 → PlatformDefault");
+    }
+
+    #[test]
+    fn nav_action_decides_by_depth() {
+        // The depth reconcile contract (spec DSL.md §4.5): same route → refresh
+        // in place; deeper than the stack → push; same depth + new route →
+        // replace the top page.
+        assert_eq!(nav_action(3, 3, Some("/b"), "/b"), NavAction::Refresh,
+            "visible page already shows the route → refresh in place");
+        assert_eq!(nav_action(2, 3, Some("/b"), "/c"), NavAction::Push,
+            "deeper than the stack → push a new page");
+        assert_eq!(nav_action(3, 3, Some("/b"), "/c"), NavAction::Replace,
+            "same depth, different route → replace the top page (a guard redirect)");
+        assert_eq!(nav_action(2, 2, Some("/a"), "/c"), NavAction::Replace,
+            "a stack reset that kept the top page → replace it");
+        // The pop-down step is separate: a shallower depth pops first.
+        assert_eq!(nav_action(1, 1, Some("/a"), "/a"), NavAction::Refresh,
+            "after popping down to depth 1, a matching root refreshes");
+    }
+
+    #[test]
     fn stack_layout_maps_from_opcode_frames() {
         // Hand-crafted opcode frames (not the DSL) drive the renderer's
         // RenderTree + pure layout mapping, exercising spacing/alignment/
@@ -1547,5 +1863,25 @@ mod tests {
         let l = crate::layout::stack_layout(&root).unwrap();
         assert_eq!(l.spacing, 12);
         assert_eq!(l.child_align, Align::End);
+    }
+
+    /// A minimal `HostNode` for headless widget/kind tests.
+    fn test_node(
+        id: u32,
+        component_type: u16,
+        children: Vec<u32>,
+        properties: HashMap<u16, u32>,
+        strings: HashMap<u16, String>,
+    ) -> HostNode {
+        HostNode {
+            id,
+            component_type,
+            text: None,
+            parent: None,
+            children,
+            properties,
+            strings,
+            token_refs: Default::default(),
+        }
     }
 }

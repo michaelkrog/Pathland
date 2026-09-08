@@ -128,12 +128,30 @@ mod tests {
             (0x04u32 << 16) | property_id::TRANSITION as u32,
             3.0f32.to_bits(),
         ));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            (0x04u32 << 16) | property_id::NAV_CHROME as u32,
+            1.0f32.to_bits(),
+        ));
+        opcodes.push(Opcode::new(
+            category::STYLE,
+            style::SET_PROPERTY,
+            0,
+            1,
+            (0x02u32 << 16) | property_id::NAV_DEPTH as u32,
+            2,
+        ));
         let bytes = encode_frame(&opcodes, &strings);
 
         let frag = unsafe { pathland_html_render_fragment(bytes.as_ptr(), bytes.len() as u32, 1) };
         let html = unsafe { CStr::from_ptr(frag) }.to_string_lossy().into_owned();
         assert!(html.contains("data-pathland-route=\"/users/42\""), "{html}");
         assert!(html.contains("data-pathland-transition=\"slide\""), "{html}");
+        assert!(html.contains("data-pathland-nav-chrome=\"custom\""), "{html}");
+        assert!(html.contains("data-pathland-depth=\"2\""), "{html}");
         unsafe { pathland_html_free(frag) };
     }
 

@@ -28,7 +28,11 @@ tracks what this crate implements.
   `STEP_VALUE`/`CONTROL_SIZE`/`IS_SECURE`/`PROGRESS`/`IS_INDETERMINATE`/
   `SELECTION`/`COLOR_VALUE`/`DATE_PICKER_MODE`/`PICKER_STYLE`,
   `ACTION_ID`/`BINDING_ID`/`TOGGLE_STYLE`, `IMAGE_SOURCE`, plus the navigation
-  drafts `TRANSITION` (0x1031) and `ROUTE` (0x2019, STRING)).
+  drafts `TRANSITION` (0x1031), `ROUTE` (0x2019, STRING), `NAV_DEPTH` (0x201A,
+  U32 — the `NavigationContainer`'s back-stack depth, so native navigation
+  adapters reconcile their page stack by depth) and `NAV_CHROME` (0x201B,
+  F32-enum chrome mode: `PlatformDefault`=0 / `Custom`=1 — the renderer
+  supplies default navigation chrome, or the developer owns all nav UI)).
 - **Commands**: `TREE` create/delete/insert/remove/move (append = `u32::MAX`);
   `STYLE` `SET_PROPERTY`/`SET_DESIGN_TOKEN`/`SET_TEXT`/`SET_DATE`; `META`
   `RESET`/`ENVIRONMENT`/`RESYNC`. `META::ENVIRONMENT` is the extensible

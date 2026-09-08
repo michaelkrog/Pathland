@@ -462,6 +462,21 @@ pub mod property_id {
     /// **Draft.** Current navigation path (STRING, arenaRef), emitted by a
     /// `NavigationContainer` slot; drives web URL sync.
     pub const ROUTE: u16 = 0x2019;
+    /// **Draft.** Navigation back-stack depth (U32: number of destinations in
+    /// the app's path, including the current one — `push` increments, `pop`
+    /// decrements, `replace` leaves it unchanged). Emitted by a
+    /// `NavigationContainer` slot so native navigation adapters can reconcile
+    /// their page stack by depth (push/pop/replace/reset) instead of route
+    /// tags alone. See `spec/DSL.md §4.5` and `spec/MODIFIERS.md §6`.
+    pub const NAV_DEPTH: u16 = 0x201A;
+    /// **Draft.** Navigation chrome mode (F32 enum code) on a
+    /// `NavigationContainer` slot: `PlatformDefault`=0 (the renderer supplies
+    /// the navigation chrome — the native container where one exists, a
+    /// renderer-drawn back affordance on DOM), `Custom`=1 (the developer owns
+    /// all navigation UI and the renderer adds none). A container emits this
+    /// once at mount (it never varies per destination). See `spec/DSL.md §4.5`
+    /// and `spec/MODIFIERS.md §6`.
+    pub const NAV_CHROME: u16 = 0x201B;
 }
 
 /// The protocol value type for a property id.
@@ -503,7 +518,8 @@ pub fn value_type_for(prop: u16) -> u8 {
         property_id::LINE_LIMIT
         | property_id::SELECTION
         | property_id::ACTION_ID
-        | property_id::BINDING_ID => value_type::U32,
+        | property_id::BINDING_ID
+        | property_id::NAV_DEPTH => value_type::U32,
         _ => value_type::F32,
     }
 }

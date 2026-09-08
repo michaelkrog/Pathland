@@ -196,6 +196,24 @@ pub(crate) const VECTORS: &[(&str, [u8; 16])] = &[
             0x00, 0x00, 0x00, 0x00, // C = 0
         ],
     ),
+    (
+        "STYLE:SET_PROPERTY (id=1, NAV_DEPTH=0x201A, valueType=U32=0x02, depth=3)",
+        [
+            0x02, 0x01, 0x00, 0x00, // category STYLE, command SET_PROPERTY
+            0x01, 0x00, 0x00, 0x00, // A = nodeId = 1
+            0x1A, 0x20, 0x02, 0x00, // B = (0x02 << 16) | 0x201A (U32 | NAV_DEPTH)
+            0x03, 0x00, 0x00, 0x00, // C = depth = 3 (U32 LE)
+        ],
+    ),
+    (
+        "STYLE:SET_PROPERTY (id=1, NAV_CHROME=0x201B, valueType=F32=0x04, Custom=1)",
+        [
+            0x02, 0x01, 0x00, 0x00, // category STYLE, command SET_PROPERTY
+            0x01, 0x00, 0x00, 0x00, // A = nodeId = 1
+            0x1B, 0x20, 0x04, 0x00, // B = (0x04 << 16) | 0x201B (F32 | NAV_CHROME)
+            0x00, 0x00, 0x80, 0x3F, // C = 1.0 (f32 LE: 0x3F800000) = Custom
+        ],
+    ),
 ];
 
 #[cfg(test)]
@@ -302,6 +320,24 @@ mod tests {
             ),
             (0x04, 0x02, 0x0000, 0x0001, 800.0f32.to_bits(), 0, VECTORS[19].1),
             (0x04, 0x02, 0x0000, 0x0003, 0, 0, VECTORS[20].1),
+            (
+                0x02,
+                0x01,
+                0x0000,
+                1,
+                (0x02u32 << 16) | 0x201A,
+                3,
+                VECTORS[21].1,
+            ),
+            (
+                0x02,
+                0x01,
+                0x0000,
+                1,
+                (0x04u32 << 16) | 0x201B,
+                1.0f32.to_bits(),
+                VECTORS[22].1,
+            ),
         ];
         for (cat, cmd, flags, a, b, c, expected) in cases {
             let op = Opcode::new(*cat, *cmd, *flags, *a, *b, *c);

@@ -82,6 +82,16 @@ replacing the two duplicated `app.js` files in the demos. Protocol contract:
   inserted into a `data-pathland-transition` slot is animated in (fade/slide/
   scale keyframes injected once into a `<style data-pathland-transitions>`),
   a renderer-side animation of its own output cache — never app state.
+- **Renderer-provided default back button** (spec DSL.md §4.5): the web has no
+  native navigation container, so the DOM renderer draws its own back
+  affordance for a `PlatformDefault` nav slot at depth > 1 — a `.pathland-nav-back`
+  button injected above the destination when `NAV_DEPTH` (`data-pathland-depth`)
+  exceeds 1 and removed at depth 1 / for `Custom` chrome
+  (`data-pathland-nav-chrome="custom"`, `NAV_CHROME=1`). The button is excluded
+  from reconcile indexing (`insertAt` skips the class) so TREE deltas never
+  displace it; clicking it fires `onNavigateBack`, wired in `src/index.ts` to
+  `encodeNavigateBack()` (a `NAVIGATE` back request — the app pops). Hydrated
+  once at boot from the SSR HTML via `updateNavBackButtons`.
 - **`EVENT_LISTENERS` gating**: `src/index.ts` reads the SSR `data-event-listeners`
   mask (mirroring the Rust renderer's event attrs) and emits an event only when
   the node opted into it; absent attribute = permissive (no gating info).

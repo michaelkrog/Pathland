@@ -279,6 +279,8 @@ are never chainable modifiers.
 | Property | ID | Type | Emission |
 |----------|----|------|----------|
 | `ROUTE` | 0x2019 | STRING (arenaRef) | one — the current absolute path |
+| `NAV_DEPTH` | 0x201A | U32 | one — current back-stack depth |
+| `NAV_CHROME` | 0x201B | ENUM | one — chrome mode (at mount; never varies per destination) |
 | `TRANSITION` | 0x1031 | ENUM | one — swap transition hint (see [§3](#3-appearance--effects)) |
 
 - **`ROUTE`** carries the current absolute path (`/users/42`). The DOM renderer
@@ -286,6 +288,23 @@ are never chainable modifiers.
   already carries the correct URL (no push). The application owns navigation
   state; the browser mirrors it. The platform back affordance arrives as the
   `NAVIGATE` event (0x0E) — [EVENTS.md](./EVENTS.md#navigation).
+- **`NAV_DEPTH`** is the number of destinations in the app's back-stack
+  including the current one (an initial `navigate` is 1; each `push`
+  increments; `pop`/`back` decrements; `replace` leaves it unchanged). It lets
+  a **native navigation adapter** reconcile its page stack by depth —
+  `push` when the route is new and deeper, **replace the top page** when the
+  depth is unchanged (a guard redirect), **pop down** on a depth decrease
+  (back or a deep-link stack reset), instead of relying on route tags alone
+  ([DSL.md §4.5](./DSL.md#45-navigation)). The web renderer ignores it
+  (browser history is the depth).
+- **`NAV_CHROME`** is the container's chrome mode: `PlatformDefault`=0 (the
+  renderer supplies the navigation chrome — the platform's native navigation
+  container where one exists, a renderer-drawn back affordance where it does
+  not, e.g. DOM), `Custom`=1 (the developer owns all navigation UI — custom
+  back buttons/bars in the destinations — and the renderer adds none). Emitted
+  once at mount. Renderers MUST treat a missing `NAV_CHROME` as
+  `PlatformDefault`. A developer who authors no navigation at all (no
+  `NavigationContainer`) gets no navigation — the renderer adds nothing.
 
 ---
 
@@ -310,7 +329,9 @@ are never chainable modifiers.
 | `0x2009`, `0x200C`–`0x2014` | Control properties (allocated: STEP_VALUE, CONTROL_SIZE, IS_SECURE, PROGRESS, IS_INDETERMINATE, SELECTION, COLOR_VALUE, DATE_PICKER_MODE, PICKER_STYLE) — defined in PRIMITIVES.md controls. Note: a `DATE_PICKER`'s date is set via the `STYLE::SET_DATE` command (0x04), not a property; **`0x2011` is unallocated/reserved** (its former `DATE_VALUE` draft was dropped) |
 | `0x2016`–`0x2018` | Binding/action properties (allocated: `ACTION_ID`, `BINDING_ID`, `TOGGLE_STYLE`) — defined in PRIMITIVES.md semantic controls |
 | `0x2019` | `ROUTE` (STRING; navigation current path) — see §6 |
-| `0x2015`, `0x201A`–`0x20FF` | Future semantic properties (unallocated) |
+| `0x201A` | `NAV_DEPTH` (U32; navigation back-stack depth) — see §6 |
+| `0x201B` | `NAV_CHROME` (ENUM; navigation chrome mode) — see §6 |
+| `0x2015`, `0x201C`–`0x20FF` | Future semantic properties (unallocated) |
 
 ### Reserved ranges
 

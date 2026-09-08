@@ -1185,13 +1185,26 @@ fn escape(input: &str) -> String {
 }
 
 /// Slot attributes for a navigation/conditional slot node: the current path as
-/// `data-pathland-route` (the DOM client mirrors it into the URL) and the
-/// `data-pathland-transition` swap hint (`platform`/`fade`/`slide`/`scale`). Empty
-/// for ordinary nodes. See `spec/DSL.md` §4.5 and `spec/MODIFIERS.md`.
+/// `data-pathland-route` (the DOM client mirrors it into the URL), the
+/// `data-pathland-transition` swap hint (`platform`/`fade`/`slide`/`scale`),
+/// and the `data-pathland-nav-chrome` chrome mode (`custom` only — the default
+/// is the renderer's own chrome, so it is omitted). Empty for ordinary nodes.
+/// See `spec/DSL.md` §4.5 and `spec/MODIFIERS.md`.
 fn slot_attrs(node: &Node) -> String {
     let mut attrs = String::new();
     if let Some(path) = node.strings.get(&property_id::ROUTE) {
         attrs.push_str(&format!(" data-pathland-route=\"{}\"", escape(path)));
+    }
+    let chrome = node.f32_property(property_id::NAV_CHROME, 0.0).round() as u8;
+    if chrome == 1 {
+        attrs.push_str(" data-pathland-nav-chrome=\"custom\"");
+    }
+    // Back-stack depth: lets the DOM client hydrate the renderer's default back
+    // button (shown when a PlatformDefault slot is deeper than its root) from the
+    // SSR HTML before any delta frame arrives.
+    let depth = node.u32_property(property_id::NAV_DEPTH, 1).max(1);
+    if depth > 1 {
+        attrs.push_str(&format!(" data-pathland-depth=\"{depth}\""));
     }
     let transition = node.f32_property(property_id::TRANSITION, 0.0).round() as u8;
     if transition != 0 {

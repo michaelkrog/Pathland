@@ -178,6 +178,8 @@ export const PROP_ACTION_ID = 0x2016;
 export const PROP_BINDING_ID = 0x2017;
 export const PROP_TOGGLE_STYLE = 0x2018;
 export const PROP_ROUTE = 0x2019;
+export const PROP_NAV_DEPTH = 0x201a;
+export const PROP_NAV_CHROME = 0x201b;
 
 // Width/height hints (WIDTH/HEIGHT values)
 export const WIDTH_FILL = -1;

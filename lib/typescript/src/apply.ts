@@ -27,6 +27,8 @@ import {
   PROP_IMAGE_SOURCE,
   PROP_IS_INDETERMINATE,
   PROP_LABEL,
+  PROP_NAV_CHROME,
+  PROP_NAV_DEPTH,
   PROP_PROGRESS,
   PROP_PROMPT,
   PROP_ROUTE,
@@ -59,6 +61,13 @@ export interface DomRenderer {
    * DSL.md §4.5). Not called on hydrate (the URL is already correct).
    */
   onRoute?: (path: string) => void;
+  /**
+   * Optional hook invoked when the renderer's default back button (a
+   * `PlatformDefault` nav slot at depth > 1) is clicked — the host wires it to a
+   * `NAVIGATE` event with no URL, so the app pops its own back-stack (spec DSL.md
+   * §4.5). Null/absent when the slot is `Custom` chrome or at depth 1.
+   */
+  onNavigateBack?: () => void;
   /** Optional design-token sink (defaults to document-root CSS variables). */
   tokenSink?: DesignTokenSink;
 }
@@ -179,13 +188,75 @@ function applyTree(op: Opcode, r: DomRenderer): void {
 
 function insertAt(container: Node, child: Node, index: number): void {
   const visible = Array.from(container.childNodes).filter(
-    (n) => n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.COMMENT_NODE,
+    (n) =>
+      (n.nodeType === Node.ELEMENT_NODE || n.nodeType === Node.COMMENT_NODE) &&
+      !(n instanceof HTMLElement && n.classList.contains(NAV_BACK_CLASS)),
   );
   const target = visible[index];
   if (target) {
     container.insertBefore(child, target);
   } else {
     container.appendChild(child);
+  }
+}
+
+// --- renderer-provided navigation chrome (spec DSL.md §4.5) ---
+// A `PlatformDefault` nav slot at depth > 1 gets a default back button drawn by
+// the DOM renderer (the web has no native navigation container). The button is
+// a tracked child of the slot that the reconcile ignores (see `insertAt`), so
+// TREE deltas never displace it. `Custom` chrome slots never get one.
+
+/** The injected default back button's class (excluded from child indexing). */
+export const NAV_BACK_CLASS = "pathland-nav-back";
+
+/** Whether an element is a nav slot (carries a `data-pathland-route`). */
+function isNavSlot(el: HTMLElement): boolean {
+  return el.hasAttribute("data-pathland-route");
+}
+
+/** The slot's chrome mode: `true` when the developer owns all nav UI. */
+function isCustomChrome(el: HTMLElement): boolean {
+  return el.getAttribute("data-pathland-nav-chrome") === "custom";
+}
+
+/** The slot's current depth (defaults to 1 = root destination). */
+function slotDepth(el: HTMLElement): number {
+  return Math.max(1, Number(el.getAttribute("data-pathland-depth") ?? "1") || 1);
+}
+
+/** The injected back button inside a slot, if present. */
+function injectedBackButton(el: HTMLElement): HTMLButtonElement | null {
+  return el.querySelector<HTMLButtonElement>(`.${NAV_BACK_CLASS}`);
+}
+
+/**
+ * Reconcile the renderer's default back button for a nav slot: shown for a
+ * `PlatformDefault` slot at depth > 1, removed for `Custom` chrome or depth 1.
+ * Called from `SET_PROPERTY` (depth/chrome changes) and once at hydrate.
+ */
+export function updateNavBackButton(el: HTMLElement, r: DomRenderer): void {
+  if (!isNavSlot(el) || isCustomChrome(el) || slotDepth(el) <= 1) {
+    injectedBackButton(el)?.remove();
+    return;
+  }
+  let back = injectedBackButton(el);
+  if (!back) {
+    back = document.createElement("button");
+    back.type = "button";
+    back.className = NAV_BACK_CLASS;
+    back.setAttribute("aria-label", "Back");
+    back.textContent = "‹ Back";
+    back.addEventListener("click", () => r.onNavigateBack?.());
+    el.insertBefore(back, el.firstChild); // above the destination
+  }
+}
+
+/** Reconcile the default back button for every nav slot in the tree (hydrate). */
+export function updateNavBackButtons(r: DomRenderer): void {
+  for (const node of r.byId.values()) {
+    if (node instanceof HTMLElement && isNavSlot(node)) {
+      updateNavBackButton(node, r);
+    }
   }
 }
 
@@ -279,6 +350,19 @@ function applyStyle(op: Opcode, strings: Uint8Array, r: DomRenderer): void {
       } else if (componentByNode.get(el) === COMPONENT_PROGRESS_VIEW
               && (propId === PROP_IS_INDETERMINATE || propId === PROP_PROGRESS)) {
         applyProgress(el, r, propId, valueType, op.c);
+      } else if (propId === PROP_NAV_DEPTH) {
+        // Back-stack depth on a nav slot → the renderer's default back button.
+        el.setAttribute("data-pathland-depth", String(op.c));
+        updateNavBackButton(el, r);
+      } else if (propId === PROP_NAV_CHROME) {
+        // Chrome mode: PlatformDefault=0 / Custom=1 (F32 enum code).
+        const custom = Math.round(f32FromBits(op.c)) === 1;
+        if (custom) {
+          el.setAttribute("data-pathland-nav-chrome", "custom");
+        } else {
+          el.removeAttribute("data-pathland-nav-chrome");
+        }
+        updateNavBackButton(el, r);
       } else {
         applyNumericProperty(el, propId, valueType, op.c);
       }

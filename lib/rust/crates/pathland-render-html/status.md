@@ -33,9 +33,14 @@ Statelessness). Protocol contract: `spec/`.
 - **Event surfacing**: `data-event-listeners` / `data-action-id` /
   `data-binding-id` attributes.
 - **Navigation slot attrs** (spec DSL.md §4.5 / MODIFIERS.md): a slot node's
-  `ROUTE` (STRING) renders as `data-pathland-route="<path>"` and its
-  `TRANSITION` hint renders as `data-pathland-transition="<platform|fade|slide|scale>"`
-  — the DOM client mirrors the route into the URL and may animate a swap.
+  `ROUTE` (STRING) renders as `data-pathland-route="<path>"`, its
+  `TRANSITION` hint renders as `data-pathland-transition="<platform|fade|slide|scale>"`,
+  its `NAV_CHROME` (F32 enum) renders `data-pathland-nav-chrome="custom"`
+  when `Custom` (the renderer adds no default chrome), and `NAV_DEPTH` (U32)
+  renders `data-pathland-depth="N"` when deeper than its root so the DOM client
+  can hydrate its default back button from the SSR HTML — the DOM renderer
+  mirrors the route into the URL, may animate a swap, and draws the renderer's
+  own back button (the web has no native navigation container).
 - `STYLE::SET_DATE` handled (days + millis-of-day → date/time).
 - **Design tokens (spec/TOKENS.md)**:
   - `STYLE::SET_DESIGN_TOKEN` overrides are collected per snapshot batch and
