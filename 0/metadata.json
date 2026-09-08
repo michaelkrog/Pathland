@@ -1,0 +1,65 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M2141DSW736RNTZDCGYVJTN6",
+  "session_id": "ses_f80535627ffe0oRq2rzjS3zIFI",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-08T18:21:18.145963Z",
+  "branch": "feat/router-dx",
+  "checkpoints_count": 7,
+  "save_step_count": 1,
+  "files_touched": [
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/SplitNavDemo.java",
+    "lib/java/pathland-demo-views/status.md",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/Navigation.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/Params.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/RouteHandler.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/RouteTable.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/router/RouterTest.java",
+    "lib/java/pathland-view/status.md",
+    "spec/DSL.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "5507c615fa08",
+  "checkpoint_transcript_start": 659,
+  "transcript_lines_at_start": 659,
+  "compact_transcript_start": 659,
+  "token_usage": {
+    "input_tokens": 3327514,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 24268032,
+    "output_tokens": 24463,
+    "api_call_count": 64
+  },
+  "session_metrics": {
+    "turn_count": 40
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-08T18:21:17.762436Z",
+    "agent_lines": 373,
+    "agent_removed": 49,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 373,
+    "total_lines_changed": 422,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 373,
+      "agent_lines_removed": 49
+    }
+  ]
+}
