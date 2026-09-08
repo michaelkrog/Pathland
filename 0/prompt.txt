@@ -1,1 +1,1 @@
-yes, commit and then lets plan
+commit.
