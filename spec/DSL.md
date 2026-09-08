@@ -362,15 +362,34 @@ Navigation is **structural reactivity over a route signal**
 `NavigationContainer` is a structural container whose content function is
 route-table matching. The wire surface is minimal and entirely optional:
 `ROUTE` (MODIFIERS.md `0x2019`, a STRING current-path property on the slot),
-`TRANSITION` (MODIFIERS.md `0x1031`, a presentation hint), and the `NAVIGATE`
-event (EVENTS.md `0x0E`, host→guest). Renderers stay stateless: they render
-whatever destination subtree the app emits and **may** animate a swap when the
-`TRANSITION` hint is present, but must render normally when they ignore it.
+`NAV_DEPTH` (MODIFIERS.md `0x201A`, a U32 back-stack-depth property on the
+slot), `NAV_CHROME` (MODIFIERS.md `0x201B`, an F32-enum chrome-mode property
+on the slot), `TRANSITION` (MODIFIERS.md `0x1031`, a presentation hint), and
+the `NAVIGATE` event (EVENTS.md `0x0E`, host→guest). Renderers stay
+stateless: they render whatever destination subtree the app emits and **may**
+animate a swap when the `TRANSITION` hint is present, but must render normally
+when they ignore it.
+
+**Navigation is opt-in — the developer declares it by inserting a
+`NavigationContainer`.** A tree without one has no navigation and the renderer
+adds none. The container's chrome mode decides who supplies the navigation UI:
+
+- `PlatformDefault` (default): the **renderer** supplies the chrome — the
+  platform's native navigation container where one exists (GTK
+  `AdwNavigationView`, SwiftUI `NavigationStack`, Compose `NavHost`), and a
+  renderer-drawn back affordance where none exists (the DOM renderer shows a
+  back button once `NAV_DEPTH > 1`; a no-JS SSR page falls back to the browser
+  back button). `NavigationContainer.of(router)`.
+- `Custom`: the **developer owns all navigation UI** — they draw their own
+  back buttons / bars in the destinations and call `router.back()` /
+  `navigate(...)` directly; the renderer adds no chrome (no native header-bar
+  back button, no DOM back button). `NavigationContainer.of(router, Chrome.CUSTOM)`.
+  Renderers treat a missing `NAV_CHROME` as `PlatformDefault`.
 
 | View | Canonical (SwiftUI-shaped) | Java DSL (current) | Rust DSL (current) | Emits / Binds |
 |------|----------------------------|--------------------|--------------------|---------------|
-| `NavigationContainer` | `NavigationStack(path:) { destination(for:) }` | `NavigationContainer.of(Router)` | `NavigationContainer::new(Router)` | a `Group` slot + `ROUTE` `0x2019`, `TRANSITION` `0x1031`; destination swap = `TREE` deltas |
-| `NavigationLink` | `NavigationLink("label", value:)` | `NavigationLink.of(String, Router, String to)` | `navigation_link(...)` | a `BUTTON` whose tap pushes `to` |
+| `NavigationContainer` | `NavigationStack(path:) { destination(for:) }` | `NavigationContainer.of(Router)` / `.of(Router, Chrome.CUSTOM)` | `NavigationContainer::new(Router)` | a `Group` slot + `ROUTE` `0x2019`, `NAV_DEPTH` `0x201A`, `NAV_CHROME` `0x201B`, `TRANSITION` `0x1031`; destination swap = `TREE` deltas |
+| `NavigationLink` | `NavigationLink("label", value:)` | `NavigationLink.of(String, Router, String to)` / `NavigationLink.of(String, String to)` (router-agnostic) | `navigation_link(...)` | a `BUTTON` whose tap pushes `to` (via the router, or resolved to the nearest enclosing router when router-agnostic) |
 | `RouteTable` | — | `RouteTable` (builder) | `RouteTable::new(...)` | none (app-side matching) |
 
 **Router state** — app-owned (never renderer state):
@@ -401,6 +420,31 @@ whatever destination subtree the app emits and **may** animate a swap when the
   (`pushState` / `replaceState` / back) is a renderer/DOM-client translation of
   the `ROUTE` property and the `NAVIGATE` event.
 
+**Any component can change the route** — declarative navigation intents. A
+component anywhere *inside* a `NavigationContainer` can change the route without
+threading a `Router` by hand, using a `NavigationMod` on a `BUTTON`:
+
+```java
+Button.of("Go to kitchen").navigate("/kitchen");  // direct selection
+Button.of("Open item").push("/item/1");           // drill-down (back-stack)
+Button.of("Swap").replace("/settings");           // guard redirect / replace
+NavigationLink.of("Users", "/users");             // router-agnostic (pushes)
+```
+
+- The intent (`navigateTo` + a `NavOp` — `NAVIGATE`/`PUSH`/`REPLACE`) is
+  recorded on the node at render.
+- The **emitter resolves it to the nearest enclosing `Router`** — the
+  `NavigationContainer` whose subtree the component lives under — while walking
+  the retained tree (nested containers resolve to the innermost one). No
+  hidden global, no environment lookup.
+- The resolved action is exposed on `RenderResult.navigateActions`
+  (`node id → Runnable`), a live map like `tapActions`; the host routes a tap
+  on that node to the action (checked before `tapActions`).
+- A `NavigationContainer` whose subtree *is* a destination resolves its own
+  router, so the sidebar's own menu rows (which sit *outside* the container, as
+  the developer's custom chrome) capture the router explicitly — the
+  nearest-enclosing mechanism covers components inside a container.
+
 **URL sync (web)** — the app owns state; the browser mirrors it:
 
 1. On a route change the app emits the new path as `ROUTE`; the DOM client
@@ -417,11 +461,41 @@ swipe-back, a desktop back button) map to a `NAVIGATE` event **without** a URL
 payload (= "back one step"); the host calls `router.pop()`. The renderer never
 decides navigation — it only requests it.
 
-**Native integration** — each renderer maps the slot onto its platform
-navigation affordance: SwiftUI `NavigationStack`, Compose `NavHost`, WinUI
-`NavigationView` (the `HStack` sidebar+detail composition, PRIMITIVES.md),
-LVGL screens (`lv_scr_load` — a whole-tree swap; the app's back-stack supplies
-the stack LVGL lacks).
+**Native integration** — each renderer **may** promote a `NavigationContainer`
+slot onto its platform navigation affordance. The trigger is structural, not a
+new primitive: a slot carrying the `ROUTE` (STRING) property is a navigation
+slot and may be rendered as the platform's native navigation container
+(SwiftUI `NavigationStack`, Compose `NavHost`, WinUI `NavigationView` / `Frame`,
+GTK `AdwNavigationView`, LVGL screens `lv_scr_load`). The contract keeps the
+renderer stateless:
+
+- **App owns** the route signal, the back-stack, and which destination is
+  current; it emits the current destination as the slot child plus `ROUTE`
+  and `NAV_DEPTH`.
+- **Renderer owns** the native chrome and presentation only: it maps the slot's
+  child swaps onto native push/pop, uses `ROUTE` for native path parity and
+  `NAV_DEPTH` to reconcile its page stack (push when deeper, replace the top
+  when the depth is unchanged, pop down on a depth decrease), uses `TRANSITION`
+  (0x1031) to choose a native transition (fade/slide/scale), and
+  translates every native back affordance (a header-bar back button, a
+  swipe/gesture, a platform back key, predictive back) into a `NAVIGATE` event
+  **without** a URL payload (= "back one step"). The renderer never holds the
+  back-stack and never decides navigation — it renders whatever destination
+  subtree the app emits and may animate the swap.
+- Platforms with no native navigation container (LVGL, terminal/canvas, plain
+  GTK4 boxes) render the slot as an ordinary container that swaps children in
+  place; the app's own back-stack is the only stack. The app does not branch on
+  platform — the same `NavigationContainer` works on both, and the renderer's
+  use (or not) of a native container is purely a presentation decision.
+
+| Platform | Native container | Slot child swap maps to | Native back → |
+|---|---|---|---|
+| GTK/Linux | `AdwNavigationView` | `push`/`pop` the child widgets | `NAVIGATE` (no URL) |
+| SwiftUI | `NavigationStack(path:)` | bind emitted path → native path | `NAVIGATE` |
+| Android/Compose | `NavHost` | route string → `NavHostController.navigate` | `NAVIGATE` |
+| WinUI | `NavigationView` / `Frame` | `Frame.Navigate` / sidebar+detail | `NAVIGATE` |
+| Web (DOM client) | History API | `ROUTE` → `pushState` (already implemented) | `NAVIGATE` |
+| LVGL / embedded | none | whole-tree swap (app's back-stack) | n/a |
 
 **Deltas (Java)**: `Router` / `RouteTable` live in
 `com.pathland.view.router`; `Conditional` in `com.pathland.view`. The

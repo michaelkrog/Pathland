@@ -98,7 +98,10 @@ public final class SplitNavDemo implements View {
                 .modifier(Border.of(SIDEBAR_BORDER, 1f));
     }
 
-    /** A sidebar menu row: navigates the router (direct selection — no back-stack growth). */
+    /** A sidebar menu row: navigates the router (direct selection — no back-stack growth).
+     *  The sidebar sits outside the {@code NavigationContainer} (it is the developer's own
+     *  nav chrome), so it captures the router explicitly — the nearest-enclosing-router
+     *  mechanism (spec DSL.md §4.5) resolves intents for components *inside* a container. */
     private static View menuRow(Router router, String path, String label) {
         // Reactive active-item highlight: recomputed from the route signal, so a
         // selection re-emits only this row's background/color properties.

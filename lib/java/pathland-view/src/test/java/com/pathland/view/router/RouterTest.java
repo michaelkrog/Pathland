@@ -1,6 +1,7 @@
 package com.pathland.view.router;
 
 import com.pathland.view.Categories;
+import com.pathland.view.Button;
 import com.pathland.view.Commands;
 import com.pathland.view.Environment;
 import com.pathland.view.Properties;
@@ -43,6 +44,25 @@ class RouterTest {
         return frame.opcodes().stream()
                 .filter(o -> o.category() == category && o.command() == command)
                 .count();
+    }
+
+    /** The last NAV_DEPTH SET_PROPERTY value in a frame (the current back-stack depth). */
+    private static int lastNavDepth(Frame frame) {
+        return frame.opcodes().stream()
+                .filter(o -> o.category() == Categories.STYLE
+                        && o.command() == Commands.Style.SET_PROPERTY
+                        && (o.b() & 0xFFFF) == Properties.NAV_DEPTH)
+                .reduce((a, b) -> b)
+                .orElseThrow().c();
+    }
+
+    /** The NAV_CHROME enum code in a frame (F32 bits; PlatformDefault=0, Custom=1). */
+    private static float lastNavChrome(Frame frame) {
+        return Float.intBitsToFloat(frame.opcodes().stream()
+                .filter(o -> o.category() == Categories.STYLE
+                        && o.command() == Commands.Style.SET_PROPERTY
+                        && (o.b() & 0xFFFF) == Properties.NAV_CHROME)
+                .findFirst().orElseThrow().c());
     }
 
     private static FrameOpcodeSink sink() {
@@ -194,6 +214,44 @@ class RouterTest {
     }
 
     @Test
+    void navDepthTracksTheBackStack() {
+        Router router = new Router(table());
+        FrameOpcodeSink sink = sink();
+        new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
+
+        assertEquals(1, lastNavDepth(sink.frame()), "initial navigate is depth 1");
+        assertEquals(ValueTypes.U32,
+                (sink.frame().opcodes().stream()
+                        .filter(o -> (o.b() & 0xFFFF) == Properties.NAV_DEPTH)
+                        .findFirst().orElseThrow().b() >>> 16) & 0xFF,
+                "NAV_DEPTH is a U32 property");
+
+        router.push("/users");
+        assertEquals(2, lastNavDepth(sink.frame()), "push increments depth");
+        router.push("/users/42");
+        assertEquals(3, lastNavDepth(sink.frame()), "second push increments depth");
+        router.pop();
+        assertEquals(2, lastNavDepth(sink.frame()), "pop decrements depth");
+        router.replace("/users");
+        assertEquals(2, lastNavDepth(sink.frame()), "replace keeps depth");
+        router.pop();
+        assertEquals(1, lastNavDepth(sink.frame()), "back to the root is depth 1");
+    }
+
+    @Test
+    void chromeModeIsEmittedOnceAtMount() {
+        FrameOpcodeSink defaultSink = sink();
+        new Emitter(defaultSink).mount(
+                NavigationContainer.of(new Router(table())), Environment.DEFAULT);
+        assertEquals(0f, lastNavChrome(defaultSink.frame()), "default chrome → PlatformDefault (0)");
+
+        FrameOpcodeSink customSink = sink();
+        new Emitter(customSink).mount(
+                NavigationContainer.of(new Router(table()), Chrome.CUSTOM), Environment.DEFAULT);
+        assertEquals(1f, lastNavChrome(customSink.frame()), "Chrome.CUSTOM → Custom (1)");
+    }
+
+    @Test
     void routeParamsReachTheDestination() {
         Router router = new Router(table());
         FrameOpcodeSink sink = sink();
@@ -290,5 +348,60 @@ class RouterTest {
     @Test
     void pathOnlyStripsQueryAndFragment() {
         assertEquals("/users/42", Route.of("/users/42?tab=profile#top").pathOnly());
+    }
+
+    @Test
+    void declarativeNavigateResolvesToTheNearestRouter() {
+        // A component inside a destination declares `.navigate`; the emitter resolves it
+        // to the enclosing NavigationContainer's router and exposes it in
+        // RenderResult.navigateActions — no router is threaded by hand (spec DSL.md §4.5).
+        Router router = new Router(RouteTable.builder()
+                .route("/", p -> Button.of("Go", () -> {}).navigate("/users"))
+                .route("/users", p -> Text.of("Users"))
+                .build());
+        FrameOpcodeSink sink = sink();
+        RenderResult result = new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
+
+        assertTrue(result.navigateActions().size() >= 1, "the declarative intent is registered");
+        result.navigateActions().values().iterator().next().run();
+        assertEquals("/users", router.current().path(), ".navigate reached the enclosing router");
+    }
+
+    @Test
+    void declarativePushGrowsTheBackStackAndReplaceDoesNot() {
+        Router router = new Router(RouteTable.builder()
+                .route("/", p -> Button.of("P", () -> {}).push("/users"))
+                .route("/users", p -> Button.of("R", () -> {}).replace("/users/42"))
+                .route("/users/42", p -> Text.of("User 42"))
+                .build());
+        FrameOpcodeSink sink = sink();
+        RenderResult result = new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
+
+        // PUSH first: pushes the root, moves to /users (depth 2).
+        result.navigateActions().values().iterator().next().run();
+        assertEquals("/users", router.current().path());
+        assertEquals(2, router.depth(), ".push grows the back-stack");
+
+        // REPLACE: swaps to /users/42 without a back-stack entry (depth stays 2).
+        result.navigateActions().values().iterator().next().run();
+        assertEquals("/users/42", router.current().path(), ".replace reached /users/42");
+        assertEquals(2, router.depth(), ".replace does not grow the back-stack");
+    }
+
+    @Test
+    void routerAgnosticNavigationLinkRegistersANavIntent() {
+        // NavigationLink.of(label, to) without a Router is a PUSH intent resolved to the
+        // nearest enclosing router (the existing explicit-router overloads still work).
+        Router router = new Router(RouteTable.builder()
+                .route("/", p -> NavigationLink.of("Users", "/users"))
+                .route("/users", p -> Text.of("Users"))
+                .build());
+        FrameOpcodeSink sink = sink();
+        RenderResult result = new Emitter(sink).mount(NavigationContainer.of(router), Environment.DEFAULT);
+
+        assertTrue(result.navigateActions().size() >= 1, "the router-agnostic link registers a nav intent");
+        result.navigateActions().values().iterator().next().run();
+        assertEquals("/users", router.current().path(), "the agnostic link pushed via the enclosing router");
+        assertEquals(2, router.depth(), "the agnostic link pushes (back-stack grows)");
     }
 }

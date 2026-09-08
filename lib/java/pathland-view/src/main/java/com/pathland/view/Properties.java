@@ -109,6 +109,8 @@ public final class Properties {
     public static final int TOGGLE_STYLE = 0x2018;
     // Navigation
     public static final int ROUTE = 0x2019;
+    public static final int NAV_DEPTH = 0x201A;
+    public static final int NAV_CHROME = 0x201B;
 
     private Properties() {}
 }

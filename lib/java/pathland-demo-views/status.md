@@ -48,7 +48,9 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
   `ForegroundStyle.of(Signal<Color>)`, so a selection re-emits only that row's
   color properties. Content areas are router-free, self-contained views
   instantiated inline in the route table:
-  - `HomeView` — titled welcome pane (`/` and `/home`).
+  - `HomeView` — titled welcome pane with a declarative `.navigate("/kitchen")`
+    button (spec DSL.md §4.5 — a component inside the container changing the
+    route without a router) (`/` and `/home`).
   - `KitchenSinkView` — the full showcase (`/kitchen`).
   - `SettingsView` — a switch + volume slider on local signals (`/settings`).
   - A `fallback` ("Not Found") for any other path.

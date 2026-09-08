@@ -22,6 +22,15 @@ public final class FrameMod implements ViewModifier {
         return new FrameMod(width, height, (float) alignment.wire(), null);
     }
 
+    /**
+     * A frame of a fixed {@code width} at {@code alignment} with **no height hint**:
+     * the view keeps its natural height and, as a flex child, stretches to its
+     * container's cross axis (e.g. a sidebar column filling a row's full height).
+     */
+    public static FrameMod of(float width, Alignment alignment) {
+        return new FrameMod(width, null, (float) alignment.wire(), null);
+    }
+
     /** A min/ideal/max frame; pass {@link Float#NaN} for any unset bound. */
     public static FrameMod of(float minWidth, float idealWidth, float maxWidth,
                               float minHeight, float idealHeight, float maxHeight) {
@@ -41,10 +50,17 @@ public final class FrameMod implements ViewModifier {
             addBound(props, Properties.MAX_HEIGHT, bounds[5]);
             return Modified.props(content, props.toArray(new Modified.Prop[0]));
         }
-        return Modified.props(content,
-                Modified.prop(Properties.WIDTH, width),
-                Modified.prop(Properties.HEIGHT, height),
-                Modified.prop(Properties.ALIGNMENT, alignment));
+        java.util.List<Modified.Prop> props = new java.util.ArrayList<>();
+        if (width != null) {
+            props.add(Modified.prop(Properties.WIDTH, width));
+        }
+        if (height != null) {
+            props.add(Modified.prop(Properties.HEIGHT, height));
+        }
+        if (alignment != null) {
+            props.add(Modified.prop(Properties.ALIGNMENT, alignment));
+        }
+        return Modified.props(content, props.toArray(new Modified.Prop[0]));
     }
 
     private static void addBound(java.util.List<Modified.Prop> props, int property, float value) {

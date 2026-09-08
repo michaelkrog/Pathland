@@ -19,6 +19,8 @@ import java.util.function.Consumer;
  * @param textInputs      node id → text-input sink (TEXT_CHANGED)
  * @param valueInputs     node id → value-input sink (VALUE_CHANGED)
  * @param dateInputs      node id → date-input sink (DATE_CHANGED)
+ * @param navigateActions node id → declarative route-change action (a {@code .navigate/
+ *                        push/replace} intent resolved to the nearest enclosing router)
  * @param navigateHandler global sink for {@code NAVIGATE} events (host → guest; a
  *                        {@code NavigationContainer} routes them into its router —
  *                        back/forward/deep-link). Null when no router is mounted.
@@ -29,4 +31,5 @@ public record RenderResult(
         Map<Integer, Consumer<String>> textInputs,
         Map<Integer, Consumer<Float>> valueInputs,
         Map<Integer, DateInput> dateInputs,
+        Map<Integer, Runnable> navigateActions,
         Consumer<Event> navigateHandler) {}

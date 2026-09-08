@@ -105,8 +105,21 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
   (`Signal<Route>` + back-stack; `navigate`/`push`/`pop`/`replace`/`back`,
   `handlePlatformNavigation`/`handleEvent`), `NavigationContainer` (structural
   slot emitting the `ROUTE` property coalesced into the same frame as the
-  destination swap, plus a `TRANSITION` PlatformDefault hint renderers may use
-  to animate the swap), `NavigationLink` (a `BUTTON` that pushes). The route is a
+  destination swap, plus a `NAV_DEPTH` U32 back-stack-depth property
+  (`router.depth()` = stack size + 1; `push`+1 / `pop`−1 / `replace` unchanged)
+  so native navigation adapters reconcile their page stack by depth, a
+  `NAV_CHROME` chrome-mode property (`Chrome.PLATFORM_DEFAULT` / `Chrome.CUSTOM`
+  — the renderer supplies default navigation chrome, or the developer owns all
+  nav UI), and a `TRANSITION` PlatformDefault hint renderers may use
+  to animate the swap), `NavigationLink` (a `BUTTON` that pushes — both
+  explicit-router and **router-agnostic** overloads). **Any component can change
+  the route** (spec DSL.md §4.5): `Button.of(...).navigate/push/replace(path)`
+  (`NavigationMod`) and router-agnostic `NavigationLink.of(label, to)` record a
+  `NavOp` intent on the node; the emitter resolves it to the **nearest
+  enclosing** `Router` (the `NavigationContainer` the component lives under)
+  during the retained-tree walk and exposes it on
+  `RenderResult.navigateActions` (a live `node id → Runnable` map like
+  `tapActions`), which the host routes on tap before `tapActions`. The route is a
   **plain signal** (not persisted; the URL is the web's persistence layer) and
   the host **seeds it before mount** via `navigate(...)` — no `Location`, no
   environment-carried route. A `NAVIGATE` event (`Event.navigate(url)` /
@@ -150,7 +163,10 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 
 `mvn test` (JDK 17+) — emitter, codec round-trips (incl. `NAVIGATE`), signals,
 state, structural-reactivity (`ConditionalTest`) and the router (`RouterTest`:
-initial route + `ROUTE` property, destination swap deltas, back-stack, params,
-guard redirect, fallback, `NAVIGATE` routing, `NavigationLink`); the JNA ring
+initial route + `ROUTE` property + `NAV_DEPTH` depth tracking + `NAV_CHROME`
+chrome mode, destination swap deltas, back-stack, params, guard redirect,
+fallback, `NAVIGATE` routing, `NavigationLink`, and the **declarative nav
+intents**: `.navigate/.push/.replace` + router-agnostic `NavigationLink`
+resolve to the nearest enclosing router via `navigateActions`); the JNA ring
 test runs when `libpathland_core` is on `java.library.path`. CI proves every
 LTS from 17 (Temurin 17/21/25).

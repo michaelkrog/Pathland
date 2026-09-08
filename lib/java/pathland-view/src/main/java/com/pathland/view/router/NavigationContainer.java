@@ -24,14 +24,21 @@ import java.util.Objects;
 public final class NavigationContainer implements View {
 
     private final Router router;
+    private final Chrome chrome;
 
-    private NavigationContainer(Router router) {
+    private NavigationContainer(Router router, Chrome chrome) {
         this.router = Objects.requireNonNull(router, "router");
+        this.chrome = Objects.requireNonNull(chrome, "chrome");
     }
 
-    /** A navigation slot over {@code router}. */
+    /** A navigation slot over {@code router}, with the renderer's default chrome. */
     public static NavigationContainer of(Router router) {
-        return new NavigationContainer(router);
+        return new NavigationContainer(router, Chrome.PLATFORM_DEFAULT);
+    }
+
+    /** A navigation slot over {@code router} with an explicit chrome mode. */
+    public static NavigationContainer of(Router router, Chrome chrome) {
+        return new NavigationContainer(router, chrome);
     }
 
     @Override
@@ -43,13 +50,22 @@ public final class NavigationContainer implements View {
             node.children.add(selected.render(env));
         }
         // ROUTE: the current path, re-emitted by the structural effect in the same frame
-        // as a destination swap (spec DSL.md §4.5 URL sync). TRANSITION: a presentation
-        // hint (PlatformDefault) so renderers may animate the swap — never state.
+        // as a destination swap (spec DSL.md §4.5 URL sync). NAV_DEPTH: the back-stack
+        // depth, so native navigation adapters reconcile their page stack by depth.
+        // TRANSITION: a presentation hint (PlatformDefault) so renderers may animate
+        // the swap — never state.
         node.properties.put(Properties.ROUTE, router.path());
         node.structuralStringProperty = Properties.ROUTE;
         node.structuralStringValue = router::path;
+        node.properties.put(Properties.NAV_DEPTH, router.depth());
+        node.structuralU32Property = Properties.NAV_DEPTH;
+        node.structuralU32Value = router::depth;
+        // Chrome mode: a static property (never varies per destination) — the
+        // renderer supplies default chrome, or the developer owns all nav UI.
+        node.properties.put(Properties.NAV_CHROME, (float) chrome.wire());
         node.properties.put(Properties.TRANSITION, 1f); // PlatformDefault
         node.navigateHandler = router::handleEvent;
+        node.router = router; // the nearest-enclosing router for declarative route intents
         return node;
     }
 }

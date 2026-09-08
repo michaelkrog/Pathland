@@ -45,6 +45,7 @@ final class SessionApp {
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
     private final Map<Integer, Runnable> tapActions;
+    private final Map<Integer, Runnable> navigateActions;
     private final Map<Integer, Consumer<String>> textInputs;
     private final Map<Integer, Consumer<Float>> valueInputs;
     private final Map<Integer, DateInput> dateInputs;
@@ -80,6 +81,7 @@ final class SessionApp {
         // Mount wires State fields, then renders and emits the structural frame.
         RenderResult result = emitter.mount(root, new Environment(state));
         this.tapActions = result.tapActions();
+        this.navigateActions = result.navigateActions();
         this.textInputs = result.textInputs();
         this.valueInputs = result.valueInputs();
         this.dateInputs = result.dateInputs();
@@ -132,9 +134,16 @@ final class SessionApp {
         try {
             for (Event event : FrameCodec.decodeEvents(message)) {
                 if (event.isPointerUp()) {
-                    Runnable action = tapActions.get(event.target());
-                    if (action != null) {
-                        action.run();
+                    // A declared navigation intent (`.navigate/.push/.replace`) wins over a
+                    // plain tap action — route it first (spec DSL.md §4.5).
+                    Runnable nav = navigateActions.get(event.target());
+                    if (nav != null) {
+                        nav.run();
+                    } else {
+                        Runnable action = tapActions.get(event.target());
+                        if (action != null) {
+                            action.run();
+                        }
                     }
                 } else if (event.isTextChanged()) {
                     Consumer<String> sink = textInputs.get(event.target());

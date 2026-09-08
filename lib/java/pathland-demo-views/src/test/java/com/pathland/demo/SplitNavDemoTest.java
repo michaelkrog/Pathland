@@ -66,15 +66,34 @@ class SplitNavDemoTest {
     }
 
     @Test
+    void declarativeNavButtonInsideAContentAreaChangesTheRoute() {
+        // HomeView's "Open kitchen sink" button declares `.navigate("/kitchen")` — a
+        // component *inside* the NavigationContainer, so the emitter resolves it to the
+        // nearest enclosing router and registers it in navigateActions (spec DSL.md §4.5).
+        FrameOpcodeSink sink = new FrameOpcodeSink();
+        Router router = SplitNavDemo.router("/home");
+        RenderResult result = new Emitter(sink).mount(SplitNavDemo.of(router), env());
+
+        assertTrue(result.navigateActions().size() >= 1,
+                "the declarative button inside the content area registers a nav intent");
+        result.navigateActions().values().iterator().next().run();
+        assertEquals("/kitchen", router.current().path(),
+                "the declarative .navigate button changed the route via the enclosing router");
+        assertTrue(anySetText(sink.frame(), "Pathland Kitchensink"),
+                "the content area swapped to the kitchen sink");
+    }
+
+    @Test
     void menuClickSwapsTheContentArea() {
         FrameOpcodeSink sink = new FrameOpcodeSink();
         Router router = SplitNavDemo.router("/home");
         RenderResult result =
                 new Emitter(sink).mount(SplitNavDemo.of(router), env());
 
-        // The menu rows are the first routed buttons (the sidebar precedes the content
-        // in the HStack), so clicking them in order reaches /kitchen on the second row.
-        // Snapshot the live routing map first — a tap re-renders and repopulates it.
+        // The menu rows capture the router explicitly (the sidebar sits outside the
+        // NavigationContainer), so they navigate via the tap registry — clicking them in
+        // order reaches /kitchen on the second row. Snapshot the live map first (a tap
+        // re-renders and repopulates it).
         boolean reachedKitchen = false;
         for (Map.Entry<Integer, Runnable> tap : new ArrayList<>(result.tapActions().entrySet())) {
             tap.getValue().run();

@@ -60,6 +60,17 @@ public final class Router {
         return current().pathOnly();
     }
 
+    /**
+     * The current back-stack depth: destinations in the app's path including
+     * the current one. An initial {@code navigate} is 1; each {@link #push}
+     * increments; {@link #pop}/{@link #back} decrement; {@link #replace} leaves
+     * it unchanged. Emitted as the slot's {@code NAV_DEPTH} property so native
+     * navigation adapters reconcile their page stack by depth.
+     */
+    public int depth() {
+        return stack.size() + 1;
+    }
+
     /** Set the current route without touching the back-stack. */
     public void navigate(String path) {
         go(Route.of(path));

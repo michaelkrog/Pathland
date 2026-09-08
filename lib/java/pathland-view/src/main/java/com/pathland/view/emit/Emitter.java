@@ -44,6 +44,7 @@ public final class Emitter {
     private final Map<Integer, Consumer<String>> textInputs = new LinkedHashMap<>();
     private final Map<Integer, Consumer<Float>> valueInputs = new LinkedHashMap<>();
     private final Map<Integer, DateInput> dateInputs = new LinkedHashMap<>();
+    private final Map<Integer, Runnable> navigateActions = new LinkedHashMap<>();
     private final List<EffectRef> bindings = new ArrayList<>();
     private final Map<Integer, List<EffectRef>> nodeBindings = new LinkedHashMap<>();
     private Consumer<Event> navigateHandler;
@@ -86,6 +87,7 @@ public final class Emitter {
         textInputs.clear();
         valueInputs.clear();
         dateInputs.clear();
+        navigateActions.clear();
         navigateHandler = null;
         collectInputs(tree);
 
@@ -104,6 +106,7 @@ public final class Emitter {
                 Collections.unmodifiableMap(textInputs),
                 Collections.unmodifiableMap(valueInputs),
                 Collections.unmodifiableMap(dateInputs),
+                Collections.unmodifiableMap(navigateActions),
                 navigateHandler);
     }
 
@@ -152,6 +155,15 @@ public final class Emitter {
 
     /** Collect tap actions + input sinks, keyed by node id, for the host's event routing. */
     private void collectInputs(PathlandNode node) {
+        collectInputs(node, null);
+    }
+
+    private void collectInputs(PathlandNode node, com.pathland.view.router.Router enclosing) {
+        // Descend into a NavigationContainer: its router becomes the nearest enclosing
+        // one for everything below it (nested containers override the outer router).
+        if (node.router != null) {
+            enclosing = node.router;
+        }
         for (Runnable action : node.tapActions) {
             tapActions.put(node.id, action);
         }
@@ -167,8 +179,16 @@ public final class Emitter {
         if (node.navigateHandler != null) {
             navigateHandler = node.navigateHandler; // global: a NavigationContainer's router sink
         }
+        // A declared navigation intent resolves to the nearest enclosing router.
+        if (node.navigateTo != null && enclosing != null) {
+            String to = node.navigateTo;
+            com.pathland.view.router.NavOp op = node.navOp;
+            int id = node.id;
+            com.pathland.view.router.Router router = enclosing;
+            navigateActions.put(id, () -> op.applyTo(router, to));
+        }
         for (PathlandNode child : node.children) {
-            collectInputs(child);
+            collectInputs(child, enclosing);
         }
     }
 
@@ -184,6 +204,7 @@ public final class Emitter {
         textInputs.remove(node.id);
         valueInputs.remove(node.id);
         dateInputs.remove(node.id);
+        navigateActions.remove(node.id);
         for (PathlandNode child : node.children) {
             forgetInputs(child);
         }
@@ -313,6 +334,16 @@ public final class Emitter {
                 ops.add(() -> emitProperty(id, property, value));
             }
         }
+        // Coalesce a slot-level U32 property change (e.g. NAV_DEPTH) the same way.
+        if (slot.structuralU32Property != null) {
+            int property = slot.structuralU32Property;
+            Integer value = Signals.untracked(slot.structuralU32Value);
+            if (!Objects.equals(value, slot.properties.get(property))) {
+                slot.properties.put(property, value);
+                int id = slot.id;
+                ops.add(() -> emitProperty(id, property, value));
+            }
+        }
 
         if (!ops.isEmpty()) {
             sink.beginFrame();
@@ -323,7 +354,10 @@ public final class Emitter {
         }
 
         if (fresh != null) {
-            collectInputs(fresh);
+            // Re-register the destination subtree's routing under the slot's own router
+            // (a NavigationContainer's router), so declarative nav intents resolve even
+            // after a structural reconcile (spec DSL.md §4.5).
+            collectInputs(fresh, slot.router);
             registerBindings(fresh);
         }
     }

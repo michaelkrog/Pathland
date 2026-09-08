@@ -1,6 +1,7 @@
 package com.pathland.view.emit;
 
 import com.pathland.view.View;
+import com.pathland.view.router.NavOp;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.transport.Event;
 
@@ -57,6 +58,16 @@ public final class PathlandNode {
     /** App-side tap callbacks (resolved by node id after the emitter assigns ids). */
     public final List<Runnable> tapActions = new ArrayList<>();
 
+    /**
+     * Declared navigation intent (spec DSL.md §4.5 "any component can change the
+     * route"): a non-null {@code navigateTo} marks this node as a route-changer —
+     * the emitter resolves it to the **nearest enclosing** {@code Router} (the
+     * {@code NavigationContainer} this node lives under) and registers it in
+     * {@code RenderResult.navigateActions}. No router is threaded by hand.
+     */
+    public String navigateTo;
+    public NavOp navOp = NavOp.NAVIGATE;
+
     /** Writable text-input sink (text fields); the emitter routes TEXT_CHANGED into it. */
     public Consumer<String> textInput;
 
@@ -84,11 +95,28 @@ public final class PathlandNode {
     public Supplier<String> structuralStringValue;
 
     /**
+     * Structural slot reactive U32 property: re-evaluated and re-emitted by the
+     * structural effect <em>within the same reconcile frame</em> as the subtree
+     * swap (e.g. the router's {@code NAV_DEPTH} property), so native navigation
+     * adapters reconcile their page stack by depth.
+     */
+    public Integer structuralU32Property;
+    public java.util.function.Supplier<Integer> structuralU32Value;
+
+    /**
      * Global navigation sink: the host forwards raw {@code NAVIGATE} events here
      * (a {@code NavigationContainer} sets this to its router's handler). Unlike the
      * node-keyed input sinks, this is global — a {@code NAVIGATE} event has no target.
      */
     public Consumer<Event> navigateHandler;
+
+    /**
+     * The {@code Router} this node's subtree navigates against (a
+     * {@code NavigationContainer} sets this to its router). The emitter tracks the
+     * **nearest enclosing** one down the retained tree to resolve declarative
+     * {@code navigateTo} intents (spec DSL.md §4.5).
+     */
+    public com.pathland.view.router.Router router;
 
     public PathlandNode(int component) {
         this.component = component;
