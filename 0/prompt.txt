@@ -1,0 +1,15 @@
+Explore the Pathland codebase at /Users/michael/Development/michaelkrog/Pathland to understand what navigation / routing support currently exists. I need a thorough inventory. Please search across ALL of these areas:
+
+1. The protocol specs in spec/ — especially spec/PRIMITIVES.md, spec/MODIFIERS.md, spec/EVENTS.md, spec/OPCODE.md — for anything related to navigation: "navigation", "navigationstack", "navstack", "path", "route", "router", "push", "pop", "screen", "sheet", "link", "deep link", "host", "segment".
+
+2. The Rust crates in lib/rust/crates/ — pathland-core (constants.rs, and any nav-related modules), pathland-engine, pathland-view, pathland-core-transport, pathland-render-gtk, pathland-render-html, pathland-view-native — for nav components/modifiers/events. Search for "NavigationStack", "Navigation", "NavStack", "Router", "Route", "push", "pop", "NAV_", "SCREEN", "SHEET".
+
+3. The Java library in lib/java/ (pathland-view and its DSL) for navigation types: com.pathland.view NavigationStack, Router, Route, Navigator, push/pop, etc.
+
+4. The renderers (GTK renderer in Rust, HTML renderer, TypeScript DOM renderer in lib/typescript) — how would a native navigation system be represented? Any notion of "screen", "page", "sheet", "host navigation", history/back-stack.
+
+5. Check the status.md files in lib/rust/crates/*/status.md and lib/java/pathland-view/status.md for any mention of navigation being implemented / planned / deferred.
+
+For each finding, report the exact file path and line numbers, and quote the relevant snippets. In your final summary, give me a clear picture: (a) is there ANY navigation/routing concept in the protocol today, (b) is there anything in the "planned/deferred" notes of AGENTS.md or status files referencing navigation, (c) what component IDs exist in the layout/semantic ranges that might be used for screens, (d) any docs files about roadmap that mention navigation.
+
+Be very thorough — search multiple naming conventions.
