@@ -38,13 +38,15 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
   `NavigationSplitView` → `HStack` sidebar + detail): a fixed menu column on
   the left (3 items: Home / Kitchen sink / Settings) and a
   `NavigationContainer` content area on the right that swaps on selection
-  (`router.navigate` — direct selection, no back-stack growth). Both demos'
+  (`router.navigate` — direct selection, no back-stack growth). The router is
+  built with the **`Navigation` facade** (`Navigation.navigator(...).route(...).
+  build()`). Both demos'
   `SessionApp` mount it and seed the router from the applied
   `META::ENVIRONMENT` `ROUTE` field (a request URL on SSR, the DOM client's
   first message on the WebSocket), so deep links render correctly on the first
   frame; `NAVIGATE` events forward into `RenderResult.navigateHandler`. The
-  active menu row is highlighted **reactively** — a computed signal from
-  `router.routeSignal()` drives `Background.of(Signal<Color>)` /
+  active menu row is highlighted **reactively** via `Navigation.isActive(router,
+  path)` → a computed signal that drives `Background.of(Signal<Color>)` /
   `ForegroundStyle.of(Signal<Color>)`, so a selection re-emits only that row's
   color properties. Content areas are router-free, self-contained views
   instantiated inline in the route table:

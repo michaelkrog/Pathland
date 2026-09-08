@@ -103,7 +103,13 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
   path, `pathOnly()` strips query/fragment), `RouteTable` (literal + `:param`
   patterns, guards → `replace()` redirect, `fallback` 404), `Router`
   (`Signal<Route>` + back-stack; `navigate`/`push`/`pop`/`replace`/`back`,
-  `handlePlatformNavigation`/`handleEvent`), `NavigationContainer` (structural
+  `handlePlatformNavigation`/`handleEvent`), **`Navigation`** (the ergonomic
+  facade: `Navigation.navigator(initialPath).route(...).fallback(...).build()`
+  collapses table + router + seeding, `Navigation.of(router)` is the container,
+  `Navigation.isActive(router, path)` → a reactive `Signal<Boolean>` for
+  active-route styling), **`Params`** (typed path-param access — `get`/
+  `intValue`/`longValue`/`doubleValue`/`booleanValue`/`path` — replacing the raw
+  `Map` in `RouteHandler`), `NavigationContainer` (structural
   slot emitting the `ROUTE` property coalesced into the same frame as the
   destination swap, plus a `NAV_DEPTH` U32 back-stack-depth property
   (`router.depth()` = stack size + 1; `push`+1 / `pop`−1 / `replace` unchanged)
@@ -165,8 +171,9 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
 state, structural-reactivity (`ConditionalTest`) and the router (`RouterTest`:
 initial route + `ROUTE` property + `NAV_DEPTH` depth tracking + `NAV_CHROME`
 chrome mode, destination swap deltas, back-stack, params, guard redirect,
-fallback, `NAVIGATE` routing, `NavigationLink`, and the **declarative nav
-intents**: `.navigate/.push/.replace` + router-agnostic `NavigationLink`
-resolve to the nearest enclosing router via `navigateActions`); the JNA ring
+fallback, `NAVIGATE` routing, `NavigationLink`, the **declarative nav
+intents** (`.navigate/.push/.replace` + router-agnostic `NavigationLink`
+resolving to the nearest enclosing router via `navigateActions`), and the
+**`Navigation` facade / `Params` / `isActive`**); the JNA ring
 test runs when `libpathland_core` is on `java.library.path`. CI proves every
 LTS from 17 (Temurin 17/21/25).

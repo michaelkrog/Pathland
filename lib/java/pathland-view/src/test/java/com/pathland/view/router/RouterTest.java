@@ -404,4 +404,59 @@ class RouterTest {
         assertEquals("/users", router.current().path(), "the agnostic link pushed via the enclosing router");
         assertEquals(2, router.depth(), "the agnostic link pushes (back-stack grows)");
     }
+
+    @Test
+    void navigationFacadeBuildsAndSeedsARouter() {
+        // Navigation.navigator collapses the route table + router + seeding (spec DSL.md §4.5).
+        int[] seenId = {-1};
+        Router router = Navigation.navigator("/kitchen")
+                .route("/", Text.of("Home"))
+                .route("/kitchen", Text.of("Kitchen"))
+                .route("/settings", Text.of("Settings"))
+                .route("/users/:id", params -> {
+                    seenId[0] = params.intValue("id");
+                    return Text.of("User " + params.intValue("id"));
+                })
+                .fallback(Text.of("Not Found"))
+                .build();
+
+        assertEquals("/kitchen", router.path(), "the initial path is seeded before mount");
+        assertNotNull(router.destination(), "a destination resolves for the seeded route");
+
+        router.navigate("/users/42");
+        assertEquals("/users/42", router.path());
+        assertNotNull(router.destination(), "the destination resolves for the new route");
+        assertEquals(42, seenId[0], "typed params reach the destination factory");
+    }
+
+    @Test
+    void paramsOfferTypedAccess() {
+        Params params = Params.of(Map.of("id", "42", "size", "10", "on", "true", "pi", "3.5"), "/users/42");
+        assertEquals("42", params.get("id"));
+        assertEquals(42, params.intValue("id"));
+        assertEquals(10L, params.longValue("size"));
+        assertTrue(params.booleanValue("on"));
+        assertEquals(3.5, params.doubleValue("pi"), 0.001);
+        assertEquals("/users/42", params.path());
+        assertEquals(0, params.intValue("missing"));
+        assertEquals(0.0, params.doubleValue("missing"), 0.001);
+        assertTrue(Params.none().isEmpty());
+    }
+
+    @Test
+    void navigationIsActiveTracksTheRouteSignal() {
+        Router router = Navigation.navigator("/home")
+                .route("/home", Text.of("Home"))
+                .route("/settings", Text.of("Settings"))
+                .build();
+        com.pathland.view.signal.Signal<Boolean> onHome = Navigation.isActive(router, "/home");
+        com.pathland.view.signal.Signal<Boolean> onSettings = Navigation.isActive(router, "/settings");
+
+        assertTrue(onHome.get(), "the current route is active");
+        assertEquals(false, onSettings.get(), "a different route is not active");
+
+        router.navigate("/settings");
+        assertEquals(false, onHome.get(), "isActive re-evaluates when the route changes");
+        assertTrue(onSettings.get(), "the new route becomes active");
+    }
 }

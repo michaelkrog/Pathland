@@ -390,7 +390,7 @@ adds none. The container's chrome mode decides who supplies the navigation UI:
 |------|----------------------------|--------------------|--------------------|---------------|
 | `NavigationContainer` | `NavigationStack(path:) { destination(for:) }` | `NavigationContainer.of(Router)` / `.of(Router, Chrome.CUSTOM)` | `NavigationContainer::new(Router)` | a `Group` slot + `ROUTE` `0x2019`, `NAV_DEPTH` `0x201A`, `NAV_CHROME` `0x201B`, `TRANSITION` `0x1031`; destination swap = `TREE` deltas |
 | `NavigationLink` | `NavigationLink("label", value:)` | `NavigationLink.of(String, Router, String to)` / `NavigationLink.of(String, String to)` (router-agnostic) | `navigation_link(...)` | a `BUTTON` whose tap pushes `to` (via the router, or resolved to the nearest enclosing router when router-agnostic) |
-| `RouteTable` | — | `RouteTable` (builder) | `RouteTable::new(...)` | none (app-side matching) |
+| `RouteTable` | — | `RouteTable` (builder), or `Navigation.navigator(...)` (the ergonomic facade) | `RouteTable::new(...)` | none (app-side matching) |
 
 **Router state** — app-owned (never renderer state):
 
@@ -419,6 +419,33 @@ adds none. The container's chrome mode decides who supplies the navigation UI:
   never models the platform's location handling — history adaptation
   (`pushState` / `replaceState` / back) is a renderer/DOM-client translation of
   the `ROUTE` property and the `NAVIGATE` event.
+
+**The `Navigation` facade** — the ergonomic entry point. `Navigation.navigator`
+collapses the route table + router + seeding into one readable flow, and
+`Navigation.of(router)` is the container:
+
+```java
+Router router = Navigation.navigator("/kitchen")     // seeds the initial path
+    .route("/",          new HomeView())             // View overload (no params)
+    .route("/users/:id", params -> new UserView(params.intValue("id")))
+    .fallback(new NotFoundView())
+    .build();
+
+View shell = Navigation.of(router);                  // == NavigationContainer.of(router)
+Signal<Boolean> onKitchen = Navigation.isActive(router, "/kitchen");
+```
+
+- `.route(String, View)` for no-param destinations; `.route(String, RouteHandler)`
+  for param destinations; guarded variants take a `Predicate<Params>` + a redirect
+  target; `.fallback(View | RouteHandler)` is the 404. `build()` returns the
+  seeded `Router` (the initial path flows through the same guard matching).
+- **`Params`** replaces the raw `Map<String,String>` in `RouteHandler` with typed
+  access: `params.get("id")`, `params.intValue("id")`, `params.longValue(...)`,
+  `params.doubleValue(...)`, `params.booleanValue(...)`, `params.path()`.
+- **`Navigation.isActive(router, path)` → `Signal<Boolean>`** is a reactive
+  "is this the active route" signal derived from the router's route signal —
+  style an active menu row or gate conditional content:
+  `Signals.computed(() -> Navigation.isActive(router, path).get() ? ACTIVE : CLEAR)`.
 
 **Any component can change the route** — declarative navigation intents. A
 component anywhere *inside* a `NavigationContainer` can change the route without
