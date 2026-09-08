@@ -1,7 +1,7 @@
 package com.pathland.spring;
 
 import com.pathland.demo.DemoTheme;
-import com.pathland.demo.RouterDemo;
+import com.pathland.demo.SplitNavDemo;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
 import com.pathland.view.emit.DateInput;
@@ -36,7 +36,7 @@ final class SessionApp {
 
     private final PersistentState state;
     private final Router router;
-    private final RouterDemo root;
+    private final SplitNavDemo root;
 
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
@@ -54,8 +54,8 @@ final class SessionApp {
 
     SessionApp(String sessionId, StateStore store, EnvironmentData env) {
         this.state = new PersistentState(store, sessionId);
-        this.router = RouterDemo.router(env.route());
-        this.root = RouterDemo.of(router);
+        this.router = SplitNavDemo.router(env.route());
+        this.root = SplitNavDemo.of(router);
 
         this.sink = new FrameOpcodeSink() {
             @Override

@@ -1,8 +1,8 @@
 # Pathland Structural Reactivity + Router — Implementation Plan
 
-**Status:** Approved — in progress (Phases 0–3, 5a/5b, 6 complete)
+**Status:** Approved — in progress (Phases 0–3, 5a/5b/5c, 6 complete)
 **Branch:** `feat/router-structural-reactivity`
-**Last Updated:** September 4, 2026
+**Last Updated:** September 8, 2026
 
 ---
 
@@ -70,7 +70,11 @@ analog and a valid Java identifier.)
 SwiftUI `NavigationStack` / Compose `NavHost` → slot + child swap +
 `TRANSITION`, back → `NAVIGATE` → `pop()`; WinUI `NavigationView` → `HStack`
 sidebar+detail, per-outlet slots; LVGL screens → whole-tree swap (app's
-back-stack supplies the stack LVGL lacks).
+back-stack supplies the stack LVGL lacks). A slot carrying `ROUTE` is a
+navigation slot and **may** be promoted onto the platform's native navigation
+container; the renderer keeps the back-stack app-owned and only maps child
+swaps → native push/pop, `ROUTE` → native path, `TRANSITION` → native
+transition, and native back affordances → `NAVIGATE`. See `spec/DSL.md §4.5`.
 
 ---
 
@@ -182,8 +186,12 @@ back-stack supplies the stack LVGL lacks).
     zero-dependency logger with opcode/event receive-emit logging; runtime
     element shells mirror the Rust renderer (buttons keep `pathland-button`
     after a navigation swap — drift-guard test). 138 tests + typecheck + build.
-19. ⏸ `pathland-render-gtk`: Escape/back → `NAVIGATE` (no payload) — **pending**
-    (was blocked on pkg-config; now unblocked — GTK4 is installed).
+19. ✅ `pathland-render-gtk`: a window-level `EventControllerKey` (capture
+    phase) maps Escape — and BackSpace when no text entry has focus — to
+    `Event::Navigate { url: None }` through the event ring; the demo surfaces
+    it in the console (`NAVIGATE back requested`). Verified by
+    `cargo test -p pathland-render-gtk` (27 tests) + full workspace + wasm
+    guard.
 
 ## Phase 6 — Demos + status ✅ (runnable in the browser)
 
@@ -196,13 +204,13 @@ back-stack supplies the stack LVGL lacks).
     Sessions are created **lazily on the first message** so the router seeds
     from the `ROUTE` field before mount — deep links render correctly on the
     first frame and the WS tree stays consistent with the SSR HTML.
-21. ✅ `pathland-demo-views`: `RouterDemo` is the demo root (with `/kitchen`
-    keeping the showcase); both `SessionApp` apply the environment
+21. ✅ `pathland-demo-views`: `SplitNavDemo` is the demo root (sidebar + content;
+    `/kitchen` keeps the showcase); both `SessionApp` apply the environment
     (seed + `applyEnvironment` enrichment) and forward `NAVIGATE` events.
-22. ✅ **Verified in the browser**: both demos run; `curl /users/42` →
-    `User 42` + `data-pathland-route="/users/42"`; `/admin` guard redirects;
-    `/nope` fallback; JS bundle served. 76 Java tests + 61 TS tests + core
-    vectors 26–27 green.
+22. ✅ **Verified in the browser**: both demos run; `curl /kitchen` → the
+    kitchen-sink content + `data-pathland-route="/kitchen"`; `/home`/`/settings`
+    content; unknown paths → sidebar + "Not Found"; JS bundle served. 76 Java
+    tests + 61 TS tests + core vectors 26–27 green.
 23. ✅ **status.md updates** (per AGENTS.md): `pathland-core`,
     `pathland-core-transport`, `lib/java/pathland-view`, `pathland-render-html`,
     `lib/typescript`, `pathland-demo-views` — in their landing changes.
@@ -218,6 +226,43 @@ the registered handler); Quarkus `IndexResource` `@Path("{path:(?!ws).*}")`
 WebSocket client gets a **101** handshake, and a synthetic tap on a link id makes
 the server reply with `ROUTE "/users"` + the destination swap — in both demos.
 
+## Phase 7 — Native renderer adapters (GTK first: `AdwNavigationView`) ✅
+
+A navigation slot (a `NavigationContainer` — a container carrying `ROUTE`) may
+be promoted onto a platform's native navigation container instead of an
+in-place child swap. GTK is the first adapter, over `AdwNavigationView`
+(`libadwaita`). The renderer stays stateless: app owns route + back-stack;
+renderer maps child swaps → `push`/`pop`, `ROUTE` → native path parity,
+`TRANSITION` → native transition, and the native back button → `NAVIGATE`
+(no URL). Full contract: `spec/DSL.md §4.5` "Native integration".
+
+- [x] `pathland-render-gtk`: `libadwaita` (0.7, `v1_4`) dep added; a stack node
+  carrying `ROUTE` builds as `AdwNavigationView` (pages reconciled **by depth**:
+  `NAV_DEPTH` 0x201A U32 — pop-down to the app's depth, push when deeper,
+  replace-the-top when depth is unchanged, refresh in place on the same route;
+  `ToolbarView`+`HeaderBar` page chrome, header-bar back `popped` → the
+  existing `Event::Navigate { url: None }` sink, suppressed during
+  renderer-driven pops).
+- [x] Headless tests: ROUTE-slot detection + the pure `nav_action` depth
+  decision (Refresh/Push/Replace) + `NAV_CHROME` mode — 30 GTK-crate tests green.
+- [x] **Chrome mode (`NAV_CHROME` 0x201B)**: `NavigationContainer.of(router)`
+  = `PlatformDefault` (renderer supplies chrome — native container where one
+  exists, renderer-drawn back button on DOM); `NavigationContainer.of(router,
+  Chrome.CUSTOM)` = developer owns all nav UI (GTK page = bare destination, no
+  header bar; DOM never injects the back button). DOM default back button:
+  injected above the slot's destination at depth > 1 (excluded from reconcile
+  indexing), `onNavigateBack` → `NAVIGATE` back; hydrated from SSR
+  `data-pathland-depth`. Navigation is **opt-in**: no `NavigationContainer` in
+  the tree → no navigation, the renderer adds none.
+- [ ] **Known limits (documented):** duplicate same-route pushes collapse
+  (refresh instead of stacking); a multi-step jump deeper in one frame pushes a
+  single page. Per-`TRANSITION` native animations are a follow-up.
+- [ ] SwiftUI `NavigationStack(path:)` renderer (new crate) — path binding +
+  swipe-back → `NAVIGATE`. **Not built; documented only** (`spec/DSL.md §4.5`).
+- [ ] Compose `NavHost` renderer (new crate) — route → `NavHostController`,
+  predictive back → `NAVIGATE`. **Documented only.**
+- [ ] WinUI `NavigationView`/`Frame` renderer (new crate). **Documented only.**
+
 ## Open follow-ups
 
 - `replaceState` for `replace()` (needs a wire distinction from `pushState`).
@@ -229,18 +274,17 @@ the server reply with `ROUTE "/users"` + the destination swap — in both demos.
 
 ---
 
-## Session handoff (September 4, 2026)
+## Session handoff (September 8, 2026)
 
-**Branch:** `feat/router-structural-reactivity` — 13 commits, working tree
-clean. Phases 0–3, 5a/5b, 6 are complete and verified (Rust full workspace
-incl. GTK + wasm guard, `mvn install`, TS 138 tests). `pkg-config` + GTK4 and
-the `wasm32-unknown-unknown` target are installed — nothing is build-blocked.
+**Branch:** `feat/router-structural-reactivity` — 14 commits, working tree
+clean. **Phase 5c complete**: the GTK renderer maps Escape/back (window-level
+capture-phase `EventControllerKey`, BackSpace only when no text entry has
+focus) → `Event::Navigate { url: None }` through the event ring, and the demo
+surfaces it in the console. Verified: `cargo test` (full workspace, incl. GTK
+27 tests), `check-wasm.sh`. Phases 0–3, 5a/5b/5c, 6 all done.
 
 ### Continuation todos (recommended order)
 
-- [ ] **Phase 5c** — `pathland-render-gtk`: map Escape/back → `Event::Navigate
-  { url: None }` through the event ring; `cargo test -p pathland-render-gtk`;
-  run `cargo run -p pathland-render-gtk-demo` to exercise the desktop path.
 - [ ] **Rust engine string-property diff (Prerequisite B)** — add
   `string_properties: BTreeMap<u16, String>` to the engine `Node` + diff
   emission → `SET_PROPERTY` STRING (lets a Rust `NavigationContainer` emit
@@ -261,6 +305,20 @@ the `wasm32-unknown-unknown` target are installed — nothing is build-blocked.
 - [ ] **`/ws` plain-GET consistency** (Spring serves HTML; make 404).
 - [ ] **Web back-button history refinement** — app-initiated `pop()` currently
   pushes a new history entry; use `replaceState`/`history.back()` for pops.
+- [ ] **Per-`TRANSITION` native animations** — map the `TRANSITION` (0x1031)
+  hint (fade/slide/scale) onto `AdwNavigationView`/native transition choices.
 
-Start with the plan-doc refresh (this section), then Phase 5c — the quick win
-that completes Phase 5.
+Next: **Prerequisite B** (engine string-property diff) then **Phase 4** — the
+Rust router — the natural continuation that builds on the now-complete desktop
+`NAVIGATE` path.
+
+---
+
+## Session handoff (September 4, 2026)
+
+**Branch:** `feat/router-structural-reactivity` — 13 commits, working tree
+clean. Phases 0–3, 5a/5b, 6 are complete and verified (Rust full workspace
+incl. GTK + wasm guard, `mvn install`, TS 138 tests). `pkg-config` + GTK4 and
+the `wasm32-unknown-unknown` target are installed — nothing is build-blocked.
+
+Phase 5c landed in the following session (see the September 8 handoff above).

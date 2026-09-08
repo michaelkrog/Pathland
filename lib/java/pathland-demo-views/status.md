@@ -34,15 +34,24 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
   the HTML/JS client re-themes under `prefers-color-scheme: dark`.
 - **Legacy views kept**: `CounterView`, `CounterControls`, `NameField` (still
   covered by `CounterViewTest`).
-- **`RouterDemo`** — the shared routing demo (spec DSL.md §4.5): Home → Users →
-  UserDetail(`:id`) with `NavigationLink`s, a guarded `/admin` (redirects home),
-  a 404 fallback, and `/kitchen` (the full `KitchenSinkView` showcase, now a
-  route). `RouterDemo.router(initialPath)` builds the demo's route table + a
-  `Router`; the view is a `NavigationContainer`. Both demos' `SessionApp` mount
-  it as the **root** and seed the router from the applied `META::ENVIRONMENT`
-  `ROUTE` field (a request URL on SSR, the DOM client's first message on the
-  WebSocket), so deep links render correctly on the first frame; `NAVIGATE`
-  events forward into `RenderResult.navigateHandler`.
+- **`SplitNavDemo`** — the demo **root** (spec PRIMITIVES.md:
+  `NavigationSplitView` → `HStack` sidebar + detail): a fixed menu column on
+  the left (3 items: Home / Kitchen sink / Settings) and a
+  `NavigationContainer` content area on the right that swaps on selection
+  (`router.navigate` — direct selection, no back-stack growth). Both demos'
+  `SessionApp` mount it and seed the router from the applied
+  `META::ENVIRONMENT` `ROUTE` field (a request URL on SSR, the DOM client's
+  first message on the WebSocket), so deep links render correctly on the first
+  frame; `NAVIGATE` events forward into `RenderResult.navigateHandler`. The
+  active menu row is highlighted **reactively** — a computed signal from
+  `router.routeSignal()` drives `Background.of(Signal<Color>)` /
+  `ForegroundStyle.of(Signal<Color>)`, so a selection re-emits only that row's
+  color properties. Content areas are router-free, self-contained views
+  instantiated inline in the route table:
+  - `HomeView` — titled welcome pane (`/` and `/home`).
+  - `KitchenSinkView` — the full showcase (`/kitchen`).
+  - `SettingsView` — a switch + volume slider on local signals (`/settings`).
+  - A `fallback` ("Not Found") for any other path.
 
 ## Not implemented / gaps
 
@@ -54,8 +63,9 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
 
 `mvn test -pl pathland-demo-views` (JDK 17+) — `CounterViewTest`,
 `KitchenSinkViewTest` (mount + persistence + input routing), and
-`RouterDemoTest` (host-seeded first frame, guard-on-initial-URL redirect,
-`NavigationLink` push through the tap registry, `NAVIGATE` event routing).
-Both SSR demos are verified by running them and curling the deep links
-(`/users/42` renders `User 42` + `data-pathland-route="/users/42"`; guards,
-fallback, and the JS bundle all correct).
+`SplitNavDemoTest` (sidebar + content first frame, `/kitchen` content swap,
+menu-click content swap deltas, reactive active-row highlight). Both SSR demos
+are verified by running them and curling the deep links (`/`, `/home`,
+`/kitchen`, `/settings` render the splitview seeded at that path with the right
+content + `data-pathland-route`; unknown paths show the sidebar + "Not Found";
+the JS bundle serves correctly).
