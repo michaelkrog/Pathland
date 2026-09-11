@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M28JXBMHR1WXDNMB71249423",
+  "strategy": "manual-commit",
+  "branch": "feat/router-dx",
+  "checkpoints_count": 17,
+  "files_touched": [
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/SplitNavDemo.java",
+    "lib/java/pathland-demo-views/src/test/java/com/pathland/demo/SplitNavDemoTest.java",
+    "lib/java/pathland-demo-views/status.md",
+    "lib/java/pathland-quarkus-demo/src/main/java/com/pathland/quarkus/SessionApp.java",
+    "lib/java/pathland-spring-boot-demo/src/main/java/com/pathland/spring/SessionApp.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Conditional.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Environment.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentKey.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentMod.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentValues.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentView.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/PathChangeMod.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/PathChangeView.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Platform.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/View.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/Navigation.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/NavigationContainer.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/Router.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/router/RouterTest.java",
+    "lib/java/pathland-view/status.md",
+    "spec/DSL.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 7485868,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 92857088,
+    "output_tokens": 119913,
+    "api_call_count": 169
+  }
+}

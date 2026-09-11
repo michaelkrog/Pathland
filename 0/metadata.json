@@ -1,0 +1,156 @@
+{
+  "cli_version": "0.9.0",
+  "checkpoint_id": "01M28JXBMHR1WXDNMB71249423",
+  "session_id": "ses_f80535627ffe0oRq2rzjS3zIFI",
+  "strategy": "manual-commit",
+  "created_at": "2026-09-11T15:55:55.318534Z",
+  "branch": "feat/router-dx",
+  "checkpoints_count": 17,
+  "save_step_count": 12,
+  "files_touched": [
+    "lib/java/pathland-demo-views/src/main/java/com/pathland/demo/SplitNavDemo.java",
+    "lib/java/pathland-demo-views/src/test/java/com/pathland/demo/SplitNavDemoTest.java",
+    "lib/java/pathland-demo-views/status.md",
+    "lib/java/pathland-quarkus-demo/src/main/java/com/pathland/quarkus/SessionApp.java",
+    "lib/java/pathland-spring-boot-demo/src/main/java/com/pathland/spring/SessionApp.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Conditional.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Environment.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentKey.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentMod.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentValues.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentView.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/PathChangeMod.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/PathChangeView.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/Platform.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/View.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/Emitter.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/emit/PathlandNode.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/Navigation.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/NavigationContainer.java",
+    "lib/java/pathland-view/src/main/java/com/pathland/view/router/Router.java",
+    "lib/java/pathland-view/src/test/java/com/pathland/view/router/RouterTest.java",
+    "lib/java/pathland-view/status.md",
+    "spec/DSL.md"
+  ],
+  "agent": "OpenCode",
+  "model": "deepseek-v4-flash",
+  "turn_id": "14a4c23729a2",
+  "checkpoint_transcript_start": 731,
+  "transcript_lines_at_start": 731,
+  "compact_transcript_start": 731,
+  "token_usage": {
+    "input_tokens": 7485868,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 92857088,
+    "output_tokens": 119913,
+    "api_call_count": 169
+  },
+  "session_metrics": {
+    "turn_count": 57
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-09-11T15:55:54.826133Z",
+    "agent_lines": 720,
+    "agent_removed": 110,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 720,
+    "total_lines_changed": 830,
+    "agent_percentage": 100,
+    "metric_version": 2
+  },
+  "prompt_attributions": [
+    {
+      "checkpoint_number": 1,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 2,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 428,
+      "agent_lines_removed": 64
+    },
+    {
+      "checkpoint_number": 3,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 428,
+      "agent_lines_removed": 64
+    },
+    {
+      "checkpoint_number": 4,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 428,
+      "agent_lines_removed": 64
+    },
+    {
+      "checkpoint_number": 5,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 428,
+      "agent_lines_removed": 64
+    },
+    {
+      "checkpoint_number": 6,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 428,
+      "agent_lines_removed": 64
+    },
+    {
+      "checkpoint_number": 7,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 428,
+      "agent_lines_removed": 64
+    },
+    {
+      "checkpoint_number": 8,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 428,
+      "agent_lines_removed": 64
+    },
+    {
+      "checkpoint_number": 9,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 10,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 428,
+      "agent_lines_removed": 64
+    },
+    {
+      "checkpoint_number": 11,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 0,
+      "agent_lines_removed": 0
+    },
+    {
+      "checkpoint_number": 12,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 636,
+      "agent_lines_removed": 81
+    },
+    {
+      "checkpoint_number": 13,
+      "user_lines_added": 0,
+      "user_lines_removed": 0,
+      "agent_lines_added": 720,
+      "agent_lines_removed": 110
+    }
+  ]
+}
