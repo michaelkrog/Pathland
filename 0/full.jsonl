@@ -18,19 +18,19 @@
       "deletions": 0,
       "files": 0
     },
-    "cost": 6.153429795999998,
+    "cost": 6.168468735999999,
     "tokens": {
-      "input": 18169004,
-      "output": 429375,
-      "reasoning": 13394,
+      "input": 18170095,
+      "output": 430292,
+      "reasoning": 13511,
       "cache": {
-        "read": 266288768,
+        "read": 268305408,
         "write": 0
       }
     },
     "time": {
       "created": 1788848417240,
-      "updated": 1789142143917
+      "updated": 1789142166856
     }
   },
   "messages": [
@@ -140157,21 +140157,24 @@
           "cwd": "/Users/michael/Development/michaelkrog/Pathland",
           "root": "/Users/michael/Development/michaelkrog/Pathland"
         },
-        "cost": 0,
+        "cost": 0.00525744,
         "tokens": {
-          "input": 0,
-          "output": 0,
-          "reasoning": 0,
+          "total": 672574,
+          "input": 553,
+          "output": 544,
+          "reasoning": 117,
           "cache": {
-            "read": 0,
-            "write": 0
+            "write": 0,
+            "read": 671360
           }
         },
         "modelID": "deepseek-v4-flash",
         "providerID": "opencode-go",
         "time": {
-          "created": 1789142143969
+          "created": 1789142143969,
+          "completed": 1789142155467
         },
+        "finish": "tool-calls",
         "id": "msg_0912e93e1002XddP4T2641HLVB",
         "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI"
       },
@@ -140199,20 +140202,200 @@
           "tool": "bash",
           "callID": "call_00_659zzTyK42ac8CMa2si42333",
           "state": {
-            "metadata": {
-              "output": ""
-            },
-            "status": "running",
+            "status": "completed",
             "input": {
               "command": "cd /Users/michael/Development/michaelkrog/Pathland && cat > /tmp/commit-ap.txt <<'EOF'\nfeat(dsl-java): universal active-path channel + bound router (drop NavigationApp)\n\nThe active platform path is a universal, observable signal — provided by the host\nfor every app (with or without navigation), like SwiftUI onOpenURL generalized\nacross platforms. A Router is just an optional consumer that binds to it.\n\n- Platform.ACTIVE_PATH (EnvironmentKey<WritableSignal<String>>): the host provides\n  it (seed from env.route(); applyEnvironment and NAVIGATE-with-URL update it).\n- View.onPathChange(Consumer<String>): fires on every active-path change, including\n  the initial value; emitter-registered node effect, destroyed on subtree replace.\n- Router(RouteTable, WritableSignal<String>): the signal is the single source of\n  truth — external writes are re-routed guard-aware (guards never bypassed), the\n  router's own navigate/push/pop/replace are mirrored back into it, and the initial\n  value is guard-processed. Navigation.navigator()...build(activePath) builds it.\n- Host SessionApps (Spring + Quarkus) mount the root directly with\n  .environment(Platform.ACTIVE_PATH, activePath); NAVIGATE-with-URL sets the signal,\n  NAVIGATE-back goes to navigateHandler (router.pop()). NavigationApp is deleted.\n- SplitNavDemo is router-free: body() reads ACTIVE_PATH and builds a bound router;\n  it also demonstrates onPathChange.\n\nAlso bundles the generic scoped environment values these files share\n(EnvironmentKey/EnvironmentValues + View.environment(key, value) +\nEnvironment.value(key) — SwiftUI .environment style, hierarchical nearest-wins;\nNavigationContainer scopes Navigation.ROUTER to destinations and structural slots\nre-apply the incoming scope on re-render via PathlandNode.environmentForChildren).\n\nVerified: 73 pathland-view tests (bound-router guard/mirror, onPathChange, env\nscoping), 10 demo-views, mvn install green; live Spring demo renders /, /kitchen,\n/settings and the 404 fallback, and onPathChange logs each path.\nEOF\ngit commit -F /tmp/commit-ap.txt && git log --oneline -1 && rm -f /tmp/commit-ap.txt"
             },
+            "output": "[feat/router-dx 3281334] feat(dsl-java): universal active-path channel + bound router (drop NavigationApp)\n 23 files changed, 720 insertions(+), 110 deletions(-)\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentKey.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentMod.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentValues.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/PathChangeMod.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/PathChangeView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Platform.java\n32813343 feat(dsl-java): universal active-path channel + bound router (drop NavigationApp)\n",
+            "metadata": {
+              "output": "[feat/router-dx 3281334] feat(dsl-java): universal active-path channel + bound router (drop NavigationApp)\n 23 files changed, 720 insertions(+), 110 deletions(-)\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentKey.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentMod.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentValues.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/EnvironmentView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/PathChangeMod.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/PathChangeView.java\n create mode 100644 lib/java/pathland-view/src/main/java/com/pathland/view/Platform.java\n32813343 feat(dsl-java): universal active-path channel + bound router (drop NavigationApp)\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && cat > /tmp/commit-ap.txt <<'EOF'\nfeat(dsl-java): universal active-path channel + bound router (drop NavigationApp)\n\nThe active platform path is a universal, observable signal — provided by the host\nfor every app (with or without navigation), like SwiftUI onOpenURL generalized\nacross platforms. A Router is just an optional consumer that binds to it.\n\n- Platform.ACTIVE_PATH (EnvironmentKey<WritableSignal<String>>): the host provides\n  it (seed from env.route(); applyEnvironment and NAVIGATE-with-URL update it).\n- View.onPathChange(Consumer<String>): fires on every active-path change, including\n  the initial value; emitter-registered node effect, destroyed on subtree replace.\n- Router(RouteTable, WritableSignal<String>): the signal is the single source of\n  truth — external writes are re-routed guard-aware (guards never bypassed), the\n  router's own navigate/push/pop/replace are mirrored back into it, and the initial\n  value is guard-processed. Navigation.navigator()...build(activePath) builds it.\n- Host SessionApps (Spring + Quarkus) mount the root directly with\n  .environment(Platform.ACTIVE_PATH, activePath); NAVIGATE-with-URL sets the signal,\n  NAVIGATE-back goes to navigateHandler (router.pop()). NavigationApp is deleted.\n- SplitNavDemo is router-free: body() reads ACTIVE_PATH and builds a bound router;\n  it also demonstrates onPathChange.\n\nAlso bundles the generic scoped environment values these files share\n(EnvironmentKey/EnvironmentValues + View.environment(key, value) +\nEnvironment.value(key) — SwiftUI .environment style, hierarchical nearest-wins;\nNavigationContainer scopes Navigation.ROUTER to destinations and structural slots\nre-apply the incoming scope on re-render via PathlandNode.environmentForChildren).\n\nVerified: 73 pathland-view tests (bound-router guard/mirror, onPathChange, env\nscoping), 10 demo-views, mvn install green; live Spring demo renders /, /kitchen,\n/settings and the 404 fallback, and onPathChange logs each path.\nEOF\ngit commit -F /tmp/commit-ap.txt && git log --oneline -1 && rm -f /tmp/commit-ap.txt",
             "time": {
-              "start": 1789142150685
+              "start": 1789142150685,
+              "end": 1789142155381
             }
           },
           "id": "prt_0912ea5c5001YjPleigN9HaCMZ",
           "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
           "messageID": "msg_0912e93e1002XddP4T2641HLVB"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "debae0e46e5dac36d4ea1e2a22a64b98dca6ca1c",
+          "type": "step-finish",
+          "tokens": {
+            "total": 672574,
+            "input": 553,
+            "output": 544,
+            "reasoning": 117,
+            "cache": {
+              "write": 0,
+              "read": 671360
+            }
+          },
+          "cost": 0.00525744,
+          "id": "prt_0912ec09d001w7ud06bF55hi0Y",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_0912e93e1002XddP4T2641HLVB"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0912e7cd300145hExRa80Xu5YQ",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.004830124,
+        "tokens": {
+          "total": 672903,
+          "input": 308,
+          "output": 83,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 672512
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1789142155530,
+          "completed": 1789142161294
+        },
+        "finish": "tool-calls",
+        "id": "msg_0912ec10a0022rK0q8hp5FAUHI",
+        "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI"
+      },
+      "parts": [
+        {
+          "snapshot": "debae0e46e5dac36d4ea1e2a22a64b98dca6ca1c",
+          "type": "step-start",
+          "id": "prt_0912ed0cd001lBrjFjCY8OIvqy",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_0912ec10a0022rK0q8hp5FAUHI"
+        },
+        {
+          "type": "tool",
+          "tool": "bash",
+          "callID": "call_00_ET_Pw1fngq960i2P6kjDD4A7653",
+          "state": {
+            "status": "completed",
+            "input": {
+              "command": "cd /Users/michael/Development/michaelkrog/Pathland && git status --short && echo \"=== branch ===\" && git branch --show-current && echo \"=== recent ===\" && git log --oneline -3"
+            },
+            "output": "=== branch ===\nfeat/router-dx\n=== recent ===\n32813343 feat(dsl-java): universal active-path channel + bound router (drop NavigationApp)\n6556ed1b feat(dsl-java): Navigation facade + Params + isActive — better router DX\n6c581c16 Merge pull request #84 from michaelkrog/feat/router-structural-reactivity\n",
+            "metadata": {
+              "output": "=== branch ===\nfeat/router-dx\n=== recent ===\n32813343 feat(dsl-java): universal active-path channel + bound router (drop NavigationApp)\n6556ed1b feat(dsl-java): Navigation facade + Params + isActive — better router DX\n6c581c16 Merge pull request #84 from michaelkrog/feat/router-structural-reactivity\n",
+              "exit": 0,
+              "truncated": false
+            },
+            "title": "cd /Users/michael/Development/michaelkrog/Pathland && git status --short && echo \"=== branch ===\" && git branch --show-current && echo \"=== recent ===\" && git log --oneline -3",
+            "time": {
+              "start": 1789142161133,
+              "end": 1789142161179
+            }
+          },
+          "id": "prt_0912ed571001Xh7HneiPObdABL",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_0912ec10a0022rK0q8hp5FAUHI"
+        },
+        {
+          "reason": "tool-calls",
+          "snapshot": "debae0e46e5dac36d4ea1e2a22a64b98dca6ca1c",
+          "type": "step-finish",
+          "tokens": {
+            "total": 672903,
+            "input": 308,
+            "output": 83,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 672512
+            }
+          },
+          "cost": 0.004830124,
+          "id": "prt_0912ed75b001zuNbRsNtWLq29r",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_0912ec10a0022rK0q8hp5FAUHI"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_0912e7cd300145hExRa80Xu5YQ",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/michael/Development/michaelkrog/Pathland",
+          "root": "/Users/michael/Development/michaelkrog/Pathland"
+        },
+        "cost": 0.004951376,
+        "tokens": {
+          "total": 673288,
+          "input": 230,
+          "output": 290,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 672768
+          }
+        },
+        "modelID": "deepseek-v4-flash",
+        "providerID": "opencode-go",
+        "time": {
+          "created": 1789142161460,
+          "completed": 1789142166742
+        },
+        "finish": "stop",
+        "id": "msg_0912ed834002pgGSI6wmEZyBig",
+        "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI"
+      },
+      "parts": [
+        {
+          "snapshot": "debae0e46e5dac36d4ea1e2a22a64b98dca6ca1c",
+          "type": "step-start",
+          "id": "prt_0912ee55e001t96CWeXEvyUoeW",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_0912ed834002pgGSI6wmEZyBig"
+        },
+        {
+          "type": "text",
+          "text": "Committed `3281334` on `feat/router-dx`, working tree clean.\n\n## Summary\n`feat(dsl-java): universal active-path channel + bound router (drop NavigationApp)` — 23 files, +720/−110 (7 new, `NavigationApp` deleted).\n\n- **`Platform.ACTIVE_PATH`** — universal active-path signal provided by the host for every app.\n- **`View.onPathChange(...)`** — fires on every path change (incl. initial).\n- **Bound `Router`** — external writes re-routed guard-aware (never bypassed), own navigation mirrored back, initial value guard-processed.\n- **Host** mounts the root directly with `.environment(Platform.ACTIVE_PATH, activePath)`; `NAVIGATE`-URL → signal, `NAVIGATE`-back → handler. No `NavigationApp`.\n- Bundled the generic scoped environment values (`EnvironmentKey`/`EnvironmentValues`/`View.environment`/`Environment.value`) these files share.\n\n**Verified**: 73 pathland-view + 10 demo-views tests, full `mvn install` green; live demo renders all routes and `onPathChange` logs each path.\n\nBranch `feat/router-dx` now has 2 commits on top of `main` (`6556ed1b`, `3281334`).",
+          "time": {
+            "start": 1789142165668,
+            "end": 1789142166647
+          },
+          "id": "prt_0912ee8a4001oQ7hS5BzOs10N7",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_0912ed834002pgGSI6wmEZyBig"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "debae0e46e5dac36d4ea1e2a22a64b98dca6ca1c",
+          "type": "step-finish",
+          "tokens": {
+            "total": 673288,
+            "input": 230,
+            "output": 290,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 672768
+            }
+          },
+          "cost": 0.004951376,
+          "id": "prt_0912eeca5001RKiGNDyh2Vc6jL",
+          "sessionID": "ses_f80535627ffe0oRq2rzjS3zIFI",
+          "messageID": "msg_0912ed834002pgGSI6wmEZyBig"
         }
       ]
     }
