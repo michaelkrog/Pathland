@@ -446,6 +446,34 @@ Signal<Boolean> onKitchen = Navigation.isActive(router, "/kitchen");
   "is this the active route" signal derived from the router's route signal —
   style an active menu row or gate conditional content:
   `Signals.computed(() -> Navigation.isActive(router, path).get() ? ACTIVE : CLEAR)`.
+- **The router as a scoped environment value** (SwiftUI `.environment` style):
+  `Navigation.ROUTER` is an `EnvironmentKey<Router>`. A `NavigationContainer` scopes
+  it to its destination subtree; any component reads
+  `Environment.value(Navigation.ROUTER)` during render — no constructor threading,
+  nearest binding wins (nested containers override), and structural slots re-apply
+  the scope when they re-render their destination.
+
+**The active platform path is universal** — `Platform.ACTIVE_PATH` is an
+`EnvironmentKey<WritableSignal<String>>` the host provides for **every** app (with
+or without navigation), like SwiftUI's `onOpenURL` generalized across platforms:
+```java
+// host (always):
+WritableSignal<String> activePath = Signals.signal(env.route());
+RenderResult result = emitter.mount(
+        root.environment(Platform.ACTIVE_PATH, activePath), new Environment(state));
+// re-route on deep-link/popstate:
+activePath.set(env.route());   // or from a NAVIGATE event URL
+```
+- **An app with navigation** builds a **router bound to the signal**:
+  `Navigation.navigator().route(...).build(activePath)`. The signal is the source of
+  truth: external writes (deep links/popstate) are re-routed **through guards** (never
+  bypassed), and the router's own `navigate`/`push`/`pop`/`replace` are mirrored back
+  into the signal. The initial value is guard-processed.
+- **An app without navigation** just observes the signal — read it, or register
+  `View.onPathChange(path -> …)` (fires on every change, including the initial value).
+- `NAVIGATE` events: a URL updates `activePath` (→ bound router re-routes guard-aware,
+  `onPathChange` listeners fire); a back (no URL) goes to `RenderResult.navigateHandler`
+  → `router.pop()` — meaningful only when a router exists.
 
 **Any component can change the route** — declarative navigation intents. A
 component anywhere *inside* a `NavigationContainer` can change the route without

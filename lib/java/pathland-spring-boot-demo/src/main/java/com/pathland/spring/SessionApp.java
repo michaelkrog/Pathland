@@ -4,12 +4,14 @@ import com.pathland.demo.DemoTheme;
 import com.pathland.demo.SplitNavDemo;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
+import com.pathland.view.Platform;
 import com.pathland.view.emit.DateInput;
 import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.emit.RenderResult;
-import com.pathland.view.router.Router;
+import com.pathland.view.signal.Signals;
+import com.pathland.view.signal.WritableSignal;
 import com.pathland.view.state.PersistentState;
 import com.pathland.view.state.StateStore;
 import com.pathland.view.transport.EnvironmentData;
@@ -35,8 +37,7 @@ import java.util.function.Consumer;
 final class SessionApp {
 
     private final PersistentState state;
-    private final Router router;
-    private final SplitNavDemo root;
+    private final WritableSignal<String> activePath;
 
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
@@ -55,8 +56,9 @@ final class SessionApp {
 
     SessionApp(String sessionId, StateStore store, EnvironmentData env) {
         this.state = new PersistentState(store, sessionId);
-        this.router = SplitNavDemo.router(env.route());
-        this.root = SplitNavDemo.of(router);
+        // The active platform path is a host-provided signal (Platform.ACTIVE_PATH); the
+        // app reads it, and a bound Router re-routes guard-aware on external changes.
+        this.activePath = Signals.signal(env.route());
 
         this.sink = new FrameOpcodeSink() {
             @Override
@@ -73,8 +75,12 @@ final class SessionApp {
         };
         this.emitter = new Emitter(sink, DemoTheme.adaptive());
 
-        // Mount wires State fields, then renders and emits the structural frame.
-        RenderResult result = emitter.mount(root, new Environment(state));
+        // Mount wires State fields, then renders and emits the structural frame. The
+        // active path is injected as a scoped environment value; any root works (with or
+        // without navigation).
+        RenderResult result = emitter.mount(
+                new SplitNavDemo().environment(Platform.ACTIVE_PATH, activePath),
+                new Environment(state));
         this.tapActions = result.tapActions();
         this.navigateActions = result.navigateActions();
         this.textInputs = result.textInputs();
@@ -87,9 +93,7 @@ final class SessionApp {
 
     /** Apply (or enrich) the platform environment after mount (viewport resizes, …). */
     void applyEnvironment(EnvironmentData env) {
-        if (!env.route().equals(router.path())) {
-            router.navigate(env.route()); // re-route if the platform moved (idempotent)
-        }
+        activePath.set(env.route()); // re-route if the platform moved (guards run in the bound router)
         if (env.viewportWidth() > 0) {
             viewportWidth = env.viewportWidth();
         }
@@ -152,10 +156,16 @@ final class SessionApp {
                         sink.accept(event.days(), event.millisOfDay());
                     }
                 } else if (event.isNavigate()) {
-                    // Global (no target): route it into the mounted router's NAVIGATE sink.
-                    Consumer<Event> sink = navigateHandler;
-                    if (sink != null) {
-                        sink.accept(event);
+                    if (event.url() != null) {
+                        // A URL (deep link / popstate): update the active path — a bound
+                        // Router re-routes guard-aware, and any onPathChange listener fires.
+                        activePath.set(event.url());
+                    } else {
+                        // "Back one step" has no path — only meaningful with a Router.
+                        Consumer<Event> sink = navigateHandler;
+                        if (sink != null) {
+                            sink.accept(event);
+                        }
                     }
                 }
             }

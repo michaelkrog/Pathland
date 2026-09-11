@@ -1,8 +1,10 @@
 package com.pathland.view.router;
 
+import com.pathland.view.EnvironmentKey;
 import com.pathland.view.View;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
+import com.pathland.view.signal.WritableSignal;
 
 import java.util.function.Predicate;
 
@@ -25,8 +27,16 @@ import java.util.function.Predicate;
  * View shell = Navigation.of(router);                     // the navigation slot
  * Signal<Boolean> onKitchen = Navigation.isActive(router, "/kitchen");
  * }</pre>
+ *
+ * <p>The active router is also available as a scoped environment value
+ * ({@link #ROUTER}): provide it at the app root via {@code view.environment(ROUTER,
+ * router)} (or a {@code NavigationContainer} scopes it to its destination subtree),
+ * and any component reads {@code env.value(ROUTER)} — no constructor threading.
  */
 public final class Navigation {
+
+    /** The environment key for the active {@link Router} (spec DSL.md §4.5). */
+    public static final EnvironmentKey<Router> ROUTER = EnvironmentKey.of("router");
 
     private Navigation() {}
 
@@ -111,6 +121,17 @@ public final class Navigation {
             Router router = new Router(table.build());
             router.navigate(initialPath);
             return router;
+        }
+
+        /**
+         * Build the router over the route list **bound to an external active-path signal**
+         * (the host-provided {@code Platform.ACTIVE_PATH}): the signal is the source of
+         * truth — external writes are guard-processed, and the router's navigation is
+         * mirrored back into it. The initial value of the signal (not {@code initialPath})
+         * drives the first route.
+         */
+        public Router build(WritableSignal<String> activePath) {
+            return new Router(table.build(), activePath);
         }
     }
 }

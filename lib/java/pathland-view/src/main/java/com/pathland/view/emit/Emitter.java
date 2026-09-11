@@ -2,6 +2,7 @@ package com.pathland.view.emit;
 
 import com.pathland.view.Color;
 import com.pathland.view.Environment;
+import com.pathland.view.EnvironmentValues;
 import com.pathland.view.ThemeData;
 import com.pathland.view.ValueTypes;
 import com.pathland.view.View;
@@ -302,6 +303,19 @@ public final class Emitter {
             bindings.add(effect);
             nodeBindings.computeIfAbsent(node.id, k -> new ArrayList<>()).add(effect);
         }
+        // Active-path listeners (onPathChange, spec DSL.md §4.5): fire on each change
+        // (including the initial value). Node-level, destroyed on subtree replace.
+        if (node.activePath != null && !node.pathChangeListeners.isEmpty()) {
+            var listeners = java.util.List.copyOf(node.pathChangeListeners);
+            EffectRef effect = Signals.effect(() -> {
+                String path = node.activePath.get();
+                for (java.util.function.Consumer<String> listener : listeners) {
+                    listener.accept(path);
+                }
+            }, com.pathland.view.signal.EffectOptions.allowWrites());
+            bindings.add(effect);
+            nodeBindings.computeIfAbsent(node.id, k -> new ArrayList<>()).add(effect);
+        }
     }
 
     /**
@@ -312,7 +326,20 @@ public final class Emitter {
      */
     private void reconcileSlot(PathlandNode slot) {
         View content = slot.structuralContent.get(); // tracked: subscribes to the selector
-        PathlandNode fresh = content == null ? null : Signals.untracked(() -> content.render(env));
+        // Re-apply the scope the destination should see (the slot's incoming
+        // environment + any slot-provided bindings like the router), so destinations
+        // that read environment values keep working on every re-render.
+        EnvironmentValues envScope = slot.environmentForChildren;
+        EnvironmentValues previous = Environment.current();
+        PathlandNode fresh;
+        if (envScope != null) {
+            Environment.within(envScope);
+        }
+        try {
+            fresh = content == null ? null : Signals.untracked(() -> content.render(env));
+        } finally {
+            Environment.restore(previous);
+        }
         List<PathlandNode> oldChildren = slot.children;
         List<PathlandNode> newChildren = fresh == null ? List.of() : List.of(fresh);
 

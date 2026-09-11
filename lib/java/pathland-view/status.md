@@ -107,9 +107,24 @@ codec, lazy JNA ring interop, and cross-platform `State`. Protocol contract:
   facade: `Navigation.navigator(initialPath).route(...).fallback(...).build()`
   collapses table + router + seeding, `Navigation.of(router)` is the container,
   `Navigation.isActive(router, path)` → a reactive `Signal<Boolean>` for
-  active-route styling), **`Params`** (typed path-param access — `get`/
+  active-route styling, `Navigation.ROUTER` = the `EnvironmentKey<Router>`),
+  **`Params`** (typed path-param access — `get`/
   `intValue`/`longValue`/`doubleValue`/`booleanValue`/`path` — replacing the raw
-  `Map` in `RouteHandler`), `NavigationContainer` (structural
+  `Map` in `RouteHandler`), **a bound router** (`Navigation.navigator()...
+  .build(WritableSignal<String>)` — the router binds to the host-provided
+  `Platform.ACTIVE_PATH` signal: external writes are re-routed **guard-aware**,
+  its own navigation is mirrored back, the initial value is guard-processed), and
+  **generic scoped environment values**
+  (`EnvironmentKey`/`EnvironmentValues` + `View.environment(key, value)` +
+  `Environment.value(key)` — SwiftUI `.environment` style, hierarchical nearest-
+  wins; a `NavigationContainer` scopes `Navigation.ROUTER` to its destination
+  subtree and structural slots re-apply the incoming scope on re-render via
+  `PathlandNode.environmentForChildren`/`Emitter.reconcileSlot`), plus the
+  **universal active platform path** (`Platform.ACTIVE_PATH` =
+  `EnvironmentKey<WritableSignal<String>>`, provided by the host for every app —
+  with or without navigation — and observed via `View.onPathChange(Consumer)` /
+  reading the signal; fires on every change incl. the initial value),
+  `NavigationContainer` (structural
   slot emitting the `ROUTE` property coalesced into the same frame as the
   destination swap, plus a `NAV_DEPTH` U32 back-stack-depth property
   (`router.depth()` = stack size + 1; `push`+1 / `pop`−1 / `replace` unchanged)
@@ -173,7 +188,11 @@ initial route + `ROUTE` property + `NAV_DEPTH` depth tracking + `NAV_CHROME`
 chrome mode, destination swap deltas, back-stack, params, guard redirect,
 fallback, `NAVIGATE` routing, `NavigationLink`, the **declarative nav
 intents** (`.navigate/.push/.replace` + router-agnostic `NavigationLink`
-resolving to the nearest enclosing router via `navigateActions`), and the
-**`Navigation` facade / `Params` / `isActive`**); the JNA ring
+resolving to the nearest enclosing router via `navigateActions`), the
+**`Navigation` facade / `Params` / `isActive`**, the **scoped environment
+values** (`View.environment` + `Environment.value` hierarchy/restore), and the
+**universal active path** (a bound router re-routing guard-aware on external
+signal writes + mirroring its own navigation; `onPathChange` firing on changes));
+the JNA ring
 test runs when `libpathland_core` is on `java.library.path`. CI proves every
 LTS from 17 (Temurin 17/21/25).

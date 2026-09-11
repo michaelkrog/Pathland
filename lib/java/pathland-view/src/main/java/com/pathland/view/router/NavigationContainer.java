@@ -2,6 +2,7 @@ package com.pathland.view.router;
 
 import com.pathland.view.Components;
 import com.pathland.view.Environment;
+import com.pathland.view.EnvironmentValues;
 import com.pathland.view.Properties;
 import com.pathland.view.View;
 import com.pathland.view.emit.PathlandNode;
@@ -45,9 +46,20 @@ public final class NavigationContainer implements View {
     public PathlandNode render(Environment env) {
         PathlandNode node = new PathlandNode(Components.VSTACK); // Group-backed slot
         node.structuralContent = router::destination; // reads the route signal (tracked)
-        View selected = router.destination();
-        if (selected != null) {
-            node.children.add(selected.render(env));
+        // Scope the router to this subtree (a component inside a destination reads
+        // `env.value(Navigation.ROUTER)`), and capture the scope the destination should
+        // see so `Emitter.reconcileSlot` re-applies it on every re-render.
+        EnvironmentValues scope = Environment.current().with(Navigation.ROUTER, router);
+        node.environmentForChildren = scope;
+        EnvironmentValues previous = Environment.current();
+        Environment.within(scope);
+        try {
+            View selected = router.destination();
+            if (selected != null) {
+                node.children.add(selected.render(env));
+            }
+        } finally {
+            Environment.restore(previous);
         }
         // ROUTE: the current path, re-emitted by the structural effect in the same frame
         // as a destination swap (spec DSL.md §4.5 URL sync). NAV_DEPTH: the back-stack

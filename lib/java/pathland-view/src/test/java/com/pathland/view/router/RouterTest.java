@@ -459,4 +459,89 @@ class RouterTest {
         assertEquals(false, onHome.get(), "isActive re-evaluates when the route changes");
         assertTrue(onSettings.get(), "the new route becomes active");
     }
+
+    @Test
+    void environmentScopingIsHierarchicalAndScoped() {
+        // A scoped `.environment(key, value)` is active only for its subtree; the
+        // innermost binding wins, and the value is restored after render.
+        com.pathland.view.EnvironmentKey<String> key = com.pathland.view.EnvironmentKey.of("k");
+        java.util.List<String> seen = new java.util.ArrayList<>();
+
+        View probe = new View() {
+            @Override
+            public com.pathland.view.emit.PathlandNode render(Environment env) {
+                seen.add(com.pathland.view.Environment.value(key));
+                return new com.pathland.view.emit.PathlandNode(com.pathland.view.Components.TEXT);
+            }
+        };
+
+        // innermost first: `.environment(k, "inner")` applied innermost → nearest wins.
+        View innerWins = probe.environment(key, "inner").environment(key, "outer");
+        View outerOnly = probe.environment(key, "outer");
+
+        // Render twice: the scope must not leak between renders (restore).
+        new Emitter(sink()).mount(innerWins, Environment.DEFAULT);
+        new Emitter(sink()).mount(outerOnly, Environment.DEFAULT);
+
+        assertEquals("inner", seen.get(0), "nearest (innermost) binding wins");
+        assertEquals("outer", seen.get(1), "the outer binding applies without an inner override");
+        assertEquals(null, com.pathland.view.Environment.value(key), "no leak after render (restored)");
+    }
+
+    @Test
+    void boundRouterReRoutesGuardAwareOnExternalPathWrites() {
+        // The router is bound to an external active-path signal (Platform.ACTIVE_PATH).
+        // External writes are routed through guards — never bypassed.
+        com.pathland.view.signal.WritableSignal<String> activePath =
+                com.pathland.view.signal.Signals.signal("/");
+        Router router = Navigation.navigator()
+                .route("/", Text.of("Home"))
+                .route("/users", Text.of("Users"))
+                .route("/admin", p -> false, "/", Text.of("Admin")) // guard always redirects home
+                .build(activePath);
+
+        assertEquals("/", router.path(), "initial signal value drives the first route");
+
+        activePath.set("/users"); // external (host) write
+        assertEquals("/users", router.path(), "external write re-routes the router");
+
+        activePath.set("/admin"); // guarded path
+        assertEquals("/", router.path(), "a guarded external path redirects (guards not bypassed)");
+        assertEquals("/", activePath.get(), "the redirect is mirrored back into the signal");
+    }
+
+    @Test
+    void boundRouterMirrorsItsOwnNavigationIntoTheSignal() {
+        com.pathland.view.signal.WritableSignal<String> activePath =
+                com.pathland.view.signal.Signals.signal("/");
+        Router router = Navigation.navigator()
+                .route("/", Text.of("Home"))
+                .route("/users", Text.of("Users"))
+                .route("/users/42", Text.of("User 42"))
+                .build(activePath);
+
+        router.push("/users"); // app-initiated navigation
+        assertEquals("/users", activePath.get(), "push mirrors into the active-path signal");
+        assertEquals(2, router.depth());
+
+        router.navigate("/users/42");
+        assertEquals("/users/42", activePath.get(), "navigate mirrors into the signal");
+        assertEquals(2, router.depth(), "navigate does not grow the back-stack");
+    }
+
+    @Test
+    void onPathChangeFiresOnActivePathChanges() {
+        com.pathland.view.signal.WritableSignal<String> activePath =
+                com.pathland.view.signal.Signals.signal("/");
+        java.util.List<String> seen = new java.util.ArrayList<>();
+        View root = Text.of("x").onPathChange(seen::add);
+
+        new Emitter(sink()).mount(
+                root.environment(com.pathland.view.Platform.ACTIVE_PATH, activePath),
+                Environment.DEFAULT);
+        assertEquals(java.util.List.of("/"), seen, "fires initially with the current path");
+
+        activePath.set("/kitchen");
+        assertEquals(java.util.List.of("/", "/kitchen"), seen, "fires on each change");
+    }
 }

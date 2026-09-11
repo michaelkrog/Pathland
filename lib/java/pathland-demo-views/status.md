@@ -38,13 +38,19 @@ Quarkus and Spring Boot demos. Uses `State` fields wired by the
   `NavigationSplitView` → `HStack` sidebar + detail): a fixed menu column on
   the left (3 items: Home / Kitchen sink / Settings) and a
   `NavigationContainer` content area on the right that swaps on selection
-  (`router.navigate` — direct selection, no back-stack growth). The router is
-  built with the **`Navigation` facade** (`Navigation.navigator(...).route(...).
-  build()`). Both demos'
-  `SessionApp` mount it and seed the router from the applied
+  (`router.navigate` — direct selection, no back-stack growth). Mounted directly
+  by both demos' `SessionApp` with the active platform path provided as an
+  environment value — **`new SplitNavDemo().environment(Platform.ACTIVE_PATH,
+  activePath)`**; `SplitNavDemo.body()` reads it and builds a **bound** router
+  (`Navigation.navigator()...build(activePath)`) — external path changes are
+  guard-processed and navigation is mirrored back into the signal. The view is
+  router-free (no app factory / `NavigationApp`).
+  `SessionApp` seeds `activePath` from the applied
   `META::ENVIRONMENT` `ROUTE` field (a request URL on SSR, the DOM client's
   first message on the WebSocket), so deep links render correctly on the first
-  frame; `NAVIGATE` events forward into `RenderResult.navigateHandler`. The
+  frame; env re-routing sets `activePath`, `NAVIGATE`-with-URL sets `activePath`,
+  and `NAVIGATE`-back forwards into `RenderResult.navigateHandler`. The view also
+  demonstrates **`onPathChange`** (logging the active path). The
   active menu row is highlighted **reactively** via `Navigation.isActive(router,
   path)` → a computed signal that drives `Background.of(Signal<Color>)` /
   `ForegroundStyle.of(Signal<Color>)`, so a selection re-emits only that row's
