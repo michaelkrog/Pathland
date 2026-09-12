@@ -15,39 +15,22 @@
 
     <name>Pathland Spring Boot Demo</name>
     <description>
-        Spring Boot demonstration app consuming the framework-agnostic Pathland libraries:
-        SSR via pathland-render-html, live 16-byte opcode deltas over raw WebSocket, and
-        cross-platform state persisted through StateStore (State fields). Proves the same
-        view code and annotation processor used by the Quarkus demo run unchanged on Spring.
+        Spring Boot demonstration app consuming the Pathland libraries: SSR via
+        pathland-render-html, live 16-byte opcode deltas over raw WebSocket, and
+        cross-platform state persisted through StateStore (State fields). The entire app is
+        the starter dependency + a PathlandApp bean returning the root view — proving the
+        same view code and annotation processor used by the Quarkus demo run unchanged.
     </description>
 
     <dependencies>
         <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-websocket</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.pathland</groupId>
-            <artifactId>pathland-view</artifactId>
+            <artifactId>pathland-spring-boot-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.pathland</groupId>
             <artifactId>pathland-demo-views</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.pathland</groupId>
-            <artifactId>pathland-render-html</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.pathland</groupId>
-            <artifactId>pathland-state-redis</artifactId>
             <version>${project.version}</version>
         </dependency>
     </dependencies>

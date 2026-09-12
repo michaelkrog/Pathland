@@ -128,10 +128,18 @@ lib/java/
                         #   pathland-render-html` must run before `mvn test` (the jar-embed
                         #   step fails loudly if it's missing).
   pathland-state-redis/ # com.pathland.state.redis — Lettuce RedisStateStore
+  pathland-server-core/ # com.pathland.server — transport-agnostic server runtime:
+                        #   PathlandApp (root-view factory), PathlandConnection (send seam),
+                        #   PathlandSession (per-session SSR + live deltas + environment),
+                        #   PathlandRegistry (1:1 session lifecycle, actor thread), StateStores
+  pathland-spring-boot-starter/ # com.pathland.spring — Spring Boot auto-config: add the dep +
+                        #   a PathlandApp bean → SSR at any path + /ws deltas + state
+  pathland-quarkus-starter/ # com.pathland.quarkus — Quarkus CDI integration: add the dep +
+                        #   a PathlandApp bean → SSR at any path + /ws deltas + state
   pathland-demo-views/  # com.pathland.demo — shared demo views (CounterView/CounterControls/
                         #   NameField) declaring State fields; consumed by both demos
-  pathland-quarkus-demo/# Quarkus SSR + WebSocket demo (com.pathland.quarkus)
-  pathland-spring-boot-demo/ # Spring Boot SSR + WebSocket demo (com.pathland.spring)
+  pathland-quarkus-demo/# Quarkus SSR + WebSocket demo (com.pathland.demo.quarkus)
+  pathland-spring-boot-demo/ # Spring Boot SSR + WebSocket demo (com.pathland.demo.spring)
 ```
 
 - Test: `cd lib/rust && cargo test` (runs all crates).

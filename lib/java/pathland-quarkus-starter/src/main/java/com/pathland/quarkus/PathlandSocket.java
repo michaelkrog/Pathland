@@ -1,5 +1,6 @@
 package com.pathland.quarkus;
 
+import com.pathland.server.PathlandRegistry;
 import com.pathland.view.transport.FrameCodec;
 import io.quarkus.arc.Arc;
 import io.quarkus.arc.ClientProxy;
@@ -13,12 +14,11 @@ import jakarta.inject.Inject;
 import java.util.UUID;
 
 /**
- * The live-updates WebSocket endpoint. Sessions are <strong>1:1</strong>: the session id
- * is carried by the {@code session} cookie set on the SSR page (the browser sends it
- * automatically on the handshake), and each connection owns its own {@link SessionApp}.
- * The id is resolved <strong>once per connection</strong> (this endpoint bean is
- * connection-scoped) and memoized, so every message — events and close — routes to the
- * same session even when the cookie is absent (e.g. an Angular client with no SSR visit).
+ * The live-updates WebSocket endpoint at {@code /ws}. Sessions are 1:1: the session id is
+ * carried by the {@code session} cookie set on the SSR page (the browser sends it on the
+ * handshake), and each connection owns its own session. The id is resolved once per
+ * connection and memoized. The session logic lives in the framework-agnostic
+ * {@link PathlandRegistry}.
  */
 @WebSocket(path = "/ws")
 public class PathlandSocket {
@@ -27,7 +27,7 @@ public class PathlandSocket {
     WebSocketConnection connection;
 
     @Inject
-    PathlandApp app;
+    PathlandRegistry registry;
 
     private volatile String sessionId;
 
@@ -35,28 +35,27 @@ public class PathlandSocket {
     void open() {
         // Resolve the concrete connection while the session context is active: the CDI
         // bean is session-scoped, so its client proxy would fail off-thread. ClientProxy
-        // unwraps it to the real WebSocketConnectionBase, whose send methods work from
-        // any thread.
+        // unwraps it to the real connection, whose send methods work from any thread.
         WebSocketConnection resolved =
                 ClientProxy.unwrap(Arc.container().instance(WebSocketConnection.class).get());
-        app.open(sessionId(), resolved);
+        registry.open(sessionId(), new QuarkusConnection(resolved));
     }
 
     @OnClose
     void close() {
-        app.close(sessionId());
+        registry.close(sessionId());
     }
 
     @OnBinaryMessage
     void onBinary(byte[] message) {
         if (FrameCodec.isResync(message)) {
-            app.resync(sessionId());
+            registry.resync(sessionId());
         } else if (FrameCodec.isEnvironment(message)) {
-            // The DOM client's FIRST message: seeds the session (created lazily) from
-            // the ROUTE field; later messages enrich the environment (viewport, …).
-            app.environment(sessionId(), FrameCodec.decodeEnvironment(message));
+            // The DOM client's FIRST message: seeds the session (created lazily) from the
+            // ROUTE field; later messages enrich the environment (viewport, …).
+            registry.environment(sessionId(), FrameCodec.decodeEnvironment(message));
         } else {
-            app.dispatch(sessionId(), message);
+            registry.dispatch(sessionId(), message);
         }
     }
 
