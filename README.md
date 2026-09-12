@@ -12,7 +12,7 @@ wire format and APIs may change before 1.0.
 You write the **whole UI in your backend language** — Java, C#, Rust, anything.
 Pathland renders the first page as server-side HTML, so it appears instantly, then
 keeps it alive with tiny binary updates over a WebSocket. The result is a smooth,
-reactive UI — delivered by the backend team, without npm, bundlers, a build
+reactive UI — delivered by the backend team, without npm, bundlers, an extra build
 pipeline, or a separate frontend.
 
 ## What it removes
