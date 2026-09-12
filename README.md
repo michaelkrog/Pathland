@@ -112,13 +112,22 @@ resources. It's shipped, not maintained — all the real logic lives in your bac
 
 - **Java** — Spring Boot and Quarkus, with SSR + WebSocket demos.
 - **Rust** — a native GTK4 desktop renderer.
-- **Planned** — mobile apps, embedded devices (LVGL), and in-browser WASM.
 
-Because Pathland is a protocol, the plan is to render the same backend description
-directly on the device — client-side rendering (CSR), embedded, and mobile apps each
-get a native renderer that consumes the binary stream through an ultra-fast shared
-ring buffer. Nothing is serialized or re-rendered: the renderer applies the tiny
-updates in place, which is what keeps the UI stutter-free, even on small devices.
+## Where it's headed
+
+Write the app logic once, run it on embedded, mobile, desktop, and browser. Pathland
+is an open protocol, so the same code that drives the server-rendered UI today can
+also run on the device itself:
+
+- **In the browser**, the app logic compiles to WASM, writes to a shared buffer, and the
+  main thread is left to rendering alone.
+- **On embedded devices**, the logic runs on one core while another core renders, with
+  the ring buffer carrying the protocol between them.
+- **On mobile and desktop**, the same logic drives native renderers.
+
+Wherever it runs, only tiny binary updates travel across the ring buffer and are applied
+in place — nothing is re-rendered or serialized, which is what keeps the UI stutter-free,
+even on small devices.
 
 ## Try it
 
