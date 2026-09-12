@@ -1,344 +1,164 @@
-# Pathland Protocol
+# Pathland
 
-> A cross-platform, cross-language UI protocol for declarative, retained-mode UI
->
-> **Status: proof of concept.** Not production software — the wire format and APIs may change before 1.0.
+> An open UI protocol — declarative UI, written in your backend. No JavaScript.
+
+**Status: proof of concept.** It works end to end and the tests are green, but the
+wire format and APIs may change before 1.0.
 
 [![CI](https://github.com/michaelkrog/Pathland/actions/workflows/ci.yml/badge.svg)](https://github.com/michaelkrog/Pathland/actions/workflows/ci.yml)
 
-## Overview
+## The pitch
 
-Pathland is a **protocol-first** UI framework for **retained-mode UI** with
-multiple renderer backends. It offers a declarative, retained-mode view API
-(SwiftUI-shaped in ergonomics) designed to be **language-agnostic** and
-**platform-agnostic**.
+You write the **whole UI in your backend language** — Java, C#, Rust, anything.
+Pathland renders the first page as server-side HTML, so it appears instantly, then
+keeps it alive with tiny binary updates over a WebSocket. The result is a smooth,
+reactive UI — delivered by the backend team, without npm, bundlers, an extra build
+pipeline, or a separate frontend.
 
-As of August 2026 the core is a **Rust opcode engine**. It emits the
-application's **declarative view structure** — VStack, HStack, Text, spacing,
-padding, alignment — as a fixed **16-byte opcode ring buffer** into shared
-linear memory. Each platform's renderer maps the opcode stream onto that
-platform's **native elements** (GTK4 widgets on desktop, DOM elements in the
-browser, HTML server-side) and those native elements lay themselves out.
+## What it removes
 
-On desktop the engine runs **natively**: other languages drive it through the
-flat **native C ABI** (`pathland-view-native`) over a zero-copy shared ring and render
-through the shared GTK renderer (`pathland-render-gtk`).
+Today's server team pays for a BFF, a client-side state model, a SPA framework, and
+a JS build toolchain — all to render UI the server already owns. Pathland removes
+that layer: the backend *is* the application. There is no frontend contract to
+maintain, no client state model, and no JavaScript to write.
 
-The **16-byte opcode engine is transport- and process-agnostic by design**. The
-ring buffer is a plain region of shared linear memory, so the engine runs
-wherever the producer and consumer can exchange bytes — no assumptions about
-where the application lives. The same engine spans **embedded systems**
-(FreeRTOS dual-core queues passing opcode slices between cores), **pure
-in-browser client-side apps** (a WASM Web Worker producing into a
-`SharedArrayBuffer` that the main-thread DOM renderer consumes), and
-**server-driven enterprise architectures** (Java/C# backends emitting opcode
-frames over WebSocket or gRPC). Transport and process boundaries are details of
-delivery, never of the protocol.
-
-**The engine does not compute layout and does not emit rects.** It describes
-*what* the UI is, never *where* it is. Emission is **diff-based and reactive**:
-change detection is fine-grained and signal-based — a signal bound to a node's
-text or a property re-emits only that node's deltas, so only the things that
-actually changed emit opcodes and an unchanged tree emits zero opcodes.
-
-## Enterprise positioning — replace the BFF + Rich Frontend paradigm
-
-For server-driven web teams, Pathland is positioned as a replacement for the
-**whole BFF + Rich Frontend stack** — and for libraries like **HTMX** that patch
-around it. Today's enterprise stack pays for a JSON API tier (a BFF), a
-client-side state model, a SPA framework, and a build pipeline, all to render UI
-the server already owns. Pathland removes that layer: the backend **is** the
-application. It declares the entire UI in its own language (Java, Rust, C#, …),
-emits **binary deltas** over WebSocket, and the client is a thin hydration layer
-that applies them and reports raw input back — no BFF contract to maintain, no
-client state model, no SPA framework, no separate frontend team.
-
-- **Server-driven, like HTMX — but a protocol, not a script tag.** The web
-  client is a small vanilla-JS hydrator that decodes self-contained `PLPL`
-  batches and applies opcode deltas in place; everything else lives in the
-  backend, where enterprise teams can test, observe, and secure it.
-- **Native elements everywhere.** The same opcode stream drives GTK4 widgets on
-  desktop, DOM elements in the browser, and SSR HTML — one view definition, any
-  renderer, any language.
-- **Binary and diff-based.** Fixed 16-byte opcodes, zero emission for an
-  unchanged tree, self-contained frames over the wire.
-- **Enterprise-ready by design** (see Project Status): Java 17+ across the whole
-  stack, a single Rust HTML renderer reused by every language, WebSocket
-  resilience, metrics/health, security hardening, and WCAG 2.1 AA.
-
-## Project Status
-
-**Proof of concept.** Pathland is a working reference implementation for
-validating the protocol, not production software. The 16-byte opcode engine,
-the Rust and Java DSLs, the GTK4 / HTML renderers, and the
-SSR + WebSocket demos are all functional (tests green), but the wire format
-(version 1) and every API are subject to change before a 1.0.
-
-## The Three Elements
-
-Pathland is composed of three elements. They are the vocabulary the whole
-project speaks, so they are settled and used consistently:
+## How it works
 
 ```
-┌────────────────────┐   ┌────────────────────┐   ┌─────────────────────┐
-│ 1. Retained UI     │   │ 2. Opcode engine   │   │ 3. Renderer         │
-│ the app's UI tree  │──⇢│ reconciles + emits │──⇢│ maps opcodes onto   │
-│ (any language,     │   │                    │   │ native elements +   │
-│  any platform)     │   │                    │   │ event reporting     │
-└────────────────────┘   └────────────────────┘   └─────────────────────┘
+You declare the UI in your backend
+        │
+        ▼
+The server renders it (HTML) and owns it
+        │
+        ▼
+Only the things that change travel to the client
+        │
+        ▼
+The client applies them to native elements (60FPS)
 ```
 
-1. **Retained UI** — the application's canonical retained UI tree. It is the
-   single source of truth, owned by the application. It can be authored in
-   **any language on any platform**: Rust, Java, Swift, C#, C, TypeScript —
-   desktop, mobile, or embedded — through a generated DSL or the flat native C
-   ABI.
-2. **Opcode engine** — the producer: reconciles the retained tree and emits it as
-   fixed **16-byte opcodes** using fine-grained, signal-based change detection: a
-   signal bound to a node's text or a property re-emits only that node's deltas,
-   so only the things that actually changed emit and an unchanged tree emits zero
-   opcodes. The engine is language-independent — the same opcode stream serves
-   every renderer. It spans a pure protocol core (`pathland-core`) and a
-   retained-tree emitter (`pathland-engine`).
-3. **Renderer** — consumes the opcode stream and maps it onto that platform's
-   **native elements**, and reports raw inputs back as events. It is a pure
-   function of the opcode stream (stateless) and never retains application
-   state. *"Host" and "driver" are roles a renderer plays: it runs inside a
-   host and is pumped by a driver — they are not separate elements.* The same
-   opcode stream targets **different UI systems**: a GTK4 renderer on desktop,
-   an AppKit/SwiftUI renderer on macOS, a WinUI renderer on Windows, an LVGL
-   renderer on embedded, a DOM renderer in the browser.
+- **You declare the UI** with a SwiftUI-shaped DSL — `VStack`, `Text`, `Button`,
+  styling — right next to your business logic.
+- **The server renders and owns it.** The first page is plain HTML (instant paint,
+  SEO-friendly); the server keeps the authoritative copy of the UI.
+- **Only changes travel.** A click, a signal update, a navigation — the server sends
+  a few tiny binary bytes describing exactly what changed. An unchanged screen
+  sends nothing. The client applies them to real native elements (browser DOM, GTK
+  widgets), so the platform does the layout, animation, and accessibility.
 
-The opcodes are carried from the engine to the renderer by a transport (a
-zero-copy shared-memory ring on desktop/native, a serialized network batch for
-remote/browser); transport is an implementation detail, not a fourth element.
+## The whole app
 
-## Execution & Deployment Models
+Add one dependency and one bean, and you have a working app.
 
-The fixed **16-byte opcode ring buffer** is what makes Pathland
-*process-agnostic*: the producer and consumer only need to share a region of
-memory (or a byte stream), so the exact same engine and wire format serve five
-distinct execution modes.
+**Spring Boot**
 
-> **Implementation status:** the **native desktop** (c) and **distributed
-> WebSocket** (d) paths — including the SSR HTML web client (the DOM renderer) — are
-> implemented today. The **embedded** (a), **in-browser WASM** (b), and
-> **microfrontend** (e) modes, the planned **gRPC** transport, and the
-> SwiftUI/AppKit/WinUI renderers are **roadmap targets** enabled by the
-> architecture (see the `*(planned)*` crates in the
-> [Rust workspace](#rust-workspace)).
+```java
+@SpringBootApplication
+public class MyApp {
+    public static void main(String[] args) { SpringApplication.run(MyApp.class, args); }
 
-### a) Embedded Dual-Core (In-Process)
+    @Bean
+    PathlandApp pathlandApp() { return () -> new MyHomeView(); }
+}
+```
 
-Core 0 runs application logic and sensor handling; Core 1 decodes opcodes and
-renders **LVGL** over a **zero-copy SRAM ring buffer** (e.g. ESP32). The `no_std`
-protocol core (`pathland-core`) emits into shared SRAM; the second core drains
-the ring and drives LVGL widgets. No heap, no serialization — just a 16-byte
-opcode stream across cores, passed through a FreeRTOS queue or a direct
-SRAM producer/consumer pair.
+**Quarkus**
 
-### b) In-Browser Pure Client (Zero Main-Thread Lock)
+```java
+@ApplicationScoped
+public class MyApp implements PathlandApp {
+    public View newRoot() { return new MyHomeView(); }
+}
+```
 
-Application logic runs in a **Web Worker compiled to WASM**. It emits opcodes
-into a **`SharedArrayBuffer`** that the main thread's DOM renderer consumes
-directly — bypassing Virtual DOM diffing entirely, because the renderer applies
-only the delta opcodes to the native DOM. Since the worker never blocks the main
-thread and the renderer is a pure function of the stream, this path targets
-better sustained frame rates than single-threaded JS frameworks for large,
-reactive trees.
+`MyHomeView` is just Java views — the same code runs on both:
 
-### c) Native Desktop (IPC / Shared Memory)
+```java
+public final class MyHomeView implements View {
 
-Native apps drive the engine through the flat **C ABI** (`pathland-view-native`)
-or **Java JNA** over a **zero-copy shared ring** into GTK4 / native widgets
-(`pathland-render-gtk`). This is the current desktop path — producer and
-renderer live in the same process and share the ring directly.
+    State<Integer> count = new State<>(0);   // persisted per session, automatically
 
-### d) Distributed Network (Server-Driven UI)
+    @Override
+    public View body() {
+        return VStack.of(
+                Text.of(Signals.computed(() -> "Clicked " + count.get() + " times")),
+                Button.of("Click me", () -> count.update(v -> v + 1))
+        ).modifier(Padding.of(24));
+    }
+}
+```
 
-Backends (**Java Spring / Quarkus, C#**) emit self-contained opcode frames over
-**WebSocket** (implemented) and, planned, **gRPC** directly to **Web (HTML)** or
-mobile renderers. Frames are self-contained `PLPL`
-batches, so each message is independent — no shared memory and no session state
-in the renderer.
+That's it — SSR at any path, live updates over `/ws`, per-session state.
+*(Imports omitted: `com.pathland.server.PathlandApp`, `com.pathland.view.*`.)*
 
-### e) Microfrontend Composition (Server-Side Merging)
+## Why it's smooth
 
-The retained-tree model also opens the door to **true microfrontends without the
-JavaScript-bundle hassle**: the subtrees of different services can be merged
-into **one UI tree server-side** and relayed to the renderer as a single opcode
-stream, so teams can ship UI with their own backend and any renderer receives a
-unified UI — with no per-microservice client code.
+Pathland is built for smooth 60FPS UIs:
 
-## Core Principles
+- **Only changes are sent.** A screen that isn't changing transmits zero bytes.
+  Updates are tiny binary deltas, not re-rendered pages or JSON trees.
+- **Native elements, not a canvas.** The browser or OS lays out and animates real
+  elements — you get platform layout, text rendering, and accessibility for free.
+- **A thin client.** The client is a small static file that hydrates the server HTML
+  and applies updates in place. No framework, no virtual DOM, no re-render cost.
 
-- **Protocol-first**: standardized, open protocol for UI components, events, and raw inputs
-- **16-byte opcodes**: every instruction is a fixed 16 bytes — cache-line aligned, deterministic, linear decode
-- **Declarative, not positioned**: the engine emits structure + constraint properties (spacing, padding, alignment); native renderers compute positions
-- **Native elements everywhere**: GTK4 widgets, DOM elements, HTML — never a generic canvas unless a platform has no native equivalent
-- **Reactive emission**: fine-grained, signal-based change detection — only the nodes that actually changed emit opcodes; steady state emits zero
-- **Command-based**: UI updates are tree mutations (CREATE_NODE, DELETE_NODE, INSERT_CHILD, MOVE_CHILD, …), never serialized trees
-- **Stateless renderers**: renderers are pure functions of the opcode stream; they retain only their own rendered output, never application state
-- **Zero-copy**: ring and arena are plain regions of shared linear memory
-- **Single-producer / single-consumer**: guest engine produces; host renderer consumes
-- **Hand-written Java DSL**: the declarative view DSL lives as a reusable Java library (`com.pathland.view`), not generated code — one ergonomic surface for desktop, server (Spring/Quarkus), and embedded hosts
+## The part you don't write
 
-## Documentation
+The web client is a single prebuilt JavaScript file you copy into your static
+resources. It's shipped, not maintained — all the real logic lives in your backend.
+(There's also a native GTK renderer for desktop.)
 
-### Specification
+## Where it runs today
 
-- [Opcode Protocol](./spec/OPCODE.md) — **Primary specification** — fixed 16-byte opcodes, ring buffer, arena, reactive emission, design tokens
-- [Primitive Views](./spec/PRIMITIVES.md) — the primitive views the protocol supports (declarative view groupings), with protocol component IDs and status
-- [Core Modifiers](./spec/MODIFIERS.md) — the core modifiers (protocol `STYLE` properties), with property IDs and status
-- [Core Events](./spec/EVENTS.md) — the core events (raw inputs), with event command IDs and listener bits
-- [Conformance Test Vectors](./spec/CONFORMANCE.md) — golden byte arrays for validating implementations
-- [DSL Authoring Contract](./spec/DSL.md) — the SwiftUI-shaped authoring surface (what an application developer writes); informative — the wire specs above are normative
+- **Java** — Spring Boot and Quarkus, with SSR + WebSocket demos.
+- **Rust** — a native GTK4 desktop renderer.
 
-## Rust Workspace
+## Where it's headed
 
-The implementation is under [`lib/rust/`](./lib/rust/):
+Write the app logic once, run it on embedded, mobile, desktop, and browser. Pathland
+is an open protocol, so the same code that drives the server-rendered UI today can
+also run on the device itself:
 
-| Crate | Element | Responsibility |
-|-------|---------|----------------|
-| `pathland-view` | Retained UI | Declarative view DSL: VStack/HStack/Text/Button + chainable modifiers building a `pathland-engine::Node` tree (`no_std`) |
-| `pathland-core` | Opcode engine | Protocol core: fixed 16-byte opcode, ring buffer, bump arena, events, memory layout, Guest/Host/Frame surface (`no_std`, zero-alloc) |
-| `pathland-engine` | Opcode engine | Emitter: retained tree types (`Node`/`Component`) + diff-based reactive emission + reactive **signals** (moved out of `pathland-core`) |
-| `pathland-core-transport` | Opcode engine | Transport: shared-memory ring + network batch encode/decode + batching policy (`std`) |
-| `pathland-render-gtk` | Renderer | GTK4 renderer (rlib + cdylib): opcode frames → native GTK widgets, incrementally |
-| `pathland-render-html` | Renderer | HTML renderer: maps opcode frames onto declarative HTML (flex stacks, spans, buttons) as a pure function of the stream — the server-side/remote target |
-| `pathland-view-native` | Retained UI projection | Native C-ABI shim + `NativeHost`: flat world over a zero-copy shared ring (Swift/Java/C#…) |
-| `pathland-core-capi` | Opcode engine | Minimal shared-memory ring C ABI (`libpathland_core`): create/destroy, ring push, frame boundaries, arena alloc, zero-copy read, event drain/send |
-| `pathland-render-gtk-demo` | Demo | Rust GTK4 demo: authors the DSL, renders through `pathland-render-gtk` (no GTK APIs) |
-| `pathland-web-worker` *(planned)* | Opcode engine / Renderer | WASM logic Worker + `SharedArrayBuffer` DOM driver: application logic emits opcodes in a Web Worker; the main-thread DOM renderer consumes them zero-copy (in-browser pure-client mode) |
-| `pathland-esp32` *(planned)* | Renderer | Dual-core HAL driver for microcontrollers: Core 0 → Core 1 opcode slices over an SRAM ring, mapped onto LVGL widgets (embedded dual-core mode) |
+- **In the browser**, the app logic compiles to WASM, writes to a shared buffer, and the
+  main thread is left to rendering alone.
+- **On embedded devices**, the logic runs on one core while another core renders, with
+  the ring buffer carrying the protocol between them.
+- **On mobile and desktop**, the same logic drives native renderers.
 
-`pathland-web-worker` and `pathland-esp32` are roadmap targets; the existing
-`no_std`/WASM-capable core (`pathland-core`) and the ring C ABI
-(`pathland-core-capi`) are the building blocks they are planned on.
+Wherever it runs, only tiny binary updates travel across the ring buffer and are applied
+in place — nothing is re-rendered or serialized, which is what keeps the UI stutter-free,
+even on small devices.
 
-## Java Libraries
-
-The reusable, framework-agnostic Java libraries live under [`lib/java/`](./lib/java/)
-(Maven reactor, `org.pathland`, Java 17+ — every LTS from 17):
-
-| Module | Package | Responsibility |
-|--------|---------|----------------|
-| `pathland-view` | `com.pathland.view` | Declarative view DSL (`View`, `VStack`, `Text`, `Button`, …), Angular-style signals/computed/effects (`com.pathland.view.signal`), fine-grained opcode emitter (`com.pathland.view.emit`), wire codec (`com.pathland.view.transport`), lazy JNA ring interop (`com.pathland.view.ffm`), cross-platform state (`com.pathland.view.state`: `StateStore`/`PersistentState`/`State`) |
-| `pathland-view-processor` | `com.pathland.processor` | JSR 269 annotation processor: generates `<View>_StateBinder` for `State` fields (auto-keyed by field name) |
-| `pathland-render-html` | `com.pathland.render.html` | Pure-function HTML renderer over the opcode stream (SSR) with `data-pathland-id` hydration |
-| `pathland-state-redis` | `com.pathland.state.redis` | Redis-backed `StateStore` over Lettuce (Spring/Quarkus/desktop) |
-| `pathland-demo-views` | `com.pathland.demo` | Shared kitchensink demo views (`KitchenSinkView` + per-section components) declaring `State` fields |
-| `pathland-quarkus-demo` | `com.pathland.quarkus` | Quarkus SSR + WebSocket demo consuming the libraries |
-| `pathland-spring-boot-demo` | `com.pathland.spring` | Spring Boot SSR + WebSocket demo consuming the same libraries |
-
-The same `com.pathland.view` DSL (and `State` fields) runs unchanged on a Spring Boot
-app, a Quarkus app, or a desktop app; a desktop host pushes opcodes into the Rust ring via
-JNA (`pathland_ring_buffer_push`), while a server emits self-contained frames over WebSocket.
-
-### Build & run the Java libraries
+## Try it
 
 ```bash
-# Rust ring C ABI (only needed for the desktop JNA path)
-cd lib/rust && cargo build -p pathland-core-capi
+# one-time: build the Rust HTML renderer (embedded in the jar), then the Java reactor
+cd lib/rust && cargo build -p pathland-render-html
+cd lib/java && mvn install
 
-# Build + test the whole Java reactor (runs on every LTS from Java 17)
-export JAVA_HOME=<jdk-home-17-or-later>
-cd lib/java && mvn -q install
-
-# Run the Quarkus SSR + WebSocket demo in dev mode (hot reload)
-cd lib/java/pathland-quarkus-demo && mvn quarkus:dev      # http://localhost:8080
-
-# ...or run the packaged runner
-cd lib/java/pathland-quarkus-demo
-mvn -q package
-java -jar target/quarkus-app/quarkus-run.jar   # http://localhost:8080
-
-# Run the Spring Boot SSR + WebSocket demo (same shared views)
+# Spring Boot demo
 cd lib/java/pathland-spring-boot-demo
-mvn -q package
-java -jar target/pathland-spring-boot-demo-0.1.0.jar   # http://localhost:8080
+mvn -q package && java -jar target/pathland-spring-boot-demo-0.1.0.jar
+# → http://localhost:8080
+
+# Quarkus demo (dev mode with hot reload)
+cd lib/java/pathland-quarkus-demo
+mvn quarkus:dev
+# → http://localhost:8080
 ```
 
-The libraries run on **every LTS from Java 17** (the environment is thread-local and
-native interop is JNA, so nothing needs a preview/25-only JDK), with
-**Quarkus ≥ 3.18** and **Spring Boot ≥ 3.5**.
+## The technical details
 
-### Run tests
+This README is the *what*. The *how* — the wire protocol, the DSL contract, the
+conformance vectors, and the implementation notes — lives in [`spec/`](./spec/):
 
-```bash
-cd lib/rust && cargo test
-cd lib/java && mvn test
+- [OPCODE.md](./spec/OPCODE.md) — the binary protocol
+- [DSL.md](./spec/DSL.md) — the authoring surface (what you write)
+- [PRIMITIVES.md](./spec/PRIMITIVES.md), [MODIFIERS.md](./spec/MODIFIERS.md), [EVENTS.md](./spec/EVENTS.md)
+- [CONFORMANCE.md](./spec/CONFORMANCE.md) — golden byte vectors
 
-# no_std / wasm32 direction guard (requires: rustup target add wasm32-unknown-unknown)
-cd lib/rust && ./check-wasm.sh
-```
+## Status & license
 
-### Run the GTK desktop demo (native, zero-copy shared ring)
-
-```bash
-cd lib/rust && PATH="$HOME/.cargo/bin:$PATH" cargo run -p pathland-render-gtk-demo
-```
-
-## Web Client (the DOM renderer — `lib/typescript`)
-
-The browser client is the **SSR HTML renderer** (`pathland-render-html`, and its
-Java counterpart `com.pathland.render.html`), hydrated by the **Pathland DOM
-renderer** — `@pathland/dom-renderer` (TypeScript, `lib/typescript/`, no runtime
-deps). Built as `dist/pathland-dom-renderer.js` and copied into both demos'
-static resources, it hydrates the server-rendered DOM by `data-pathland-id`,
-decodes each self-contained `PLPL` batch (bounds-checked), applies `STYLE`
-deltas **and `TREE` structural deltas** in place, and sends raw-input events
-back over the `/ws` socket. Styling is server-owned (Tailwind classes in the
-SSR HTML); runtime style deltas are applied by the DOM renderer as inline style
-and design tokens as CSS variables.
-
-## Components & Properties
-
-Component and property IDs are defined in `pathland-core`'s
-[`constants.rs`](./lib/rust/crates/pathland-core/src/constants.rs),
-documented in [OPCODE.md](./spec/OPCODE.md), and catalogued by category in
-[PRIMITIVES.md](./spec/PRIMITIVES.md) (component types), [MODIFIERS.md](./spec/MODIFIERS.md)
-(properties), and [EVENTS.md](./spec/EVENTS.md) (events). Component types
-include `TEXT`, `BUTTON`, `VSTACK`, `HSTACK`, `SPACER`, and more; stack
-constraint properties (`SPACING`, `ALIGNMENT`, …) drive native layout, styling
-modifiers (`PADDING`, `COLOR`, `BACKGROUND_COLOR`, …) decorate any view, and
-`WIDTH`/`HEIGHT` use `-1` = FILL, `-2` = HUG_CONTENT.
-
-## Design Tokens
-
-The renderer owns default token values; the application owns overrides.
-Tokens are identified by dot-separated paths (`color.primary`, `space.2`) and
-referenced via the `DESIGN_TOKEN` value type or overridden globally with
-`SET_DESIGN_TOKEN`. See [Design Token System](./spec/OPCODE.md#design-token-system).
-
-## POC Goals
-
-See the GitHub issues (#12, #13, #15, #16, #18):
-
-1. **16-byte opcode engine** — done
-2. **Core components & modifiers in Rust** (declarative API) — done
-3. **Opcode transport layer** (shared memory + network batch + native C-ABI shim) — done
-4. **Rust desktop app with GTK4 renderer** (native shared ring) — done
-5. **Native Java library set** (hand-written `com.pathland.view` DSL + signals/computed/effects + reusable HTML renderer + state stores) — done
-6. **Quarkus SSR + WebSocket demo** (SSR HTML via `pathland-render-html` + live 16-byte opcode deltas) — done
-
-## Versioning
-
-Pathland follows **Semantic Versioning** (Major.Minor.Patch). The wire protocol
-version is 1 (see [OPCODE.md](./spec/OPCODE.md)).
-
-## Contributing
-
-Pathland is open to contributors. Please read:
-
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — how to build, test, and make changes
-- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — the Contributor Covenant
-- [SECURITY.md](./SECURITY.md) — how to report a vulnerability (do **not** open a public issue)
-
-Issues are grouped into milestones `1 · Hardening & Memory Safety` through
-`5 · Packaging & Grant Readiness`, labelled by epic (`hardening`,
-`benchmarking`, `tooling`, `a11y-seo`, `packaging`).
-
-## License
-
-Pathland is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+Proof of concept. See [CONTRIBUTING.md](./CONTRIBUTING.md),
+[CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md), and [SECURITY.md](./SECURITY.md).
+Licensed under the [Apache License 2.0](LICENSE).
