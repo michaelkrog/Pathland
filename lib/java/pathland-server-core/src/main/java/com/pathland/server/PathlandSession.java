@@ -1,42 +1,43 @@
-package com.pathland.spring;
+package com.pathland.server;
 
-import com.pathland.demo.DemoTheme;
-import com.pathland.demo.SplitNavDemo;
 import com.pathland.render.html.HtmlRenderer;
 import com.pathland.view.Environment;
+import com.pathland.view.Platform;
 import com.pathland.view.emit.DateInput;
 import com.pathland.view.emit.Emitter;
 import com.pathland.view.emit.Frame;
 import com.pathland.view.emit.FrameOpcodeSink;
 import com.pathland.view.emit.RenderResult;
-import com.pathland.view.router.Router;
+import com.pathland.view.signal.Signals;
+import com.pathland.view.signal.WritableSignal;
 import com.pathland.view.state.PersistentState;
 import com.pathland.view.state.StateStore;
 import com.pathland.view.transport.EnvironmentData;
 import com.pathland.view.transport.Event;
 import com.pathland.view.transport.FrameCodec;
-import org.springframework.web.socket.BinaryMessage;
-import org.springframework.web.socket.WebSocketSession;
 
 import java.util.Map;
 import java.util.function.Consumer;
 
 /**
- * One Pathland application instance per WebSocket connection (1:1). Identical to the
- * Quarkus {@code SessionApp} except for the WebSocket transport type ({@link WebSocketSession}
- * instead of {@code WebSocketConnection}) — the view, state, and emitter code is shared.
+ * One Pathland application instance per session (1:1 with a client). Owns the session's
+ * {@link PersistentState}, the retained tree, the fine-grained emitter, and the single
+ * connection it sends deltas to — all transport-agnostic ({@link PathlandConnection}).
  *
  * <p>The platform environment (spec/OPCODE.md §Environment fields) seeds the app: the
- * router hydrates from its {@code ROUTE} field before mount (a request URL on SSR; the
- * DOM client's first message over the WebSocket), so a deep-linked URL renders the
- * right destination on the first frame. Later environment messages **enrich** the
- * session (viewport resizes, future fields) via {@link #applyEnvironment}.
+ * initial route comes from its {@code ROUTE} field (a request URL on SSR; the DOM
+ * client's first message over the WebSocket), delivered to the tree as the
+ * {@code Platform.ACTIVE_PATH} signal. Later environment messages **enrich** the session
+ * (viewport resizes, future fields) via {@link #applyEnvironment}.
+ *
+ * <p>State wiring is automatic: {@code State} fields in the app's views connect to the
+ * store at mount. The connection is wired only <em>after</em> mount, so the mount frame
+ * (already SSR'd) is never re-sent.
  */
-final class SessionApp {
+public final class PathlandSession {
 
     private final PersistentState state;
-    private final Router router;
-    private final SplitNavDemo root;
+    private final WritableSignal<String> activePath;
 
     private final FrameOpcodeSink sink;
     private final Emitter emitter;
@@ -51,12 +52,13 @@ final class SessionApp {
     private float viewportWidth = -1f;
     private float viewportHeight = -1f;
 
-    private volatile WebSocketSession session;
+    private volatile PathlandConnection connection;
 
-    SessionApp(String sessionId, StateStore store, EnvironmentData env) {
+    public PathlandSession(String sessionId, StateStore store, PathlandApp app, EnvironmentData env) {
         this.state = new PersistentState(store, sessionId);
-        this.router = SplitNavDemo.router(env.route());
-        this.root = SplitNavDemo.of(router);
+        // The active platform path is a host-provided signal (Platform.ACTIVE_PATH); the
+        // app reads it, and a bound Router re-routes guard-aware on external changes.
+        this.activePath = Signals.signal(env.route());
 
         this.sink = new FrameOpcodeSink() {
             @Override
@@ -71,10 +73,14 @@ final class SessionApp {
                 }
             }
         };
-        this.emitter = new Emitter(sink, DemoTheme.adaptive());
+        this.emitter = new Emitter(sink, app.theme());
 
-        // Mount wires State fields, then renders and emits the structural frame.
-        RenderResult result = emitter.mount(root, new Environment(state));
+        // Mount wires State fields, then renders and emits the structural frame. The
+        // active path is injected as a scoped environment value; any root works (with or
+        // without navigation).
+        RenderResult result = emitter.mount(
+                app.newRoot().environment(Platform.ACTIVE_PATH, activePath),
+                new Environment(state));
         this.tapActions = result.tapActions();
         this.navigateActions = result.navigateActions();
         this.textInputs = result.textInputs();
@@ -86,10 +92,8 @@ final class SessionApp {
     }
 
     /** Apply (or enrich) the platform environment after mount (viewport resizes, …). */
-    void applyEnvironment(EnvironmentData env) {
-        if (!env.route().equals(router.path())) {
-            router.navigate(env.route()); // re-route if the platform moved (idempotent)
-        }
+    public void applyEnvironment(EnvironmentData env) {
+        activePath.set(env.route()); // re-route if the platform moved (guards run in the bound router)
         if (env.viewportWidth() > 0) {
             viewportWidth = env.viewportWidth();
         }
@@ -98,30 +102,32 @@ final class SessionApp {
         }
     }
 
-    void connect(WebSocketSession session) {
-        this.session = session;
+    /** Wire the live connection AFTER mount (the initial frame was already SSR'd). */
+    public void connect(PathlandConnection connection) {
+        this.connection = connection;
     }
 
     /** Re-send the current tree as a full snapshot (META::RESYNC). */
-    void resync() {
+    public void resync() {
         emitter.renderFull();
     }
 
     private void send(Frame frame) {
-        WebSocketSession s = session;
-        if (s == null || !s.isOpen()) {
-            session = null;
+        PathlandConnection conn = connection;
+        if (conn == null || !conn.isOpen()) {
+            connection = null;
             return;
         }
         byte[] bytes = FrameCodec.encodeFrame(frame);
         try {
-            s.sendMessage(new BinaryMessage(bytes));
+            conn.send(bytes);
         } catch (Exception e) {
-            session = null;
+            connection = null;
         }
     }
 
-    void dispatch(byte[] message) {
+    /** Route an inbound event batch (raw host → guest opcodes) into the app's bindings. */
+    public void dispatch(byte[] message) {
         try {
             for (Event event : FrameCodec.decodeEvents(message)) {
                 if (event.isPointerUp()) {
@@ -152,10 +158,16 @@ final class SessionApp {
                         sink.accept(event.days(), event.millisOfDay());
                     }
                 } else if (event.isNavigate()) {
-                    // Global (no target): route it into the mounted router's NAVIGATE sink.
-                    Consumer<Event> sink = navigateHandler;
-                    if (sink != null) {
-                        sink.accept(event);
+                    if (event.url() != null) {
+                        // A URL (deep link / popstate): update the active path — a bound
+                        // Router re-routes guard-aware, and any onPathChange listener fires.
+                        activePath.set(event.url());
+                    } else {
+                        // "Back one step" has no path — only meaningful with a Router.
+                        Consumer<Event> sink = navigateHandler;
+                        if (sink != null) {
+                            sink.accept(event);
+                        }
                     }
                 }
             }
@@ -164,7 +176,8 @@ final class SessionApp {
         }
     }
 
-    String renderHtml() {
+    /** Render the SSR HTML for this session's current tree (request thread). */
+    public String renderHtml() {
         HtmlRenderer renderer = HtmlRenderer.tryInstance();
         if (renderer == null) {
             return "<!DOCTYPE html><html><body><h1>Pathland renderer unavailable</h1>"
@@ -175,10 +188,11 @@ final class SessionApp {
                 .replace("</body>", "<script src=\"/pathland-dom-renderer.js\" defer></script></body>");
     }
 
-    void close() {
+    /** Tear down: close the persistent state, unsubscribe the emitter, drop the connection. */
+    public void close() {
         state.close();
         emitter.destroy();
-        session = null;
+        connection = null;
     }
 
     private static void log(String message) {

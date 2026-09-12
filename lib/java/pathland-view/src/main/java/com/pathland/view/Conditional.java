@@ -97,6 +97,10 @@ public final class Conditional {
         public PathlandNode render(Environment env) {
             // Group-backed slot: a bare VSTACK node with no spacing/alignment (Group.java).
             PathlandNode node = new PathlandNode(Components.VSTACK);
+            // Capture the incoming scope (ancestors' environment values — e.g. a router
+            // scoped by an enclosing NavigationContainer) so a re-render of this branch
+            // re-applies it (Emitter.reconcileSlot).
+            node.environmentForChildren = Environment.current();
             View selected = content.get(); // reads the selector; mount is outside any effect
             if (selected != null) {
                 node.children.add(selected.render(env));

@@ -390,7 +390,7 @@ adds none. The container's chrome mode decides who supplies the navigation UI:
 |------|----------------------------|--------------------|--------------------|---------------|
 | `NavigationContainer` | `NavigationStack(path:) { destination(for:) }` | `NavigationContainer.of(Router)` / `.of(Router, Chrome.CUSTOM)` | `NavigationContainer::new(Router)` | a `Group` slot + `ROUTE` `0x2019`, `NAV_DEPTH` `0x201A`, `NAV_CHROME` `0x201B`, `TRANSITION` `0x1031`; destination swap = `TREE` deltas |
 | `NavigationLink` | `NavigationLink("label", value:)` | `NavigationLink.of(String, Router, String to)` / `NavigationLink.of(String, String to)` (router-agnostic) | `navigation_link(...)` | a `BUTTON` whose tap pushes `to` (via the router, or resolved to the nearest enclosing router when router-agnostic) |
-| `RouteTable` | — | `RouteTable` (builder) | `RouteTable::new(...)` | none (app-side matching) |
+| `RouteTable` | — | `RouteTable` (builder), or `Navigation.navigator(...)` (the ergonomic facade) | `RouteTable::new(...)` | none (app-side matching) |
 
 **Router state** — app-owned (never renderer state):
 
@@ -419,6 +419,61 @@ adds none. The container's chrome mode decides who supplies the navigation UI:
   never models the platform's location handling — history adaptation
   (`pushState` / `replaceState` / back) is a renderer/DOM-client translation of
   the `ROUTE` property and the `NAVIGATE` event.
+
+**The `Navigation` facade** — the ergonomic entry point. `Navigation.navigator`
+collapses the route table + router + seeding into one readable flow, and
+`Navigation.of(router)` is the container:
+
+```java
+Router router = Navigation.navigator("/kitchen")     // seeds the initial path
+    .route("/",          new HomeView())             // View overload (no params)
+    .route("/users/:id", params -> new UserView(params.intValue("id")))
+    .fallback(new NotFoundView())
+    .build();
+
+View shell = Navigation.of(router);                  // == NavigationContainer.of(router)
+Signal<Boolean> onKitchen = Navigation.isActive(router, "/kitchen");
+```
+
+- `.route(String, View)` for no-param destinations; `.route(String, RouteHandler)`
+  for param destinations; guarded variants take a `Predicate<Params>` + a redirect
+  target; `.fallback(View | RouteHandler)` is the 404. `build()` returns the
+  seeded `Router` (the initial path flows through the same guard matching).
+- **`Params`** replaces the raw `Map<String,String>` in `RouteHandler` with typed
+  access: `params.get("id")`, `params.intValue("id")`, `params.longValue(...)`,
+  `params.doubleValue(...)`, `params.booleanValue(...)`, `params.path()`.
+- **`Navigation.isActive(router, path)` → `Signal<Boolean>`** is a reactive
+  "is this the active route" signal derived from the router's route signal —
+  style an active menu row or gate conditional content:
+  `Signals.computed(() -> Navigation.isActive(router, path).get() ? ACTIVE : CLEAR)`.
+- **The router as a scoped environment value** (SwiftUI `.environment` style):
+  `Navigation.ROUTER` is an `EnvironmentKey<Router>`. A `NavigationContainer` scopes
+  it to its destination subtree; any component reads
+  `Environment.value(Navigation.ROUTER)` during render — no constructor threading,
+  nearest binding wins (nested containers override), and structural slots re-apply
+  the scope when they re-render their destination.
+
+**The active platform path is universal** — `Platform.ACTIVE_PATH` is an
+`EnvironmentKey<WritableSignal<String>>` the host provides for **every** app (with
+or without navigation), like SwiftUI's `onOpenURL` generalized across platforms:
+```java
+// host (always):
+WritableSignal<String> activePath = Signals.signal(env.route());
+RenderResult result = emitter.mount(
+        root.environment(Platform.ACTIVE_PATH, activePath), new Environment(state));
+// re-route on deep-link/popstate:
+activePath.set(env.route());   // or from a NAVIGATE event URL
+```
+- **An app with navigation** builds a **router bound to the signal**:
+  `Navigation.navigator().route(...).build(activePath)`. The signal is the source of
+  truth: external writes (deep links/popstate) are re-routed **through guards** (never
+  bypassed), and the router's own `navigate`/`push`/`pop`/`replace` are mirrored back
+  into the signal. The initial value is guard-processed.
+- **An app without navigation** just observes the signal — read it, or register
+  `View.onPathChange(path -> …)` (fires on every change, including the initial value).
+- `NAVIGATE` events: a URL updates `activePath` (→ bound router re-routes guard-aware,
+  `onPathChange` listeners fire); a back (no URL) goes to `RenderResult.navigateHandler`
+  → `router.pop()` — meaningful only when a router exists.
 
 **Any component can change the route** — declarative navigation intents. A
 component anywhere *inside* a `NavigationContainer` can change the route without

@@ -5,6 +5,7 @@ import com.pathland.view.Background;
 import com.pathland.view.Border;
 import com.pathland.view.Button;
 import com.pathland.view.Color;
+import com.pathland.view.Environment;
 import com.pathland.view.FontSize;
 import com.pathland.view.FontWeight;
 import com.pathland.view.FontWeightMod;
@@ -12,32 +13,37 @@ import com.pathland.view.ForegroundStyle;
 import com.pathland.view.FrameMod;
 import com.pathland.view.HStack;
 import com.pathland.view.Padding;
+import com.pathland.view.Platform;
 import com.pathland.view.Spacer;
 import com.pathland.view.Text;
 import com.pathland.view.VStack;
 import com.pathland.view.View;
-import com.pathland.view.router.NavigationContainer;
-import com.pathland.view.router.RouteTable;
+import com.pathland.view.router.Navigation;
 import com.pathland.view.router.Router;
 import com.pathland.view.signal.Signal;
 import com.pathland.view.signal.Signals;
+import com.pathland.view.signal.WritableSignal;
 
 /**
  * A master-detail (split) navigation demo (spec PRIMITIVES.md: `NavigationSplitView` →
  * `HStack` sidebar + detail): a fixed **menu column on the left** with three items and
  * a `NavigationContainer` **content area on the right** that swaps on selection. The
  * menu is the developer's own navigation UI; the content area is the navigation slot
- * (`NavigationContainer.of(router)`), so the renderer provides the detail chrome.
+ * (`Navigation.of(router)`), so the renderer provides the detail chrome.
  *
  * <p>Routes: {@code /} and {@code /home} (Home), {@code /kitchen} (the full
  * {@link KitchenSinkView} showcase), {@code /settings} (a couple of bound controls), plus
- * a 404 fallback. The active menu row is highlighted reactively — a computed signal
- * derived from the router's route signal drives a `Background.of(Signal&lt;Color&gt;)`,
- * so a selection re-emits only that row's background property.
+ * a 404 fallback. Built with the {@link Navigation} facade — {@code Navigation.navigator}
+ * collapses the route table + router + seeding. The active menu row is highlighted
+ * reactively via {@code Navigation.isActive(router, path)} → a computed signal that
+ * drives {@code Background.of(Signal<Color>)} / {@code ForegroundStyle.of(Signal<Color>)}.
  *
- * <p>This is the demo root: both SSR demos mount it. Content areas are router-free,
- * self-contained views ({@link HomeView}, {@link SettingsView}, {@link KitchenSinkView})
- * instantiated inline in the route table.
+ * <p>The host mounts this view directly with the active platform path provided as an
+ * environment value ({@code Platform.ACTIVE_PATH}); {@link #body()} reads it and builds
+ * a **bound** router (external path changes are guard-processed, navigation is mirrored
+ * back into the signal). The view itself is router-free — no wrapping, no app factory.
+ * Content areas are router-free, self-contained views ({@link HomeView},
+ * {@link SettingsView}, {@link KitchenSinkView}) instantiated inline in the route table.
  */
 public final class SplitNavDemo implements View {
 
@@ -46,38 +52,23 @@ public final class SplitNavDemo implements View {
     private static final Color ACTIVE_BG = Color.rgb(0xDC, 0xE4, 0xFF);
     private static final Color ACTIVE_FG = Color.rgb(0x1A, 0x3A, 0x8C);
 
-    private final Router router;
-
-    private SplitNavDemo(Router router) {
-        this.router = router;
-    }
-
-    /** The split-nav demo over a router. */
-    public static SplitNavDemo of(Router router) {
-        return new SplitNavDemo(router);
-    }
-
-    /**
-     * A router over the split-nav table, seeded with the host's initial path (a request
-     * URL on SSR), so a deep link (e.g. {@code /kitchen}) renders the right content on
-     * the first frame.
-     */
-    public static Router router(String initialPath) {
-        Router router = new Router(RouteTable.builder()
-                .route("/", p -> new HomeView())
-                .route("/home", p -> new HomeView())
-                .route("/kitchen", p -> new KitchenSinkView())
-                .route("/settings", p -> new SettingsView())
-                .fallback(p -> Text.of("Not Found"))
-                .build());
-        router.navigate(initialPath);
-        return router;
-    }
-
     @Override
     public View body() {
+        // The active platform path is a scoped environment value (provided by the host).
+        // Build a router bound to it: external writes (deep links/popstate) are
+        // guard-processed, and navigation is mirrored back into the signal.
+        WritableSignal<String> activePath = Environment.value(Platform.ACTIVE_PATH);
+        Router router = Navigation.navigator()
+                .route("/", new HomeView())
+                .route("/home", new HomeView())
+                .route("/kitchen", new KitchenSinkView())
+                .route("/settings", new SettingsView())
+                .fallback(Text.of("Not Found"))
+                .build(activePath);
         // The split: a fixed sidebar column + the structural navigation slot (detail).
-        return HStack.of(sidebar(router), NavigationContainer.of(router));
+        // onPathChange demonstrates observing the active platform path without a router.
+        return HStack.of(sidebar(router), Navigation.of(router))
+                .onPathChange(path -> System.out.println("[split] active path: " + path));
     }
 
     // --- sidebar (the developer's own navigation UI) ---
@@ -103,12 +94,11 @@ public final class SplitNavDemo implements View {
      *  nav chrome), so it captures the router explicitly — the nearest-enclosing-router
      *  mechanism (spec DSL.md §4.5) resolves intents for components *inside* a container. */
     private static View menuRow(Router router, String path, String label) {
-        // Reactive active-item highlight: recomputed from the route signal, so a
-        // selection re-emits only this row's background/color properties.
-        Signal<Color> bg = Signals.computed(() ->
-                router.routeSignal().get().path().equals(path) ? ACTIVE_BG : Color.CLEAR);
-        Signal<Color> fg = Signals.computed(() ->
-                router.routeSignal().get().path().equals(path) ? ACTIVE_FG : Color.BLACK);
+        // Reactive active-item highlight via Navigation.isActive: a computed signal from
+        // the route signal, so a selection re-emits only this row's background/color.
+        Signal<Boolean> active = Navigation.isActive(router, path);
+        Signal<Color> bg = Signals.computed(() -> active.get() ? ACTIVE_BG : Color.CLEAR);
+        Signal<Color> fg = Signals.computed(() -> active.get() ? ACTIVE_FG : Color.BLACK);
         return Button.of(Text.of(label).modifier(Padding.of(14)), () -> router.navigate(path))
                 .modifier(Background.of(bg))
                 .modifier(ForegroundStyle.of(fg));

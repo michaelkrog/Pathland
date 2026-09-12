@@ -15,38 +15,22 @@
 
     <name>Pathland Quarkus Demo</name>
     <description>
-        Quarkus demonstration app: SSR (pathland-render-html) for instant first paint,
-        then live 16-byte opcode deltas + events over WebSocket, with cross-platform
-        state persisted through StateStore (Redis with an in-memory fallback).
+        Quarkus demonstration app consuming the Pathland libraries: SSR
+        (pathland-render-html) for instant first paint, then live 16-byte opcode deltas +
+        events over WebSocket, with cross-platform state persisted through StateStore
+        (Redis with an in-memory fallback). The entire app is the starter dependency + a
+        PathlandApp bean returning the root view.
     </description>
 
     <dependencies>
         <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-rest</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-websockets-next</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.pathland</groupId>
-            <artifactId>pathland-view</artifactId>
+            <artifactId>pathland-quarkus-starter</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.pathland</groupId>
             <artifactId>pathland-demo-views</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.pathland</groupId>
-            <artifactId>pathland-render-html</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.pathland</groupId>
-            <artifactId>pathland-state-redis</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

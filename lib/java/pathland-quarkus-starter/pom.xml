@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.pathland</groupId>
+        <artifactId>pathland-parent</artifactId>
+        <version>0.1.0</version>
+    </parent>
+
+    <artifactId>pathland-quarkus-starter</artifactId>
+    <packaging>jar</packaging>
+
+    <name>Pathland Quarkus Starter</name>
+    <description>
+        Quarkus integration for Pathland: SSR at any path, live 16-byte opcode deltas over
+        /ws, per-session state. Add this dependency and a PathlandApp bean and you have a
+        running app.
+    </description>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.pathland</groupId>
+            <artifactId>pathland-server-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-rest</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-websockets-next</artifactId>
+        </dependency>
+    </dependencies>
+</project>

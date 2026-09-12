@@ -87,4 +87,23 @@ public interface View {
     default View replace(String to) {
         return modifier(NavigationMod.replace(to));
     }
+
+    /**
+     * Scope an environment value down this subtree (SwiftUI {@code .environment}):
+     * the binding is active only while this subtree renders — nearest wins, so an
+     * inner binding overrides an outer one for its subtree. Read it with
+     * {@code env.value(key)} / {@code Environment.value(key)}.
+     */
+    default <T> View environment(EnvironmentKey<T> key, T value) {
+        return modifier(EnvironmentMod.of(key, value));
+    }
+
+    /**
+     * Register a listener for the active platform path (spec DSL.md §4.5 — SwiftUI
+     * {@code onOpenURL}, generalized): fires whenever {@code Platform.ACTIVE_PATH}
+     * changes (including its initial value). Works with or without navigation.
+     */
+    default View onPathChange(java.util.function.Consumer<String> listener) {
+        return modifier(new PathChangeMod(listener));
+    }
 }

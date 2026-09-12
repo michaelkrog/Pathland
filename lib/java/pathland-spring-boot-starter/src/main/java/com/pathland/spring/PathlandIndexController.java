@@ -1,6 +1,6 @@
 package com.pathland.spring;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import com.pathland.server.PathlandRegistry;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -19,7 +19,7 @@ import java.util.UUID;
 
 /**
  * Server-side rendering entry point. Sets a per-session cookie and renders that session's
- * persisted state. The browser sends the same cookie on the WebSocket handshake.
+ * persisted state. The browser sends the same cookie on the WebSocket handshake (1:1).
  *
  * <p>The initial route is part of the platform environment (spec/OPCODE.md §Environment
  * fields): the request path is synthesized into the environment's {@code ROUTE} field, so
@@ -27,14 +27,17 @@ import java.util.UUID;
  * WebSocket later enriches the environment (viewport, …).
  */
 @Controller
-public class IndexController {
+public class PathlandIndexController {
 
-    @Autowired
-    private PathlandService service;
+    private final PathlandRegistry registry;
+
+    public PathlandIndexController(PathlandRegistry registry) {
+        this.registry = registry;
+    }
 
     /**
      * The SPA catch-all: every path renders the session shell seeded at the request path.
-     * Requests carrying an {@code Upgrade} header (the `/ws` WebSocket handshake) are
+     * Requests carrying an {@code Upgrade} header (the {@code /ws} WebSocket handshake) are
      * excluded so they reach the registered WebSocket handler, not this HTML renderer.
      */
     @GetMapping(value = "/{*path}", headers = "!Upgrade")
@@ -46,7 +49,7 @@ public class IndexController {
             sessionId = UUID.randomUUID().toString();
         }
         String route = request.getRequestURI(); // e.g. "/users/42" or "/"
-        String html = service.renderHtml(sessionId, route);
+        String html = registry.renderHtml(sessionId, route);
         ResponseCookie cookie = ResponseCookie.from("session", sessionId).path("/").build();
         return ResponseEntity.ok()
                 .header(HttpHeaders.SET_COOKIE, cookie.toString())
@@ -56,7 +59,8 @@ public class IndexController {
 
     /**
      * The single static asset — served explicitly so the {@code /{*path}} catch-all never
-     * shadows it. Built by {@code lib/typescript} and copied into {@code src/main/resources/static}.
+     * shadows it. Built by {@code lib/typescript} and copied into the app's
+     * {@code src/main/resources/static}.
      */
     @GetMapping(value = "/pathland-dom-renderer.js", produces = "application/javascript")
     @ResponseBody

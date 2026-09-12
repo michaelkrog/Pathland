@@ -1,5 +1,6 @@
 package com.pathland.spring;
 
+import com.pathland.server.PathlandRegistry;
 import com.pathland.view.transport.FrameCodec;
 import org.springframework.web.socket.BinaryMessage;
 import org.springframework.web.socket.CloseStatus;
@@ -14,26 +15,26 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * The live-updates WebSocket endpoint (Spring's counterpart to the Quarkus
- * {@code PathlandSocket}). Sessions are 1:1; the session id rides the {@code session}
- * cookie set on the SSR page. The id is resolved <strong>once per connection</strong>
- * and memoized, so every message (events, close) routes to the same session even when
- * the cookie is absent (e.g. an Angular client with no SSR visit).
+ * The live-updates WebSocket endpoint at {@code /ws}. Sessions are 1:1; the session id
+ * rides the {@code session} cookie set on the SSR page. The id is resolved
+ * <strong>once per connection</strong> and memoized, so every message (events, close)
+ * routes to the same session even when the cookie is absent (e.g. a client with no SSR
+ * visit). The actual session logic lives in the framework-agnostic {@link PathlandRegistry}.
  */
 public class PathlandSocket extends AbstractWebSocketHandler {
 
-    private final PathlandService service;
+    private final PathlandRegistry registry;
     private final Map<WebSocketSession, String> sessionIds = new ConcurrentHashMap<>();
 
-    public PathlandSocket(PathlandService service) {
-        this.service = service;
+    public PathlandSocket(PathlandRegistry registry) {
+        this.registry = registry;
     }
 
     @Override
     public void afterConnectionEstablished(WebSocketSession session) {
         String id = resolveSessionId(session);
         sessionIds.put(session, id);
-        service.open(id, session);
+        registry.open(id, new SpringConnection(session));
     }
 
     @Override
@@ -41,13 +42,13 @@ public class PathlandSocket extends AbstractWebSocketHandler {
         if (message instanceof BinaryMessage binary) {
             byte[] bytes = toByteArray(binary.getPayload());
             if (FrameCodec.isResync(bytes)) {
-                service.resync(sessionId(session));
+                registry.resync(sessionId(session));
             } else if (FrameCodec.isEnvironment(bytes)) {
                 // The DOM client's FIRST message: seeds the session (created lazily) from
                 // the ROUTE field; later messages enrich the environment (viewport, …).
-                service.environment(sessionId(session), FrameCodec.decodeEnvironment(bytes));
+                registry.environment(sessionId(session), FrameCodec.decodeEnvironment(bytes));
             } else {
-                service.dispatch(sessionId(session), bytes);
+                registry.dispatch(sessionId(session), bytes);
             }
         }
     }
@@ -65,7 +66,7 @@ public class PathlandSocket extends AbstractWebSocketHandler {
     private void close(WebSocketSession session) {
         String id = sessionIds.remove(session);
         if (id != null) {
-            service.close(id);
+            registry.close(id);
         }
     }
 

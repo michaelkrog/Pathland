@@ -44,27 +44,27 @@ public final class RouteTable {
     public Optional<RouteMatch> match(String path) {
         String pathOnly = Route.of(path).pathOnly();
         for (Entry entry : entries) {
-            Optional<Map<String, String>> params = entry.match(pathOnly);
+            Optional<Params> params = entry.match(pathOnly);
             if (params.isEmpty()) {
                 continue;
             }
-            Map<String, String> captured = params.get();
+            Params captured = params.get();
             if (entry.guard != null && !entry.guard.test(captured)) {
                 return Optional.of(RouteMatch.redirect(entry.redirect));
             }
             return Optional.of(new RouteMatch(pathOnly, captured, entry.handler, null));
         }
         if (fallback != null) {
-            return Optional.of(new RouteMatch(pathOnly, Map.of(), fallback, null));
+            return Optional.of(new RouteMatch(pathOnly, Params.none(), fallback, null));
         }
         return Optional.empty();
     }
 
     /** A match: either a destination (handler + params) or a guard redirect. */
-    public record RouteMatch(String path, Map<String, String> params, RouteHandler handler, String redirect) {
+    public record RouteMatch(String path, Params params, RouteHandler handler, String redirect) {
 
         static RouteMatch redirect(String target) {
-            return new RouteMatch(null, Map.of(), null, target);
+            return new RouteMatch(null, Params.none(), null, target);
         }
 
         /** True when a guard redirected this match (replace, not mount). */
@@ -79,16 +79,33 @@ public final class RouteTable {
         private final List<Entry> entries = new ArrayList<>();
         private RouteHandler fallback;
 
-        /** A path → destination entry. */
+        /** A path → destination entry (no params). */
+        public Builder route(String pattern, View view) {
+            entries.add(new Entry(pattern, params -> view, null, null));
+            return this;
+        }
+
+        /** A path → destination entry (with params). */
         public Builder route(String pattern, RouteHandler handler) {
             entries.add(new Entry(pattern, handler, null, null));
             return this;
         }
 
         /** A path → destination entry gated by a guard; on failure the router replaces to {@code redirect}. */
-        public Builder route(String pattern, Predicate<Map<String, String>> guard, String redirect, RouteHandler handler) {
+        public Builder route(String pattern, Predicate<Params> guard, String redirect, View view) {
+            entries.add(new Entry(pattern, params -> view, Objects.requireNonNull(guard, "guard"), redirect));
+            return this;
+        }
+
+        /** A path → destination entry gated by a guard (params destination). */
+        public Builder route(String pattern, Predicate<Params> guard, String redirect, RouteHandler handler) {
             entries.add(new Entry(pattern, handler, Objects.requireNonNull(guard, "guard"), redirect));
             return this;
+        }
+
+        /** The catch-all handler for paths that match no pattern (the 404). */
+        public Builder fallback(View view) {
+            return fallback(params -> view);
         }
 
         /** The catch-all handler for paths that match no pattern (the 404). */
@@ -106,17 +123,17 @@ public final class RouteTable {
 
         private final List<Segment> segments;
         private final RouteHandler handler;
-        private final Predicate<Map<String, String>> guard;
+        private final Predicate<Params> guard;
         private final String redirect;
 
-        Entry(String pattern, RouteHandler handler, Predicate<Map<String, String>> guard, String redirect) {
+        Entry(String pattern, RouteHandler handler, Predicate<Params> guard, String redirect) {
             this.segments = parse(pattern);
             this.handler = handler;
             this.guard = guard;
             this.redirect = redirect;
         }
 
-        Optional<Map<String, String>> match(String path) {
+        Optional<Params> match(String path) {
             String[] given = split(path);
             if (given.length != segments.size()) {
                 return Optional.empty();
@@ -128,7 +145,7 @@ public final class RouteTable {
                     return Optional.empty();
                 }
             }
-            return Optional.of(params);
+            return Optional.of(Params.of(params, path));
         }
 
         static List<Segment> parse(String pattern) {

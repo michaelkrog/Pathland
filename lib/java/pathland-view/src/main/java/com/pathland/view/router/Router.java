@@ -38,11 +38,46 @@ public final class Router {
 
     private final RouteTable table;
     private final Deque<Route> stack = new ArrayDeque<>();
-    private final WritableSignal<Route> current = Signals.signal(Route.of("/"));
+    private final WritableSignal<Route> current;
+    private final WritableSignal<String> boundPath; // the Platform.ACTIVE_PATH signal, or null
+    private boolean selfWriting;
 
     /** A router over {@code table}; seed the initial route with {@link #navigate(String)} before mount. */
     public Router(RouteTable table) {
         this.table = Objects.requireNonNull(table, "table");
+        this.current = Signals.signal(Route.of("/"));
+        this.boundPath = null;
+    }
+
+    /**
+     * A router over {@code table} **bound to an external active-path signal**
+     * (the host-provided {@code Platform.ACTIVE_PATH}, spec DSL.md §4.5). The signal
+     * is the single source of truth:
+     *
+     * <ul>
+     *   <li>external writes to the signal (the host setting a deep-link/popstate path)
+     *       are re-routed through the guard-aware path ({@link #handlePlatformNavigation}) —
+     *       guards are never bypassed;</li>
+     *   <li>the router's own navigation ({@code navigate}/{@code push}/{@code pop}/
+     *       {@code replace}) is mirrored back into the signal;</li>
+     *   <li>the initial value is guard-processed on construction.</li>
+     * </ul>
+     */
+    public Router(RouteTable table, WritableSignal<String> activePath) {
+        this.table = Objects.requireNonNull(table, "table");
+        Objects.requireNonNull(activePath, "activePath");
+        String initial = activePath.get();
+        this.current = Signals.signal(Route.of(pathOf(initial == null ? "/" : initial)));
+        this.boundPath = activePath;
+        // External writes to the signal are platform navigation → re-route guard-aware.
+        // Its initial run guard-processes the current value. Self-writes are skipped.
+        // allowWrites: re-routing sets the router's own signals (current + the bound path).
+        Signals.effect(() -> {
+            String path = activePath.get();
+            if (!selfWriting && path != null) {
+                handlePlatformNavigation(path);
+            }
+        }, com.pathland.view.signal.EffectOptions.allowWrites());
     }
 
     /** The current route signal — the structural container's selector. */
@@ -154,9 +189,22 @@ public final class Router {
     private void go(Route route) {
         RouteTable.RouteMatch match = table.match(route.path()).orElse(null);
         if (match != null && match.isRedirect()) {
-            current.set(Route.of(match.redirect())); // guard blocked: replace, not mount
+            setCurrent(Route.of(match.redirect())); // guard blocked: replace, not mount
             return;
         }
+        setCurrent(route);
+    }
+
+    /** Set the current route and mirror it into the bound active-path signal (guarded). */
+    private void setCurrent(Route route) {
         current.set(route);
+        if (boundPath != null) {
+            selfWriting = true;
+            try {
+                boundPath.set(route.pathOnly());
+            } finally {
+                selfWriting = false;
+            }
+        }
     }
 }

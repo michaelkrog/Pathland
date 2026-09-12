@@ -118,6 +118,27 @@ public final class PathlandNode {
      */
     public com.pathland.view.router.Router router;
 
+    /**
+     * The environment scope that must apply when this node's children render. A
+     * structural slot (a {@code NavigationContainer} or {@code Conditional.when}
+     * slot) captures the scope its destination subtree should see — the incoming
+     * scope plus any slot-provided bindings (e.g. the container's router) — so the
+     * emitter can re-apply it when the slot re-renders its destination in
+     * {@code Emitter.reconcileSlot} (destinations read values like
+     * {@code Navigation.ROUTER} on every re-render, not just mount).
+     */
+    public com.pathland.view.EnvironmentValues environmentForChildren;
+
+    /**
+     * Listeners for the active platform path (spec DSL.md §4.5 — {@code onPathChange}):
+     * the emitter registers a node-level effect watching {@link #activePath} that fires
+     * them on change, destroyed when this subtree is replaced.
+     */
+    public final java.util.List<java.util.function.Consumer<String>> pathChangeListeners = new ArrayList<>();
+
+    /** The active-path signal ({@code Platform.ACTIVE_PATH}) captured at render; null when not provided. */
+    public com.pathland.view.signal.WritableSignal<String> activePath;
+
     public PathlandNode(int component) {
         this.component = component;
     }

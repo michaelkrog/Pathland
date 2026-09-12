@@ -23,6 +23,9 @@
         <module>pathland-view-processor</module>
         <module>pathland-render-html</module>
         <module>pathland-state-redis</module>
+        <module>pathland-server-core</module>
+        <module>pathland-spring-boot-starter</module>
+        <module>pathland-quarkus-starter</module>
         <module>pathland-demo-views</module>
         <module>pathland-quarkus-demo</module>
         <module>pathland-spring-boot-demo</module>
