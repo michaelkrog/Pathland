@@ -1,6 +1,6 @@
 # Pathland
 
-> Declarative UI, written in your backend. No JavaScript.
+> An open UI protocol — declarative UI, written in your backend. No JavaScript.
 
 **Status: proof of concept.** It works end to end and the tests are green, but the
 wire format and APIs may change before 1.0.
@@ -112,7 +112,13 @@ resources. It's shipped, not maintained — all the real logic lives in your bac
 
 - **Java** — Spring Boot and Quarkus, with SSR + WebSocket demos.
 - **Rust** — a native GTK4 desktop renderer.
-- **Designed for** mobile, embedded (LVGL), and in-browser WASM — not built yet.
+- **Planned** — mobile apps, embedded devices (LVGL), and in-browser WASM.
+
+Because Pathland is a protocol, the plan is to render the same backend description
+directly on the device — client-side rendering (CSR), embedded, and mobile apps each
+get a native renderer that consumes the binary stream through an ultra-fast shared
+ring buffer. Nothing is serialized or re-rendered: the renderer applies the tiny
+updates in place, which is what keeps the UI stutter-free, even on small devices.
 
 ## Try it
 
